@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SpotMe · Chat V7</title>
+<title>SpotMe · Chat</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -545,17 +545,57 @@ function tryReconnect() {
 }
 
 /* ══ SETUP CONN ══ */
-function setupConn(isCaller) {
-  document.getElementById('sbtn').disabled = true;
 
-  conn.on('open', () => {
-    conn.send({ t:'hi', name: myName, code: myCode });
-    if (isCaller) {
-      // Anrufer: Name erst nach 'hi' bekannt, aber wir können schon schreiben
-      setChatOnline(true);
+function setupConn(c) {
+  conn = c;
+  
+  // Die Logik, was passieren soll, wenn die Verbindung steht, packen wir in eine Konstante
+  const onConnectionOpen = () => {
+    partnerCode = conn.peer;
+    partnerName = conn.metadata?.name || 'Partner';
+    
+    // Fallback: Falls buildCID in deiner Version anders heißt, passe es an (z.B. einfach chatId generieren)
+    chatId = buildCID(myCode, partnerCode);
+    
+    document.getElementById('peer-name-lbl').textContent = partnerName;
+    document.getElementById('peer-status-lbl').textContent = '● Verbunden';
+    document.getElementById('peer-status-lbl').style.color = 'var(--green)';
+    document.getElementById('send-btn').disabled = false;
+    
+    document.getElementById('messages').innerHTML = '';
+    loadHistory();
+    showScreen('s-chat');
+  };
+
+  // 🛠️ DER FIX: Wir prüfen, ob die Verbindung in der Zwischenzeit schon geöffnet wurde!
+  if (conn.open) {
+    onConnectionOpen(); // Wenn ja, direkt ausführen!
+  } else {
+    conn.on('open', onConnectionOpen); // Wenn nein, wie gewohnt auf das Event warten
+  }
+
+  // Daten und Schließen wie gewohnt abhandeln
+  conn.on('data', (data) => {
+    // Falls deine Empfangsfunktion 'receiveMessage' heißt, ändere das hier ab:
+    if (typeof handleIncomingData === 'function') {
+      handleIncomingData(data);
+    } else if (typeof receiveMessage === 'function') {
+      receiveMessage(data);
     }
-    // Empfänger: wird nach 'hi' aktiviert
   });
+
+  conn.on('close', () => {
+    const statusLbl = document.getElementById('peer-status-lbl');
+    if(statusLbl) {
+        statusLbl.textContent = '○ Verbindung getrennt';
+        statusLbl.style.color = 'var(--muted)';
+    }
+    const sendBtn = document.getElementById('send-btn');
+    if(sendBtn) sendBtn.disabled = true;
+    conn = null;
+  });
+}
+
 
   conn.on('data', data => {
     if (data.t === 'hi') {
