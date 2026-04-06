@@ -513,9 +513,7 @@ function acceptCall() {
   conn        = pendingConn;
   pendingConn = null;
   chatId      = buildCID(myCode, partnerCode);
-  setupConn(false);
-  prepChat();
-  showScreen('s-chat');
+  setupConn(false); // false = wir sind Empfänger
 }
 
 function declineCall() {
