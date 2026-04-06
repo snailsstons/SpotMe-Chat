@@ -406,14 +406,14 @@ h2 { font-family:'Syne',sans-serif; font-weight:700; font-size:1.45rem; letter-s
 <script>
 'use strict';
 
-/* ══ CONFIG — Serveradresse hier anpassen ══ */
+/* ══ CONFIG ══ */
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs/app';
 
 /* ══ STATE ══ */
 let peer        = null;
 let conn        = null;
-let pendingConn = null;   // eingehende Verbindung, noch nicht angenommen
+let pendingConn = null;
 let myCode      = '';
 let myName      = '';
 let partnerCode = '';
@@ -422,7 +422,7 @@ let chatId      = '';
 let lastDate    = null;
 let unread      = 0;
 
-const CHUNK = 16384; // 16 KB
+const CHUNK = 16384;
 let fileBufs = {};
 
 /* ══ INIT ══ */
@@ -432,7 +432,8 @@ window.addEventListener('load', () => {
   localStorage.setItem('sm_code', myCode);
   localStorage.setItem('sm_name', myName);
 
-  document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
+  document.getElementById('mycode').textContent =
+    myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   initDigits();
   renderPrev();
   wakeServer();
@@ -440,8 +441,6 @@ window.addEventListener('load', () => {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
-
-  // Close dropdown on outside click
   document.addEventListener('click', e => {
     if (!e.target.closest('.bar-btns') && !e.target.closest('.drop')) closeDrop();
   });
@@ -454,86 +453,84 @@ function newName() {
   return `${a[Math.random()*a.length|0]}_${b[Math.random()*b.length|0]}`;
 }
 
-/* ══ SERVER WAKEUP (Render.com Free Tier schläft ein) ══ */
+/* ══ SERVER WAKEUP (Render.com Free Tier) ══ */
 async function wakeServer() {
   setSpill('connecting', 'Server wird gestartet...');
   try {
-    const res = await fetch('https://' + SERVER_HOST + '/', { signal: AbortSignal.timeout(20000) });
-    if (res.ok) { setSpill('connecting', 'Verbinde mit PeerJS...'); }
-  } catch(e) {
-    // Server nicht erreichbar — trotzdem versuchen
-  }
+    await fetch('https://' + SERVER_HOST + '/', { mode:'no-cors' });
+  } catch(e) { /* ignore — still try PeerJS */ }
   initPeer();
 }
 
 /* ══ PEERJS ══ */
 function initPeer() {
-  setSpill('connecting', 'Verbinde mit Server...');
-  if (peer) { try { peer.destroy(); } catch(e){} }
+  setSpill('connecting', 'Verbinde...');
+  if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
 
   peer = new Peer(myCode, {
-    host: SERVER_HOST,
-    port: 443,
-    path: SERVER_PATH,
-    secure: true,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    }
+    host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true,
+    config: { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478'  }
+    ]}
   });
 
-  peer.on('open', () => {
-    setSpill('online', '● Online · Code aktiv');
-  });
+  peer.on('open', () => setSpill('online', '● Online · Code aktiv'));
 
   peer.on('error', err => {
-    console.warn('PeerJS:', err.type);
+    console.warn('Peer error:', err.type, err.message);
     if (err.type === 'unavailable-id') {
-      // Code vergeben — neuen generieren
       myCode = newCode();
       localStorage.setItem('sm_code', myCode);
-      document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
-      initPeer();
-      return;
+      document.getElementById('mycode').textContent =
+        myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
+      initPeer(); return;
     }
-    setSpill('offline', '⚠️ Verbindungsfehler');
-    setTimeout(initPeer, 6000);
+    setSpill('offline', '⚠️ Verbindungsfehler · Neuer Versuch...');
+    setTimeout(initPeer, 5000);
   });
 
   peer.on('disconnected', () => {
-    setSpill('connecting', 'Verbindung unterbrochen...');
-    setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 4000);
+    setSpill('connecting', 'Unterbrochen · Verbinde erneut...');
+    setTimeout(() => { if (peer && !peer.destroyed) peer.reconnect(); }, 3000);
   });
 
-  // ── Eingehender Anruf → Annahme-Screen zeigen ──
-  peer.on('connection', incomingConn => {
-    // Bereits verbunden → ablehnen
-    if (conn) { incomingConn.close(); return; }
+  // ── Eingehende Verbindung ──
+  peer.on('connection', incoming => {
+    if (conn) { incoming.close(); return; } // bereits im Chat
 
-    pendingConn  = incomingConn;
-    partnerCode  = incomingConn.peer;
-    partnerName  = incomingConn.metadata?.name || 'Unbekannt_' + partnerCode;
+    pendingConn = incoming;
+    partnerCode = incoming.peer;
+    partnerName = incoming.metadata?.name || ('Nutzer_' + incoming.peer);
 
     document.getElementById('caller-name').textContent = partnerName;
     document.getElementById('caller-code').textContent = 'Code: ' + partnerCode;
-
     showScreen('s-incoming');
+
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
+
+    // Anrufer legt auf bevor Annehmen gedrückt wird
+    incoming.on('close', () => {
+      if (pendingConn === incoming) {
+        pendingConn = null;
+        showScreen('s-home');
+        toast('○ Anrufer hat aufgelegt');
+      }
+    });
   });
 }
 
-/* ══ CALL ACCEPT / DECLINE ══ */
+/* ══ ANNEHMEN / ABLEHNEN ══ */
 function acceptCall() {
-  if (!pendingConn) return;
-  conn        = pendingConn;
+  if (!pendingConn) { toast('⚠️ Verbindung nicht mehr verfügbar'); return; }
+  const c = pendingConn;
   pendingConn = null;
-  chatId      = buildCID(myCode, partnerCode);
-  setupConn(false);
-  prepChat();
-  showScreen('s-chat');
+  partnerCode = c.peer;
+  partnerName = c.metadata?.name || ('Nutzer_' + c.peer);
+  chatId = buildCID(myCode, partnerCode);
+  openChat(c);
 }
 
 function declineCall() {
@@ -541,93 +538,90 @@ function declineCall() {
   showScreen('s-home');
 }
 
-/* ══ CONNECT (Caller) ══ */
+/* ══ CONNECT (Anrufer) ══ */
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6) return;
   if (code === myCode) { toast('⚠️ Das ist dein eigener Code'); return; }
+  if (!peer || !peer.open) { toast('⚠️ Noch nicht mit Server verbunden'); return; }
   partnerCode = code;
   partnerName = 'Nutzer_' + code;
-  chatId      = buildCID(myCode, code);
-  conn        = peer.connect(code, { reliable:true, metadata:{ name: myName } });
-  setupConn(true); // true = wir sind Anrufer
-  prepChat();
-  showScreen('s-chat');
+  chatId = buildCID(myCode, code);
+  const c = peer.connect(code, { reliable: true, metadata: { name: myName } });
+  openChat(c);
 }
 
 /* ══ RECONNECT ══ */
 function tryReconnect() {
-  document.getElementById('rcbar').classList.remove('show');
   if (!partnerCode) return;
-  conn = peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } });
-  setupConn(true);
+  document.getElementById('rcbar').classList.remove('show');
+  const c = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
+  openChat(c);
   toast('↺ Verbinde erneut...');
 }
 
-/* ══ SETUP CONN ══ */
-function setupConn(isCaller) {
-  document.getElementById('sbtn').disabled = true;
+/* ══ OPEN CHAT — einzige Stelle für alle Verbindungslogik ══
+   Gleich für Anrufer UND Empfänger.
+   Kein isCaller, kein 'hi'-Handshake.
+   Chat öffnet sobald DataChannel open ist — wie in v6.          */
+function openChat(c) {
+  // Alten Listener entfernen falls reconnect
+  if (conn && conn !== c) {
+    try { conn.removeAllListeners(); conn.close(); } catch(e) {}
+  }
+  conn = c;
 
-  conn.on('open', () => {
-    conn.send({ t:'hi', name: myName, code: myCode });
-    if (isCaller) {
-      // Anrufer: Name erst nach 'hi' bekannt, aber wir können schon schreiben
-      setChatOnline(true);
-    }
-    // Empfänger: wird nach 'hi' aktiviert
-  });
+  // Zeige Chat-Screen sofort mit Spinner
+  prepChatScreen();
+  showScreen('s-chat');
 
-  conn.on('data', data => {
-    if (data.t === 'hi') {
-      partnerName = data.name || ('Nutzer_' + partnerCode);
-      partnerCode = data.code || partnerCode;
-      chatId      = buildCID(myCode, partnerCode);
+  const onOpen = () => {
+    // Verbindung offen → Chat aktiv
+    document.getElementById('sbtn').disabled = false;
+    document.getElementById('rcbar').classList.remove('show');
+    document.getElementById('pstatus').textContent = '● Verbunden';
+    document.getElementById('pstatus').className   = 'pstatus';
+    document.getElementById('pav').className       = 'pav';
+    // Spinner ersetzen
+    const h = document.getElementById('ehint');
+    if (h) h.innerHTML = `
+      <div class="eico">💬</div>
+      <div style="font-weight:500">Verbunden!</div>
+      <div style="font-size:.7rem;margin-top:.4rem;opacity:.5">🔒 P2P · Lokal gespeichert</div>`;
+    // Name aus Metadata holen falls bekannt
+    if (conn.metadata?.name) {
+      partnerName = conn.metadata.name;
       document.getElementById('pname').textContent = partnerName;
-      updateIdx('');
-
-      // Empfänger: Screen zeigen (prepChat bereits in acceptCall gemacht)
-      if (!isCaller) {
-        showScreen('s-chat');
-      }
-      setChatOnline(true); // immer NACH prepChat – sonst wird sbtn wieder deaktiviert
-    } else {
-      handleData(data);
     }
-  });
+    updateIdx('');
+  };
+
+  // ── Kern-Fix: open kann bereits gefeuert haben (Empfänger nach Annehmen) ──
+  if (conn.open) {
+    onOpen();
+  } else {
+    conn.on('open', onOpen);
+  }
+
+  conn.on('data', d => handleData(d));
 
   conn.on('close', () => {
-    setChatOnline(false);
-    document.getElementById('sbtn').disabled = true;
+    conn = null;
+    document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
+    document.getElementById('pstatus').className   = 'pstatus dim';
+    document.getElementById('pav').className       = 'pav off';
+    document.getElementById('sbtn').disabled       = true;
     document.getElementById('rcbar').classList.add('show');
     toast('○ Verbindung getrennt');
   });
 
-  conn.on('error', () => {
-    setChatOnline(false);
+  conn.on('error', err => {
+    console.warn('conn error:', err);
     document.getElementById('rcbar').classList.add('show');
   });
 }
 
-function setChatOnline(on) {
-  const sl = document.getElementById('pstatus');
-  const av = document.getElementById('pav');
-  if (on) {
-    sl.textContent = '● Verbunden';
-    sl.className   = 'pstatus';
-    av.className   = 'pav';
-    document.getElementById('sbtn').disabled = false;
-    document.getElementById('rcbar').classList.remove('show');
-    // Remove loading hint
-    const h = document.getElementById('ehint');
-    if (h) { h.innerHTML = `<div class="eico">💬</div><div style="font-weight:500">Verbunden!</div><div style="font-size:.7rem;margin-top:.4rem;opacity:.5">🔒 P2P · Lokal gespeichert</div>`; }
-  } else {
-    sl.textContent = '○ Verbindung getrennt';
-    sl.className   = 'pstatus dim';
-    av.className   = 'pav off';
-  }
-}
-
-function prepChat() {
+function prepChatScreen() {
   document.getElementById('pname').textContent   = partnerName;
   document.getElementById('pstatus').textContent = '○ Verbinde...';
   document.getElementById('pstatus').className   = 'pstatus dim';
@@ -635,7 +629,10 @@ function prepChat() {
   document.getElementById('sbtn').disabled       = true;
   document.getElementById('rcbar').classList.remove('show');
   const list = document.getElementById('messages');
-  list.innerHTML = `<div class="empty" id="ehint"><div class="eico">💬</div><div class="srow"><div class="spin"></div>Verbindung wird aufgebaut...</div></div>`;
+  list.innerHTML = `<div class="empty" id="ehint">
+    <div class="eico">💬</div>
+    <div class="srow"><div class="spin"></div>Verbindung wird aufgebaut...</div>
+  </div>`;
   lastDate = null;
   loadHistory();
 }
@@ -644,56 +641,55 @@ function prepChat() {
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
-  if (!text || !conn || conn.open === false) return;
+  if (!text) return;
+  if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
   const msg = { t:'text', text, ts: Date.now() };
   conn.send(msg);
   appendMsg({ ...msg, own:true });
   persistMsg({ ...msg, own:true });
+  updateIdx(text);
   inp.value = ''; inp.style.height = 'auto';
 }
 
 /* ══ SEND FILE ══ */
 async function sendFile(input) {
-  const file = input.files[0];
-  input.value = '';
-  if (!file || !conn) return;
+  const file = input.files[0]; input.value = '';
+  if (!file) return;
+  if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
   if (file.size > 100 * 1024 * 1024) { toast('⚠️ Max. 100 MB'); return; }
 
-  const id     = Math.random().toString(36).slice(2, 10);
-  const total  = Math.ceil(file.size / CHUNK);
-
+  const id    = Math.random().toString(36).slice(2, 10);
+  const total = Math.ceil(file.size / CHUNK);
   conn.send({ t:'file-start', id, name:file.name, fileType:file.type, size:file.size, totalChunks:total });
-  showUP(true);
-  toast(`📤 Sende "${file.name}"...`);
+  showUP(true); toast(`📤 Sende "${file.name}"...`);
 
   const reader = new FileReader();
   let offset = 0, chunk = 0;
-
   reader.onload = async e => {
     conn.send({ t:'file-chunk', id, index:chunk, data:e.target.result });
     offset += CHUNK; chunk++;
-    document.getElementById('upfill').style.width = Math.floor((chunk/total)*100) + '%';
+    document.getElementById('upfill').style.width = Math.floor((chunk/total)*100)+'%';
     if (offset < file.size) {
       if (chunk % 20 === 0) await new Promise(r => setTimeout(r, 20));
       reader.readAsArrayBuffer(file.slice(offset, offset + CHUNK));
     } else {
       conn.send({ t:'file-end', id });
-      showUP(false);
-      toast(`✅ "${file.name}" gesendet!`);
+      showUP(false); toast(`✅ "${file.name}" gesendet!`);
       const url = await fileDataUrl(file);
       const msg = { t:'file', name:file.name, fileType:file.type, size:file.size, data:url, ts:Date.now(), own:true };
-      appendMsg(msg); persistMsg(msg);
+      appendMsg(msg); persistMsg(msg); updateIdx('📎 ' + file.name);
     }
   };
   reader.readAsArrayBuffer(file.slice(0, CHUNK));
 }
 
 function showUP(v) {
-  const el = document.getElementById('upbar');
-  el.style.opacity = v ? '1' : '0';
+  document.getElementById('upbar').style.opacity = v ? '1' : '0';
   if (!v) setTimeout(() => { document.getElementById('upfill').style.width = '0%'; }, 300);
 }
-function fileDataUrl(f) { return new Promise((r,j) => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.onerror = j; rd.readAsDataURL(f); }); }
+function fileDataUrl(f) {
+  return new Promise((r,j) => { const rd = new FileReader(); rd.onload = ()=>r(rd.result); rd.onerror=j; rd.readAsDataURL(f); });
+}
 
 /* ══ RECEIVE DATA ══ */
 function handleData(d) {
@@ -705,11 +701,9 @@ function handleData(d) {
     fileBufs[d.id] = { meta:d, chunks:new Array(d.totalChunks).fill(null) };
     toast(`📥 Empfange "${d.name}"...`);
   } else if (d.t === 'file-chunk') {
-    const b = fileBufs[d.id];
-    if (b) b.chunks[d.index] = d.data;
+    const b = fileBufs[d.id]; if (b) b.chunks[d.index] = d.data;
   } else if (d.t === 'file-end') {
-    const b = fileBufs[d.id];
-    if (!b) return;
+    const b = fileBufs[d.id]; if (!b) return;
     const valid = b.chunks.filter(c => c !== null);
     if (valid.length !== b.meta.totalChunks) { toast('❌ Übertragungsfehler'); return; }
     const blob = new Blob(valid, { type:b.meta.fileType });
@@ -717,7 +711,7 @@ function handleData(d) {
     rd.onload = e => {
       const msg = { t:'file', name:b.meta.name, fileType:b.meta.fileType, size:b.meta.size, data:e.target.result, ts:Date.now(), own:false };
       appendMsg(msg); persistMsg(msg); updateIdx('📎 ' + b.meta.name);
-      notify('📎 Datei empfangen: ' + b.meta.name);
+      notify('📎 Datei: ' + b.meta.name);
       delete fileBufs[d.id];
     };
     rd.readAsDataURL(blob);
@@ -728,259 +722,219 @@ function handleData(d) {
 function appendMsg(msg) {
   const list = document.getElementById('messages');
   const hint = document.getElementById('ehint');
-  if (hint && hint.querySelector('.spin')) { /* keep loading hint */ } else if (hint) hint.remove();
+  if (hint && !hint.querySelector('.spin')) hint.remove();
 
   const d  = new Date(msg.ts);
-  const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' });
-  const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
-
+  const ds = d.toLocaleDateString('de-DE',{weekday:'long',day:'2-digit',month:'long'});
+  const ts = d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
   if (ds !== lastDate) {
     lastDate = ds;
     const sep = document.createElement('div');
-    sep.className = 'dsep';
-    sep.textContent = ds;
+    sep.className = 'dsep'; sep.textContent = ds;
     list.appendChild(sep);
   }
-
   const w = document.createElement('div');
   w.className = 'msg ' + (msg.own ? 'msg-o' : 'msg-i');
-
-  let html = '';
   if (msg.t === 'text') {
-    html = `<div class="bbl"><div class="btxt">${esc(msg.text)}</div><div class="btime">${ts}${msg.own?' ✓✓':''}</div></div>`;
+    w.innerHTML = `<div class="bbl"><div class="btxt">${esc(msg.text)}</div><div class="btime">${ts}${msg.own?' ✓✓':''}</div></div>`;
   } else if (msg.t === 'file') {
-    const isImg = msg.fileType && msg.fileType.startsWith('image/');
+    const isImg = msg.fileType?.startsWith('image/');
     if (isImg) {
-      html = `<div class="imgbbl" onclick="bigImg('${msg.data}')"><img src="${msg.data}" loading="lazy"></div><div class="btime">${ts}${msg.own?' ✓✓':''}</div>`;
+      w.innerHTML = `<div class="imgbbl" onclick="bigImg('${msg.data}')"><img src="${msg.data}" loading="lazy"></div><div class="btime">${ts}${msg.own?' ✓✓':''}</div>`;
     } else {
-      html = `<a class="filbbl" href="${msg.data}" download="${esc(msg.name)}"><span class="fico">${fEmoji(msg.fileType)}</span><div class="fmeta"><div class="fname">${esc(msg.name)}</div><div class="fsize">${fmtSz(msg.size||0)} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${msg.own?' ✓✓':''}</div>`;
+      w.innerHTML = `<a class="filbbl" href="${msg.data}" download="${esc(msg.name)}"><span class="fico">${fEmoji(msg.fileType)}</span><div class="fmeta"><div class="fname">${esc(msg.name)}</div><div class="fsize">${fmtSz(msg.size||0)}</div></div></a><div class="btime">${ts}${msg.own?' ✓✓':''}</div>`;
     }
   }
-
-  w.innerHTML = html;
-  list.appendChild(w);
-  list.scrollTop = list.scrollHeight;
+  list.appendChild(w); list.scrollTop = list.scrollHeight;
 }
 
-function bigImg(url) { const w = window.open(); w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`); }
-function fEmoji(t) { if (!t) return '📄'; if (t.includes('pdf')) return '📕'; if (t.includes('zip')) return '🗜️'; if (t.includes('video')) return '🎥'; return '📄'; }
-function fmtSz(b) { if (b < 1024) return b + 'B'; if (b < 1048576) return (b/1024).toFixed(1) + 'KB'; return (b/1048576).toFixed(1) + 'MB'; }
+function bigImg(url) {
+  const w = window.open();
+  w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`);
+}
+function fEmoji(t){if(!t)return'📄';if(t.includes('pdf'))return'📕';if(t.includes('zip'))return'🗜️';if(t.includes('video'))return'🎥';return'📄';}
+function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
 
 /* ══ PERSISTENCE ══ */
-function buildCID(a, b) { return 'sm_' + [a, b].sort().join('_'); }
+function buildCID(a,b){ return 'sm_'+[a,b].sort().join('_'); }
 
 function persistMsg(m) {
   if (!chatId) return;
-  const k = 'smmsg_' + chatId;
-  const arr = JSON.parse(localStorage.getItem(k) || '[]');
-  arr.push(m);
-  if (arr.length > 300) arr.splice(0, arr.length - 300);
-  localStorage.setItem(k, JSON.stringify(arr));
+  const k='smmsg_'+chatId, arr=JSON.parse(localStorage.getItem(k)||'[]');
+  arr.push(m); if(arr.length>300) arr.splice(0,arr.length-300);
+  localStorage.setItem(k,JSON.stringify(arr));
 }
 
 function loadHistory() {
   if (!chatId) return;
   lastDate = null;
-  const list = document.getElementById('messages');
-  const arr  = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
-  // Remove loading spinner before history
-  const h = document.getElementById('ehint');
-  if (h) h.remove();
-  arr.forEach(m => appendMsg(m));
+  const h = document.getElementById('ehint'); if(h) h.remove();
+  JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]').forEach(m=>appendMsg(m));
 }
 
 function updateIdx(preview) {
   if (!chatId) return;
-  const k = 'sm_idx';
-  const idx = JSON.parse(localStorage.getItem(k) || '[]');
-  const i = idx.findIndex(c => c.id === chatId);
-  const e = { id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), preview };
-  if (i >= 0) idx[i] = e; else idx.unshift(e);
-  localStorage.setItem(k, JSON.stringify(idx.slice(0, 20)));
+  const k='sm_idx', idx=JSON.parse(localStorage.getItem(k)||'[]');
+  const i=idx.findIndex(c=>c.id===chatId);
+  const e={id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), preview};
+  if(i>=0) idx[i]=e; else idx.unshift(e);
+  localStorage.setItem(k,JSON.stringify(idx.slice(0,20)));
   renderPrev();
 }
 
 /* ══ PREV CHATS ══ */
 function renderPrev() {
-  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
-  const sec = document.getElementById('prev-sec');
-  const lst = document.getElementById('prev-list');
-  if (!idx.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  lst.innerHTML = idx.map(c => {
-    const d = new Date(c.ts);
-    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
-      ? d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})
-      : d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit'});
-    return `
-    <div class="chat-item" onclick="reconnectTo('${c.code}','${esc(c.partner)}','${c.id}')">
+  const idx=JSON.parse(localStorage.getItem('sm_idx')||'[]');
+  const sec=document.getElementById('prev-sec'), lst=document.getElementById('prev-list');
+  if(!idx.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  lst.innerHTML=idx.map(c=>{
+    const d=new Date(c.ts);
+    const t=d.toLocaleDateString('de-DE')===new Date().toLocaleDateString('de-DE')
+      ?d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})
+      :d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'});
+    return `<div class="chat-item" onclick="reconnectTo('${c.code}','${esc(c.partner)}','${c.id}')">
       <div class="cav">🧑</div>
-      <div class="cinfo">
-        <div class="cname">${esc(c.partner)}</div>
-        <div class="cprev">${esc(c.preview || '—')}</div>
-      </div>
-      <div class="cmeta">
-        <div class="ctime">${t}</div>
-        <div class="ctag">${c.code}</div>
-      </div>
+      <div class="cinfo"><div class="cname">${esc(c.partner)}</div><div class="cprev">${esc(c.preview||'—')}</div></div>
+      <div class="cmeta"><div class="ctime">${t}</div><div class="ctag">${c.code}</div></div>
     </div>`;
   }).join('');
 }
 
-/* ── Vorhandenen Chat öffnen → ERST verbinden, dann Chat öffnen ── */
 function reconnectTo(code, name, cid) {
-  partnerCode = code;
-  partnerName = name;
-  chatId      = cid;
-  // Verbindung aufbauen — der Partner bekommt den Incoming-Screen
-  conn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
-  setupConn(true);
-  prepChat();
-  showScreen('s-chat');
+  if (!peer || !peer.open) { toast('⚠️ Warte auf Server...'); return; }
+  partnerCode=code; partnerName=name; chatId=cid;
+  const c = peer.connect(code, { reliable:true, metadata:{ name: myName } });
+  openChat(c);
 }
 
-/* ══ CHAT MENU ACTIONS ══ */
+/* ══ MENU ACTIONS ══ */
 function clearChat() {
   if (!confirm('Verlauf auf diesem Gerät löschen?')) return;
   closeDrop();
   if (!chatId) return;
-  localStorage.removeItem('smmsg_' + chatId);
-  // Aus Index entfernen
-  const k = 'sm_idx';
-  const idx = JSON.parse(localStorage.getItem(k) || '[]');
-  localStorage.setItem(k, JSON.stringify(idx.filter(c => c.id !== chatId)));
-  document.getElementById('messages').innerHTML = '<div class="empty"><div class="eico">🗑️</div><div>Verlauf gelöscht.</div></div>';
-  lastDate = null;
-  renderPrev();
-  toast('🗑️ Verlauf gelöscht');
+  localStorage.removeItem('smmsg_'+chatId);
+  const k='sm_idx', idx=JSON.parse(localStorage.getItem(k)||'[]');
+  localStorage.setItem(k,JSON.stringify(idx.filter(c=>c.id!==chatId)));
+  document.getElementById('messages').innerHTML='<div class="empty"><div class="eico">🗑️</div><div>Verlauf gelöscht.</div></div>';
+  lastDate=null; renderPrev(); toast('🗑️ Verlauf gelöscht');
 }
 
 function exportChat() {
   closeDrop();
-  if (!chatId) { toast('⚠️ Kein aktiver Chat'); return; }
-  const msgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
-  const data = JSON.stringify({ version:1, partner:partnerName, code:partnerCode, chatId, messages:msgs }, null, 2);
-  const blob = new Blob([data], { type:'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `SpotMe_${partnerName}_${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
-  toast('💾 Backup exportiert');
+  if (!chatId){toast('⚠️ Kein aktiver Chat');return;}
+  const msgs=JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+  const data=JSON.stringify({version:1,partner:partnerName,code:partnerCode,chatId,messages:msgs},null,2);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  a.download=`SpotMe_${partnerName}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); toast('💾 Backup exportiert');
 }
 
 function importChat(input) {
   closeDrop();
-  if (!chatId || !input.files[0]) return;
-  const rd = new FileReader();
-  rd.onload = e => {
+  if (!chatId||!input.files[0]) return;
+  const rd=new FileReader();
+  rd.onload=e=>{
     try {
-      const d = JSON.parse(e.target.result);
-      if (!d.messages) { toast('❌ Keine Nachrichten gefunden'); return; }
-      // Merge — no duplicates
-      const ex  = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
-      const set = new Set(ex.map(m => m.ts + '_' + (m.text || m.name || '')));
-      let added = 0;
-      const inc = d.messages.filter(m => {
-        const k = m.ts + '_' + (m.text || m.name || '');
-        if (set.has(k)) return false; set.add(k); added++; return true;
-      });
-      const merged = [...ex, ...inc].sort((a,b) => a.ts - b.ts);
-      localStorage.setItem('smmsg_' + chatId, JSON.stringify(merged));
-      document.getElementById('messages').innerHTML = ''; lastDate = null;
-      loadHistory();
+      const d=JSON.parse(e.target.result);
+      if (!d.messages){toast('❌ Keine Nachrichten');return;}
+      const ex=JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+      const set=new Set(ex.map(m=>m.ts+'_'+(m.text||m.name||'')));
+      let added=0;
+      const inc=d.messages.filter(m=>{const k=m.ts+'_'+(m.text||m.name||'');if(set.has(k))return false;set.add(k);added++;return true;});
+      localStorage.setItem('smmsg_'+chatId,JSON.stringify([...ex,...inc].sort((a,b)=>a.ts-b.ts)));
+      document.getElementById('messages').innerHTML=''; lastDate=null; loadHistory();
       toast(`✅ ${added} Nachrichten importiert`);
-    } catch { toast('❌ Fehler beim Importieren'); }
+    } catch{toast('❌ Fehler beim Importieren');}
   };
-  rd.readAsText(input.files[0]);
-  input.value = '';
+  rd.readAsText(input.files[0]); input.value='';
 }
 
 /* ══ NOTIFICATIONS ══ */
 function notify(text) {
-  const onChat = document.getElementById('s-chat').classList.contains('active');
-  if (!onChat || document.hidden) {
-    inAppNotif(partnerName, text);
-    pushNotif(partnerName, text);
-  }
+  const onChat=document.getElementById('s-chat').classList.contains('active');
+  if(!onChat||document.hidden){ inAppNotif(partnerName,text); pushNotif(partnerName,text); }
 }
-function pushNotif(from, text) {
-  if (Notification.permission !== 'granted') return;
+function pushNotif(from,text) {
+  if(Notification.permission!=='granted') return;
   try {
-    const n = new Notification('💬 ' + from, { body:text.length > 80 ? text.slice(0,80)+'…':text, tag:'spotme', renotify:true });
-    n.onclick = () => { window.focus(); switchToChat(); n.close(); };
-    setTimeout(() => n.close(), 6000);
-  } catch(e) {}
+    const n=new Notification('💬 '+from,{body:text.length>80?text.slice(0,80)+'…':text,tag:'spotme',renotify:true});
+    n.onclick=()=>{window.focus();switchToChat();n.close();};
+    setTimeout(()=>n.close(),6000);
+  } catch(e){}
 }
-let inTimer = null;
-function inAppNotif(from, text) {
-  document.getElementById('inf').textContent = '💬 ' + from;
-  document.getElementById('inm').textContent = text.length > 60 ? text.slice(0,60)+'…' : text;
-  const el = document.getElementById('inotif'); el.classList.add('show');
-  clearTimeout(inTimer); inTimer = setTimeout(() => el.classList.remove('show'), 5000);
+let inTimer=null;
+function inAppNotif(from,text) {
+  document.getElementById('inf').textContent='💬 '+from;
+  document.getElementById('inm').textContent=text.length>60?text.slice(0,60)+'…':text;
+  const el=document.getElementById('inotif'); el.classList.add('show');
+  clearTimeout(inTimer); inTimer=setTimeout(()=>el.classList.remove('show'),5000);
 }
-function switchToChat() { document.getElementById('inotif').classList.remove('show'); showScreen('s-chat'); }
+function switchToChat(){document.getElementById('inotif').classList.remove('show');showScreen('s-chat');}
 
-/* ══ UI HELPERS ══ */
+/* ══ DIGIT INPUTS ══ */
 function initDigits() {
-  const inputs = document.querySelectorAll('.dinp');
-  inputs.forEach((inp, i) => {
-    inp.addEventListener('input', e => {
-      const v = e.target.value.replace(/\D/g, '');
-      e.target.value = v ? v.slice(-1) : '';
-      inp.classList.toggle('filled', !!inp.value);
-      if (inp.value && i < inputs.length - 1) inputs[i+1].focus();
+  const inputs=document.querySelectorAll('.dinp');
+  inputs.forEach((inp,i)=>{
+    inp.addEventListener('input',e=>{
+      const v=e.target.value.replace(/\D/g,'');
+      e.target.value=v?v.slice(-1):'';
+      inp.classList.toggle('filled',!!inp.value);
+      if(inp.value&&i<inputs.length-1) inputs[i+1].focus();
       checkDigs();
     });
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Backspace' && !inp.value && i > 0) { inputs[i-1].value = ''; inputs[i-1].classList.remove('filled'); inputs[i-1].focus(); checkDigs(); }
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='Backspace'&&!inp.value&&i>0){
+        inputs[i-1].value=''; inputs[i-1].classList.remove('filled'); inputs[i-1].focus(); checkDigs();
+      }
     });
-    inp.addEventListener('paste', e => {
+    inp.addEventListener('paste',e=>{
       e.preventDefault();
-      const p = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
-      p.split('').forEach((ch, j) => { if (inputs[i+j]) { inputs[i+j].value = ch; inputs[i+j].classList.add('filled'); } });
-      inputs[Math.min(i + p.length, inputs.length-1)].focus();
-      checkDigs();
+      const p=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      p.split('').forEach((ch,j)=>{if(inputs[i+j]){inputs[i+j].value=ch;inputs[i+j].classList.add('filled');}});
+      inputs[Math.min(i+p.length,inputs.length-1)].focus(); checkDigs();
     });
   });
 }
-function checkDigs() { document.getElementById('conn-btn').disabled = getDigits().length !== 6; }
-function getDigits() { return [...document.querySelectorAll('.dinp')].map(i => i.value).join(''); }
+function checkDigs(){document.getElementById('conn-btn').disabled=getDigits().length!==6;}
+function getDigits(){return[...document.querySelectorAll('.dinp')].map(i=>i.value).join('');}
 
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-function setSpill(type, text) { const el=document.getElementById('spill'); const tx=document.getElementById('spill-txt'); el.className='spill '+type; tx.textContent=text; const d=el.querySelector('.sdot'); if(d) d.className=type==='connecting'?'sdot spin':'sdot'; }
-
-function toggleDrop() { document.getElementById('drop').classList.toggle('show'); }
-function closeDrop()  { document.getElementById('drop').classList.remove('show'); }
-
-function goHome() {
-  if (conn) { try { conn.close(); } catch(e){} conn = null; }
-  pendingConn = null; lastDate = null;
-  document.querySelectorAll('.dinp').forEach(i => { i.value=''; i.classList.remove('filled'); });
-  document.getElementById('conn-btn').disabled = true;
+/* ══ NAV ══ */
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function setSpill(type,text){
+  const el=document.getElementById('spill'),tx=document.getElementById('spill-txt');
+  el.className='spill '+type; tx.textContent=text;
+  const d=el.querySelector('.sdot'); if(d) d.className=type==='connecting'?'sdot spin':'sdot';
+}
+function toggleDrop(){document.getElementById('drop').classList.toggle('show');}
+function closeDrop(){document.getElementById('drop').classList.remove('show');}
+function goHome(){
+  if(conn){try{conn.removeAllListeners();conn.close();}catch(e){}conn=null;}
+  pendingConn=null; lastDate=null;
+  document.querySelectorAll('.dinp').forEach(i=>{i.value='';i.classList.remove('filled');});
+  document.getElementById('conn-btn').disabled=true;
   closeDrop(); showScreen('s-home'); renderPrev();
 }
-
-function copyCode() {
-  const t = myCode.slice(0,3)+'-'+myCode.slice(3,6);
-  navigator.clipboard.writeText(t).then(() => toast('✅ Code kopiert: ' + t)).catch(() => toast('Code: ' + t));
+function copyCode(){
+  const t=myCode.slice(0,3)+'-'+myCode.slice(3,6);
+  navigator.clipboard.writeText(t).then(()=>toast('✅ Code kopiert: '+t)).catch(()=>toast('Code: '+t));
 }
-function shareCode() {
-  const t = myCode.slice(0,3)+'-'+myCode.slice(3,6);
-  if (navigator.share) navigator.share({ title:'SpotMe Code', text:'Mein Code: '+t+' – schreib mir!' });
+function shareCode(){
+  const t=myCode.slice(0,3)+'-'+myCode.slice(3,6);
+  if(navigator.share) navigator.share({title:'SpotMe Code',text:'Mein Code: '+t});
   else copyCode();
 }
-
-function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; }
-function hkey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
-function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-
-let tTimer = null;
-function toast(msg, ms=2400) {
-  const ex = document.querySelector('.toast'); if (ex) ex.remove();
-  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
+function autoH(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';}
+function hkey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+let tTimer=null;
+function toast(msg,ms=2400){
+  const ex=document.querySelector('.toast');if(ex)ex.remove();
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
   document.body.appendChild(t);
-  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
-  clearTimeout(tTimer); tTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show')));
+  clearTimeout(tTimer);tTimer=setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},ms);
 }
 </script>
 </body>
