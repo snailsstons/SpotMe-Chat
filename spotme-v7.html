@@ -326,7 +326,7 @@ h2{font-family:'Syne',sans-serif;font-weight:700;font-size:1.5rem;letter-spacing
 /* ───── STATE ───── */
 let peer = null;
 let conn = null;
-let pendingConn = null; // Für den eingehenden Anruf
+let pendingConn = null; 
 let myCode = '';
 let partnerCode = '';
 let partnerName = 'Partner';
@@ -353,10 +353,10 @@ document.getElementById('my-code-display').textContent = myCode;
 
 /* ───── INITIALISIERUNG EIGENER SERVER ───── */
 
-// ⚠️ WICHTIG: Ersetze "DEIN-SERVER-NAME.onrender.com" mit der echten URL
 function initPeer() {
   setStatus('connecting', 'Verbinde mit eigenem Server...');
 
+  // ⚠️ SERVER-URL HIER ANPASSEN
   peer = new Peer(myCode, {
     host: 'spotme-chat.onrender.com', // ← Hier Server-URL eintragen (ohne https://)
     port: 443,                             
@@ -376,10 +376,10 @@ function initPeer() {
     setTimeout(() => initPeer(), 5000); 
   });
   
-  // LOGIK: EINGEHENDER ANRUF
+  // LOGIK: EINGEHENDER ANRUF MIT FIREFOX FIX
   peer.on('connection', (c) => {
     if (conn && conn.open) {
-      c.close(); // Wir sind schon in einem aktiven Chat
+      c.close(); 
       return;
     }
     
@@ -388,7 +388,16 @@ function initPeer() {
     document.getElementById('incoming-name').textContent = callerName;
     document.getElementById('incoming-code').textContent = 'Code: ' + c.peer;
     
-    // Ton abspielen oder pushen (optional)
+    // 🛠️ FIREFOX FIX: Den open-Event im Hintergrund sofort abfangen!
+    // Firefox verschluckt das Event sonst, wenn man erst beim späteren Klick auf "Annehmen" lauscht.
+    c.on('open', () => {
+      c._isFirefoxOpen = true; 
+      // Falls in der Zwischenzeit schon auf "Annehmen" geklickt wurde:
+      if (conn === c) {
+        triggerConnectionOpen(c);
+      }
+    });
+
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("Eingehende Anfrage", { body: `${callerName} möchte chatten!`, icon: '💬' });
     }
@@ -429,37 +438,42 @@ function rejectIncoming() {
   showScreen('s-home');
 }
 
-// 🛠️ DER FIX FÜR SETUPCONN 
+// 🛠️ FIREFOX FIX: UI-Update in eigene Funktion ausgelagert
+function triggerConnectionOpen(c) {
+  if (conn !== c) return;
+  partnerCode = c.peer;
+  partnerName = c.metadata?.name || 'Partner';
+  chatId = buildCID(myCode, partnerCode);
+  
+  document.getElementById('peer-name-lbl').textContent = partnerName;
+  document.getElementById('peer-status-lbl').textContent = '● Verbunden';
+  document.getElementById('peer-status-lbl').style.color = 'var(--green)';
+  document.getElementById('send-btn').disabled = false;
+  
+  document.getElementById('messages').innerHTML = '';
+  loadHistory();
+  showScreen('s-chat');
+}
+
 function setupConn(c) {
   conn = c;
   
-  const onConnectionOpen = () => {
-    partnerCode = conn.peer;
-    partnerName = conn.metadata?.name || 'Partner';
-    chatId = buildCID(myCode, partnerCode);
-    
-    document.getElementById('peer-name-lbl').textContent = partnerName;
-    document.getElementById('peer-status-lbl').textContent = '● Verbunden';
-    document.getElementById('peer-status-lbl').style.color = 'var(--green)';
-    document.getElementById('send-btn').disabled = false;
-    
-    document.getElementById('messages').innerHTML = '';
-    loadHistory();
-    showScreen('s-chat');
-  };
+  // 🛠️ FIREFOX FIX: Wir prüfen über 3 Wege, ob die Verbindung schon steht 
+  // (inklusive dem eigenen c._isFirefoxOpen Flag)
+  const isReady = c.open || c._isFirefoxOpen || (c.dataChannel && c.dataChannel.readyState === 'open');
 
-  // Check, ob Verbindung evtl. schon im Hintergrund durch "Annehmen" geöffnet wurde
-  if (conn.open) {
-    onConnectionOpen();
+  if (isReady) {
+    triggerConnectionOpen(c);
   } else {
-    conn.on('open', onConnectionOpen);
+    // Fallback, falls die Verbindung wirklich noch im Aufbau ist
+    c.on('open', () => triggerConnectionOpen(c));
   }
 
-  conn.on('data', (data) => {
+  c.on('data', (data) => {
     handleIncomingData(data);
   });
 
-  conn.on('close', () => {
+  c.on('close', () => {
     const statusLbl = document.getElementById('peer-status-lbl');
     if(statusLbl) {
         statusLbl.textContent = '○ Verbindung getrennt';
@@ -480,7 +494,7 @@ function setupConn(c) {
 function sendMessage() {
   const inp = document.getElementById('msg-input');
   const text = inp.value.trim();
-  if (!text || !conn || !conn.open) return;
+  if (!text || !conn) return; 
 
   const msg = { type: 'text', text, ts: Date.now() };
   conn.send(msg);
@@ -496,7 +510,7 @@ function sendMessage() {
 /* ───── DATEI VERSAND (FILE TRANSFER) ───── */
 async function sendFile(input) {
   const file = input.files[0];
-  if (!file || !conn || !conn.open) return;
+  if (!file || !conn) return; 
   
   if (file.size > 100 * 1024 * 1024) {
     toast('⚠️ Datei zu groß (Max 100MB)');
@@ -647,6 +661,8 @@ function loadHistory() {
   const arr = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
   if(arr.length === 0) {
       document.getElementById('messages').innerHTML = `<div class="empty-chat" id="empty-hint"><div class="empty-icon">💬</div><div>Verbunden!</div></div>`;
+  } else {
+      document.getElementById('messages').innerHTML = ''; // reset falls nicht leer
   }
   arr.forEach(m => appendMsg(m));
 }
