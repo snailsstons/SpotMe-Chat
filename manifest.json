@@ -1,0 +1,26 @@
+{
+  "name": "SpotMe Chat",
+  "short_name": "SpotMe",
+  "description": "Privater P2P-Messenger – kein Account nötig",
+  "start_url": "./spotme-v10.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080c10",
+  "theme_color": "#080c10",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "pwa_180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
