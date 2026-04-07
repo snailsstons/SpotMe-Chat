@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>SpotMe · Chat V16</title>
+<title>SpotMe · Chat V18</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#080c10">
@@ -78,7 +78,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
 .sbtn { width:42px; height:42px; border-radius:12px; background:var(--acc); color:var(--bg); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1rem; }
 .sbtn:disabled { opacity: 0.3; }
 
-/* CODE CARD & DIGITS */
+/* CODE CARD */
 .code-card { background:linear-gradient(135deg,rgba(0,229,192,.08),rgba(123,92,250,.08)); border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.4rem; text-align:center; margin-bottom:1.5rem; }
 .code-digits { font-family:'Syne',sans-serif; font-weight:800; font-size:2.8rem; letter-spacing:.05em; color:var(--acc); margin-bottom:.8rem; }
 .drow { display:flex; gap:.5rem; justify-content:center; margin-bottom:.9rem }
@@ -95,7 +95,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
   <div class="inner">
     <div class="brand"><div class="bdot"></div><span class="bname">Spot<b>Me</b></span></div>
     <h1>Privat &amp;<br>Direkt.</h1>
-    <p class="sub">Version 16 · Lokale Kontakte<br>Eigener Server aktiv.</p>
+    <p class="sub">Version 18 · Verbindung fixiert<br>Privacy: Keine Namen im Netz.</p>
 
     <div id="spill" class="spill connecting">
       <span id="spill-txt">Verbinde...</span>
@@ -104,26 +104,24 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
     <div class="code-card" id="mycode-area">
       <div class="code-digits" id="mycode">------</div>
       <div style="display:flex; gap:.5rem; justify-content:center">
-        <button onclick="copyCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem;">📋 Kopieren</button>
-        <button onclick="shareCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem;">↗️ Teilen</button>
+        <button onclick="copyCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem; cursor:pointer">📋 Kopieren</button>
+        <button onclick="shareCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem; cursor:pointer">↗️ Teilen</button>
       </div>
     </div>
 
-    <div class="inner" id="conn-input-area" style="padding:0; flex:none;">
-      <div style="background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1.2rem;">
-        <div class="drow">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-          <input class="dinp" maxlength="1" inputmode="numeric">
-        </div>
-        <button class="sbtn" id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; font-weight:700; background:var(--acc); color:var(--bg); border-radius:12px; border:none; margin-top:1rem;">💬 Chat starten</button>
+    <div style="background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1.2rem; margin-bottom: 2rem;">
+      <div class="drow">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
       </div>
+      <button class="sbtn" id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; font-weight:700; background:var(--acc); color:var(--bg); border-radius:12px; border:none; margin-top:1rem; cursor:pointer">💬 Chat starten</button>
     </div>
 
-    <div id="psec" style="display:none; margin-top:2rem">
+    <div id="psec" style="display:none;">
       <div style="font-size:.7rem; text-transform:uppercase; color:var(--muted); margin-bottom:.8rem; letter-spacing:.05em">Letzte Verbindungen</div>
       <div id="plist" style="display:flex; flex-direction:column; gap:.5rem"></div>
     </div>
@@ -156,7 +154,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
 
   <div class="icont">
     <div class="ibar">
-      <button class="actbtn" onclick="document.getElementById('finp').click()" style="width:42px; height:42px; border-radius:12px; background:var(--sur); border:1px solid var(--bord); color:var(--muted);">📎</button>
+      <button class="actbtn" onclick="document.getElementById('finp').click()" style="width:42px; height:42px; border-radius:12px; background:var(--sur); border:1px solid var(--bord); color:var(--muted); cursor:pointer">📎</button>
       <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
       <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)"></textarea>
       <button class="sbtn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
@@ -167,15 +165,13 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
 <script>
 'use strict';
 
-let peer = null, conn = null, pendingConn = null;
+let peer = null, conn = null;
 let myCode = localStorage.getItem('sm_code') || Math.random().toString().substring(2,8);
-let myName = localStorage.getItem('sm_name') || 'User_'+myCode.slice(0,3);
 let partnerCode = '', partnerName = '', chatId = '';
 const CHUNK = 16384; 
 let fileBufs = {};
 
 localStorage.setItem('sm_code', myCode);
-localStorage.setItem('sm_name', myName);
 
 window.onload = () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + '-' + myCode.slice(3,6);
@@ -185,13 +181,16 @@ window.onload = () => {
 };
 
 function initPeer() {
-  if(peer) return;
+  if (peer && !peer.destroyed) return;
+  
+  // WICHTIG: Ersetze DEIN-SERVERNAME durch deine Render-URL
   peer = new Peer(myCode, {
     host: 'DEIN-SERVERNAME.onrender.com', 
     port: 443,
     path: '/peerjs', 
     secure: true,
-    debug: 1
+    debug: 1,
+    pingInterval: 5000
   });
 
   peer.on('open', () => {
@@ -204,9 +203,14 @@ function initPeer() {
 
   peer.on('connection', c => {
     if(conn && conn.open) { c.close(); return; }
-    pendingConn = c;
-    // Automatisch annehmen (oder Screen zeigen)
     startChat(c);
+  });
+
+  peer.on('error', e => {
+    console.error('PeerJS Error:', e.type);
+    if(e.type === 'peer-unavailable') toast('Partner nicht gefunden');
+    if(e.type === 'network') toast('Verbindung zum Server fehlgeschlagen');
+    if(e.type === 'server-error') toast('Server-Fehler: ' + e.message);
   });
 }
 
@@ -214,7 +218,8 @@ function connectToPeer() {
   const code = [...document.querySelectorAll('.dinp')].map(i=>i.value).join('');
   if(code.length!==6) return;
   partnerCode = code;
-  const c = peer.connect(code, {metadata:{name:myName}, reliable: true});
+  // Privacy: Keinerlei Metadaten/Namen senden
+  const c = peer.connect(code, { reliable: true });
   startChat(c);
 }
 
@@ -222,9 +227,9 @@ function startChat(c) {
   conn = c; 
   partnerCode = c.peer; 
   
-  // LOGIK: Prüfen ob ein lokaler Name existiert
+  // Namen nur aus lokalem Adressbuch holen
   const customName = getLocalName(partnerCode);
-  partnerName = customName || c.metadata?.name || 'Partner';
+  partnerName = customName || 'User ' + partnerCode;
   
   chatId = 'sm_'+[myCode, partnerCode].sort().join('_');
   showScreen('s-chat');
@@ -232,9 +237,15 @@ function startChat(c) {
   document.getElementById('messages').innerHTML = '';
   loadHistory();
 
-  const ready = () => { document.getElementById('sbtn').disabled = false; toast('Verbunden!'); };
-  if(c.open) ready(); else c.on('open', ready);
+  const ready = () => { 
+    document.getElementById('sbtn').disabled = false; 
+    document.getElementById('pstatus').textContent = '● Online';
+    document.getElementById('pstatus').style.color = 'var(--green)';
+    document.getElementById('pav').classList.remove('off');
+    toast('Verbunden!'); 
+  };
   
+  if(c.open) ready(); else c.on('open', ready);
   c.on('data', d => handleData(d));
   
   if(c.peerConnection) {
@@ -246,7 +257,6 @@ function startChat(c) {
   c.on('close', () => setStatusOffline());
 }
 
-/* ══ LOKALE NAMEN LOGIK ══ */
 function getLocalName(code) {
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const entry = idx.find(e => e.code === code);
@@ -254,20 +264,18 @@ function getLocalName(code) {
 }
 
 function renamePartner() {
-  const newName = prompt("Lokalen Namen für diesen Kontakt vergeben:", partnerName);
+  const newName = prompt("Namen lokal für " + partnerCode + " vergeben:", partnerName);
   if (newName !== null && newName.trim() !== "") {
     partnerName = newName.trim();
     document.getElementById('pname').textContent = partnerName;
     
-    // In sm_idx speichern
     const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
     const i = idx.findIndex(e => e.code === partnerCode);
     if(i >= 0) {
       idx[i].localName = partnerName;
       localStorage.setItem('sm_idx', JSON.stringify(idx));
     } else {
-      // Falls noch nicht im Index, Platzhalter-Eintrag erstellen
-      updateIdx("Namensänderung"); 
+      updateIdx("Kontakt benannt"); 
     }
     closeDrop();
     toast("Name lokal gespeichert");
@@ -295,6 +303,7 @@ function handleData(d) {
 
 function appendMsg(m) {
   const l = document.getElementById('messages');
+  if(!l) return;
   const w = document.createElement('div');
   w.className = `msg ${m.own?'msg-o':'msg-i'}`;
   w.innerHTML = `<div class="bubble"><div>${esc(m.text)}</div><div class="btime">${new Date(m.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`;
@@ -320,7 +329,7 @@ function updateIdx(p) {
   const e = {
     id: chatId, 
     partner: partnerName, 
-    localName: existing.localName || null, // Lokalen Namen beibehalten
+    localName: existing.localName || null, 
     code: partnerCode, 
     ts: Date.now(), 
     prev: p
@@ -332,9 +341,10 @@ function updateIdx(p) {
 function renderPrev() {
   const a = JSON.parse(localStorage.getItem('sm_idx')||'[]');
   if(!a.length) return;
-  document.getElementById('psec').style.display = 'block';
+  const psec = document.getElementById('psec');
+  psec.style.display = 'block';
   document.getElementById('plist').innerHTML = a.map(c => {
-    const display = c.localName || c.partner;
+    const display = c.localName || 'User ' + c.code;
     return `
       <div onclick="reconnect('${c.code}','${display}')" style="background:var(--sur); padding:.9rem; border-radius:14px; border:1px solid var(--bord); cursor:pointer; margin-bottom:.5rem;">
         <div style="font-weight:600; font-size:.9rem; color:var(--acc)">${display}</div>
@@ -356,6 +366,13 @@ function initDigits() {
     };
     p.onkeydown = e => { if(e.key==='Backspace' && !p.value && i>0) inps[i-1].focus(); };
   });
+}
+
+function goOffline() {
+  if(confirm('Verbindung trennen und offline gehen?')) {
+    if(conn) conn.close(); if(peer) peer.destroy();
+    location.reload();
+  }
 }
 
 function exportChat() {
