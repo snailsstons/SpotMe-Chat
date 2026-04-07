@@ -2,599 +2,429 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpotMe · Privater Chat ohne Kompromisse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>SpotMe · Chat V14</title>
 
-/* ── PWA ── */
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#080c10">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe">
 
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:    #080c10;
   --sur:   #0f1520;
-  --card:  #111827;
-  --bord:  rgba(255,255,255,.08);
+  --card:  #131c2b;
+  --bord:  rgba(255,255,255,.07);
   --acc:   #00e5c0;
   --p2:    #7b5cfa;
   --p3:    #ff4f7b;
   --text:  #e8edf5;
-  --muted: #6b7a96;
+  --muted: #5a6a80;
   --green: #22d46e;
 }
-* { margin:0; padding:0; box-sizing:border-box }
-html { scroll-behavior:smooth }
-body {
-  font-family:'DM Sans',sans-serif;
-  background:var(--bg); color:var(--text);
-  font-size:18px; line-height:1.6;
-  overflow-x:hidden;
-}
 
-/* ── NOISE TEXTURE ── */
-body::before {
-  content:'';
-  position:fixed; inset:0;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
-  pointer-events:none; z-index:9999; opacity:.4;
-}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); overscroll-behavior-y: contain; }
 
-/* ══ NAV ══ */
-nav {
-  position:fixed; top:0; left:0; right:0; z-index:100;
-  display:flex; align-items:center; justify-content:space-between;
-  padding:0 2rem; height:68px;
-  background:rgba(8,12,16,.85); backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--bord);
-}
-.nav-brand { display:flex; align-items:center; gap:.5rem; text-decoration:none }
-.nav-dot { width:9px; height:9px; border-radius:50%; background:var(--acc); box-shadow:0 0 14px var(--acc); animation:blink 2s ease infinite }
+.screen { display:none; position:fixed; inset:0; flex-direction:column; background:var(--bg) }
+.screen.active { display:flex; animation:sIn .25s ease }
+@keyframes sIn { from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
+.inner { flex:1; overflow-y:auto; padding:1.5rem 1.25rem 5rem; max-width:480px; width:100%; margin:0 auto }
+.center-content { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; padding:2rem; }
+
+/* BRAND & STATUS */
+.brand { display:flex; align-items:center; gap:.5rem; margin-bottom:2rem }
+.bdot { width:8px; height:8px; border-radius:50%; background:var(--acc); box-shadow:0 0 12px var(--acc); animation:blink 2s ease infinite }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-.nav-name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--acc); letter-spacing:-.02em }
-.nav-name b { color:var(--text) }
-.nav-links { display:flex; align-items:center; gap:2rem; list-style:none }
-.nav-links a { color:var(--muted); text-decoration:none; font-size:1rem; font-weight:500; transition:color .2s }
-.nav-links a:hover { color:var(--text) }
-.nav-cta {
-  background:var(--acc); color:var(--bg);
-  padding:.55rem 1.4rem; border-radius:10px;
-  font-weight:700; font-size:1rem; text-decoration:none;
-  transition:all .2s; white-space:nowrap;
-}
-.nav-cta:hover { box-shadow:0 0 24px rgba(0,229,192,.4); color:var(--bg) }
+.bname { font-family:'Syne',sans-serif; font-weight:800; font-size:1.25rem; color:var(--acc); letter-spacing:-.02em }
+.spill { display:inline-flex; align-items:center; gap:.5rem; padding:.4rem 1rem; border-radius:100px; font-size:.8rem; margin-bottom:1.5rem; background:rgba(123,92,250,0.1); border:1px solid rgba(123,92,250,0.2); color:#7b5cfa; }
 
-/* ══ HERO ══ */
-.hero {
-  min-height:100vh;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  text-align:center; padding:8rem 1.5rem 5rem;
-  position:relative; overflow:hidden;
-}
+/* CHAT BAR */
+.chat-bar { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 1rem; border-bottom:1px solid var(--bord); background:rgba(8,12,16,.96); backdrop-filter:blur(25px); flex-shrink:0; position:relative; z-index:100; height:70px; }
+.peer-wrap { display:flex; align-items:center; gap:.75rem; flex:1; min-width:0; }
+.back-btn { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--muted); cursor: pointer; transition: all .2s; }
+.pav { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1rem; position:relative; }
+.pav::after { content:''; position:absolute; bottom:2px; right:2px; width:10px; height:10px; border-radius:50%; background:var(--green); border:2px solid var(--bg) }
+.pname { font-weight:600; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ibtn { width:46px; height:46px; border-radius:14px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem; }
 
-/* Background glow */
-.hero::after {
-  content:'';
-  position:absolute; top:30%; left:50%;
-  transform:translate(-50%,-50%);
-  width:700px; height:500px;
-  background:radial-gradient(ellipse, rgba(0,229,192,.06) 0%, rgba(123,92,250,.04) 40%, transparent 70%);
-  pointer-events:none;
-}
+/* MENU */
+.drop { position:absolute; top:75px; right:1rem; background:var(--card); border:1px solid var(--bord); border-radius:14px; padding:.5rem; display:none; flex-direction:column; gap:.2rem; box-shadow:0 15px 35px rgba(0,0,0,0.7); min-width:220px; z-index:110; }
+.drop.show { display:flex; }
+.mitem { display:flex; align-items:center; gap:.8rem; padding:.8rem; border-radius:10px; background:transparent; border:none; color:var(--text); text-align:left; cursor:pointer; font-size: 0.9rem; }
+.mitem:hover { background:rgba(255,255,255,0.06); }
+.mitem.mr { color:var(--p3) }
 
-.hero-badge {
-  display:inline-flex; align-items:center; gap:.5rem;
-  background:rgba(0,229,192,.08); border:1px solid rgba(0,229,192,.2);
-  border-radius:100px; padding:.4rem 1.1rem;
-  font-size:.9rem; font-weight:500; color:var(--acc);
-  margin-bottom:2rem; animation:fadeUp .6s ease both;
-}
-.badge-dot { width:7px; height:7px; border-radius:50%; background:var(--acc); animation:blink 1.5s ease infinite }
+/* MESSAGES */
+.messages { flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:.4rem; max-width:480px; width:100%; margin:0 auto }
+.msg { display:flex; flex-direction:column; max-width:82%; animation:msgIn .2s ease }
+@keyframes msgIn { from{opacity:0;transform:translateY(6px) scale(.98)} to{opacity:1;transform:none} }
+.msg-o { align-self:flex-end; align-items:flex-end }
+.msg-i { align-self:flex-start; align-items:flex-start }
+.bubble { padding:.6rem .9rem; border-radius:18px }
+.msg-o .bubble { background:var(--acc); color:var(--bg); border-radius:18px 4px 18px 18px }
+.msg-i .bubble { background:var(--sur); border:1px solid var(--bord); border-radius:4px 18px 18px 18px }
+.btime { font-size:.62rem; margin-top:.25rem; opacity:.6 }
 
-.hero h1 {
-  font-family:'Syne',sans-serif; font-weight:800;
-  font-size:clamp(2.8rem, 6vw, 5.5rem);
-  letter-spacing:-.04em; line-height:1.0;
-  margin-bottom:1.5rem;
-  animation:fadeUp .6s ease .1s both;
-}
-.hero h1 .acc  { color:var(--acc) }
-.hero h1 .acc2 { color:var(--p2) }
+/* INPUT & UPLOAD */
+.icont { position:relative; display:flex; flex-direction:column; width:100%; max-width:480px; margin:0 auto; flex-shrink:0 }
+.ibar { padding:.7rem 1rem; border-top:1px solid var(--bord); background:rgba(8,12,16,.9); backdrop-filter:blur(20px); display:flex; align-items:flex-end; gap:.5rem }
+.minp { flex:1; background:var(--sur); border:1px solid var(--bord); border-radius:14px; padding:.65rem 1rem; color:var(--text); font-family:inherit; font-size:0.95rem; outline:none; resize:none; max-height:120px; }
+.sbtn { width:42px; height:42px; border-radius:12px; background:var(--acc); color:var(--bg); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1rem; }
+.sbtn:disabled { opacity: 0.3; }
 
-.hero-sub {
-  font-size:clamp(1rem, 2vw, 1.3rem); color:var(--muted);
-  font-weight:300; max-width:600px; margin:0 auto 3rem;
-  line-height:1.7; animation:fadeUp .6s ease .2s both;
-}
+.upbar-wrap { height:3px; background:rgba(255,255,255,.1); width:100%; position:absolute; top:0; left:0; opacity:0; transition:opacity .3s }
+.upbar { height:100%; background:var(--acc); width:0%; transition:width .1s linear }
 
-.hero-actions {
-  display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;
-  animation:fadeUp .6s ease .3s both;
-}
-.btn-hero {
-  display:inline-flex; align-items:center; gap:.6rem;
-  padding:.9rem 2rem; border-radius:14px; font-family:'DM Sans',sans-serif;
-  font-size:1.05rem; font-weight:600; text-decoration:none; transition:all .2s;
-}
-.btn-primary { background:var(--acc); color:var(--bg) }
-.btn-primary:hover { box-shadow:0 0 32px rgba(0,229,192,.4); transform:translateY(-1px) }
-.btn-ghost { background:transparent; color:var(--text); border:1px solid var(--bord) }
-.btn-ghost:hover { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.04) }
+/* CODE CARD & DIGITS */
+.code-card { background:linear-gradient(135deg,rgba(0,229,192,.08),rgba(123,92,250,.08)); border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.4rem; text-align:center; margin-bottom:1.5rem; }
+.code-digits { font-family:'Syne',sans-serif; font-weight:800; font-size:2.8rem; letter-spacing:.05em; color:var(--acc); margin-bottom:.8rem; }
+.drow { display:flex; gap:.5rem; justify-content:center; margin-bottom:.9rem }
+.dinp { width:44px; height:54px; border-radius:10px; border:1.5px solid var(--bord); background:var(--sur); color:var(--text); font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; text-align:center; outline:none; }
+.dinp.filled { border-color:var(--acc); color:var(--acc) }
 
-/* ── Hero Stats ── */
-.hero-stats {
-  display:flex; gap:3rem; justify-content:center;
-  margin-top:4rem; padding-top:3rem;
-  border-top:1px solid var(--bord);
-  animation:fadeUp .6s ease .4s both;
-  flex-wrap:wrap;
-}
-.stat-num { font-family:'Syne',sans-serif; font-weight:800; font-size:2.2rem; color:var(--text); letter-spacing:-.02em }
-.stat-num span { color:var(--acc) }
-.stat-label { font-size:.9rem; color:var(--muted); margin-top:.2rem }
-
-@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
-
-/* ── Chat Preview Mockup ── */
-.mockup-wrap {
-  width:100%; max-width:340px; margin:3.5rem auto 0;
-  animation:fadeUp .6s ease .35s both;
-}
-.mockup {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:24px; overflow:hidden;
-  box-shadow:0 40px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(0,229,192,.06);
-}
-.mock-bar {
-  display:flex; align-items:center; gap:.7rem;
-  padding:.9rem 1.1rem; border-bottom:1px solid var(--bord);
-  background:rgba(255,255,255,.02);
-}
-.mock-av { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:.85rem; position:relative; flex-shrink:0 }
-.mock-av::after { content:''; position:absolute; bottom:1px; right:1px; width:9px; height:9px; border-radius:50%; background:var(--green); border:2px solid var(--card) }
-.mock-name { font-weight:600; font-size:.95rem }
-.mock-status { font-size:.75rem; color:var(--green) }
-.mock-lock { font-size:.75rem; color:var(--acc); margin-left:auto; background:rgba(0,229,192,.08); padding:.2rem .55rem; border-radius:100px; border:1px solid rgba(0,229,192,.2) }
-.mock-msgs { padding:1rem; display:flex; flex-direction:column; gap:.55rem }
-.mock-msg { padding:.6rem .9rem; border-radius:16px; font-size:.9rem; max-width:80%; line-height:1.45 }
-.mock-in { background:var(--sur); border:1px solid var(--bord); border-radius:4px 16px 16px 16px; align-self:flex-start }
-.mock-out { background:var(--acc); color:var(--bg); font-weight:500; border-radius:16px 4px 16px 16px; align-self:flex-end }
-.mock-time { font-size:.65rem; opacity:.6; text-align:right; margin-top:.25rem }
-.mock-inp { display:flex; align-items:center; gap:.5rem; padding:.75rem 1rem; border-top:1px solid var(--bord); background:rgba(255,255,255,.01) }
-.mock-field { flex:1; background:var(--sur); border:1px solid var(--bord); border-radius:10px; padding:.5rem .8rem; font-size:.85rem; color:var(--muted) }
-.mock-send { width:34px; height:34px; border-radius:9px; background:var(--acc); display:flex; align-items:center; justify-content:center; font-size:.85rem; flex-shrink:0 }
-
-/* ══ HOW IT WORKS ══ */
-section { padding:6rem 1.5rem }
-.container { max-width:1080px; margin:0 auto }
-
-.section-tag { font-size:.8rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--acc); margin-bottom:1rem }
-.section-title { font-family:'Syne',sans-serif; font-weight:800; font-size:clamp(2rem, 4vw, 3rem); letter-spacing:-.03em; line-height:1.1; margin-bottom:1.25rem }
-.section-sub { font-size:1.1rem; color:var(--muted); max-width:560px; font-weight:300; line-height:1.7 }
-
-/* Steps */
-.steps-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:1.5rem; margin-top:3.5rem }
-.step-card {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:20px; padding:2rem; position:relative;
-  transition:border-color .3s, transform .3s;
-}
-.step-card:hover { border-color:rgba(0,229,192,.2); transform:translateY(-3px) }
-.step-num {
-  font-family:'Syne',sans-serif; font-weight:800; font-size:3.5rem;
-  color:rgba(0,229,192,.1); position:absolute; top:1.2rem; right:1.5rem;
-  line-height:1;
-}
-.step-icon { font-size:2rem; margin-bottom:1rem }
-.step-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:.5rem }
-.step-desc { font-size:.95rem; color:var(--muted); line-height:1.6 }
-
-/* ══ FEATURES ══ */
-.features-section { background:var(--sur); border-top:1px solid var(--bord); border-bottom:1px solid var(--bord) }
-.features-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-top:3.5rem }
-.feat-card {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:20px; padding:2rem;
-  position:relative; overflow:hidden;
-  transition:all .3s;
-}
-.feat-card::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  border-radius:2px 2px 0 0; opacity:0; transition:opacity .3s;
-}
-.feat-card:hover { transform:translateY(-3px) }
-.feat-card:hover::before { opacity:1 }
-.fc-cyan::before  { background:linear-gradient(90deg,var(--acc),var(--p2)) }
-.fc-purple::before{ background:linear-gradient(90deg,var(--p2),var(--p3)) }
-.fc-pink::before  { background:linear-gradient(90deg,var(--p3),var(--acc)) }
-.feat-icon {
-  width:52px; height:52px; border-radius:14px;
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.5rem; margin-bottom:1.25rem;
-}
-.fc-cyan  .feat-icon { background:rgba(0,229,192,.1) }
-.fc-purple .feat-icon { background:rgba(123,92,250,.1) }
-.fc-pink  .feat-icon { background:rgba(255,79,123,.1) }
-.feat-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1.15rem; margin-bottom:.6rem }
-.feat-desc { font-size:.95rem; color:var(--muted); line-height:1.65 }
-.feat-badge {
-  display:inline-block; margin-top:1rem;
-  font-size:.78rem; font-weight:600; padding:.28rem .7rem;
-  border-radius:100px; background:rgba(255,255,255,.05); color:var(--muted);
-  border:1px solid var(--bord);
-}
-
-/* ══ PRIVACY SECTION ══ */
-.privacy-grid { display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center; margin-top:3rem }
-.privacy-item { display:flex; align-items:flex-start; gap:1rem; margin-bottom:2rem }
-.privacy-check { width:28px; height:28px; border-radius:8px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.25); display:flex; align-items:center; justify-content:center; color:var(--acc); font-size:1rem; flex-shrink:0; margin-top:.1rem }
-.privacy-text b { font-size:1rem; font-weight:600; display:block; margin-bottom:.2rem }
-.privacy-text p { font-size:.9rem; color:var(--muted) }
-
-/* Security visual */
-.security-box {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:20px; padding:2rem;
-  box-shadow:0 20px 60px rgba(0,0,0,.3);
-}
-.sec-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.9rem 1rem; border-radius:12px; background:rgba(255,255,255,.03);
-  border:1px solid var(--bord); margin-bottom:.75rem; font-size:.95rem;
-}
-.sec-row:last-child { margin-bottom:0 }
-.sec-label { color:var(--muted) }
-.sec-val { font-weight:600; color:var(--green); display:flex; align-items:center; gap:.4rem }
-.sec-val.warn { color:#f5a623 }
-.sec-dot { width:7px; height:7px; border-radius:50%; background:currentColor }
-
-/* ══ CTA SECTION ══ */
-.cta-section {
-  text-align:center; padding:8rem 1.5rem;
-  position:relative; overflow:hidden;
-}
-.cta-section::before {
-  content:''; position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%);
-  width:600px; height:400px;
-  background:radial-gradient(ellipse, rgba(0,229,192,.07) 0%, transparent 70%);
-  pointer-events:none;
-}
-.cta-section h2 { font-family:'Syne',sans-serif; font-weight:800; font-size:clamp(2.2rem,4vw,3.5rem); letter-spacing:-.03em; line-height:1.1; margin-bottom:1.25rem }
-.cta-section p { font-size:1.1rem; color:var(--muted); max-width:480px; margin:0 auto 2.5rem; font-weight:300 }
-
-/* ══ FOOTER ══ */
-footer {
-  padding:3rem 2rem 4rem; border-top:1px solid var(--bord);
-  display:flex; justify-content:space-between; align-items:center;
-  flex-wrap:wrap; gap:1.5rem; max-width:1080px; margin:0 auto;
-}
-.foot-brand { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; color:var(--acc) }
-.foot-brand b { color:var(--text) }
-.foot-links { display:flex; gap:2rem; list-style:none }
-.foot-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s }
-.foot-links a:hover { color:var(--text) }
-.foot-legal { font-size:.85rem; color:var(--muted) }
-
-/* ══ RESPONSIVE ══ */
-@media(max-width:768px){
-  nav { padding:0 1rem }
-  .nav-links { display:none }
-  .privacy-grid { grid-template-columns:1fr }
-  .hero-stats { gap:2rem }
-  footer { flex-direction:column; text-align:center }
-  .foot-links { justify-content:center }
-}
-
-/* Divider line */
-.divider { height:1px; background:var(--bord); margin:0 }
-
-/* Scroll animation */
-.reveal { opacity:0; transform:translateY(24px); transition:all .6s ease }
-.reveal.visible { opacity:1; transform:none }
+.toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--sur); border:1px solid var(--bord); border-radius:100px; padding:.65rem 1.3rem; font-size:.85rem; z-index:9999; transition:all .3s; opacity:0; white-space:nowrap }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
 </style>
 </head>
 <body>
 
-<!-- ══ NAV ══ -->
-<nav>
-  <a href="#" class="nav-brand">
-    <div class="nav-dot"></div>
-    <span class="nav-name">Spot<b>Me</b></span>
-  </a>
-  <ul class="nav-links">
-    <li><a href="#how">So funktioniert's</a></li>
-    <li><a href="#features">Features</a></li>
-    <li><a href="#privacy">Datenschutz</a></li>
-  </ul>
-  <a href="spotme-v12.html" class="nav-cta">Chat öffnen →</a>
-</nav>
+<div id="s-home" class="screen active">
+  <div class="inner">
+    <div class="brand"><div class="bdot"></div><span class="bname">Spot<b>Me</b></span></div>
+    <h1>Privat &amp;<br>Direkt.</h1>
+    <p class="sub">Version 14 · Sicherer P2P Chat<br>Ende-zu-Ende Dateiübertragung.</p>
 
-<!-- ══ HERO ══ -->
-<section class="hero">
-  <div class="hero-badge">
-    <div class="badge-dot"></div>
-    Open Source · Kein Account · 100% P2P
-  </div>
+    <div id="spill" class="spill connecting">
+      <span id="spill-txt">Verbinde...</span>
+    </div>
 
-  <h1>
-    Chat ohne<br>
-    <span class="acc">Server.</span> Ohne<br>
-    <span class="acc2">Kompromisse.</span>
-  </h1>
-
-  <p class="hero-sub">
-    SpotMe verbindet dich direkt mit deinem Gegenüber — von Gerät zu Gerät. Kein Unternehmen liest mit. Keine Metadaten. Kein Bullshit.
-  </p>
-
-  <div class="hero-actions">
-    <a href="spotme-v12.html" class="btn-hero btn-primary">🚀 Jetzt kostenlos chatten</a>
-    <a href="#how" class="btn-hero btn-ghost">Wie funktioniert das?</a>
-  </div>
-
-  <!-- Chat Mockup -->
-  <div class="mockup-wrap">
-    <div class="mockup">
-      <div class="mock-bar">
-        <div class="mock-av">🧑</div>
-        <div>
-          <div class="mock-name">Shadow_Wolf</div>
-          <div class="mock-status">● Online · 280m entfernt</div>
-        </div>
-        <div class="mock-lock">🔒 E2E</div>
+    <div class="code-card" id="mycode-area">
+      <div class="code-digits" id="mycode">------</div>
+      <div style="display:flex; gap:.5rem; justify-content:center">
+        <button onclick="copyCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem;">📋 Kopieren</button>
+        <button onclick="shareCode()" style="background:rgba(255,255,255,0.05); border:1px solid var(--bord); color:var(--muted); padding:.4rem .8rem; border-radius:100px; font-size:.75rem;">↗️ Teilen</button>
       </div>
-      <div class="mock-msgs">
-        <div class="mock-msg mock-in">Hey, bist du am Park? 👀</div>
-        <div class="mock-msg mock-out">Ja, bin gleich da 🙂<div class="mock-time">23:14 ✓✓</div></div>
-        <div class="mock-msg mock-in">Perfekt, ich bin beim Eingang</div>
-        <div class="mock-msg mock-out">Ok, sehen uns gleich 👌<div class="mock-time">23:15 ✓✓</div></div>
+    </div>
+
+    <div class="center-content" id="offline-area" style="display:none; height:auto; margin-bottom:2rem;">
+      <p class="sub">Du bist derzeit offline.</p>
+      <button onclick="location.reload()" style="background:var(--acc); color:var(--bg); border:none; padding:.8rem 1.5rem; border-radius:12px; font-weight:700;">Wieder Online gehen</button>
+    </div>
+
+    <div class="center-content" style="background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1.2rem;">
+      <div class="drow">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
       </div>
-      <div class="mock-inp">
-        <div class="mock-field">Nachricht...</div>
-        <div class="mock-send">➤</div>
-      </div>
+      <button class="sbtn" id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; font-weight:700; background:var(--acc); color:var(--bg);">💬 Chat starten</button>
+    </div>
+
+    <div id="psec" style="display:none; margin-top:2rem">
+      <div style="font-size:.7rem; text-transform:uppercase; color:var(--muted); margin-bottom:.8rem;">Letzte Chats</div>
+      <div id="plist" style="display:flex; flex-direction:column; gap:.5rem"></div>
     </div>
   </div>
+</div>
 
-  <div class="hero-stats">
-    <div>
-      <div class="stat-num">0<span>€</span></div>
-      <div class="stat-label">Kosten für immer</div>
-    </div>
-    <div>
-      <div class="stat-num">0<span>x</span></div>
-      <div class="stat-label">Daten gesammelt</div>
-    </div>
-    <div>
-      <div class="stat-num">100<span>%</span></div>
-      <div class="stat-label">Peer-to-Peer</div>
+<div id="s-in" class="screen">
+  <div class="center-content">
+    <div class="pulse-av">🧑</div>
+    <h1 id="in-name" style="color:var(--acc);">Anfrage...</h1>
+    <p class="sub" id="in-code">Code: ---</p>
+    <div style="display:flex; gap:1rem; margin-top:2rem; width:100%; max-width:300px">
+      <button onclick="declineCall()" style="flex:1; padding:1rem; border-radius:12px; background:rgba(255,79,123,0.1); border:1px solid var(--p3); color:var(--p3);">Ablehnen</button>
+      <button onclick="acceptCall()" style="flex:1; padding:1rem; border-radius:12px; background:var(--acc); border:none; color:var(--bg); font-weight:700;">Annehmen</button>
     </div>
   </div>
-</section>
+</div>
 
-<div class="divider"></div>
-
-<!-- ══ HOW IT WORKS ══ -->
-<section id="how">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">So einfach geht's</div>
-      <h2 class="section-title">In 30 Sekunden verbunden</h2>
-      <p class="section-sub">Kein Download, kein Konto, keine Nummer. Einfach den Code teilen und loschatten.</p>
+<div id="s-chat" class="screen">
+  <div class="chat-bar">
+    <div class="peer-wrap">
+      <div class="back-btn" onclick="goHome()">‹</div>
+      <div class="pav" id="pav">🧑</div>
+      <div>
+        <div class="pname" id="pname">Partner</div>
+        <div class="pstatus" id="pstatus" style="font-size:.7rem; color:var(--green)">● Online</div>
+      </div>
     </div>
+    <div class="bar-btns">
+      <button class="ibtn" onclick="toggleDrop()">⋮</button>
+    </div>
+    <div class="drop" id="drop">
+      <button class="mitem" onclick="exportChat()">💾 <div class="mlab"><div>Exportieren</div><div class="mdesc">Chat sichern</div></div></button>
+      <button class="mitem" onclick="document.getElementById('fimp').click()">📂 <div class="mlab"><div>Importieren</div><div class="mdesc">Backup laden</div></div></button>
+      <div style="height:1px; background:var(--bord); margin:2px 0;"></div>
+      <button class="mitem" onclick="goOffline()">🚫 <div class="mlab"><div>Offline gehen</div><div class="mdesc">Verbindung trennen</div></div></button>
+      <button class="mitem mr" onclick="clearChat()">🗑️ <div class="mlab"><div>Verlauf löschen</div><div class="mdesc">Lokal entfernen</div></div></button>
+    </div>
+    <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+  </div>
 
-    <div class="steps-grid">
-      <div class="step-card reveal">
-        <div class="step-num">1</div>
-        <div class="step-icon">🔑</div>
-        <div class="step-title">Deinen Code teilen</div>
-        <div class="step-desc">Beim ersten Öffnen bekommst du automatisch einen persönlichen 6-stelligen Code. Den kannst du in deinem Profil oder per Link teilen.</div>
-      </div>
-      <div class="step-card reveal">
-        <div class="step-num">2</div>
-        <div class="step-icon">💬</div>
-        <div class="step-title">Code eingeben</div>
-        <div class="step-desc">Dein Gegenüber gibt deinen Code ein. Du bekommst eine Benachrichtigung und kannst den Chat annehmen oder ablehnen.</div>
-      </div>
-      <div class="step-card reveal">
-        <div class="step-num">3</div>
-        <div class="step-icon">🚀</div>
-        <div class="step-title">Direkt loschatten</div>
-        <div class="step-desc">Die Verbindung läuft direkt von Gerät zu Gerät. Kein Server liest mit — die Nachrichten bleiben nur auf euren Geräten.</div>
-      </div>
+  <div class="messages" id="messages"></div>
+
+  <div class="icont">
+    <div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div>
+    <div class="ibar">
+      <button class="actbtn" onclick="document.getElementById('finp').click()" style="width:42px; height:42px; border-radius:12px; background:var(--sur); border:1px solid var(--bord); color:var(--muted);">📎</button>
+      <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
+      <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)"></textarea>
+      <button class="sbtn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
     </div>
   </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ══ FEATURES ══ -->
-<section id="features" class="features-section">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">Was SpotMe kann</div>
-      <h2 class="section-title">Alles was du brauchst.<br>Nichts was du nicht willst.</h2>
-    </div>
-
-    <div class="features-grid">
-      <div class="feat-card fc-cyan reveal">
-        <div class="feat-icon">🔒</div>
-        <div class="feat-title">Echte Ende-zu-Ende-Verschlüsselung</div>
-        <div class="feat-desc">Alle Nachrichten werden über WebRTC DTLS übertragen — dieselbe Technologie die dein Browser für HTTPS nutzt. Kein Mensch in der Mitte.</div>
-        <div class="feat-badge">WebRTC DTLS</div>
-      </div>
-
-      <div class="feat-card fc-purple reveal">
-        <div class="feat-icon">📱</div>
-        <div class="feat-title">Kein Account, keine App</div>
-        <div class="feat-desc">SpotMe läuft direkt im Browser. Keine Installation, keine E-Mail, keine Telefonnummer. Einfach öffnen und chatten — auf Android, iOS und Desktop.</div>
-        <div class="feat-badge">Browser-App</div>
-      </div>
-
-      <div class="feat-card fc-pink reveal">
-        <div class="feat-icon">💾</div>
-        <div class="feat-title">Alles lokal gespeichert</div>
-        <div class="feat-desc">Dein Chatverlauf liegt auf deinem Gerät, nirgendwo sonst. Export als JSON oder lesbares Text-Transkript — du hast die volle Kontrolle.</div>
-        <div class="feat-badge">localStorage</div>
-      </div>
-
-      <div class="feat-card fc-cyan reveal">
-        <div class="feat-icon">📎</div>
-        <div class="feat-title">Bilder & Dateien</div>
-        <div class="feat-desc">Fotos, PDFs, ZIPs — direkt im Chat übertragen, bis zu 100 MB. Keine Cloud, kein Umweg über einen Server. Direkt von Handy zu Handy.</div>
-        <div class="feat-badge">P2P Transfer</div>
-      </div>
-
-      <div class="feat-card fc-purple reveal">
-        <div class="feat-icon">🔔</div>
-        <div class="feat-title">Benachrichtigungen</div>
-        <div class="feat-desc">Eingehende Chats und neue Nachrichten landen als Push-Notification auf deinem Sperrbildschirm — auch wenn der Tab im Hintergrund läuft.</div>
-        <div class="feat-badge">Web Push API</div>
-      </div>
-
-      <div class="feat-card fc-pink reveal">
-        <div class="feat-icon">🌐</div>
-        <div class="feat-title">Open Source</div>
-        <div class="feat-desc">Der gesamte Code liegt auf GitHub — jeder kann prüfen, was SpotMe tut und was nicht. Keine versteckten Tracker, keine Werbung, keine Monetarisierung.</div>
-        <div class="feat-badge">MIT Lizenz</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ══ PRIVACY ══ -->
-<section id="privacy">
-  <div class="container">
-    <div class="reveal">
-      <div class="section-tag">Datenschutz</div>
-      <h2 class="section-title">Was SpotMe weiß:<br>Nichts.</h2>
-      <p class="section-sub">Kein Konto bedeutet keine Daten. Die Verbindung läuft peer-to-peer — der Signaling-Server sieht nur dass zwei Codes miteinander sprechen wollen, nie den Inhalt.</p>
-    </div>
-
-    <div class="privacy-grid">
-      <div class="reveal">
-        <div class="privacy-item">
-          <div class="privacy-check">✓</div>
-          <div class="privacy-text">
-            <b>Keine Telefonnummer</b>
-            <p>Deine Handynummer bleibt privat. Du meldest dich mit einem zufälligen Code an.</p>
-          </div>
-        </div>
-        <div class="privacy-item">
-          <div class="privacy-check">✓</div>
-          <div class="privacy-text">
-            <b>Keine E-Mail-Adresse</b>
-            <p>Kein Konto, kein Registrierungsprozess, keine Bestätigungsmail.</p>
-          </div>
-        </div>
-        <div class="privacy-item">
-          <div class="privacy-check">✓</div>
-          <div class="privacy-text">
-            <b>Keine Nachrichtenspeicherung</b>
-            <p>Deine Nachrichten verlassen nie dein Gerät in gespeicherter Form. Kein Cloud-Backup auf fremden Servern.</p>
-          </div>
-        </div>
-        <div class="privacy-item">
-          <div class="privacy-check">✓</div>
-          <div class="privacy-text">
-            <b>Keine Werbung</b>
-            <p>SpotMe ist und bleibt werbefrei. Kein Tracking, kein Profiling, keine personalisierten Inhalte.</p>
-          </div>
-        </div>
-        <div class="privacy-item">
-          <div class="privacy-check">✓</div>
-          <div class="privacy-text">
-            <b>DSGVO-konform</b>
-            <p>Was wir nicht haben, können wir nicht hergeben. Das ist echter Datenschutz — nicht auf dem Papier.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="security-box reveal">
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:1.25rem">Sicherheits-Übersicht</div>
-        <div class="sec-row">
-          <span class="sec-label">Transport</span>
-          <span class="sec-val"><div class="sec-dot"></div>WebRTC DTLS</span>
-        </div>
-        <div class="sec-row">
-          <span class="sec-label">P2P Verbindung</span>
-          <span class="sec-val"><div class="sec-dot"></div>Direkt, kein Proxy</span>
-        </div>
-        <div class="sec-row">
-          <span class="sec-label">Nachrichten-Server</span>
-          <span class="sec-val"><div class="sec-dot"></div>Kein Server</span>
-        </div>
-        <div class="sec-row">
-          <span class="sec-label">Lokale Speicherung</span>
-          <span class="sec-val warn"><div class="sec-dot"></div>Klartext (Gerät)</span>
-        </div>
-        <div class="sec-row">
-          <span class="sec-label">Signaling</span>
-          <span class="sec-val warn"><div class="sec-dot"></div>Code + IP (kein Inhalt)</span>
-        </div>
-        <div class="sec-row">
-          <span class="sec-label">Quellcode</span>
-          <span class="sec-val"><div class="sec-dot"></div>Open Source</span>
-        </div>
-        <p style="font-size:.82rem;color:var(--muted);margin-top:1rem;line-height:1.5">
-          Gelb markierte Punkte sind bekannte und bewusste Kompromisse, die wir transparent kommunizieren.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ══ CTA ══ -->
-<section class="cta-section">
-  <div class="reveal">
-    <h2>Bereit zu chatten?<br>Einfach loslegen.</h2>
-    <p>Keine App, kein Download, kein Konto. Dein Browser reicht aus.</p>
-    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
-      <a href="spotme-v12.html" class="btn-hero btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem">
-        🚀 Chat starten — kostenlos
-      </a>
-    </div>
-    <p style="margin-top:1.5rem;font-size:.9rem;color:var(--muted)">
-      Läuft auf Chrome, Firefox, Safari · iOS & Android · Desktop
-    </p>
-  </div>
-</section>
-
-<!-- ══ FOOTER ══ -->
-<div class="divider"></div>
-<footer>
-  <div>
-    <div class="foot-brand">Spot<b>Me</b></div>
-    <div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">Privater Chat ohne Kompromisse</div>
-  </div>
-  <ul class="foot-links">
-    <li><a href="#">GitHub</a></li>
-    <li><a href="#">Datenschutz</a></li>
-    <li><a href="#">Impressum</a></li>
-  </ul>
-  <div class="foot-legal">© 2025 SpotMe · MIT Lizenz · Open Source</div>
-</footer>
+</div>
 
 <script>
-// Scroll-Animation für .reveal Elemente
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      e.target.classList.add('visible');
-      observer.unobserve(e.target);
+'use strict';
+
+let peer = null, conn = null, pendingConn = null;
+let myCode = localStorage.getItem('sm_code') || Math.random().toString().substring(2,8);
+let myName = localStorage.getItem('sm_name') || 'User_'+myCode.slice(0,3);
+let partnerCode = '', partnerName = '', chatId = '';
+const CHUNK = 16384; 
+let fileBufs = {};
+
+localStorage.setItem('sm_code', myCode);
+localStorage.setItem('sm_name', myName);
+
+window.onload = () => {
+  document.getElementById('mycode').textContent = myCode.slice(0,3) + '-' + myCode.slice(3,6);
+  initDigits();
+  renderPrev();
+  initPeer();
+};
+
+function initPeer() {
+  if(peer) return;
+  peer = new Peer(myCode);
+  peer.on('open', (id) => {
+    const s = document.getElementById('spill');
+    if(s) {
+      s.style.color = 'var(--green)'; s.style.background = 'rgba(34,212,110,0.1)';
+      document.getElementById('spill-txt').textContent = 'Online';
     }
   });
-}, { threshold: 0.1 });
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  peer.on('connection', c => {
+    if(conn && conn.open) { c.close(); return; }
+    pendingConn = c;
+    document.getElementById('in-name').textContent = c.metadata?.name || 'Jemand';
+    document.getElementById('in-code').textContent = 'Code: ' + c.peer;
+    c.on('open', () => { c._ff = true; if(conn === c) startChat(c); });
+    showScreen('s-in');
+  });
+  peer.on('error', e => {
+    if(e.type === 'peer-unavailable') toast('Partner nicht gefunden');
+    console.error(e);
+  });
+}
+
+function connectToPeer() {
+  const code = [...document.querySelectorAll('.dinp')].map(i=>i.value).join('');
+  if(code.length!==6) return;
+  partnerCode = code;
+  const c = peer.connect(code, {metadata:{name:myName}});
+  startChat(c);
+}
+
+function acceptCall() { if(pendingConn) startChat(pendingConn); pendingConn = null; }
+function declineCall() { if(pendingConn) pendingConn.close(); pendingConn = null; showScreen('s-home'); }
+
+function startChat(c) {
+  conn = c; partnerCode = c.peer; partnerName = c.metadata?.name || 'Partner';
+  chatId = 'sm_'+[myCode, partnerCode].sort().join('_');
+  showScreen('s-chat');
+  document.getElementById('pname').textContent = partnerName;
+  document.getElementById('messages').innerHTML = '';
+  loadHistory();
+
+  const ready = () => { document.getElementById('sbtn').disabled = false; toast('Verbunden!'); };
+  if(c.open || c._ff) ready(); else c.on('open', ready);
+  
+  c.on('data', d => handleData(d));
+  c.on('close', () => { 
+    toast('Partner hat den Chat verlassen'); 
+    document.getElementById('sbtn').disabled = true;
+    document.getElementById('pstatus').textContent = '○ Offline';
+    document.getElementById('pstatus').style.color = 'var(--muted)';
+  });
+}
+
+function sendMsg() {
+  const i = document.getElementById('minp'); if(!i.value.trim() || !conn) return;
+  const m = {t:'text', text:i.value, ts:Date.now()};
+  conn.send(m); appendMsg({...m, own:true}); persistMsg({...m, own:true});
+  i.value = ''; i.style.height = 'auto';
+}
+
+/* ══ DATEI UPLOAD LOGIK (Chunking) ══ */
+async function sendFile(inp) {
+  const f = inp.files[0]; if(!f || !conn || !conn.open) return;
+  if(f.size > 100*1024*1024) { toast('⚠️ Max 100MB erlaubt'); return; }
+
+  const fid = Math.random().toString(36).substr(2,9);
+  const tChunks = Math.ceil(f.size/CHUNK);
+  conn.send({t:'f-start', id:fid, name:f.name, type:f.type, chunks:tChunks, size:f.size});
+  
+  document.getElementById('upw').style.opacity = '1';
+  const rd = new FileReader(); let off=0, idx=0;
+  
+  rd.onload = e => {
+    conn.send({t:'f-chunk', id:fid, idx, data:e.target.result});
+    off += CHUNK; idx++;
+    document.getElementById('upb').style.width = Math.floor((idx/tChunks)*100) + '%';
+    if(off < f.size) rd.readAsArrayBuffer(f.slice(off, off+CHUNK));
+    else {
+      conn.send({t:'f-end', id:fid});
+      setTimeout(() => { document.getElementById('upw').style.opacity = '0'; document.getElementById('upb').style.width = '0'; }, 500);
+      fileToB64(f).then(b64 => {
+        const m = {t:'file', url:b64, name:f.name, ts:Date.now(), own:true};
+        appendMsg(m); persistMsg(m);
+      });
+    }
+  };
+  rd.readAsArrayBuffer(f.slice(0, CHUNK));
+  inp.value = '';
+}
+
+function fileToB64(f) { return new Promise(r => { const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(f); }); }
+
+function handleData(d) {
+  if(d.t === 'text') { appendMsg({...d, own:false}); persistMsg({...d, own:false}); }
+  else if(d.t === 'f-start') { fileBufs[d.id] = {meta:d, chunks:[]}; }
+  else if(d.t === 'f-chunk') { if(fileBufs[d.id]) fileBufs[d.id].chunks.push(d.data); }
+  else if(d.t === 'f-end') {
+    const b = fileBufs[d.id]; if(!b) return;
+    const blob = new Blob(b.chunks, {type:b.meta.type});
+    const url = URL.createObjectURL(blob);
+    const m = {t:'file', url, name:b.meta.name, ts:Date.now(), own:false};
+    appendMsg(m); persistMsg(m);
+    delete fileBufs[d.id];
+  }
+}
+
+function appendMsg(m) {
+  const l = document.getElementById('messages');
+  const w = document.createElement('div');
+  w.className = `msg ${m.own?'msg-o':'msg-i'}`;
+  let content = m.t==='text' ? esc(m.text) : `<a href="${m.url}" download="${m.name}" style="color:inherit; font-weight:700;">📎 ${m.name}</a>`;
+  w.innerHTML = `<div class="bubble"><div>${content}</div><div class="btime">${new Date(m.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`;
+  l.appendChild(w); l.scrollTop = l.scrollHeight;
+}
+
+function goOffline() {
+  if(confirm('Möchtest du die Verbindung zum Server wirklich trennen? Du bist dann offline.')) {
+    if(conn) conn.close();
+    if(peer) peer.destroy();
+    document.getElementById('mycode-area').style.display = 'none';
+    document.getElementById('offline-area').style.display = 'block';
+    const s = document.getElementById('spill');
+    s.style.color = 'var(--p3)'; s.style.background = 'rgba(255,79,123,0.1)';
+    document.getElementById('spill-txt').textContent = 'Offline';
+    closeDrop();
+    showScreen('s-home');
+  }
+}
+
+function persistMsg(m) {
+  const k = 'smmsg_'+chatId;
+  const a = JSON.parse(localStorage.getItem(k)||'[]'); a.push(m);
+  localStorage.setItem(k, JSON.stringify(a.slice(-100)));
+  updateIdx(m.text || '📎 Datei');
+}
+
+function loadHistory() {
+  const a = JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+  a.forEach(m => appendMsg(m));
+}
+
+function updateIdx(p) {
+  const k = 'sm_idx', a = JSON.parse(localStorage.getItem(k)||'[]');
+  const i = a.findIndex(x=>x.id===chatId);
+  const e = {id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), prev:p};
+  if(i>=0) a[i]=e; else a.unshift(e);
+  localStorage.setItem(k, JSON.stringify(a.slice(0,10)));
+}
+
+function renderPrev() {
+  const a = JSON.parse(localStorage.getItem('sm_idx')||'[]');
+  if(!a.length) return;
+  document.getElementById('psec').style.display = 'block';
+  document.getElementById('plist').innerHTML = a.map(c => `
+    <div onclick="reconnect('${c.code}','${c.partner}')" style="background:var(--sur); padding:.8rem; border-radius:12px; border:1px solid var(--bord); cursor:pointer">
+      <div style="font-weight:600; font-size:.85rem">${c.partner}</div>
+      <div style="font-size:.7rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${c.prev}</div>
+    </div>
+  `).join('');
+}
+
+function reconnect(code, name) { partnerCode=code; partnerName=name; connectToPeer(); }
+
+function initDigits() {
+  const inps = document.querySelectorAll('.dinp');
+  inps.forEach((p,i) => {
+    p.oninput = () => { 
+      p.classList.toggle('filled', !!p.value);
+      if(p.value && i<5) inps[i+1].focus(); 
+      document.getElementById('cbtn').disabled = [...inps].some(x=>!x.value); 
+    };
+    p.onkeydown = e => { if(e.key==='Backspace' && !p.value && i>0) inps[i-1].focus(); };
+  });
+}
+
+function exportChat() {
+  const a = JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+  const b = new Blob([JSON.stringify(a)], {type:'application/json'});
+  const u = URL.createObjectURL(b);
+  const l = document.createElement('a'); l.href=u; l.download=`chat_${partnerName}.json`; l.click();
+  toggleDrop();
+}
+
+function importChat(inp) {
+  const f = inp.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = e => {
+    try {
+      JSON.parse(e.target.result);
+      localStorage.setItem('smmsg_'+chatId, e.target.result);
+      document.getElementById('messages').innerHTML = ''; loadHistory();
+      toast('Chat importiert');
+    } catch(err) { toast('Ungültige Datei'); }
+  };
+  rd.readAsText(f); toggleDrop();
+}
+
+function clearChat() { if(confirm('Löschen?')) { localStorage.removeItem('smmsg_'+chatId); goHome(); } }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function toggleDrop() { document.getElementById('drop').classList.toggle('show'); }
+function closeDrop() { document.getElementById('drop').classList.remove('show'); }
+
+function goHome() { 
+  if(conn) { try { conn.removeAllListeners(); conn.close(); } catch(e){} conn = null; }
+  closeDrop(); showScreen('s-home'); renderPrev(); 
+}
+
+function toast(m) {
+  const t = document.createElement('div'); t.className='toast'; t.textContent=m; document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 2500);
+}
+function copyCode() { navigator.clipboard.writeText(myCode); toast('Code kopiert!'); }
+function shareCode() { if(navigator.share) navigator.share({title:'SpotMe', text:myCode}); }
+function autoH(e) { e.style.height='auto'; e.style.height=e.scrollHeight+'px'; }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+window.addEventListener('click', e => { 
+  if(!e.target.closest('.bar-btns') && !e.target.closest('.drop')) closeDrop();
+});
 </script>
 </body>
 </html>
