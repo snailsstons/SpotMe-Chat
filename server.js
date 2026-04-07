@@ -21,7 +21,8 @@ const server = app.listen(PORT, () => {
 
 // PeerJS initialisieren
 const peerServer = ExpressPeerServer(server, {
-  path: '/app',
+  path: '/',
+  proxied: true,
   allow_discovery: true // Erlaubt das Finden von Partnern
 });
 
