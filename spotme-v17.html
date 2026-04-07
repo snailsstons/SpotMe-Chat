@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>SpotMe · Chat V17</title>
+<title>SpotMe · Chat V16</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#080c10">
@@ -95,7 +95,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
   <div class="inner">
     <div class="brand"><div class="bdot"></div><span class="bname">Spot<b>Me</b></span></div>
     <h1>Privat &amp;<br>Direkt.</h1>
-    <p class="sub">Version 17 · Privacy First<br>Eigener Server aktiv.</p>
+    <p class="sub">Version 16 · Lokale Kontakte<br>Eigener Server aktiv.</p>
 
     <div id="spill" class="spill connecting">
       <span id="spill-txt">Verbinde...</span>
@@ -109,19 +109,21 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
       </div>
     </div>
 
-    <div style="background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1.2rem; margin-bottom: 2rem;">
-      <div class="drow">
-        <input class="dinp" maxlength="1" inputmode="numeric">
-        <input class="dinp" maxlength="1" inputmode="numeric">
-        <input class="dinp" maxlength="1" inputmode="numeric">
-        <input class="dinp" maxlength="1" inputmode="numeric">
-        <input class="dinp" maxlength="1" inputmode="numeric">
-        <input class="dinp" maxlength="1" inputmode="numeric">
+    <div class="inner" id="conn-input-area" style="padding:0; flex:none;">
+      <div style="background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1.2rem;">
+        <div class="drow">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+          <input class="dinp" maxlength="1" inputmode="numeric">
+        </div>
+        <button class="sbtn" id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; font-weight:700; background:var(--acc); color:var(--bg); border-radius:12px; border:none; margin-top:1rem;">💬 Chat starten</button>
       </div>
-      <button class="sbtn" id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; font-weight:700; background:var(--acc); color:var(--bg); border-radius:12px; border:none; margin-top:1rem;">💬 Chat starten</button>
     </div>
 
-    <div id="psec" style="display:none;">
+    <div id="psec" style="display:none; margin-top:2rem">
       <div style="font-size:.7rem; text-transform:uppercase; color:var(--muted); margin-bottom:.8rem; letter-spacing:.05em">Letzte Verbindungen</div>
       <div id="plist" style="display:flex; flex-direction:column; gap:.5rem"></div>
     </div>
@@ -165,13 +167,15 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; bac
 <script>
 'use strict';
 
-let peer = null, conn = null;
+let peer = null, conn = null, pendingConn = null;
 let myCode = localStorage.getItem('sm_code') || Math.random().toString().substring(2,8);
+let myName = localStorage.getItem('sm_name') || 'User_'+myCode.slice(0,3);
 let partnerCode = '', partnerName = '', chatId = '';
 const CHUNK = 16384; 
 let fileBufs = {};
 
 localStorage.setItem('sm_code', myCode);
+localStorage.setItem('sm_name', myName);
 
 window.onload = () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + '-' + myCode.slice(3,6);
@@ -183,7 +187,7 @@ window.onload = () => {
 function initPeer() {
   if(peer) return;
   peer = new Peer(myCode, {
-    host: 'DEIN-SERVERNAME.onrender.com', // Hier anpassen
+    host: 'DEIN-SERVERNAME.onrender.com', 
     port: 443,
     path: '/peerjs', 
     secure: true,
@@ -200,6 +204,8 @@ function initPeer() {
 
   peer.on('connection', c => {
     if(conn && conn.open) { c.close(); return; }
+    pendingConn = c;
+    // Automatisch annehmen (oder Screen zeigen)
     startChat(c);
   });
 }
@@ -208,8 +214,7 @@ function connectToPeer() {
   const code = [...document.querySelectorAll('.dinp')].map(i=>i.value).join('');
   if(code.length!==6) return;
   partnerCode = code;
-  // PRIVACY: Kein Name mehr in Metadata
-  const c = peer.connect(code, { reliable: true });
+  const c = peer.connect(code, {metadata:{name:myName}, reliable: true});
   startChat(c);
 }
 
@@ -217,9 +222,9 @@ function startChat(c) {
   conn = c; 
   partnerCode = c.peer; 
   
-  // LOGIK: Namen NUR lokal finden
+  // LOGIK: Prüfen ob ein lokaler Name existiert
   const customName = getLocalName(partnerCode);
-  partnerName = customName || 'User ' + partnerCode;
+  partnerName = customName || c.metadata?.name || 'Partner';
   
   chatId = 'sm_'+[myCode, partnerCode].sort().join('_');
   showScreen('s-chat');
@@ -241,6 +246,7 @@ function startChat(c) {
   c.on('close', () => setStatusOffline());
 }
 
+/* ══ LOKALE NAMEN LOGIK ══ */
 function getLocalName(code) {
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const entry = idx.find(e => e.code === code);
@@ -248,18 +254,20 @@ function getLocalName(code) {
 }
 
 function renamePartner() {
-  const newName = prompt("Namen lokal für " + partnerCode + " vergeben:", partnerName);
+  const newName = prompt("Lokalen Namen für diesen Kontakt vergeben:", partnerName);
   if (newName !== null && newName.trim() !== "") {
     partnerName = newName.trim();
     document.getElementById('pname').textContent = partnerName;
     
+    // In sm_idx speichern
     const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
     const i = idx.findIndex(e => e.code === partnerCode);
     if(i >= 0) {
       idx[i].localName = partnerName;
       localStorage.setItem('sm_idx', JSON.stringify(idx));
     } else {
-      updateIdx("Kontakt benannt"); 
+      // Falls noch nicht im Index, Platzhalter-Eintrag erstellen
+      updateIdx("Namensänderung"); 
     }
     closeDrop();
     toast("Name lokal gespeichert");
@@ -312,7 +320,7 @@ function updateIdx(p) {
   const e = {
     id: chatId, 
     partner: partnerName, 
-    localName: existing.localName || null, 
+    localName: existing.localName || null, // Lokalen Namen beibehalten
     code: partnerCode, 
     ts: Date.now(), 
     prev: p
@@ -324,10 +332,9 @@ function updateIdx(p) {
 function renderPrev() {
   const a = JSON.parse(localStorage.getItem('sm_idx')||'[]');
   if(!a.length) return;
-  const psec = document.getElementById('psec');
-  psec.style.display = 'block';
+  document.getElementById('psec').style.display = 'block';
   document.getElementById('plist').innerHTML = a.map(c => {
-    const display = c.localName || 'User ' + c.code;
+    const display = c.localName || c.partner;
     return `
       <div onclick="reconnect('${c.code}','${display}')" style="background:var(--sur); padding:.9rem; border-radius:14px; border:1px solid var(--bord); cursor:pointer; margin-bottom:.5rem;">
         <div style="font-weight:600; font-size:.9rem; color:var(--acc)">${display}</div>
@@ -351,11 +358,11 @@ function initDigits() {
   });
 }
 
-function goOffline() {
-  if(confirm('Verbindung zur Cloud trennen?')) {
-    if(conn) conn.close(); if(peer) peer.destroy();
-    location.reload();
-  }
+function exportChat() {
+  const a = JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+  const b = new Blob([JSON.stringify(a)], {type:'application/json'});
+  const u = URL.createObjectURL(b);
+  const l = document.createElement('a'); l.href=u; l.download=`chat_${partnerName}.json`; l.click();
 }
 
 function clearChat() { if(confirm('Löschen?')) { localStorage.removeItem('smmsg_'+chatId); goHome(); } }
