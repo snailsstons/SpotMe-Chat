@@ -2,7 +2,7 @@
   "name": "SpotMe Chat",
   "short_name": "SpotMe",
   "description": "Privater P2P-Messenger – kein Account nötig",
-  "start_url": "./spotme-v10.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
