@@ -178,6 +178,21 @@ html, body {
 .prev-name { font-size:.95rem; font-weight:600 }
 .prev-msg  { font-size:.8rem; color:var(--muted2); margin-top:.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .prev-code { font-size:.72rem; color:var(--acc); opacity:.7; flex-shrink:0 }
+.rename-btn {
+  width:34px; height:34px; border-radius:9px; border:1px solid var(--bord2);
+  background:rgba(255,255,255,.04); color:var(--muted2); font-size:.85rem;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; transition:all .15s;
+}
+.rename-btn:active { background:rgba(0,229,192,.1); color:var(--acc); border-color:rgba(0,229,192,.3) }
+
+/* Alias badge im Chat-Header */
+.alias-badge {
+  font-size:.7rem; color:var(--acc); background:rgba(0,229,192,.1);
+  border:1px solid rgba(0,229,192,.2); border-radius:100px;
+  padding:.1rem .5rem; margin-left:.4rem; vertical-align:middle;
+  white-space:nowrap;
+}
 
 /* ════════════════════════════════
    INCOMING CALL SCREEN
@@ -569,6 +584,13 @@ html, body {
   <div class="sheet-title">Chat-Optionen</div>
   <div class="sheet-body">
 
+    <button class="sitem si-g" onclick="renamePartner()">
+      <div class="sico">✏️</div>
+      <div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div>
+    </button>
+
+    <div class="ssep"></div>
+
     <button class="sitem si-g" onclick="exportChat()">
       <div class="sico">💾</div>
       <div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div>
@@ -635,6 +657,24 @@ let isOffline   = false;
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
+/* ══ LOKALE KONTAKTE (Spitznamen) ══
+   sm_contacts = { "483291": "Jenny", ... }
+   Nur lokal gespeichert, nie übertragen.        */
+function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
+function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
+
+/** Gibt lokalen Alias zurück, oder den übergebenen Fallback-Namen */
+function localName(code, fallback) {
+  return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4));
+}
+
+function setAlias(code, name) {
+  const c = getContacts();
+  if (name) c[code] = name;
+  else delete c[code];
+  saveContacts(c);
+}
+
 /* ══ INIT ══ */
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent =
@@ -660,11 +700,18 @@ window.addEventListener('load', () => {
 function newCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
 
 /* ══ PEERJS ══ */
+let peerRetries = 0;
+
 function initPeer() {
-  if (peer && !peer.destroyed) return;
+  // Peer noch aktiv → nichts tun
+  if (peer && !peer.destroyed && peer.open) return;
+  // Alten Peer aufräumen
+  if (peer && !peer.destroyed) { try { peer.destroy(); } catch(e){} }
+  peer = null;
+
   setSpill('connecting', 'Verbinde mit Server...');
 
-  peer = new Peer(myCode, {
+  peer = new Peer(myCode, {          // ← myCode bleibt IMMER gleich
     host: SERVER_HOST,
     port: 443,
     path: SERVER_PATH,
@@ -677,6 +724,7 @@ function initPeer() {
   });
 
   peer.on('open', () => {
+    peerRetries = 0;
     setSpill('online', '● Online · Code aktiv');
     isOffline = false;
     showCodeCard(true);
@@ -684,27 +732,33 @@ function initPeer() {
 
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
+
     if (err.type === 'unavailable-id') {
-      // Code vergeben — neuen generieren
-      myCode = newCode();
-      localStorage.setItem('sm_code', myCode);
-      document.getElementById('mycode').textContent =
-        myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
-      peer = null; initPeer(); return;
+      // Code auf Server noch als belegt markiert (alter Tab/Session)
+      // → NICHT den Code ändern, einfach kurz warten und erneut versuchen
+      peerRetries++;
+      const delay = Math.min(3000 * peerRetries, 15000);
+      setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`);
+      setTimeout(() => { peer = null; initPeer(); }, delay);
+      return;
     }
+
     if (err.type === 'peer-unavailable') {
       toast('⚠️ Partner nicht erreichbar');
       goHome(); return;
     }
-    setSpill('offline', '⚠️ Verbindungsfehler');
-    setTimeout(() => { peer = null; initPeer(); }, 6000);
+
+    // Netzwerkfehler → Retry mit Backoff
+    peerRetries++;
+    const delay = Math.min(4000 * peerRetries, 20000);
+    setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
+    setTimeout(() => { peer = null; initPeer(); }, delay);
   });
 
   peer.on('disconnected', () => {
     setSpill('connecting', 'Unterbrochen · verbinde erneut...');
-    setTimeout(() => {
-      if (peer && !peer.destroyed) try { peer.reconnect(); } catch(e) { peer=null; initPeer(); }
-    }, 2500);
+    // peer.reconnect() löst erneut unavailable-id aus → stattdessen neu initialisieren
+    setTimeout(() => { peer = null; initPeer(); }, 2500);
   });
 
   // Eingehender Anruf
@@ -712,7 +766,7 @@ function initPeer() {
     if (conn && conn.open) { incoming.close(); return; }
     pendingConn  = incoming;
     partnerCode  = incoming.peer;
-    partnerName  = incoming.metadata?.name || ('Nutzer_' + incoming.peer.slice(0,4));
+    partnerName  = localName(incoming.peer, incoming.metadata?.name);
     document.getElementById('in-name').textContent = partnerName;
     document.getElementById('in-code').textContent = 'Code: ' + formatCode(partnerCode);
     showScreen('s-in');
@@ -729,7 +783,7 @@ function acceptCall() {
   if (!pendingConn) { toast('⚠️ Verbindung nicht mehr verfügbar'); return; }
   const c = pendingConn; pendingConn = null;
   partnerCode = c.peer;
-  partnerName = c.metadata?.name || ('Nutzer_' + c.peer.slice(0,4));
+  partnerName = localName(c.peer, c.metadata?.name);
   chatId = buildCID(myCode, partnerCode);
   openChat(c);
 }
@@ -744,7 +798,7 @@ function connectToPeer() {
   if (code.length !== 6 || code === myCode) return;
   if (!peer || !peer.open) { toast('⚠️ Noch nicht verbunden'); return; }
   partnerCode = code;
-  partnerName = 'Nutzer_' + code.slice(0,4);
+  partnerName = localName(code);
   chatId = buildCID(myCode, code);
   openChat(peer.connect(code, { reliable:true, metadata:{ name: myName } }));
 }
@@ -770,11 +824,11 @@ function openChat(c) {
     document.getElementById('pstatus').textContent = '● Verbunden';
     document.getElementById('pstatus').className   = 'pstatus';
     document.getElementById('pav').className       = 'pav';
-    // Partnername aus Metadata wenn vorhanden
-    if (conn.metadata?.name) {
-      partnerName = conn.metadata.name;
-      document.getElementById('pname').textContent = partnerName;
-    }
+    // Alias hat Vorrang vor Netzwerknamen
+    const alias = getContacts()[partnerCode];
+    const netName = conn.metadata?.name || partnerName;
+    if (!alias && netName) partnerName = netName; // nur setzen wenn kein Alias
+    applyPartnerName();
     // Spinner ersetzen
     const h = document.getElementById('ehint');
     if (h) {
@@ -807,7 +861,10 @@ function openChat(c) {
 }
 
 function prepChat() {
-  document.getElementById('pname').textContent   = partnerName;
+  // Alias prüfen & anzeigen
+  const alias = getContacts()[partnerCode];
+  if (alias) partnerName = alias;
+  applyPartnerName();
   document.getElementById('pstatus').textContent = '○ Verbinde...';
   document.getElementById('pstatus').className   = 'pstatus dim';
   document.getElementById('pav').className       = 'pav offline';
@@ -1003,6 +1060,39 @@ function updateIdx(preview) {
   renderPrev();
 }
 
+/** Zeigt lokalen Alias + optionales Badge mit echtem Namen im Chat-Header */
+function applyPartnerName() {
+  const alias   = getContacts()[partnerCode];
+  const display = alias || partnerName;
+  const lbl     = document.getElementById('pname');
+  if (!lbl) return;
+  if (alias && partnerName && alias !== partnerName) {
+    lbl.innerHTML = esc(alias) + `<span class="alias-badge" title="Netzwerkname: ${esc(partnerName)}">✏️</span>`;
+  } else {
+    lbl.textContent = display;
+  }
+}
+
+/* ══ UMBENENNEN ══ */
+function renamePartner() {
+  closeSheet();
+  const current = getContacts()[partnerCode] || '';
+  const input   = prompt(
+    `Spitzname für diesen Kontakt:\n(leer lassen zum Zurücksetzen)`,
+    current
+  );
+  if (input === null) return; // Abbrechen
+  const trimmed = input.trim();
+  setAlias(partnerCode, trimmed);
+  // Sofort anwenden
+  if (trimmed) partnerName = trimmed;
+  applyPartnerName();
+  // Index aktualisieren damit prev-Liste den neuen Namen zeigt
+  updateIdx('');
+  renderPrev();
+  toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
+}
+
 /* ══ PREV CHATS ══ */
 function renderPrev() {
   const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
@@ -1011,23 +1101,44 @@ function renderPrev() {
   if (!arr.length) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
   lst.innerHTML = arr.map(c => {
-    const d = new Date(c.ts);
-    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
+    const d       = new Date(c.ts);
+    const t       = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
       ? d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
       : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'});
+    const alias   = getContacts()[c.code];
+    const display = alias || c.partner;
+    const badge   = alias ? `<span style="font-size:.7rem;color:var(--muted);font-weight:400;"> (${esc(c.partner)})</span>` : '';
     return `
-    <div class="prev-item" onclick="reconnectTo('${c.code}','${esc2(c.partner)}','${c.id}')">
-      <div class="prev-av">🧑</div>
-      <div class="prev-info">
-        <div class="prev-name">${esc(c.partner)}</div>
-        <div class="prev-msg">${esc(c.preview || '—')}</div>
+    <div style="display:flex;align-items:center;gap:.5rem">
+      <div class="prev-item" style="flex:1" onclick="reconnectTo('${c.code}','${esc2(display)}','${c.id}')">
+        <div class="prev-av">🧑</div>
+        <div class="prev-info">
+          <div class="prev-name">${esc(display)}${badge}</div>
+          <div class="prev-msg">${esc(c.preview || '—')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:.72rem;color:var(--muted2)">${t}</div>
+          <div class="prev-code">${formatCode(c.code)}</div>
+        </div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:.72rem;color:var(--muted2)">${t}</div>
-        <div class="prev-code">${formatCode(c.code)}</div>
-      </div>
+      <button class="rename-btn" title="Umbenennen"
+        onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button>
     </div>`;
   }).join('');
+}
+
+/** Umbenennen direkt aus der Kontaktliste (ohne offenen Chat) */
+function renameContact(code, networkName) {
+  const current = getContacts()[code] || '';
+  const input   = prompt(
+    `Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`,
+    current
+  );
+  if (input === null) return;
+  const trimmed = input.trim();
+  setAlias(code, trimmed);
+  renderPrev();
+  toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
 }
 
 function reconnectTo(code, name, cid) {
