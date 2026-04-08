@@ -488,20 +488,20 @@ html, body {
   <div class="brand">
     <div class="bdot"></div>
     <span class="bname">Spot<b>Me</b></span>
-    <button class="home-menu-btn" onclick="toggleHomeMenu()" id="home-menu-btn" title="Datensicherung">⋮</button>
-  </div>
+    <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
-  <!-- Home Menu Dropdown -->
-  <div class="home-drop" id="home-drop">
-    <button class="mitem" onclick="backupProfile()">
-      <span class="mico">💾</span>
-      <div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div>
-    </button>
-    <button class="mitem" onclick="document.getElementById('restore-inp').click()">
-      <span class="mico">📂</span>
-      <div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div>
-    </button>
-    <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+    <!-- Home Menu Dropdown — INSIDE brand so position:absolute works -->
+    <div class="home-drop" id="home-drop">
+      <button class="mitem" onclick="backupProfile()">
+        <span class="mico">💾</span>
+        <div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div>
+      </button>
+      <button class="mitem" onclick="document.getElementById('restore-inp').click()">
+        <span class="mico">📂</span>
+        <div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div>
+      </button>
+      <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+    </div>
   </div>
 
   <div class="hero-title">Privat &amp;<br>Direkt.</div>
@@ -740,7 +740,8 @@ window.addEventListener('load', () => {
 });
 
 /* ══ PROFIL-BACKUP ══ */
-function toggleHomeMenu() {
+function toggleHomeMenu(e) {
+  e.stopPropagation(); // verhindert dass document-click das Menu sofort wieder schließt
   const d = document.getElementById('home-drop');
   d.classList.toggle('open');
 }
