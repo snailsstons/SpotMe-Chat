@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v24</title>
+<title>SpotMe · Chat v25</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V24">
+<meta name="apple-mobile-web-app-title" content="SpotMe V25">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ════════════════════════════════
-   DESIGN TOKENS
+   DESIGN TOKENS (unverändert aus V24)
 ════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -62,8 +62,6 @@ html, body {
 /* ════════════════════════════════
    HOME SCREEN
 ════════════════════════════════ */
-
-/* Brand */
 .brand { display:flex; align-items:center; gap:.55rem; margin-bottom:2.25rem; position:relative }
 .bdot {
   width:9px; height:9px; border-radius:50%;
@@ -73,8 +71,6 @@ html, body {
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 .bname { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--acc); letter-spacing:-.02em }
 .bname b { color:var(--text) }
-
-/* Home menu button */
 .home-menu-btn {
   margin-left:auto; width:32px; height:32px; border-radius:9px;
   border:1px solid var(--bord); background:transparent;
@@ -91,12 +87,8 @@ html, body {
   box-shadow:0 12px 40px rgba(0,0,0,.65); min-width:250px; z-index:100
 }
 .home-drop.open { display:flex; animation:sIn .18s ease }
-
-/* Hero text */
 .hero-title { font-family:'Syne',sans-serif; font-weight:800; font-size:2.3rem; letter-spacing:-.03em; line-height:1.08; margin-bottom:.6rem }
 .hero-sub { color:var(--muted2); font-size:.95rem; font-weight:300; line-height:1.65; margin-bottom:1.75rem }
-
-/* Status pill */
 .spill {
   display:inline-flex; align-items:center; gap:.5rem;
   padding:.42rem 1rem; border-radius:100px; font-size:.82rem; font-weight:500;
@@ -106,8 +98,6 @@ html, body {
 .spill.online  { background:rgba(30,204,104,.08); border-color:rgba(30,204,104,.25); color:var(--green) }
 .spill.offline { background:rgba(255,79,123,.07); border-color:rgba(255,79,123,.2);  color:var(--p3) }
 .spill-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:blink .9s ease infinite }
-
-/* Code card */
 .code-card {
   background:linear-gradient(135deg, rgba(0,229,192,.07) 0%, rgba(123,92,250,.07) 100%);
   border:1px solid rgba(0,229,192,.18);
@@ -135,8 +125,6 @@ html, body {
   font-size:.8rem; cursor:pointer; transition:all .2s; min-height:42px;
 }
 .csbtn:active { background:rgba(255,255,255,.09); color:var(--text) }
-
-/* Offline banner */
 .offline-banner {
   display:none; background:rgba(255,79,123,.07);
   border:1px solid rgba(255,79,123,.2); border-radius:14px;
@@ -149,8 +137,6 @@ html, body {
   padding:.65rem 1.4rem; border-radius:10px;
   font-family:'DM Sans',sans-serif; font-weight:700; font-size:.9rem; cursor:pointer;
 }
-
-/* Connect box */
 .conn-box {
   background:var(--card); border:1px solid var(--bord);
   border-radius:18px; padding:1.3rem; margin-bottom:1.4rem;
@@ -166,8 +152,6 @@ html, body {
 }
 .dinp:focus  { border-color:var(--acc); box-shadow:0 0 0 3px rgba(0,229,192,.1) }
 .dinp.filled { border-color:rgba(0,229,192,.4); color:var(--acc) }
-
-/* Main button */
 .btn-main {
   display:flex; align-items:center; justify-content:center; gap:.55rem;
   width:100%; padding:.9rem; border-radius:13px; border:none;
@@ -177,8 +161,6 @@ html, body {
 }
 .btn-main:disabled { opacity:.35; cursor:not-allowed }
 .btn-main:not(:disabled):active { transform:scale(.97) }
-
-/* Prev chats */
 .prev-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-bottom:.75rem }
 .prev-item {
   display:flex; align-items:center; gap:.8rem;
@@ -204,8 +186,6 @@ html, body {
   flex-shrink:0; transition:all .15s;
 }
 .rename-btn:active { background:rgba(0,229,192,.1); color:var(--acc); border-color:rgba(0,229,192,.3) }
-
-/* Verpasste Anrufe (MISSED CALLS) */
 .missed-section { margin-top:1.4rem }
 .missed-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--p3); margin-bottom:.6rem; display:flex; align-items:center; gap:.45rem }
 .missed-dot { width:7px; height:7px; border-radius:50%; background:var(--p3); animation:blink .9s ease infinite }
@@ -231,18 +211,12 @@ html, body {
   transition:color .15s; font-family:'DM Sans',sans-serif;
 }
 .missed-clear-btn:active { color:var(--p3) }
-
-/* Alias badge im Chat-Header */
 .alias-badge {
   font-size:.7rem; color:var(--acc); background:rgba(0,229,192,.1);
   border:1px solid rgba(0,229,192,.2); border-radius:100px;
   padding:.1rem .5rem; margin-left:.4rem; vertical-align:middle;
   white-space:nowrap;
 }
-
-/* ════════════════════════════════
-   INCOMING CALL SCREEN
-════════════════════════════════ */
 .call-wrap {
   flex:1; display:flex; flex-direction:column;
   align-items:center; justify-content:center;
@@ -276,13 +250,7 @@ html, body {
 .btn-decline { background:var(--p3); color:#fff }
 .btn-accept:active  { opacity:.88; transform:scale(.97) }
 .btn-decline:active { opacity:.88; transform:scale(.97) }
-
-/* ════════════════════════════════
-   CHAT SCREEN
-════════════════════════════════ */
 #s-chat { overflow:hidden }
-
-/* Top bar */
 .chat-bar {
   display:flex; align-items:center; gap:.4rem;
   padding:.6rem .85rem;
@@ -324,8 +292,6 @@ html, body {
   font-size:1.3rem; flex-shrink:0; transition:all .2s;
 }
 .menu-btn:active { background:rgba(255,255,255,.09); color:var(--text) }
-
-/* Reconnect bar */
 .rcbar {
   display:none; align-items:center; justify-content:space-between; gap:.7rem;
   padding:.6rem 1.1rem; flex-shrink:0;
@@ -339,8 +305,6 @@ html, body {
   color:var(--p3); font-family:'DM Sans',sans-serif; font-size:.8rem;
   font-weight:600; white-space:nowrap; min-height:38px;
 }
-
-/* Messages */
 .messages {
   flex:1; overflow-y:auto; padding:.9rem;
   display:flex; flex-direction:column; gap:.4rem;
@@ -348,7 +312,6 @@ html, body {
 }
 .messages::-webkit-scrollbar { width:3px }
 .messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:3px }
-
 .date-sep {
   text-align:center; font-size:.75rem; color:var(--muted);
   padding:.5rem 0; position:relative; margin:.25rem 0;
@@ -357,7 +320,6 @@ html, body {
   content:''; position:absolute; top:50%; width:18%; height:1px; background:var(--bord2);
 }
 .date-sep::before { left:0 } .date-sep::after { right:0 }
-
 .empty-chat {
   flex:1; display:flex; flex-direction:column;
   align-items:center; justify-content:center;
@@ -366,23 +328,18 @@ html, body {
 .empty-icon { font-size:3rem; opacity:.3; margin-bottom:.5rem }
 .empty-txt  { font-size:.95rem }
 .empty-hint { font-size:.78rem; opacity:.6; margin-top:.25rem }
-
 .msg { display:flex; flex-direction:column; max-width:80%; animation:msgIn .18s ease }
 @keyframes msgIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
 .msg-o { align-self:flex-end; align-items:flex-end }
 .msg-i { align-self:flex-start; align-items:flex-start }
-
 .bubble { padding:.65rem .95rem; border-radius:18px }
 .msg-o .bubble { background:var(--acc); color:var(--bg); border-radius:18px 5px 18px 18px; font-weight:500 }
 .msg-i .bubble { background:var(--card2); border:1px solid var(--bord); border-radius:5px 18px 18px 18px }
 .btxt { font-size:.95rem; line-height:1.5; word-break:break-word; white-space:pre-wrap }
 .btime { font-size:.65rem; margin-top:.3rem; opacity:.55 }
 .msg-o .btime { text-align:right }
-
-/* Image bubble */
 .imgbbl { max-width:230px; border-radius:14px; overflow:hidden; cursor:pointer; margin-bottom:3px }
 .imgbbl img { width:100%; display:block }
-/* File bubble */
 .filbbl {
   display:flex; align-items:center; gap:.65rem;
   padding:.7rem .9rem; border-radius:14px;
@@ -393,8 +350,6 @@ html, body {
 .filbbl:active { background:rgba(255,255,255,.1) }
 .fnam { font-size:.87rem; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .fsiz { font-size:.73rem; color:var(--muted2); margin-top:.1rem }
-
-/* Input bar */
 .icont { display:flex; flex-direction:column; width:100%; max-width:480px; margin:0 auto; flex-shrink:0; position:relative }
 .upbar-wrap { height:3px; background:rgba(255,255,255,.07); width:100%; opacity:0; transition:opacity .3s; position:absolute; top:0; left:0 }
 .upbar { height:100%; background:var(--acc); width:0%; transition:width .12s linear }
@@ -427,10 +382,6 @@ html, body {
 }
 .send-btn:disabled { opacity:.3; cursor:not-allowed }
 .send-btn:not(:disabled):active { transform:scale(.92) }
-
-/* ════════════════════════════════
-   BOTTOM SHEET MENU
-════════════════════════════════ */
 .sheet-ovl {
   position:fixed; inset:0; background:rgba(0,0,0,.6);
   z-index:200; opacity:0; pointer-events:none;
@@ -467,10 +418,6 @@ html, body {
 .slab  { flex:1 }
 .sdesc { font-size:.8rem; color:var(--muted2); margin-top:.2rem }
 .ssep  { height:1px; background:var(--bord); margin:.3rem .6rem }
-
-/* ════════════════════════════════
-   IN-APP NOTIFICATION & TOAST
-════════════════════════════════ */
 .in-notif {
   position:fixed; top:1rem; left:50%;
   transform:translateX(-50%) translateY(-90px);
@@ -485,7 +432,6 @@ html, body {
 .in-ico   { font-size:1.5rem; flex-shrink:0 }
 .in-from  { font-size:.9rem; font-weight:600; color:var(--acc) }
 .in-msg   { font-size:.82rem; color:var(--muted2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:.12rem }
-
 .toast {
   position:fixed; bottom:2.5rem; left:50%;
   transform:translateX(-50%) translateY(80px);
@@ -496,8 +442,6 @@ html, body {
   opacity:0; white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.45);
 }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
-
-/* Spinner */
 .spin {
   display:inline-block; width:14px; height:14px;
   border:2px solid var(--bord2); border-top-color:var(--acc);
@@ -515,215 +459,57 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V24</b></span>
+    <span class="bname">Spot<b>Me V25</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
-
-    <!-- Home Menu Dropdown -->
     <div class="home-drop" id="home-drop">
-      <button class="mitem" onclick="backupProfile()">
-        <span class="mico">💾</span>
-        <div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div>
-      </button>
-      <button class="mitem" onclick="document.getElementById('restore-inp').click()">
-        <span class="mico">📂</span>
-        <div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div>
-      </button>
+      <button class="mitem" onclick="backupProfile()"><span class="mico">💾</span><div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
+      <button class="mitem" onclick="document.getElementById('restore-inp').click()"><span class="mico">📂</span><div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div></button>
       <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
     </div>
   </div>
-
   <div class="hero-title">Privat &amp;<br>Direkt.</div>
   <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
-
-  <div class="spill" id="spill">
-    <div class="spill-dot"></div>
-    <span id="spill-txt">Verbinde mit Server...</span>
-  </div>
-
-  <!-- Code Card -->
-  <div class="code-card" id="code-card">
-    <div class="code-label">Dein persönlicher Code</div>
-    <div class="code-value" id="mycode">--- ---</div>
-    <div class="code-actions">
-      <button class="csbtn" onclick="copyCode()">📋 Kopieren</button>
-      <button class="csbtn" onclick="shareCode()">↗️ Teilen</button>
-    </div>
-  </div>
-
-  <!-- Offline Banner -->
-  <div class="offline-banner" id="offline-banner">
-    <p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p>
-    <button onclick="location.reload()">Wieder Online gehen</button>
-  </div>
-
-  <!-- Connect Box -->
-  <div class="conn-box">
-    <div class="conn-label">Partner verbinden</div>
-    <div class="drow" id="drow">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-      <input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off">
-    </div>
-    <button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>
-      💬 Chat starten
-    </button>
-  </div>
-
-  <!-- Previous Chats -->
-  <div id="psec" style="display:none; margin-top:1.5rem">
-    <div class="prev-label">Letzte Chats</div>
-    <div id="plist"></div>
-  </div>
-
-  <!-- Verpasste Anrufe (MISSED CALLS) -->
-  <div class="missed-section" id="missed-sec" style="display:none">
-    <div class="missed-label">
-      <div class="missed-dot"></div>
-      Verpasste Anrufe
-      <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
-    </div>
-    <div id="missed-list"></div>
-  </div>
-
+  <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
+  <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
+  <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
+  <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow" id="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
+  <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
+  <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
 </div>
 </div>
 
 <!-- ════════════════════════════════
      SCREEN 2 — INCOMING CALL
 ════════════════════════════════ -->
-<div id="s-in" class="screen">
-<div class="call-wrap">
-  <div class="caller-ring">🧑</div>
-  <div class="caller-name" id="in-name">...</div>
-  <div class="caller-code" id="in-code">Code: ---</div>
-  <div class="caller-hint">möchte mit dir chatten</div>
-  <div class="call-btns">
-    <button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button>
-    <button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button>
-  </div>
-</div>
-</div>
+<div id="s-in" class="screen"><div class="call-wrap"><div class="caller-ring">🧑</div><div class="caller-name" id="in-name">...</div><div class="caller-code" id="in-code">Code: ---</div><div class="caller-hint">möchte mit dir chatten</div><div class="call-btns"><button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button><button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button></div></div></div>
 
 <!-- ════════════════════════════════
      SCREEN 3 — CHAT
 ════════════════════════════════ -->
 <div id="s-chat" class="screen">
-
-  <div class="chat-bar">
-    <button class="back-btn" onclick="goHome()">‹</button>
-    <div class="peer-wrap">
-      <div class="pav offline" id="pav">🧑</div>
-      <div class="pinfo">
-        <div class="pname" id="pname">...</div>
-        <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
-      </div>
-    </div>
-    <button class="menu-btn" onclick="openSheet()">☰</button>
-  </div>
-
-  <div class="rcbar" id="rcbar">
-    <span>○ Verbindung unterbrochen</span>
-    <button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button>
-  </div>
-
-  <div class="messages" id="messages">
-    <div class="empty-chat" id="ehint">
-      <div class="empty-icon">💬</div>
-      <div class="empty-txt">Verbindung wird aufgebaut...</div>
-      <div class="empty-hint"><span class="spin"></span></div>
-    </div>
-  </div>
-
-  <div class="icont">
-    <div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div>
-    <div class="ibar">
-      <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button>
-      <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
-      <textarea class="minp" id="minp" placeholder="Nachricht..."
-        rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
-      <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
-    </div>
-  </div>
+  <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div><button class="menu-btn" onclick="openSheet()">☰</button></div>
+  <div class="rcbar" id="rcbar"><span>○ Verbindung unterbrochen</span><button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button></div>
+  <div class="messages" id="messages"><div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div></div>
+  <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
 <!-- ════════════════════════════════
      BOTTOM SHEET MENU
 ════════════════════════════════ -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title">Chat-Optionen</div>
-  <div class="sheet-body">
-
-    <button class="sitem si-g" onclick="renamePartner()">
-      <div class="sico">✏️</div>
-      <div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div>
-    </button>
-
-    <div class="ssep"></div>
-
-    <button class="sitem si-g" onclick="exportChat()">
-      <div class="sico">💾</div>
-      <div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div>
-    </button>
-
-    <button class="sitem si-b" onclick="triggerImport()">
-      <div class="sico">📂</div>
-      <div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div>
-    </button>
-
-    <div class="ssep"></div>
-
-    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()">
-      <div class="sico">🔌</div>
-      <div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div>
-    </button>
-
-    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()">
-      <div class="sico">🗑️</div>
-      <div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div>
-    </button>
-
-    <div class="ssep"></div>
-
-    <button class="sitem" onclick="closeSheet(); goHome()">
-      <div class="sico" style="background:rgba(255,255,255,.05)">✕</div>
-      <div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div>
-    </button>
-
-  </div>
-</div>
+<div class="sheet" id="sheet"><div class="sheet-handle"></div><div class="sheet-title">Chat-Optionen</div><div class="sheet-body"><button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button><div class="ssep"></div><button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button><button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button><div class="ssep"></div><button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button><button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button><div class="ssep"></div><button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button></div></div>
 
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+<div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
 
-<!-- In-App Notification -->
-<div class="in-notif" id="in-notif" onclick="switchToChat()">
-  <div class="in-ico">💬</div>
-  <div style="flex:1;min-width:0">
-    <div class="in-from" id="in-from">...</div>
-    <div class="in-msg" id="in-msg">...</div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════
-     JAVASCRIPT
-════════════════════════════════ -->
 <script>
 'use strict';
 
-/* ══ CONFIG — Server-URL ══ */
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
 
-/* ══ HILFSFUNKTION: NEUER 6‑STELLIGER CODE ══ */
-function newCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+function newCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
-/* ══ STATE ══ */
 let peer = null, conn = null, pendingConn = null;
 let myCode      = localStorage.getItem('sm_code') || newCode();
 let myName      = localStorage.getItem('sm_name') || 'User_' + myCode.slice(0,4);
@@ -732,53 +518,146 @@ let lastDate    = null;
 const CHUNK     = 16384;
 let fileBufs    = {};
 let isOffline   = false;
-let outgoingCallTimer = null;   // Timer für ausgehenden Ruf (30s)
-
-// ══ NEU: Klingelton-Variablen ══
-let ringingInterval = null;
-let ringingAudioCtx = null;
+let outgoingCallTimer = null;
+let currentRingingAudio = null;   // für das Audio-Element des Klingeltons
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* ══ TON & VIBRATION (für Nachrichten) ══ */
-function playNotificationSound() {
+/* ══ Klingelton als gecachte Audiodatei (einmalig generiert) ══ */
+const CACHE_NAME = 'spotme-sounds';
+const TONE_URL = '/sounds/ringing.wav';
+
+async function ensureRingingToneCached() {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(TONE_URL);
+  if (cached) return true;
+  // generieren
   try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = 880;
-    gainNode.gain.value = 0.2;
-    oscillator.type = 'sine';
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-    oscillator.stop(audioCtx.currentTime + 0.5);
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) {
-    const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCB3YXZlIGZpbGU=');
-    audio.volume = 0.3;
-    audio.play().catch(() => {});
+    const blob = await generateRingingToneBlob();
+    const response = new Response(blob, { headers: { 'Content-Type': 'audio/wav' } });
+    await cache.put(TONE_URL, response);
+    console.log('Klingelton gecacht');
+    return true;
+  } catch(e) {
+    console.warn('Klingelton-Generierung fehlgeschlagen', e);
+    return false;
   }
 }
 
-function triggerHaptic() {
-  if (navigator.vibrate) {
-    navigator.vibrate(200);
-  }
+function generateRingingToneBlob() {
+  return new Promise((resolve) => {
+    const sampleRate = 44100;
+    const duration = 1.2; // Sekunden (ein Zyklus: 0,5 s Ton + 0,2 s Pause + 0,5 s Ton)
+    const offlineCtx = new OfflineAudioContext(1, sampleRate * duration, sampleRate);
+    const now = offlineCtx.currentTime;
+    
+    // Erster Ton (0,5 s)
+    const osc1 = offlineCtx.createOscillator();
+    const gain1 = offlineCtx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(offlineCtx.destination);
+    osc1.type = 'sine';
+    osc1.frequency.value = 800;
+    gain1.gain.setValueAtTime(0.3, now);
+    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    osc1.start(now);
+    osc1.stop(now + 0.5);
+    
+    // Zweiter Ton (0,5 s) nach kurzer Pause (0,2 s)
+    const osc2 = offlineCtx.createOscillator();
+    const gain2 = offlineCtx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(offlineCtx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.value = 800;
+    gain2.gain.setValueAtTime(0.3, now + 0.7);
+    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    osc2.start(now + 0.7);
+    osc2.stop(now + 1.2);
+    
+    offlineCtx.startRendering().then(renderedBuffer => {
+      resolve(bufferToWav(renderedBuffer));
+    });
+  });
 }
 
-/* ══ NEU: Wiederholender Klingelton für eingehenden Ruf ══ */
-function startRingingSound() {
-  stopRingingSound(); // vorherigen Ton stoppen
+function bufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  let samples = buffer.getChannelData(0);
+  let dataLength = samples.length * (bitDepth / 8);
+  let bufferLength = 44 + dataLength;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
   
-  function playBeep() {
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, bufferLength - 8, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * (bitDepth / 8), true);
+  view.setUint16(32, numChannels * (bitDepth / 8), true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataLength, true);
+  
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+    offset += 2;
+  }
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+}
+
+async function playRingingTone() {
+  stopRingingTone();
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(TONE_URL);
+    if (cached) {
+      const blob = await cached.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.play();
+      currentRingingAudio = audio;
+      return;
+    }
+  } catch(e) {}
+  // Fallback: synthetischer Ton über Web Audio (kurzer Ping, loop per Intervall)
+  startFallbackRinging();
+}
+
+function stopRingingTone() {
+  if (currentRingingAudio) {
+    currentRingingAudio.pause();
+    currentRingingAudio.src = '';
+    currentRingingAudio = null;
+  }
+  stopFallbackRinging();
+}
+
+let fallbackInterval = null;
+let fallbackCtx = null;
+function startFallbackRinging() {
+  stopFallbackRinging();
+  function beep() {
     try {
-      if (!ringingAudioCtx || ringingAudioCtx.state === 'closed') {
-        ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!fallbackCtx || fallbackCtx.state === 'closed') {
+        fallbackCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      const ctx = ringingAudioCtx;
+      const ctx = fallbackCtx;
       const now = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -793,36 +672,45 @@ function startRingingSound() {
       if (ctx.state === 'suspended') ctx.resume();
     } catch(e) {}
   }
-  
-  playBeep(); // sofort erster Ton
-  ringingInterval = setInterval(playBeep, 800); // alle 800ms wiederholen
+  beep();
+  fallbackInterval = setInterval(beep, 800);
+}
+function stopFallbackRinging() {
+  if (fallbackInterval) { clearInterval(fallbackInterval); fallbackInterval = null; }
+  if (fallbackCtx) { try { fallbackCtx.close(); } catch(e){} fallbackCtx = null; }
 }
 
-function stopRingingSound() {
-  if (ringingInterval) {
-    clearInterval(ringingInterval);
-    ringingInterval = null;
-  }
-  if (ringingAudioCtx) {
-    try { ringingAudioCtx.close(); } catch(e) {}
-    ringingAudioCtx = null;
-  }
+/* ══ kurzer Nachrichtenton (einmalig) ══ */
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.2;
+    osc.type = 'sine';
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+    osc.stop(ctx.currentTime + 0.5);
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch(e) {}
 }
+function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(200); }
 
-/* ══ VERPASSTE ANRUFE (MISSED CALLS) ══ */
-function getMissed()    { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
-function saveMissed(a)  { localStorage.setItem('sm_missed', JSON.stringify(a)); }
-
+/* ══ VERPASSTE ANRUFE ══ */
+function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
+function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
 function addMissed(code, name) {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
-  const entry  = { code, name, ts: Date.now() };
+  const entry = { code, name, ts: Date.now() };
   if (recent >= 0) arr[recent] = entry;
   else arr.unshift(entry);
   saveMissed(arr.slice(0, 30));
   renderMissed();
 }
-
 function renderMissed() {
   const arr = getMissed();
   const sec = document.getElementById('missed-sec');
@@ -831,91 +719,45 @@ function renderMissed() {
   sec.style.display = 'block';
   lst.innerHTML = arr.map(m => {
     const d = new Date(m.ts);
-    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
-      ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
-      : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' +
-        d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
-    return `
-    <div class="missed-item" onclick="callBack('${m.code}')">
-      <div class="missed-av">📵</div>
-      <div class="missed-info">
-        <div class="missed-name">${esc(m.name)}</div>
-        <div class="missed-time">${formatCode(m.code)} · ${t}</div>
-      </div>
-      <div class="missed-call-icon" title="Zurückrufen">📞</div>
-    </div>`;
+    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE') ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+    return `<div class="missed-item" onclick="callBack('${m.code}')"><div class="missed-av">📵</div><div class="missed-info"><div class="missed-name">${esc(m.name)}</div><div class="missed-time">${formatCode(m.code)} · ${t}</div></div><div class="missed-call-icon" title="Zurückrufen">📞</div></div>`;
   }).join('');
 }
-
-function clearMissed() {
-  saveMissed([]);
-  renderMissed();
-}
-
+function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) {
   const inps = document.querySelectorAll('.dinp');
   code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
   document.getElementById('cbtn').disabled = false;
   connectToPeer();
-  setTimeout(() => {
-    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
-    document.getElementById('cbtn').disabled = true;
-  }, 200);
+  setTimeout(() => { inps.forEach(d => { d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; }, 200);
 }
 
-/* ══ LOKALE KONTAKTE (Spitznamen) ══ */
+/* ══ KONTAKTE ══ */
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
-
-function localName(code, fallback) {
-  return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4));
-}
-
-function setAlias(code, name) {
-  const c = getContacts();
-  if (name) c[code] = name;
-  else delete c[code];
-  saveContacts(c);
-}
+function localName(code, fallback) { return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4)); }
+function setAlias(code, name) { const c = getContacts(); if (name) c[code] = name; else delete c[code]; saveContacts(c); }
 
 /* ══ INIT ══ */
 window.addEventListener('load', () => {
-  document.getElementById('mycode').textContent =
-    myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
+  document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   initDigits();
   renderPrev();
   renderMissed();
   initPeer();
-
-  if ('Notification' in window && Notification.permission === 'default')
-    Notification.requestPermission();
-
-  window.addEventListener('online',  () => { if (!peer || peer.destroyed) initPeer(); });
+  ensureRingingToneCached(); // Klingelton generieren und cachen
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  window.addEventListener('online', () => { if (!peer || peer.destroyed) initPeer(); });
   window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
-
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu();
-  });
+  document.addEventListener('click', e => { if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu(); });
 });
 
-/* ══ PROFIL-BACKUP ══ */
-function toggleHomeMenu(e) {
-  e.stopPropagation();
-  document.getElementById('home-drop').classList.toggle('open');
-}
-function closeHomeMenu() {
-  document.getElementById('home-drop').classList.remove('open');
-}
+/* ══ PROFIL-BACKUP (erweitert um sm_missed) ══ */
+function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
+function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
 function backupProfile() {
   closeHomeMenu();
-  const backup = {
-    _spotme_backup: true, _version: 1, _date: new Date().toISOString(),
-    sm_code:     localStorage.getItem('sm_code')     || '',
-    sm_name:     localStorage.getItem('sm_name')     || '',
-    sm_contacts: localStorage.getItem('sm_contacts') || '{}',
-    sm_idx:      localStorage.getItem('sm_idx')      || '[]',
-    sm_missed:   localStorage.getItem('sm_missed')   || '[]'
-  };
+  const backup = { _spotme_backup: true, _version: 1, _date: new Date().toISOString(), sm_code: localStorage.getItem('sm_code') || '', sm_name: localStorage.getItem('sm_name') || '', sm_contacts: localStorage.getItem('sm_contacts') || '{}', sm_idx: localStorage.getItem('sm_idx') || '[]', sm_missed: localStorage.getItem('sm_missed') || '[]' };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -954,39 +796,15 @@ function initPeer() {
   if (peer && !peer.destroyed) { try { peer.destroy(); } catch(e){} }
   peer = null;
   setSpill('connecting', 'Verbinde mit Server...');
-  peer = new Peer(myCode, {
-    host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true,
-    config: { iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' }
-    ]}
-  });
-  peer.on('open', () => {
-    peerRetries = 0;
-    setSpill('online', '● Online · Code aktiv');
-    isOffline = false;
-    showCodeCard(true);
-  });
+  peer = new Peer(myCode, { host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } });
+  peer.on('open', () => { peerRetries = 0; setSpill('online', '● Online · Code aktiv'); isOffline = false; showCodeCard(true); });
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
-    if (err.type === 'unavailable-id') {
-      peerRetries++;
-      const delay = Math.min(3000 * peerRetries, 15000);
-      setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`);
-      setTimeout(() => { peer = null; initPeer(); }, delay);
-      return;
-    }
+    if (err.type === 'unavailable-id') { peerRetries++; const delay = Math.min(3000 * peerRetries, 15000); setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`); setTimeout(() => { peer = null; initPeer(); }, delay); return; }
     if (err.type === 'peer-unavailable') { toast('⚠️ Partner nicht erreichbar'); goHome(); return; }
-    peerRetries++;
-    const delay = Math.min(4000 * peerRetries, 20000);
-    setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
-    setTimeout(() => { peer = null; initPeer(); }, delay);
+    peerRetries++; const delay = Math.min(4000 * peerRetries, 20000); setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`); setTimeout(() => { peer = null; initPeer(); }, delay);
   });
-  peer.on('disconnected', () => {
-    setSpill('connecting', 'Unterbrochen · verbinde erneut...');
-    setTimeout(() => { peer = null; initPeer(); }, 2500);
-  });
+  peer.on('disconnected', () => { setSpill('connecting', 'Unterbrochen · verbinde erneut...'); setTimeout(() => { peer = null; initPeer(); }, 2500); });
   peer.on('connection', incoming => {
     if (conn && conn.open) { incoming.close(); return; }
     pendingConn = incoming;
@@ -997,12 +815,11 @@ function initPeer() {
     showScreen('s-in');
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
-    // 🔔 Klingelton starten (wiederholend)
-    startRingingSound();
+    playRingingTone();    // Klingelton starten (loop)
     triggerHaptic();
     incoming.on('close', () => {
       if (pendingConn === incoming) {
-        stopRingingSound(); // Ton stoppen
+        stopRingingTone();
         addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
         pendingConn = null;
         showScreen('s-home');
@@ -1012,9 +829,8 @@ function initPeer() {
   });
 }
 
-/* ══ ACCEPT / DECLINE ══ */
 function acceptCall() {
-  stopRingingSound(); // Klingelton stoppen
+  stopRingingTone();
   if (!pendingConn) { toast('⚠️ Verbindung nicht mehr verfügbar'); return; }
   const c = pendingConn; pendingConn = null;
   partnerCode = c.peer;
@@ -1023,31 +839,21 @@ function acceptCall() {
   openChat(c);
 }
 function declineCall() {
-  stopRingingSound(); // Klingelton stoppen
-  if (pendingConn) {
-    const c = pendingConn;
-    pendingConn = null;
-    addMissed(c.peer, localName(c.peer, c.metadata?.name));
-    try { c.close(); } catch(e){}
-  }
+  stopRingingTone();
+  if (pendingConn) { const c = pendingConn; pendingConn = null; addMissed(c.peer, localName(c.peer, c.metadata?.name)); try { c.close(); } catch(e){} }
   showScreen('s-home');
 }
 
-/* ══ CONNECT (Anrufer) mit 30‑Sekunden‑Timeout ══ */
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
   if (!peer || !peer.open) { toast('⚠️ Noch nicht verbunden'); return; }
-  
   if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
-  
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
-  
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
-  
   outgoingCallTimer = setTimeout(() => {
     if (conn && conn === newConn && !conn.open) {
       toast('⏰ Keine Antwort innerhalb von 30 Sekunden');
@@ -1060,7 +866,6 @@ function connectToPeer() {
   }, 30000);
 }
 
-/* ══ RECONNECT ══ */
 function tryReconnect() {
   if (!partnerCode || !peer || !peer.open) return;
   document.getElementById('rcbar').classList.remove('show');
@@ -1068,18 +873,13 @@ function tryReconnect() {
   openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } }));
 }
 
-/* ══ OPEN CHAT — einzige Verbindungslogik ══ */
 function openChat(c) {
   if (conn && conn !== c) { try { conn.close(); } catch(e){} }
   conn = c;
   prepChat();
   showScreen('s-chat');
-  
   const onOpen = () => {
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
+    if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     document.getElementById('pstatus').textContent = '● Verbunden';
@@ -1090,41 +890,22 @@ function openChat(c) {
     if (!alias && netName) partnerName = netName;
     applyPartnerName();
     const h = document.getElementById('ehint');
-    if (h) {
-      h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
-    }
+    if (h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     updateIdx('');
     toast('✓ Verbunden');
   };
-  
   if (conn.open) onOpen(); else conn.on('open', onOpen);
-  
   conn.on('data', d => handleData(d));
-  
   conn.on('close', () => {
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
+    if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     conn = null;
     document.getElementById('sbtn').disabled = true;
     document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
     document.getElementById('pstatus').className = 'pstatus dim';
     document.getElementById('pav').className = 'pav offline';
-    if (document.getElementById('s-chat').classList.contains('active')) {
-      document.getElementById('rcbar').classList.add('show');
-      toast('○ Partner hat den Chat verlassen');
-    }
+    if (document.getElementById('s-chat').classList.contains('active')) { document.getElementById('rcbar').classList.add('show'); toast('○ Partner hat den Chat verlassen'); }
   });
-  
-  conn.on('error', err => {
-    console.warn('[conn]', err);
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
-    document.getElementById('rcbar').classList.add('show');
-  });
+  conn.on('error', err => { console.warn('[conn]', err); if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } document.getElementById('rcbar').classList.add('show'); });
 }
 
 function prepChat() {
@@ -1141,7 +922,6 @@ function prepChat() {
   loadHistory();
 }
 
-/* ══ SEND TEXT ══ */
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -1154,7 +934,6 @@ function sendMsg() {
   inp.value = ''; inp.style.height = 'auto';
 }
 
-/* ══ SEND FILE ══ */
 async function sendFile(inp) {
   const f = inp.files[0]; inp.value = '';
   if (!f) return;
@@ -1183,21 +962,15 @@ async function sendFile(inp) {
   };
   reader.readAsArrayBuffer(f.slice(0, CHUNK));
 }
-function showUP(v) {
-  document.getElementById('upw').style.opacity = v ? '1' : '0';
-  if (!v) setTimeout(() => { document.getElementById('upb').style.width = '0%'; }, 400);
-}
-function fileToB64(f) {
-  return new Promise(r => { const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(f); });
-}
+function showUP(v) { document.getElementById('upw').style.opacity = v ? '1' : '0'; if (!v) setTimeout(() => { document.getElementById('upb').style.width = '0%'; }, 400); }
+function fileToB64(f) { return new Promise(r => { const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(f); }); }
 
-/* ══ RECEIVE DATA ══ */
 function handleData(d) {
   if (d.t === 'text') {
     const m = { ...d, own:false };
     appendMsg(m); persistMsg(m);
     notify(d.text);
-    playNotificationSound();  // kurzer Ping bei Nachricht
+    playNotificationSound();
     triggerHaptic();
   } else if (d.t === 'f-start') {
     fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) };
@@ -1223,7 +996,6 @@ function handleData(d) {
   }
 }
 
-/* ══ RENDER MSG ══ */
 function appendMsg(m) {
   const list = document.getElementById('messages');
   const hint = document.getElementById('ehint');
@@ -1231,12 +1003,7 @@ function appendMsg(m) {
   const d = new Date(m.ts);
   const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' });
   const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
-  if (ds !== lastDate) {
-    lastDate = ds;
-    const sep = document.createElement('div');
-    sep.className = 'date-sep'; sep.textContent = ds;
-    list.appendChild(sep);
-  }
+  if (ds !== lastDate) { lastDate = ds; const sep = document.createElement('div'); sep.className = 'date-sep'; sep.textContent = ds; list.appendChild(sep); }
   const w = document.createElement('div');
   w.className = 'msg ' + (m.own ? 'msg-o' : 'msg-i');
   if (m.t === 'text') {
@@ -1253,12 +1020,8 @@ function appendMsg(m) {
   }
   list.appendChild(w); list.scrollTop = list.scrollHeight;
 }
-function bigImg(url) {
-  const w = window.open();
-  w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`);
-}
+function bigImg(url) { const w = window.open(); w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`); }
 
-/* ══ OFFLINE MODE ══ */
 function goOffline() {
   if (!confirm('Verbindung zum Server trennen?')) return;
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
@@ -1268,12 +1031,8 @@ function goOffline() {
   setSpill('offline', 'Offline');
   showScreen('s-home');
 }
-function showCodeCard(show) {
-  document.getElementById('code-card').style.display = show ? '' : 'none';
-  document.getElementById('offline-banner').style.display = show ? 'none' : '';
-}
+function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
 
-/* ══ PERSISTENCE ══ */
 function buildCID(a, b) { return 'sm_' + [a,b].sort().join('_'); }
 function persistMsg(m) {
   if (!chatId) return;
@@ -1305,14 +1064,8 @@ function applyPartnerName() {
   const display = alias || partnerName;
   const lbl = document.getElementById('pname');
   if (!lbl) return;
-  if (alias && partnerName && alias !== partnerName) {
-    lbl.innerHTML = esc(alias) + `<span class="alias-badge" title="Netzwerkname: ${esc(partnerName)}">✏️</span>`;
-  } else {
-    lbl.textContent = display;
-  }
+  if (alias && partnerName && alias !== partnerName) { lbl.innerHTML = esc(alias) + `<span class="alias-badge" title="Netzwerkname: ${esc(partnerName)}">✏️</span>`; } else { lbl.textContent = display; }
 }
-
-/* ══ UMBENENNEN ══ */
 function renamePartner() {
   closeSheet();
   const current = getContacts()[partnerCode] || '';
@@ -1326,8 +1079,6 @@ function renamePartner() {
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
 }
-
-/* ══ PREV CHATS ══ */
 function renderPrev() {
   const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const sec = document.getElementById('psec');
@@ -1336,27 +1087,11 @@ function renderPrev() {
   sec.style.display = 'block';
   lst.innerHTML = arr.map(c => {
     const d = new Date(c.ts);
-    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
-      ? d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
-      : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'});
+    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE') ? d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'});
     const alias = getContacts()[c.code];
     const display = alias || c.partner;
     const badge = alias ? `<span style="font-size:.7rem;color:var(--muted);font-weight:400;"> (${esc(c.partner)})</span>` : '';
-    return `
-    <div style="display:flex;align-items:center;gap:.5rem">
-      <div class="prev-item" style="flex:1" onclick="reconnectTo('${c.code}','${esc2(display)}','${c.id}')">
-        <div class="prev-av">🧑</div>
-        <div class="prev-info">
-          <div class="prev-name">${esc(display)}${badge}</div>
-          <div class="prev-msg">${esc(c.preview || '—')}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:.72rem;color:var(--muted2)">${t}</div>
-          <div class="prev-code">${formatCode(c.code)}</div>
-        </div>
-      </div>
-      <button class="rename-btn" title="Umbenennen" onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button>
-    </div>`;
+    return `<div style="display:flex;align-items:center;gap:.5rem"><div class="prev-item" style="flex:1" onclick="reconnectTo('${c.code}','${esc2(display)}','${c.id}')"><div class="prev-av">🧑</div><div class="prev-info"><div class="prev-name">${esc(display)}${badge}</div><div class="prev-msg">${esc(c.preview || '—')}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:.72rem;color:var(--muted2)">${t}</div><div class="prev-code">${formatCode(c.code)}</div></div></div><button class="rename-btn" title="Umbenennen" onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button></div>`;
   }).join('');
 }
 function renameContact(code, networkName) {
@@ -1373,8 +1108,6 @@ function reconnectTo(code, name, cid) {
   partnerCode = code; partnerName = name; chatId = cid;
   openChat(peer.connect(code, { reliable:true, metadata:{ name: myName } }));
 }
-
-/* ══ MENU ACTIONS ══ */
 function exportChat() {
   closeSheet();
   if (!chatId) { toast('⚠️ Kein aktiver Chat'); return; }
@@ -1394,12 +1127,7 @@ function importChat(inp) {
     try {
       const d = JSON.parse(e.target.result);
       if (!d.messages) { toast('❌ Keine Nachrichten gefunden'); return; }
-      if (chatId) {
-        localStorage.setItem('smmsg_' + chatId, JSON.stringify(d.messages));
-        document.getElementById('messages').innerHTML = '';
-        lastDate = null; loadHistory();
-        toast('📂 Backup importiert');
-      }
+      if (chatId) { localStorage.setItem('smmsg_' + chatId, JSON.stringify(d.messages)); document.getElementById('messages').innerHTML = ''; lastDate = null; loadHistory(); toast('📂 Backup importiert'); }
     } catch { toast('❌ Ungültige Datei'); }
   };
   rd.readAsText(inp.files[0]); inp.value = '';
@@ -1413,8 +1141,6 @@ function clearChat() {
   document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="empty-icon">🗑️</div><div class="empty-txt">Verlauf gelöscht.</div></div>';
   lastDate = null; renderPrev(); toast('🗑️ Verlauf gelöscht');
 }
-
-/* ══ NOTIFICATIONS ══ */
 function notify(text) {
   const onChat = document.getElementById('s-chat').classList.contains('active');
   if (!onChat || document.hidden) { inAppNotif(partnerName, text); pushNotif(partnerName, text); }
@@ -1435,62 +1161,28 @@ function inAppNotif(from, text) {
   clearTimeout(inTimer); inTimer = setTimeout(() => el.classList.remove('show'), 5000);
 }
 function switchToChat() { document.getElementById('in-notif').classList.remove('show'); showScreen('s-chat'); }
-
-/* ══ DIGIT INPUTS ══ */
 function initDigits() {
   const inps = document.querySelectorAll('.dinp');
   inps.forEach((p, i) => {
-    p.addEventListener('input', () => {
-      const v = p.value.replace(/\D/g,'');
-      p.value = v ? v.slice(-1) : '';
-      p.classList.toggle('filled', !!p.value);
-      if (p.value && i < 5) inps[i+1].focus();
-      document.getElementById('cbtn').disabled = getDigits().length !== 6;
-    });
-    p.addEventListener('keydown', e => {
-      if (e.key === 'Backspace' && !p.value && i > 0) {
-        inps[i-1].value = ''; inps[i-1].classList.remove('filled'); inps[i-1].focus();
-        document.getElementById('cbtn').disabled = true;
-      }
-    });
-    p.addEventListener('paste', e => {
-      e.preventDefault();
-      const txt = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
-      txt.split('').forEach((ch, j) => { if (inps[i+j]) { inps[i+j].value=ch; inps[i+j].classList.add('filled'); }});
-      inps[Math.min(i + txt.length, 5)].focus();
-      document.getElementById('cbtn').disabled = getDigits().length !== 6;
-    });
+    p.addEventListener('input', () => { const v = p.value.replace(/\D/g,''); p.value = v ? v.slice(-1) : ''; p.classList.toggle('filled', !!p.value); if (p.value && i < 5) inps[i+1].focus(); document.getElementById('cbtn').disabled = getDigits().length !== 6; });
+    p.addEventListener('keydown', e => { if (e.key === 'Backspace' && !p.value && i > 0) { inps[i-1].value = ''; inps[i-1].classList.remove('filled'); inps[i-1].focus(); document.getElementById('cbtn').disabled = true; } });
+    p.addEventListener('paste', e => { e.preventDefault(); const txt = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6); txt.split('').forEach((ch, j) => { if (inps[i+j]) { inps[i+j].value=ch; inps[i+j].classList.add('filled'); }}); inps[Math.min(i + txt.length, 5)].focus(); document.getElementById('cbtn').disabled = getDigits().length !== 6; });
   });
 }
 function getDigits() { return [...document.querySelectorAll('.dinp')].map(x=>x.value).join(''); }
-
-/* ══ NAVIGATION ══ */
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('in-notif').classList.remove('show');
-}
-function setSpill(type, text) {
-  const el = document.getElementById('spill');
-  el.className = 'spill ' + type;
-  document.getElementById('spill-txt').textContent = text;
-}
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('in-notif').classList.remove('show'); }
+function setSpill(type, text) { const el = document.getElementById('spill'); el.className = 'spill ' + type; document.getElementById('spill-txt').textContent = text; }
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
-  stopRingingSound(); // Klingelton stoppen beim Verlassen
-  if (outgoingCallTimer) {
-    clearTimeout(outgoingCallTimer);
-    outgoingCallTimer = null;
-  }
+  stopRingingTone();
+  if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
   pendingConn = null; lastDate = null;
   document.querySelectorAll('.dinp').forEach(d => { d.value=''; d.classList.remove('filled'); });
   document.getElementById('cbtn').disabled = true;
   closeSheet(); showScreen('s-home'); renderPrev();
 }
-
-/* ══ HELPERS ══ */
 function hkey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
 function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
 function esc(s)  { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
@@ -1498,7 +1190,6 @@ function esc2(s) { return s.replace(/'/g,"\\'"); }
 function formatCode(c) { return c.slice(0,3)+' · '+c.slice(3,6); }
 function copyCode()  { navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: '+myCode)); }
 function shareCode() { if (navigator.share) navigator.share({ title:'SpotMe', text:`Mein Code: ${formatCode(myCode)} – schreib mir!` }); else copyCode(); }
-
 let tTimer = null;
 function toast(msg, ms=2400) {
   const ex = document.querySelector('.toast'); if (ex) ex.remove();
