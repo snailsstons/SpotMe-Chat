@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v18</title>
+<title>SpotMe · Chat v20</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V18">
+<meta name="apple-mobile-web-app-title" content="SpotMe V20">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -120,10 +120,11 @@ html, body {
 }
 .code-label { font-size:.72rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2); margin-bottom:.8rem }
 .code-value {
-  font-family:'Syne',sans-serif; font-weight:800; font-size:2rem;
-  letter-spacing:.06em; color:var(--acc);
+  font-family:'Syne',sans-serif; font-weight:800; font-size:2.2rem;
+  letter-spacing:.1em; color:var(--acc);
   text-shadow:0 0 48px rgba(0,229,192,.2);
   margin-bottom:.85rem; font-variant-numeric:tabular-nums;
+  white-space:nowrap;
 }
 .code-actions { display:flex; gap:.5rem; justify-content:center }
 .csbtn {
@@ -203,6 +204,33 @@ html, body {
   flex-shrink:0; transition:all .15s;
 }
 .rename-btn:active { background:rgba(0,229,192,.1); color:var(--acc); border-color:rgba(0,229,192,.3) }
+
+/* Verpasste Anrufe (MISSED CALLS) */
+.missed-section { margin-top:1.4rem }
+.missed-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--p3); margin-bottom:.6rem; display:flex; align-items:center; gap:.45rem }
+.missed-dot { width:7px; height:7px; border-radius:50%; background:var(--p3); animation:blink .9s ease infinite }
+.missed-item {
+  display:flex; align-items:center; gap:.8rem;
+  padding:.75rem .9rem; border-radius:14px; border:1px solid rgba(255,79,123,.15);
+  background:rgba(255,79,123,.04); margin-bottom:.45rem;
+  cursor:pointer; transition:background .15s;
+}
+.missed-item:active { background:rgba(255,79,123,.09) }
+.missed-av {
+  width:38px; height:38px; border-radius:50%;
+  background:rgba(255,79,123,.15); border:1px solid rgba(255,79,123,.25);
+  display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0;
+}
+.missed-info { flex:1; min-width:0 }
+.missed-name { font-size:.9rem; font-weight:600; color:var(--text) }
+.missed-time { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
+.missed-call-icon { font-size:1rem; color:var(--p3); flex-shrink:0 }
+.missed-clear-btn {
+  font-size:.72rem; color:var(--muted2); background:none; border:none;
+  cursor:pointer; padding:.2rem .5rem; border-radius:6px;
+  transition:color .15s; font-family:'DM Sans',sans-serif;
+}
+.missed-clear-btn:active { color:var(--p3) }
 
 /* Alias badge im Chat-Header */
 .alias-badge {
@@ -487,10 +515,10 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V18</b></span>
+    <span class="bname">Spot<b>Me V20</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
-    <!-- Home Menu Dropdown — INSIDE brand so position:absolute works -->
+    <!-- Home Menu Dropdown -->
     <div class="home-drop" id="home-drop">
       <button class="mitem" onclick="backupProfile()">
         <span class="mico">💾</span>
@@ -549,6 +577,17 @@ html, body {
     <div class="prev-label">Letzte Chats</div>
     <div id="plist"></div>
   </div>
+
+  <!-- Verpasste Anrufe (MISSED CALLS) -->
+  <div class="missed-section" id="missed-sec" style="display:none">
+    <div class="missed-label">
+      <div class="missed-dot"></div>
+      Verpasste Anrufe
+      <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
+    </div>
+    <div id="missed-list"></div>
+  </div>
+
 </div>
 </div>
 
@@ -675,9 +714,14 @@ html, body {
 <script>
 'use strict';
 
-/* ══ CONFIG — hier Server-URL eintragen ══ */
+/* ══ CONFIG — Server-URL ══ */
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
+
+/* ══ HILFSFUNKTION: NEUER 6‑STELLIGER CODE ══ */
+function newCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 /* ══ STATE ══ */
 let peer = null, conn = null, pendingConn = null;
@@ -692,13 +736,62 @@ let isOffline   = false;
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* ══ LOKALE KONTAKTE (Spitznamen) ══
-   sm_contacts = { "483291": "Jenny", ... }
-   Nur lokal gespeichert, nie übertragen.        */
+/* ══ VERPASSTE ANRUFE (MISSED CALLS) ══ */
+function getMissed()    { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
+function saveMissed(a)  { localStorage.setItem('sm_missed', JSON.stringify(a)); }
+
+function addMissed(code, name) {
+  const arr = getMissed();
+  // Neuester Eintrag desselben Callers ersetzen falls < 60s her
+  const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
+  const entry  = { code, name, ts: Date.now() };
+  if (recent >= 0) arr[recent] = entry;
+  else arr.unshift(entry);
+  saveMissed(arr.slice(0, 30));
+  renderMissed();
+}
+
+function renderMissed() {
+  const arr = getMissed();
+  const sec = document.getElementById('missed-sec');
+  const lst = document.getElementById('missed-list');
+  if (!arr.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  lst.innerHTML = arr.map(m => {
+    const d = new Date(m.ts);
+    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
+      ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
+      : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' +
+        d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+    return `
+    <div class="missed-item" onclick="callBack('${m.code}')">
+      <div class="missed-av">📵</div>
+      <div class="missed-info">
+        <div class="missed-name">${esc(m.name)}</div>
+        <div class="missed-time">${formatCode(m.code)} · ${t}</div>
+      </div>
+      <div class="missed-call-icon" title="Zurückrufen">📞</div>
+    </div>`;
+  }).join('');
+}
+
+function clearMissed() {
+  saveMissed([]);
+  renderMissed();
+}
+
+function callBack(code) {
+  // Digit-Felder füllen
+  const inps = document.querySelectorAll('.dinp');
+  code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
+  document.getElementById('cbtn').disabled = false;
+  connectToPeer();
+}
+
+/* ══ LOKALE KONTAKTE (Spitznamen) ══ */
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
 
-/** Gibt lokalen Alias zurück, oder den übergebenen Fallback-Namen */
 function localName(code, fallback) {
   return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4));
 }
@@ -716,62 +809,46 @@ window.addEventListener('load', () => {
     myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   initDigits();
   renderPrev();
+  renderMissed();
   initPeer();
 
   if ('Notification' in window && Notification.permission === 'default')
     Notification.requestPermission();
 
-  // Netzwerkwechsel abfangen
   window.addEventListener('online',  () => { if (!peer || peer.destroyed) initPeer(); });
   window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
 
-  // Sheet schließen bei Außenklick
   document.addEventListener('click', e => {
-    if (!e.target.closest('.sheet') && !e.target.closest('.menu-btn') &&
-        !e.target.closest('.sheet-ovl')) return;
-  });
-
-  // Home-Menü schließen bei Außenklick
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) {
-      closeHomeMenu();
-    }
+    if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu();
   });
 });
 
 /* ══ PROFIL-BACKUP ══ */
 function toggleHomeMenu(e) {
-  e.stopPropagation(); // verhindert dass document-click das Menu sofort wieder schließt
-  const d = document.getElementById('home-drop');
-  d.classList.toggle('open');
+  e.stopPropagation();
+  document.getElementById('home-drop').classList.toggle('open');
 }
-
 function closeHomeMenu() {
   document.getElementById('home-drop').classList.remove('open');
 }
-
 function backupProfile() {
   closeHomeMenu();
   const backup = {
-    _spotme_backup: true,
-    _version: 1,
-    _date: new Date().toISOString(),
-    sm_code:     localStorage.getItem('sm_code')     || '',
-    sm_name:     localStorage.getItem('sm_name')     || '',
+    _spotme_backup: true, _version: 1, _date: new Date().toISOString(),
+    sm_code: localStorage.getItem('sm_code') || '',
+    sm_name: localStorage.getItem('sm_name') || '',
     sm_contacts: localStorage.getItem('sm_contacts') || '{}',
-    sm_idx:      localStorage.getItem('sm_idx')      || '[]'
+    sm_idx: localStorage.getItem('sm_idx') || '[]'
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  const date = new Date().toISOString().slice(0,10);
-  a.href     = url;
-  a.download = `SpotMe_Backup_${date}.json`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SpotMe_Backup_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
   toast('💾 Backup gespeichert');
 }
-
 function restoreProfile(input) {
   closeHomeMenu();
   if (!input.files[0]) return;
@@ -780,20 +857,11 @@ function restoreProfile(input) {
     try {
       const d = JSON.parse(e.target.result);
       if (!d._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); return; }
-
-      if (!confirm(
-        `Profil wiederherstellen?\n\n` +
-        `Code:     ${d.sm_code}\n` +
-        `Name:     ${d.sm_name}\n` +
-        `Gesichert: ${d._date ? new Date(d._date).toLocaleString('de-DE') : 'unbekannt'}\n\n` +
-        `Dein aktueller Code wird ersetzt.`
-      )) return;
-
-      if (d.sm_code)     localStorage.setItem('sm_code',     d.sm_code);
-      if (d.sm_name)     localStorage.setItem('sm_name',     d.sm_name);
+      if (!confirm(`Profil wiederherstellen?\n\nCode: ${d.sm_code}\nName: ${d.sm_name}\n\nDein aktueller Code wird ersetzt.`)) return;
+      if (d.sm_code) localStorage.setItem('sm_code', d.sm_code);
+      if (d.sm_name) localStorage.setItem('sm_name', d.sm_name);
       if (d.sm_contacts) localStorage.setItem('sm_contacts', d.sm_contacts);
-      if (d.sm_idx)      localStorage.setItem('sm_idx',      d.sm_idx);
-
+      if (d.sm_idx) localStorage.setItem('sm_idx', d.sm_idx);
       toast('✅ Profil wiederhergestellt · Seite wird neu geladen...');
       setTimeout(() => location.reload(), 1800);
     } catch { toast('❌ Datei konnte nicht gelesen werden'); }
@@ -804,79 +872,61 @@ function restoreProfile(input) {
 
 /* ══ PEERJS ══ */
 let peerRetries = 0;
-
 function initPeer() {
-  // Peer noch aktiv → nichts tun
   if (peer && !peer.destroyed && peer.open) return;
-  // Alten Peer aufräumen
   if (peer && !peer.destroyed) { try { peer.destroy(); } catch(e){} }
   peer = null;
-
   setSpill('connecting', 'Verbinde mit Server...');
-
-  peer = new Peer(myCode, {          // ← myCode bleibt IMMER gleich
-    host: SERVER_HOST,
-    port: 443,
-    path: SERVER_PATH,
-    secure: true,
+  peer = new Peer(myCode, {
+    host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true,
     config: { iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478'  }
+      { urls: 'stun:stun.cloudflare.com:3478' }
     ]}
   });
-
   peer.on('open', () => {
     peerRetries = 0;
     setSpill('online', '● Online · Code aktiv');
     isOffline = false;
     showCodeCard(true);
   });
-
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
-
     if (err.type === 'unavailable-id') {
-      // Code auf Server noch als belegt markiert (alter Tab/Session)
-      // → NICHT den Code ändern, einfach kurz warten und erneut versuchen
       peerRetries++;
       const delay = Math.min(3000 * peerRetries, 15000);
       setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`);
       setTimeout(() => { peer = null; initPeer(); }, delay);
       return;
     }
-
-    if (err.type === 'peer-unavailable') {
-      toast('⚠️ Partner nicht erreichbar');
-      goHome(); return;
-    }
-
-    // Netzwerkfehler → Retry mit Backoff
+    if (err.type === 'peer-unavailable') { toast('⚠️ Partner nicht erreichbar'); goHome(); return; }
     peerRetries++;
     const delay = Math.min(4000 * peerRetries, 20000);
     setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
     setTimeout(() => { peer = null; initPeer(); }, delay);
   });
-
   peer.on('disconnected', () => {
     setSpill('connecting', 'Unterbrochen · verbinde erneut...');
-    // peer.reconnect() löst erneut unavailable-id aus → stattdessen neu initialisieren
     setTimeout(() => { peer = null; initPeer(); }, 2500);
   });
-
-  // Eingehender Anruf
   peer.on('connection', incoming => {
     if (conn && conn.open) { incoming.close(); return; }
-    pendingConn  = incoming;
-    partnerCode  = incoming.peer;
-    partnerName  = localName(incoming.peer, incoming.metadata?.name);
+    pendingConn = incoming;
+    partnerCode = incoming.peer;
+    partnerName = localName(incoming.peer, incoming.metadata?.name);
     document.getElementById('in-name').textContent = partnerName;
     document.getElementById('in-code').textContent = 'Code: ' + formatCode(partnerCode);
     showScreen('s-in');
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
     incoming.on('close', () => {
-      if (pendingConn === incoming) { pendingConn = null; showScreen('s-home'); toast('○ Anrufer hat aufgelegt'); }
+      if (pendingConn === incoming) {
+        addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
+        pendingConn = null;
+        showScreen('s-home');
+        toast('📵 Verpasster Anruf von ' + localName(incoming.peer, incoming.metadata?.name));
+      }
     });
   });
 }
@@ -891,7 +941,11 @@ function acceptCall() {
   openChat(c);
 }
 function declineCall() {
-  if (pendingConn) { try { pendingConn.close(); } catch(e){} pendingConn = null; }
+  if (pendingConn) {
+    addMissed(pendingConn.peer, localName(pendingConn.peer, pendingConn.metadata?.name));
+    try { pendingConn.close(); } catch(e){}
+    pendingConn = null;
+  }
   showScreen('s-home');
 }
 
@@ -920,72 +974,53 @@ function openChat(c) {
   conn = c;
   prepChat();
   showScreen('s-chat');
-
   const onOpen = () => {
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     document.getElementById('pstatus').textContent = '● Verbunden';
-    document.getElementById('pstatus').className   = 'pstatus';
-    document.getElementById('pav').className       = 'pav';
-    // Alias hat Vorrang vor Netzwerknamen
+    document.getElementById('pstatus').className = 'pstatus';
+    document.getElementById('pav').className = 'pav';
     const alias = getContacts()[partnerCode];
     const netName = conn.metadata?.name || partnerName;
-    if (!alias && netName) partnerName = netName; // nur setzen wenn kein Alias
+    if (!alias && netName) partnerName = netName;
     applyPartnerName();
-    // Spinner ersetzen
     const h = document.getElementById('ehint');
     if (h) {
-      h.innerHTML = `<div class="empty-icon">💬</div>
-        <div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div>
-        <div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
+      h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     }
     updateIdx('');
     toast('✓ Verbunden');
   };
-
   if (conn.open) onOpen(); else conn.on('open', onOpen);
-
   conn.on('data', d => handleData(d));
-
   conn.on('close', () => {
     conn = null;
     document.getElementById('sbtn').disabled = true;
     document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
-    document.getElementById('pstatus').className   = 'pstatus dim';
-    document.getElementById('pav').className       = 'pav offline';
+    document.getElementById('pstatus').className = 'pstatus dim';
+    document.getElementById('pav').className = 'pav offline';
     document.getElementById('rcbar').classList.add('show');
     toast('○ Partner hat den Chat verlassen');
   });
-
-  conn.on('error', err => {
-    console.warn('[conn]', err);
-    document.getElementById('rcbar').classList.add('show');
-  });
+  conn.on('error', err => { console.warn('[conn]', err); document.getElementById('rcbar').classList.add('show'); });
 }
-
 function prepChat() {
-  // Alias prüfen & anzeigen
   const alias = getContacts()[partnerCode];
   if (alias) partnerName = alias;
   applyPartnerName();
   document.getElementById('pstatus').textContent = '○ Verbinde...';
-  document.getElementById('pstatus').className   = 'pstatus dim';
-  document.getElementById('pav').className       = 'pav offline';
-  document.getElementById('sbtn').disabled       = true;
+  document.getElementById('pstatus').className = 'pstatus dim';
+  document.getElementById('pav').className = 'pav offline';
+  document.getElementById('sbtn').disabled = true;
   document.getElementById('rcbar').classList.remove('show');
-  document.getElementById('messages').innerHTML  = `
-    <div class="empty-chat" id="ehint">
-      <div class="empty-icon">💬</div>
-      <div class="empty-txt">Verbindung wird aufgebaut...</div>
-      <div class="empty-hint"><span class="spin"></span></div>
-    </div>`;
+  document.getElementById('messages').innerHTML = `<div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div>`;
   lastDate = null;
   loadHistory();
 }
 
 /* ══ SEND TEXT ══ */
 function sendMsg() {
-  const inp  = document.getElementById('minp');
+  const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
   if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
@@ -1002,13 +1037,10 @@ async function sendFile(inp) {
   if (!f) return;
   if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
   if (f.size > 100 * 1024 * 1024) { toast('⚠️ Max. 100 MB'); return; }
-
-  const id     = Math.random().toString(36).slice(2,10);
-  const total  = Math.ceil(f.size / CHUNK);
-
+  const id = Math.random().toString(36).slice(2,10);
+  const total = Math.ceil(f.size / CHUNK);
   conn.send({ t:'f-start', id, name:f.name, type:f.type, size:f.size, total });
   showUP(true); toast(`📤 Sende "${f.name}"...`);
-
   const reader = new FileReader();
   let off = 0, idx = 0;
   reader.onload = async e => {
@@ -1021,7 +1053,6 @@ async function sendFile(inp) {
     } else {
       conn.send({ t:'f-end', id });
       showUP(false); toast(`✅ "${f.name}" gesendet!`);
-      // Lokale Anzeige mit DataURL
       const url = await fileToB64(f);
       const msg = { t:'file', url, name:f.name, ftype:f.type, size:f.size, ts:Date.now(), own:true };
       appendMsg(msg); persistMsg(msg);
@@ -1029,7 +1060,6 @@ async function sendFile(inp) {
   };
   reader.readAsArrayBuffer(f.slice(0, CHUNK));
 }
-
 function showUP(v) {
   document.getElementById('upw').style.opacity = v ? '1' : '0';
   if (!v) setTimeout(() => { document.getElementById('upb').style.width = '0%'; }, 400);
@@ -1045,19 +1075,18 @@ function handleData(d) {
     appendMsg(m); persistMsg(m);
     notify(d.text);
   } else if (d.t === 'f-start') {
-    // Index-basiertes Buffer-Array (verhindert Korruption bei Paketumordnung)
     fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) };
     toast(`📥 Empfange "${d.name}"...`);
   } else if (d.t === 'f-chunk') {
     const b = fileBufs[d.id];
-    if (b) b.chunks[d.idx] = d.data; // Position-basiert, nicht push!
+    if (b) b.chunks[d.idx] = d.data;
   } else if (d.t === 'f-end') {
     const b = fileBufs[d.id]; if (!b) return;
     const valid = b.chunks.filter(c => c !== null);
     if (valid.length !== b.meta.total) { toast('❌ Übertragungsfehler'); return; }
     const blob = new Blob(valid, { type:b.meta.type });
-    const rd   = new FileReader();
-    rd.onload  = e => {
+    const rd = new FileReader();
+    rd.onload = e => {
       const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false };
       appendMsg(msg); persistMsg(msg);
       notify('📎 Datei: ' + b.meta.name);
@@ -1072,45 +1101,31 @@ function appendMsg(m) {
   const list = document.getElementById('messages');
   const hint = document.getElementById('ehint');
   if (hint && !hint.querySelector('.spin')) hint.remove();
-
-  // Datum-Trenner
-  const d  = new Date(m.ts);
+  const d = new Date(m.ts);
   const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' });
   const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
-
   if (ds !== lastDate) {
     lastDate = ds;
     const sep = document.createElement('div');
     sep.className = 'date-sep'; sep.textContent = ds;
     list.appendChild(sep);
   }
-
   const w = document.createElement('div');
   w.className = 'msg ' + (m.own ? 'msg-o' : 'msg-i');
-
   if (m.t === 'text') {
     w.innerHTML = `<div class="bubble"><div class="btxt">${esc(m.text)}</div><div class="btime">${ts}${m.own?' ✓✓':''}</div></div>`;
   } else if (m.t === 'file') {
     const isImg = m.ftype && m.ftype.startsWith('image/');
     if (isImg) {
-      w.innerHTML = `
-        <div class="imgbbl" onclick="bigImg('${m.url}')"><img src="${m.url}" loading="lazy"></div>
-        <div class="btime">${ts}${m.own?' ✓✓':''}</div>`;
+      w.innerHTML = `<div class="imgbbl" onclick="bigImg('${m.url}')"><img src="${m.url}" loading="lazy"></div><div class="btime">${ts}${m.own?' ✓✓':''}</div>`;
     } else {
       const icon = m.ftype?.includes('pdf') ? '📕' : m.ftype?.includes('zip') ? '🗜️' : m.ftype?.includes('video') ? '🎥' : '📄';
-      const sz   = m.size > 1048576 ? (m.size/1048576).toFixed(1)+' MB' : Math.round(m.size/1024)+' KB';
-      w.innerHTML = `
-        <a class="filbbl" href="${m.url}" download="${esc(m.name)}">
-          <span style="font-size:1.4rem">${icon}</span>
-          <div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div>
-        </a>
-        <div class="btime">${ts}${m.own?' ✓✓':''}</div>`;
+      const sz = m.size > 1048576 ? (m.size/1048576).toFixed(1)+' MB' : Math.round(m.size/1024)+' KB';
+      w.innerHTML = `<a class="filbbl" href="${m.url}" download="${esc(m.name)}"><span style="font-size:1.4rem">${icon}</span><div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${m.own?' ✓✓':''}</div>`;
     }
   }
-
   list.appendChild(w); list.scrollTop = list.scrollHeight;
 }
-
 function bigImg(url) {
   const w = window.open();
   w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`);
@@ -1126,48 +1141,42 @@ function goOffline() {
   setSpill('offline', 'Offline');
   showScreen('s-home');
 }
-
 function showCodeCard(show) {
-  document.getElementById('code-card').style.display    = show ? '' : 'none';
+  document.getElementById('code-card').style.display = show ? '' : 'none';
   document.getElementById('offline-banner').style.display = show ? 'none' : '';
 }
 
 /* ══ PERSISTENCE ══ */
 function buildCID(a, b) { return 'sm_' + [a,b].sort().join('_'); }
-
 function persistMsg(m) {
   if (!chatId) return;
-  const k   = 'smmsg_' + chatId;
+  const k = 'smmsg_' + chatId;
   const arr = JSON.parse(localStorage.getItem(k) || '[]');
   arr.push(m);
   if (arr.length > 200) arr.splice(0, arr.length - 200);
   localStorage.setItem(k, JSON.stringify(arr));
   updateIdx(m.text || ('📎 ' + m.name));
 }
-
 function loadHistory() {
   if (!chatId) return;
   lastDate = null;
   const h = document.getElementById('ehint'); if (h) h.remove();
   JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]').forEach(m => appendMsg(m));
 }
-
 function updateIdx(preview) {
   if (!chatId) return;
-  const k   = 'sm_idx';
+  const k = 'sm_idx';
   const arr = JSON.parse(localStorage.getItem(k) || '[]');
-  const i   = arr.findIndex(x => x.id === chatId);
-  const e   = { id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), preview };
+  const i = arr.findIndex(x => x.id === chatId);
+  const e = { id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), preview };
   if (i >= 0) arr[i] = e; else arr.unshift(e);
   localStorage.setItem(k, JSON.stringify(arr.slice(0, 15)));
   renderPrev();
 }
-
-/** Zeigt lokalen Alias + optionales Badge mit echtem Namen im Chat-Header */
 function applyPartnerName() {
-  const alias   = getContacts()[partnerCode];
+  const alias = getContacts()[partnerCode];
   const display = alias || partnerName;
-  const lbl     = document.getElementById('pname');
+  const lbl = document.getElementById('pname');
   if (!lbl) return;
   if (alias && partnerName && alias !== partnerName) {
     lbl.innerHTML = esc(alias) + `<span class="alias-badge" title="Netzwerkname: ${esc(partnerName)}">✏️</span>`;
@@ -1180,17 +1189,12 @@ function applyPartnerName() {
 function renamePartner() {
   closeSheet();
   const current = getContacts()[partnerCode] || '';
-  const input   = prompt(
-    `Spitzname für diesen Kontakt:\n(leer lassen zum Zurücksetzen)`,
-    current
-  );
-  if (input === null) return; // Abbrechen
+  const input = prompt(`Spitzname für diesen Kontakt:\n(leer lassen zum Zurücksetzen)`, current);
+  if (input === null) return;
   const trimmed = input.trim();
   setAlias(partnerCode, trimmed);
-  // Sofort anwenden
   if (trimmed) partnerName = trimmed;
   applyPartnerName();
-  // Index aktualisieren damit prev-Liste den neuen Namen zeigt
   updateIdx('');
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
@@ -1204,13 +1208,13 @@ function renderPrev() {
   if (!arr.length) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
   lst.innerHTML = arr.map(c => {
-    const d       = new Date(c.ts);
-    const t       = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
+    const d = new Date(c.ts);
+    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
       ? d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
       : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'});
-    const alias   = getContacts()[c.code];
+    const alias = getContacts()[c.code];
     const display = alias || c.partner;
-    const badge   = alias ? `<span style="font-size:.7rem;color:var(--muted);font-weight:400;"> (${esc(c.partner)})</span>` : '';
+    const badge = alias ? `<span style="font-size:.7rem;color:var(--muted);font-weight:400;"> (${esc(c.partner)})</span>` : '';
     return `
     <div style="display:flex;align-items:center;gap:.5rem">
       <div class="prev-item" style="flex:1" onclick="reconnectTo('${c.code}','${esc2(display)}','${c.id}')">
@@ -1224,26 +1228,19 @@ function renderPrev() {
           <div class="prev-code">${formatCode(c.code)}</div>
         </div>
       </div>
-      <button class="rename-btn" title="Umbenennen"
-        onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button>
+      <button class="rename-btn" title="Umbenennen" onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button>
     </div>`;
   }).join('');
 }
-
-/** Umbenennen direkt aus der Kontaktliste (ohne offenen Chat) */
 function renameContact(code, networkName) {
   const current = getContacts()[code] || '';
-  const input   = prompt(
-    `Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`,
-    current
-  );
+  const input = prompt(`Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`, current);
   if (input === null) return;
   const trimmed = input.trim();
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
 }
-
 function reconnectTo(code, name, cid) {
   if (!peer || !peer.open) { toast('⚠️ Warte auf Server...'); return; }
   partnerCode = code; partnerName = name; chatId = cid;
@@ -1262,9 +1259,7 @@ function exportChat() {
   a.click();
   toast('💾 Backup exportiert');
 }
-
 function triggerImport() { closeSheet(); document.getElementById('fimp').value=''; document.getElementById('fimp').click(); }
-
 function importChat(inp) {
   if (!inp.files[0]) return;
   const rd = new FileReader();
@@ -1282,7 +1277,6 @@ function importChat(inp) {
   };
   rd.readAsText(inp.files[0]); inp.value = '';
 }
-
 function clearChat() {
   if (!confirm('Verlauf auf diesem Gerät löschen?')) return;
   if (!chatId) return;
@@ -1309,7 +1303,7 @@ function pushNotif(from, text) {
 let inTimer = null;
 function inAppNotif(from, text) {
   document.getElementById('in-from').textContent = '💬 ' + from;
-  document.getElementById('in-msg').textContent  = text.length > 60 ? text.slice(0,60)+'…' : text;
+  document.getElementById('in-msg').textContent = text.length > 60 ? text.slice(0,60)+'…' : text;
   const el = document.getElementById('in-notif'); el.classList.add('show');
   clearTimeout(inTimer); inTimer = setTimeout(() => el.classList.remove('show'), 5000);
 }
@@ -1349,16 +1343,13 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   document.getElementById('in-notif').classList.remove('show');
 }
-
 function setSpill(type, text) {
   const el = document.getElementById('spill');
-  el.className  = 'spill ' + type;
+  el.className = 'spill ' + type;
   document.getElementById('spill-txt').textContent = text;
 }
-
-function openSheet()  { document.getElementById('sovl').classList.add('open');    document.getElementById('sheet').classList.add('open'); }
+function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
-
 function goHome() {
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
   pendingConn = null; lastDate = null;
@@ -1379,7 +1370,7 @@ function shareCode() { if (navigator.share) navigator.share({ title:'SpotMe', te
 let tTimer = null;
 function toast(msg, ms=2400) {
   const ex = document.querySelector('.toast'); if (ex) ex.remove();
-  const t  = document.createElement('div'); t.className='toast'; t.textContent=msg;
+  const t = document.createElement('div'); t.className='toast'; t.textContent=msg;
   document.body.appendChild(t);
   requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
   clearTimeout(tTimer); tTimer = setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);
