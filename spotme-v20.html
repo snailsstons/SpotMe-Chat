@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v20</title>
+<title>SpotMe · Chat v20 ✌️</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
@@ -19,7 +19,7 @@
 
 <style>
 /* ════════════════════════════════
-   DESIGN TOKENS (Base V18)
+   DESIGN TOKENS (V18 Original)
 ════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -39,6 +39,9 @@
   --touch:  52px;
 }
 
+/* ════════════════════════════════
+   RESET & BASE
+════════════════════════════════ */
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
 html, body {
   height:100%; overflow:hidden;
@@ -53,15 +56,26 @@ html, body {
 @keyframes sIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:none} }
 .inner { flex:1; overflow-y:auto; padding:1.5rem 1.25rem 6rem; max-width:480px; width:100%; margin:0 auto }
 
-/* BRAND & HERO */
+/* ════════════════════════════════
+   HOME SCREEN UI
+════════════════════════════════ */
 .brand { display:flex; align-items:center; gap:.55rem; margin-bottom:2.25rem; position:relative }
 .bdot { width:9px; height:9px; border-radius:50%; background:var(--acc); box-shadow:0 0 14px var(--acc); animation:blink 2.2s ease infinite }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 .bname { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--acc); letter-spacing:-.02em }
+.bname b { color:var(--text) }
+
 .hero-title { font-family:'Syne',sans-serif; font-weight:800; font-size:2.3rem; letter-spacing:-.03em; line-height:1.08; margin-bottom:.6rem }
 .hero-sub { color:var(--muted2); font-size:.95rem; font-weight:300; line-height:1.65; margin-bottom:1.75rem }
 
-/* CODE CARD */
+.spill {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.42rem 1rem; border-radius:100px; font-size:.82rem; font-weight:500;
+  margin-bottom:1.5rem; transition:all .4s ease;
+  border:1px solid rgba(123,92,250,.25); background:rgba(123,92,250,.08); color:var(--p2);
+}
+.spill.online  { background:rgba(30,204,104,.08); border-color:rgba(30,204,104,.25); color:var(--green) }
+
 .code-card {
   background:linear-gradient(135deg, rgba(0,229,192,.07) 0%, rgba(123,92,250,.07) 100%);
   border:1px solid rgba(0,229,192,.18);
@@ -70,51 +84,54 @@ html, body {
 }
 .code-value { font-family:'Syne',sans-serif; font-weight:800; font-size:2.2rem; letter-spacing:.1em; color:var(--acc); margin-bottom:.85rem }
 
-/* MISSED CALLS (New in V20) */
-.missed-section { margin-top:1.4rem; display:none; }
-.missed-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem }
-.missed-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--p3); display:flex; align-items:center; gap:.45rem }
+/* ════════════════════════════════
+   MISSED CALLS (New in V20)
+════════════════════════════════ */
+.missed-section { margin-bottom:1.5rem; display:none }
+.missed-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:.7rem }
+.missed-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--p3); display:flex; align-items:center; gap:.4rem }
 .missed-dot { width:7px; height:7px; border-radius:50%; background:var(--p3); animation:blink .9s ease infinite }
-.missed-clear-btn { font-size:.72rem; color:var(--muted2); background:none; border:none; cursor:pointer; font-family:inherit }
+.missed-clear { font-size:.7rem; color:var(--muted2); background:none; border:none; cursor:pointer }
 .missed-item {
-  display:flex; align-items:center; gap:.8rem;
-  padding:.75rem .9rem; border-radius:14px; border:1px solid rgba(255,79,123,.15);
-  background:rgba(255,79,123,.04); margin-bottom:.45rem;
-  cursor:pointer; transition:background .15s;
+  display:flex; align-items:center; gap:.8rem; padding:.75rem .9rem; border-radius:14px;
+  background:rgba(255,79,123,.05); border:1px solid rgba(255,79,123,.12); margin-bottom:.4rem;
+  cursor:pointer; transition:all .2s;
 }
-.missed-item:active { background:rgba(255,79,123,.09) }
-.missed-av { width:38px; height:38px; border-radius:50%; background:rgba(255,79,123,.15); display:flex; align-items:center; justify-content:center; font-size:.9rem }
+.missed-item:active { transform:scale(.98); background:rgba(255,79,123,.1) }
 .missed-info { flex:1; min-width:0 }
-.missed-name { font-size:.9rem; font-weight:600 }
+.missed-name { font-size:.9rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .missed-time { font-size:.75rem; color:var(--muted2) }
 
-/* Standard UI Elements from V18... */
+/* ════════════════════════════════
+   COMPLEX UI (V18)
+════════════════════════════════ */
 .conn-box { background:var(--card); border:1px solid var(--bord); border-radius:18px; padding:1.3rem; margin-bottom:1.4rem }
+.drow { display:flex; gap:.45rem; justify-content:center; margin-bottom:1rem }
 .dinp { width:46px; height:56px; border-radius:11px; border:1.5px solid var(--bord2); background:var(--sur); color:var(--text); font-family:'Syne',sans-serif; font-size:1.55rem; font-weight:700; text-align:center; outline:none }
 .dinp:focus { border-color:var(--acc) }
 .btn-main { display:flex; align-items:center; justify-content:center; width:100%; padding:.9rem; border-radius:13px; border:none; font-weight:700; background:var(--acc); color:var(--bg); cursor:pointer; min-height:var(--touch) }
 
-/* INCOMING CALL SCREEN */
-.call-wrap { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2.5rem 2rem }
-.caller-ring { width:100px; height:100px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:2.8rem; margin-bottom:2rem; position:relative; animation:ringPulse 2s ease infinite }
-@keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(123,92,250,.4)} 50%{box-shadow:0 0 0 12px rgba(123,92,250,.0)} }
-.call-btns { display:grid; grid-template-columns:1fr 1fr; gap:1rem; width:100%; max-width:300px }
-.call-btn { padding:1rem; border-radius:16px; border:none; font-weight:700; cursor:pointer; min-height:58px; color:#fff }
-.btn-accept { background:var(--green) }
-.btn-decline { background:var(--p3) }
+/* Previous Chats */
+.prev-label { font-size:.73rem; font-weight:600; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-bottom:.75rem }
+.prev-item { display:flex; align-items:center; gap:.8rem; padding:.85rem .9rem; border-radius:14px; cursor:pointer; transition:background .15s; border:1px solid transparent; min-height:var(--touch) }
+.prev-item:active { background:var(--sur); border-color:var(--bord) }
+.prev-av { width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0 }
 
-/* CHAT SCREEN */
-.chat-bar { display:flex; align-items:center; gap:.8rem; padding:1rem 1.1rem; background:rgba(6,10,15,.8); backdrop-filter:blur(20px); border-bottom:1px solid var(--bord) }
+/* Sheets & Popups */
+.sheet-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(4px); z-index:1000; display:none; animation:fadeIn .2s ease }
+.sheet { position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--bord2); border-radius:24px 24px 0 0; z-index:1001; transform:translateY(100%); transition:transform .3s cubic-bezier(0.32, 0.72, 0, 1); padding:1.5rem; max-width:500px; margin:0 auto }
+.sheet.open { transform:translateY(0) }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+/* CHAT AREA */
 #messages { flex:1; overflow-y:auto; padding:1.25rem; display:flex; flex-direction:column; gap:.8rem }
-.msg { max-width:85%; padding:.75rem 1rem; border-radius:18px; font-size:.95rem; position:relative }
+.msg { max-width:85%; padding:.75rem 1rem; border-radius:18px; font-size:.95rem; line-height:1.4 }
 .msg.own { align-self:flex-end; background:var(--acc); color:var(--bg); border-bottom-right-radius:4px }
 .msg.remote { align-self:flex-start; background:var(--card2); border-bottom-left-radius:4px }
-.chat-input-area { padding:1rem; background:var(--sur); border-top:1px solid var(--bord); display:flex; gap:.7rem; align-items:flex-end }
-#chat-inp { flex:1; background:var(--card); border:1px solid var(--bord2); border-radius:14px; padding:.75rem 1rem; color:var(--text); outline:none; resize:none; max-height:120px }
 
-/* TOAST */
-.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.95); color:#000; padding:.7rem 1.2rem; border-radius:12px; font-size:.9rem; font-weight:600; z-index:1000; box-shadow:0 10px 30px rgba(0,0,0,.4); animation:tIn .25s ease }
-@keyframes tIn { from{opacity:0;transform:translate(-50%,15px)} }
+/* Media & Toasts */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#fff; color:#000; padding:.7rem 1.2rem; border-radius:12px; font-size:.9rem; font-weight:600; z-index:2000; box-shadow:0 10px 30px rgba(0,0,0,.5); animation:tIn .2s ease }
+@keyframes tIn { from{opacity:0;transform:translate(-50%,10px)} }
 </style>
 </head>
 <body>
@@ -124,10 +141,17 @@ html, body {
     <div class="brand">
       <div class="bdot"></div>
       <div class="bname">Spot<b>Me</b></div>
+      <button class="home-menu-btn" onclick="toggleHomeMenu()">⋮</button>
+      <div id="home-drop" class="home-drop">
+        <button onclick="showSheet('sh-profile')" style="padding:1rem;background:none;border:none;color:#fff;text-align:left">👤 Profil bearbeiten</button>
+        <button onclick="showSheet('sh-backup')" style="padding:1rem;background:none;border:none;color:#fff;text-align:left">📂 Backup & Restore</button>
+      </div>
     </div>
     
-    <div class="hero-title">Hey! 👋</div>
-    <div class="hero-sub">Teile deinen Code, um einen verschlüsselten Chat zu starten.</div>
+    <div class="hero-title">Hallo! 👋</div>
+    <div class="hero-sub">Teile deinen Code für einen sicheren, temporären Chat.</div>
+
+    <div id="status-spill" class="spill"><div class="spill-dot"></div> Verbinde...</div>
 
     <div class="code-card">
       <div class="code-label">DEIN CODE</div>
@@ -138,10 +162,10 @@ html, body {
       </div>
     </div>
 
-    <div class="missed-section">
+    <div class="missed-section" id="missed-ui">
       <div class="missed-header">
         <div class="missed-label"><div class="missed-dot"></div> Verpasste Anrufe</div>
-        <button class="missed-clear-btn" onclick="clearMissed()">Löschen</button>
+        <button class="missed-clear" onclick="clearMissed()">Löschen</button>
       </div>
       <div id="missed-list"></div>
     </div>
@@ -157,45 +181,50 @@ html, body {
         <input class="dinp" maxlength="1" inputmode="numeric">
         <input class="dinp" maxlength="1" inputmode="numeric">
       </div>
-      <button id="cbtn" class="btn-main" onclick="connectToPeer()" disabled>Verbinden</button>
+      <button id="cbtn" class="btn-main" onclick="connectToPeer()" disabled>Chat starten</button>
     </div>
 
-    <div class="prev-label">Letzte Chats</div>
+    <div class="prev-label">Zuletzt aktiv</div>
     <div id="prev-list"></div>
   </div>
 </div>
 
-<div id="s-call" class="screen">
-  <div class="call-wrap">
-    <div class="caller-ring">📞</div>
-    <div id="call-name" class="caller-name">Anruf...</div>
-    <div id="call-code" class="caller-code">--- ---</div>
-    <div class="call-btns">
-      <button class="call-btn btn-decline" onclick="declineCall()">Ablehnen</button>
-      <button class="call-btn btn-accept" onclick="acceptCall()">Annehmen</button>
-    </div>
+<div id="s-call" class="screen" style="justify-content:center; align-items:center; text-align:center">
+  <div style="width:100px; height:100px; border-radius:50%; background:var(--p2); margin-bottom:2rem; font-size:3rem; display:flex; align-items:center; justify-content:center">📞</div>
+  <h2 id="call-name" style="font-family:'Syne'">Anruf...</h2>
+  <p id="call-code" style="color:var(--muted2); margin-bottom:3rem">--- ---</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; width:80%">
+    <button onclick="declineCall()" style="padding:1.2rem; border-radius:18px; border:none; background:var(--p3); color:#fff; font-weight:700">Ablehnen</button>
+    <button onclick="acceptCall()" style="padding:1.2rem; border-radius:18px; border:none; background:var(--green); color:#fff; font-weight:700">Annehmen</button>
   </div>
 </div>
 
 <div id="s-chat" class="screen">
-  <div class="chat-bar">
-    <button onclick="hangup()" style="background:none;border:none;color:var(--muted2);font-size:1.4rem;cursor:pointer">✕</button>
+  <div style="padding:1rem; border-bottom:1px solid var(--bord); display:flex; align-items:center; gap:1rem">
+    <button onclick="hangup()" style="background:none; border:none; color:var(--muted2); font-size:1.5rem">✕</button>
     <div style="flex:1">
-      <div id="chat-partner-name" style="font-weight:700">Chat</div>
-      <div id="chat-partner-code" style="font-size:.75rem;color:var(--muted2)">Code</div>
+      <div id="chat-partner-name" style="font-weight:700">Partner</div>
+      <div id="chat-partner-code" style="font-size:.75rem; color:var(--muted2)">--- ---</div>
     </div>
+    <button onclick="showSheet('sh-chat-menu')" style="background:none; border:none; color:var(--muted2); font-size:1.2rem">⋮</button>
   </div>
   <div id="messages"></div>
-  <div class="chat-input-area">
-    <textarea id="chat-inp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
-    <button onclick="sendMsg()" style="background:var(--acc);border:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-    </button>
+  <div style="padding:1rem; background:var(--sur); border-top:1px solid var(--bord); display:flex; gap:.7rem; align-items:flex-end">
+    <textarea id="chat-inp" placeholder="Nachricht..." rows="1" style="flex:1; background:var(--card); border:1px solid var(--bord2); border-radius:14px; padding:.75rem 1rem; color:#fff; outline:none; resize:none"></textarea>
+    <button onclick="sendMsg()" style="width:48px; height:48px; border-radius:14px; border:none; background:var(--acc); color:var(--bg); font-weight:700">➤</button>
   </div>
 </div>
 
+<div id="sh-profile" class="sheet">
+  <h3 style="margin-bottom:1rem">Profil</h3>
+  <input id="name-inp" type="text" placeholder="Dein Name" style="width:100%; padding:.8rem; background:var(--bg); border:1px solid var(--bord2); color:#fff; border-radius:10px; margin-bottom:1.5rem">
+  <button onclick="saveProfile()" class="btn-main">Speichern</button>
+</div>
+
+<div id="sheet-overlay" class="sheet-overlay" onclick="closeSheet()"></div>
+
 <script>
-/* ══ STATE ══ */
+/* ══ STATE (Original V18) ══ */
 let peer = null, conn = null, pendingConn = null;
 let myCode = localStorage.getItem('sm_code') || Math.floor(100000 + Math.random() * 899999).toString();
 localStorage.setItem('sm_code', myCode);
@@ -205,51 +234,44 @@ let partnerCode = '', partnerName = '', chatId = '';
 
 /* ══ INIT ══ */
 window.onload = () => {
-  document.getElementById('my-code-display').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
+  document.getElementById('my-code-display').textContent = formatCode(myCode);
+  document.getElementById('name-inp').value = myName;
   initPeer();
   renderPrev();
-  renderMissed();
+  renderMissed(); // V20
   
   // Digit Input Logic
   const inps = document.querySelectorAll('.dinp');
   inps.forEach((inp, idx) => {
-    inp.oninput = (e) => {
-      if (inp.value) {
-        inp.classList.add('filled');
-        if (inps[idx+1]) inps[idx+1].focus();
-      }
-      checkReady();
+    inp.oninput = () => {
+      if (inp.value && inps[idx+1]) inps[idx+1].focus();
+      document.getElementById('cbtn').disabled = (getDigits().length !== 6);
     };
-    inp.onkeydown = (e) => {
-      if (e.key === 'Backspace' && !inp.value && inps[idx-1]) {
-        inps[idx-1].focus();
-      }
-    };
+    inp.onkeydown = (e) => { if (e.key === 'Backspace' && !inp.value && inps[idx-1]) inps[idx-1].focus(); };
   });
 };
-
-function checkReady() {
-  const code = Array.from(document.querySelectorAll('.dinp')).map(i => i.value).join('');
-  document.getElementById('cbtn').disabled = (code.length !== 6);
-}
 
 function initPeer() {
   peer = new Peer('sm-' + myCode);
   
-  peer.on('open', () => console.log('Peer Online'));
+  peer.on('open', () => {
+    const spill = document.getElementById('status-spill');
+    spill.classList.add('online');
+    spill.innerHTML = '<div class="spill-dot"></div> Online';
+  });
   
   peer.on('connection', c => {
     if (conn || pendingConn) {
-      c.on('open', () => { c.send({t:'system', msg:'Besetzt'}); setTimeout(() => c.close(), 500); });
+      c.on('open', () => { c.send({t:'sys', msg:'besetzt'}); setTimeout(() => c.close(), 500); });
       return;
     }
     
     pendingConn = c;
     document.getElementById('call-name').textContent = c.metadata?.name || 'Unbekannt';
-    document.getElementById('call-code').textContent = c.peer.replace('sm-','');
+    document.getElementById('call-code').textContent = formatCode(c.peer.replace('sm-',''));
     showScreen('s-call');
     
-    // V20 FIX: Falls der Anrufer abbricht, als verpasst markieren
+    // V20 FIX: Falls der Anrufer auflegt, als verpasst loggen
     c.on('close', () => {
       if (pendingConn === c) {
         addMissed(c.peer.replace('sm-',''), c.metadata?.name);
@@ -259,8 +281,7 @@ function initPeer() {
   });
   
   peer.on('error', err => {
-    if (err.type === 'peer-unavailable') toast('Partner nicht online');
-    else toast('Verbindungsfehler');
+    if (err.type === 'peer-unavailable') toast('Partner nicht gefunden');
     console.error(err);
   });
 }
@@ -268,9 +289,8 @@ function initPeer() {
 /* ══ MISSED CALLS LOGIC (V20) ══ */
 function addMissed(code, name) {
   let list = JSON.parse(localStorage.getItem('sm_missed') || '[]');
-  // Dubletten-Check: Wenn der letzte Eintrag derselbe Code ist, nur Zeit aktualisieren
-  if (list.length > 0 && list[0].code === code) list.shift();
-  
+  // Dubletten bereinigen
+  list = list.filter(m => m.code !== code);
   list.unshift({ code, name: name || 'Unbekannt', ts: Date.now() });
   localStorage.setItem('sm_missed', JSON.stringify(list.slice(0, 5)));
   renderMissed();
@@ -278,23 +298,20 @@ function addMissed(code, name) {
 
 function renderMissed() {
   const list = JSON.parse(localStorage.getItem('sm_missed') || '[]');
-  const section = document.querySelector('.missed-section');
+  const ui = document.getElementById('missed-ui');
   const container = document.getElementById('missed-list');
   
-  if (list.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
+  if (list.length === 0) { ui.style.display = 'none'; return; }
   
-  section.style.display = 'block';
+  ui.style.display = 'block';
   container.innerHTML = list.map(m => `
     <div class="missed-item" onclick="callBack('${m.code}')">
-      <div class="missed-av">${(m.name || '?')[0].toUpperCase()}</div>
+      <div class="missed-av">${(m.name||'U')[0].toUpperCase()}</div>
       <div class="missed-info">
         <div class="missed-name">${esc(m.name)}</div>
         <div class="missed-time">${new Date(m.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
       </div>
-      <div style="color:var(--p3); font-size:1.1rem">📞</div>
+      <div style="color:var(--p3)">📞</div>
     </div>
   `).join('');
 }
@@ -306,26 +323,20 @@ function clearMissed() {
 
 function callBack(code) {
   const inps = document.querySelectorAll('.dinp');
-  code.split('').forEach((char, i) => {
-    if (inps[i]) {
-      inps[i].value = char;
-      inps[i].classList.add('filled');
-    }
-  });
-  checkReady();
+  code.split('').forEach((char, i) => { if(inps[i]) inps[i].value = char; });
+  document.getElementById('cbtn').disabled = false;
   connectToPeer();
 }
 
-/* ══ ACTIONS ══ */
+/* ══ CHAT ACTIONS ══ */
 function connectToPeer() {
-  const code = Array.from(document.querySelectorAll('.dinp')).map(i => i.value).join('');
+  const code = getDigits();
   partnerCode = code;
-  partnerName = 'Partner';
-  
   toast('Verbinde...');
   const c = peer.connect('sm-' + code, { metadata: { name: myName } });
   
   c.on('open', () => {
+    partnerName = 'Partner'; // Wird später durch Profil-Exchange aktualisiert
     chatId = [myCode, partnerCode].sort().join('-');
     openChat(c);
   });
@@ -334,7 +345,7 @@ function connectToPeer() {
 function acceptCall() {
   if (!pendingConn) return;
   const c = pendingConn;
-  pendingConn = null; // Wichtig: Listener in initPeer greift jetzt nicht mehr für missed calls
+  pendingConn = null; // Markiert als angenommen, verhindert Missed Call Log
   partnerCode = c.peer.replace('sm-','');
   partnerName = c.metadata?.name || 'Partner';
   chatId = [myCode, partnerCode].sort().join('-');
@@ -352,11 +363,11 @@ function declineCall() {
 function openChat(c) {
   conn = c;
   document.getElementById('chat-partner-name').textContent = partnerName;
-  document.getElementById('chat-partner-code').textContent = partnerCode;
+  document.getElementById('chat-partner-code').textContent = formatCode(partnerCode);
   document.getElementById('messages').innerHTML = '';
   
-  // Load History
-  const history = JSON.parse(localStorage.getItem('sm_chat_' + chatId) || '[]');
+  // Load History (V18 Feature)
+  const history = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
   history.forEach(m => appendMsg(m));
   
   c.on('data', data => {
@@ -367,8 +378,7 @@ function openChat(c) {
     }
   });
   
-  c.on('close', () => { toast('Verbindung getrennt'); hangup(); });
-  
+  c.on('close', () => { toast('Getrennt'); hangup(); });
   showScreen('s-chat');
 }
 
@@ -381,28 +391,17 @@ function sendMsg() {
   conn.send({ t: 'text', text: txt });
   appendMsg(m);
   saveMsg(m);
-  
   inp.value = '';
-  autoH(inp);
 }
 
-function hangup() {
-  if (conn) conn.close();
-  conn = null;
-  showScreen('s-home');
-  renderPrev();
-}
-
-function closeCall() {
-  pendingConn = null;
-  showScreen('s-home');
-}
-
-/* ══ HELPERS ══ */
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
+/* ══ HELPERS (V18 Robust) ══ */
+function formatCode(c) { return c.slice(0,3) + ' ' + c.slice(3,6); }
+function getDigits() { return Array.from(document.querySelectorAll('.dinp')).map(i => i.value).join(''); }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showSheet(id) { document.getElementById('sheet-overlay').style.display = 'block'; document.getElementById(id).classList.add('open'); }
+function closeSheet() { document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open')); document.getElementById('sheet-overlay').style.display = 'none'; }
+function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2500); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function appendMsg(m) {
   const div = document.createElement('div');
@@ -414,24 +413,25 @@ function appendMsg(m) {
 }
 
 function saveMsg(m) {
-  let history = JSON.parse(localStorage.getItem('sm_chat_' + chatId) || '[]');
+  let history = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
   history.push(m);
-  localStorage.setItem('sm_chat_' + chatId, JSON.stringify(history.slice(-50)));
+  localStorage.setItem('smmsg_' + chatId, JSON.stringify(history.slice(-100)));
   
-  // Update Preview Index
+  // Update Prev List
   let prev = JSON.parse(localStorage.getItem('sm_prev') || '[]');
   prev = prev.filter(p => p.id !== chatId);
   prev.unshift({ id: chatId, name: partnerName, code: partnerCode, last: m.text, ts: Date.now() });
   localStorage.setItem('sm_prev', JSON.stringify(prev.slice(0,10)));
+  renderPrev();
 }
 
 function renderPrev() {
   const list = JSON.parse(localStorage.getItem('sm_prev') || '[]');
   const container = document.getElementById('prev-list');
   container.innerHTML = list.map(p => `
-    <div class="prev-item" onclick="callBack('${p.code}')" style="display:flex; align-items:center; gap:.8rem; padding:.85rem; border-radius:14px; margin-bottom:.5rem; background:var(--card)">
-      <div style="width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center">${p.name[0]}</div>
-      <div style="flex:1">
+    <div class="prev-item" onclick="callBack('${p.code}')">
+      <div class="prev-av">${p.name[0]}</div>
+      <div style="flex:1; min-width:0">
         <div style="font-weight:600">${esc(p.name)}</div>
         <div style="font-size:.8rem; color:var(--muted2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(p.last)}</div>
       </div>
@@ -439,27 +439,14 @@ function renderPrev() {
   `).join('');
 }
 
-function copyCode() {
-  navigator.clipboard.writeText(myCode);
-  toast('✅ Code kopiert');
+function hangup() { if(conn) conn.close(); conn = null; showScreen('s-home'); }
+function closeCall() { pendingConn = null; showScreen('s-home'); }
+function copyCode() { navigator.clipboard.writeText(myCode); toast('✅ Kopiert'); }
+function toggleHomeMenu() { document.getElementById('home-drop').classList.toggle('open'); }
+function saveProfile() {
+  const n = document.getElementById('name-inp').value.trim();
+  if(n) { myName = n; localStorage.setItem('sm_name', n); toast('Profil gespeichert'); closeSheet(); }
 }
-
-function shareCode() {
-  const text = `SpotMe Code: ${myCode}`;
-  if (navigator.share) navigator.share({ title: 'SpotMe', text });
-  else copyCode();
-}
-
-function toast(m) {
-  const t = document.createElement('div');
-  t.className = 'toast'; t.textContent = m;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
-}
-
-function autoH(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
-function hkey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 </script>
 
 </body>
