@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v25</title>
+<title>SpotMe · Chat</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V25">
+<meta name="apple-mobile-web-app-title" content="SpotMe">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ════════════════════════════════
-   DESIGN TOKENS (unverändert aus V24)
+   DESIGN TOKENS (unverändert aus V25)
 ════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -39,9 +39,6 @@
   --touch:  52px;
 }
 
-/* ════════════════════════════════
-   RESET & BASE
-════════════════════════════════ */
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
 html, body {
   height:100%; overflow:hidden;
@@ -50,18 +47,10 @@ html, body {
   font-size:17px; line-height:1.5;
   overscroll-behavior-y:contain;
 }
-
-/* ════════════════════════════════
-   SCREENS
-════════════════════════════════ */
 .screen { display:none; position:fixed; inset:0; flex-direction:column; background:var(--bg) }
 .screen.active { display:flex; animation:sIn .22s ease }
 @keyframes sIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:none} }
 .inner { flex:1; overflow-y:auto; padding:1.5rem 1.25rem 6rem; max-width:480px; width:100%; margin:0 auto }
-
-/* ════════════════════════════════
-   HOME SCREEN
-════════════════════════════════ */
 .brand { display:flex; align-items:center; gap:.55rem; margin-bottom:2.25rem; position:relative }
 .bdot {
   width:9px; height:9px; border-radius:50%;
@@ -452,14 +441,12 @@ html, body {
 </head>
 <body>
 
-<!-- ════════════════════════════════
-     SCREEN 1 — HOME
-════════════════════════════════ -->
+<!-- SCREEN 1 — HOME -->
 <div id="s-home" class="screen active">
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V25</b></span>
+    <span class="bname">Spot<b>Me</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="mitem" onclick="backupProfile()"><span class="mico">💾</span><div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -478,14 +465,10 @@ html, body {
 </div>
 </div>
 
-<!-- ════════════════════════════════
-     SCREEN 2 — INCOMING CALL
-════════════════════════════════ -->
+<!-- SCREEN 2 — INCOMING CALL -->
 <div id="s-in" class="screen"><div class="call-wrap"><div class="caller-ring">🧑</div><div class="caller-name" id="in-name">...</div><div class="caller-code" id="in-code">Code: ---</div><div class="caller-hint">möchte mit dir chatten</div><div class="call-btns"><button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button><button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button></div></div></div>
 
-<!-- ════════════════════════════════
-     SCREEN 3 — CHAT
-════════════════════════════════ -->
+<!-- SCREEN 3 — CHAT -->
 <div id="s-chat" class="screen">
   <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div><button class="menu-btn" onclick="openSheet()">☰</button></div>
   <div class="rcbar" id="rcbar"><span>○ Verbindung unterbrochen</span><button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button></div>
@@ -493,9 +476,7 @@ html, body {
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
-<!-- ════════════════════════════════
-     BOTTOM SHEET MENU
-════════════════════════════════ -->
+<!-- BOTTOM SHEET MENU -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet"><div class="sheet-handle"></div><div class="sheet-title">Chat-Optionen</div><div class="sheet-body"><button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button><div class="ssep"></div><button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button><button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button><div class="ssep"></div><button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button><button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button><div class="ssep"></div><button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button></div></div>
 
@@ -505,6 +486,7 @@ html, body {
 <script>
 'use strict';
 
+/* ══ CONFIG — Server-URL ══ */
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
 
@@ -519,7 +501,7 @@ const CHUNK     = 16384;
 let fileBufs    = {};
 let isOffline   = false;
 let outgoingCallTimer = null;
-let currentRingingAudio = null;   // für das Audio-Element des Klingeltons
+let currentRingingAudio = null;
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
@@ -532,7 +514,6 @@ async function ensureRingingToneCached() {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(TONE_URL);
   if (cached) return true;
-  // generieren
   try {
     const blob = await generateRingingToneBlob();
     const response = new Response(blob, { headers: { 'Content-Type': 'audio/wav' } });
@@ -548,11 +529,9 @@ async function ensureRingingToneCached() {
 function generateRingingToneBlob() {
   return new Promise((resolve) => {
     const sampleRate = 44100;
-    const duration = 1.2; // Sekunden (ein Zyklus: 0,5 s Ton + 0,2 s Pause + 0,5 s Ton)
+    const duration = 1.2;
     const offlineCtx = new OfflineAudioContext(1, sampleRate * duration, sampleRate);
     const now = offlineCtx.currentTime;
-    
-    // Erster Ton (0,5 s)
     const osc1 = offlineCtx.createOscillator();
     const gain1 = offlineCtx.createGain();
     osc1.connect(gain1);
@@ -563,8 +542,6 @@ function generateRingingToneBlob() {
     gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
     osc1.start(now);
     osc1.stop(now + 0.5);
-    
-    // Zweiter Ton (0,5 s) nach kurzer Pause (0,2 s)
     const osc2 = offlineCtx.createOscillator();
     const gain2 = offlineCtx.createGain();
     osc2.connect(gain2);
@@ -575,7 +552,6 @@ function generateRingingToneBlob() {
     gain2.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
     osc2.start(now + 0.7);
     osc2.stop(now + 1.2);
-    
     offlineCtx.startRendering().then(renderedBuffer => {
       resolve(bufferToWav(renderedBuffer));
     });
@@ -585,14 +561,13 @@ function generateRingingToneBlob() {
 function bufferToWav(buffer) {
   const numChannels = buffer.numberOfChannels;
   const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
+  const format = 1;
   const bitDepth = 16;
   let samples = buffer.getChannelData(0);
   let dataLength = samples.length * (bitDepth / 8);
   let bufferLength = 44 + dataLength;
   const arrayBuffer = new ArrayBuffer(bufferLength);
   const view = new DataView(arrayBuffer);
-  
   writeString(view, 0, 'RIFF');
   view.setUint32(4, bufferLength - 8, true);
   writeString(view, 8, 'WAVE');
@@ -606,7 +581,6 @@ function bufferToWav(buffer) {
   view.setUint16(34, bitDepth, true);
   writeString(view, 36, 'data');
   view.setUint32(40, dataLength, true);
-  
   let offset = 44;
   for (let i = 0; i < samples.length; i++) {
     const sample = Math.max(-1, Math.min(1, samples[i]));
@@ -635,7 +609,6 @@ async function playRingingTone() {
       return;
     }
   } catch(e) {}
-  // Fallback: synthetischer Ton über Web Audio (kurzer Ping, loop per Intervall)
   startFallbackRinging();
 }
 
@@ -680,7 +653,6 @@ function stopFallbackRinging() {
   if (fallbackCtx) { try { fallbackCtx.close(); } catch(e){} fallbackCtx = null; }
 }
 
-/* ══ kurzer Nachrichtenton (einmalig) ══ */
 function playNotificationSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -745,14 +717,18 @@ window.addEventListener('load', () => {
   renderPrev();
   renderMissed();
   initPeer();
-  ensureRingingToneCached(); // Klingelton generieren und cachen
+  ensureRingingToneCached();
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   window.addEventListener('online', () => { if (!peer || peer.destroyed) initPeer(); });
   window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
   document.addEventListener('click', e => { if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu(); });
+  // Service Worker registrieren (falls nicht schon geschehen)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registriert', reg)).catch(err => console.warn('SW fehler', err));
+  }
 });
 
-/* ══ PROFIL-BACKUP (erweitert um sm_missed) ══ */
+/* ══ PROFIL-BACKUP ══ */
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
 function backupProfile() {
@@ -815,7 +791,7 @@ function initPeer() {
     showScreen('s-in');
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
-    playRingingTone();    // Klingelton starten (loop)
+    playRingingTone();
     triggerHaptic();
     incoming.on('close', () => {
       if (pendingConn === incoming) {
