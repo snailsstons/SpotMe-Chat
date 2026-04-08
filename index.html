@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V29</title>
+<title>SpotMe · Chat V30</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V29">
+<meta name="apple-mobile-web-app-title" content="SpotMe V30">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -211,7 +211,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V29</b></span>
+    <span class="bname">Spot<b>Me V30</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="mitem" onclick="backupProfile()"><span class="mico">💾</span><div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -223,10 +223,8 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
   <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
   <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
-  <div style="margin-top:0.8rem; text-align:center;">
-  
-<a href="profil.html" class="csbtn" style="display:inline-flex; text-decoration:none;">👤 Mein Profil<br></a> </div>
-<div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
+  <!-- KEIN separater Profil-Link mehr hier – wurde ins Menü verschoben -->
+  <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
   <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow" id="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
   <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
   <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
@@ -244,9 +242,57 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
-<!-- BOTTOM SHEET MENU -->
+<!-- BOTTOM SHEET MENU (Chat-Optionen) – hier wurde der neue Profil-Eintrag hinzugefügt -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet"><div class="sheet-handle"></div><div class="sheet-title">Chat-Optionen</div><div class="sheet-body"><button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button><div class="ssep"></div><button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button><button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button><div class="ssep"></div><button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button><button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button><div class="ssep"></div><button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button></div></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Chat-Optionen</div>
+  <div class="sheet-body">
+    <button class="sitem si-g" onclick="renamePartner()">
+      <div class="sico">✏️</div>
+      <div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div>
+    </button>
+
+    <div class="ssep"></div>
+
+    <!-- NEU: Mein Profil – passt optisch perfekt zu den anderen Menüpunkten -->
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'">
+      <div class="sico">👤</div>
+      <div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div>
+    </button>
+
+    <div class="ssep"></div>
+
+    <button class="sitem si-g" onclick="exportChat()">
+      <div class="sico">💾</div>
+      <div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div>
+    </button>
+
+    <button class="sitem si-b" onclick="triggerImport()">
+      <div class="sico">📂</div>
+      <div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div>
+    </button>
+
+    <div class="ssep"></div>
+
+    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()">
+      <div class="sico">🔌</div>
+      <div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div>
+    </button>
+
+    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()">
+      <div class="sico">🗑️</div>
+      <div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div>
+    </button>
+
+    <div class="ssep"></div>
+
+    <button class="sitem" onclick="closeSheet(); goHome()">
+      <div class="sico" style="background:rgba(255,255,255,.05)">✕</div>
+      <div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div>
+    </button>
+  </div>
+</div>
 
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
 <div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
@@ -275,7 +321,7 @@ let typingStarted = false;
 let typingDebounceTimer = null;
 let partnerTypingTimer = null;
 
-// ══ KORRIGIERT: Offline-Warteschlange ══
+// Offline-Warteschlange (korrigiert aus V29)
 let pendingMessages = [];
 
 function getPendingStorageKey() {
@@ -362,7 +408,6 @@ function flushPendingMessages() {
   toast(`📨 ${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} gesendet`);
 }
 
-// Bei Änderung des chatId (nach Verbindungsaufbau) müssen wir eventuell vorhandene temporäre Nachrichten umziehen
 function migratePendingMessages(newChatId) {
   const oldKey = 'sm_pending_temp';
   const stored = localStorage.getItem(oldKey);
@@ -370,9 +415,8 @@ function migratePendingMessages(newChatId) {
     try {
       const tempMsgs = JSON.parse(stored);
       if (tempMsgs.length > 0) {
-        // In den neuen Chat übernehmen
         pendingMessages = tempMsgs;
-        savePendingMessages();   // speichert unter neuem Key
+        savePendingMessages();
         localStorage.removeItem(oldKey);
         updatePendingBadge();
       }
@@ -383,7 +427,7 @@ function migratePendingMessages(newChatId) {
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* ══ Klingelton (unverändert) ══ */
+/* Klingelton (unverändert) */
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
 
@@ -530,7 +574,7 @@ function playNotificationSound() {
 }
 function triggerHaptic() { if (navigator.vibrate) navigator.vibrate(200); }
 
-/* ══ VERPASSTE ANRUFE ══ */
+/* VERPASSTE ANRUFE */
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
 function addMissed(code, name) {
@@ -563,7 +607,7 @@ function callBack(code) {
   setTimeout(() => { inps.forEach(d => { d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; }, 200);
 }
 
-/* ══ KONTAKTE ══ */
+/* KONTAKTE */
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
 function localName(code, fallback) { return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4)); }
@@ -591,7 +635,7 @@ function refreshStatusText() {
   }
 }
 
-/* ══ INIT ══ */
+/* INIT */
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   initDigits();
@@ -626,7 +670,7 @@ window.addEventListener('load', () => {
   }
 });
 
-/* ══ PROFIL-BACKUP ══ */
+/* PROFIL-BACKUP */
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
 function backupProfile() {
@@ -663,7 +707,7 @@ function restoreProfile(input) {
   input.value = '';
 }
 
-/* ══ PEERJS (mit korrigierter Warteschlangen-Migration) ══ */
+/* PEERJS */
 let peerRetries = 0;
 function initPeer() {
   if (peer && !peer.destroyed && peer.open) return;
@@ -710,7 +754,6 @@ function acceptCall() {
   partnerCode = c.peer;
   partnerName = localName(c.peer, c.metadata?.name);
   chatId = buildCID(myCode, partnerCode);
-  // Wichtige Korrektur: Nachdem chatId gesetzt wurde, lade die Warteschlange (ggf. migriere)
   loadPendingMessages();
   migratePendingMessages(chatId);
   openChat(c);
@@ -771,7 +814,7 @@ function openChat(c) {
     if (h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     updateIdx('');
     toast('✓ Verbunden');
-    flushPendingMessages();   // alle wartenden Nachrichten senden
+    flushPendingMessages();
   };
   if (conn.open) onOpen(); else conn.on('open', onOpen);
   conn.on('data', d => handleData(d));
@@ -810,7 +853,6 @@ function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
-  // Wenn nicht verbunden, in Warteschlange (nur wenn chatId schon existiert, sonst sinnlos)
   if (!conn || !conn.open) {
     if (!chatId) {
       toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
@@ -822,7 +864,6 @@ function sendMsg() {
     inp.style.height = 'auto';
     return;
   }
-  // Verbunden: Tipp-Indikator beenden
   if (typingStarted) {
     conn.send({ t:'typing', state:'end' });
     if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
@@ -1098,7 +1139,6 @@ function goHome() {
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
   if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
   if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
-  // Warteschlange bleibt erhalten – kein Löschen
   pendingConn = null; lastDate = null;
   document.querySelectorAll('.dinp').forEach(d => { d.value=''; d.classList.remove('filled'); });
   document.getElementById('cbtn').disabled = true;
