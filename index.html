@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V27</title>
+<title>SpotMe · Chat V28</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V27">
+<meta name="apple-mobile-web-app-title" content="SpotMe V28">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ════════════════════════════════
-   DESIGN TOKENS (unverändert aus V26)
+   DESIGN TOKENS (unverändert aus V27)
 ════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -446,7 +446,7 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V27</b></span>
+    <span class="bname">Spot<b>Me V28</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="mitem" onclick="backupProfile()"><span class="mico">💾</span><div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -503,10 +503,86 @@ let isOffline   = false;
 let outgoingCallTimer = null;
 let currentRingingAudio = null;
 
-// ══ NEU: Tipp-Indikator Variablen ══
-let typingStarted = false;          // ob wir gerade "start" gesendet haben
-let typingDebounceTimer = null;    // Timer zum Senden von "end"
-let partnerTypingTimer = null;      // Timer zum Zurücksetzen des Partner-Tippstatus
+// ══ Tipp-Indikator Variablen ══
+let typingStarted = false;
+let typingDebounceTimer = null;
+let partnerTypingTimer = null;
+
+// ══ NEU: Offline-Warteschlange für Textnachrichten ══
+let pendingMessages = [];   // Array von { text, ts }
+
+function loadPendingMessages() {
+  const stored = localStorage.getItem('sm_pending_' + (chatId || 'global'));
+  if (stored) {
+    try {
+      pendingMessages = JSON.parse(stored);
+    } catch(e) { pendingMessages = []; }
+  } else {
+    pendingMessages = [];
+  }
+}
+function savePendingMessages() {
+  if (chatId) {
+    localStorage.setItem('sm_pending_' + chatId, JSON.stringify(pendingMessages));
+  }
+}
+function addPendingMessage(text) {
+  pendingMessages.push({ text, ts: Date.now() });
+  savePendingMessages();
+  updatePendingBadge();
+}
+function clearPendingMessages() {
+  pendingMessages = [];
+  if (chatId) localStorage.removeItem('sm_pending_' + chatId);
+  updatePendingBadge();
+}
+function updatePendingBadge() {
+  const count = pendingMessages.length;
+  const btn = document.getElementById('sbtn');
+  if (btn) {
+    if (count > 0) {
+      btn.style.position = 'relative';
+      btn.style.overflow = 'visible';
+      // kleines Badge mit Anzahl (optional)
+      let badge = document.getElementById('pending-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'pending-badge';
+        badge.style.position = 'absolute';
+        badge.style.top = '-8px';
+        badge.style.right = '-8px';
+        badge.style.backgroundColor = 'var(--p3)';
+        badge.style.color = 'white';
+        badge.style.borderRadius = '12px';
+        badge.style.padding = '2px 6px';
+        badge.style.fontSize = '11px';
+        badge.style.fontWeight = 'bold';
+        badge.style.minWidth = '18px';
+        badge.style.textAlign = 'center';
+        btn.style.position = 'relative';
+        btn.appendChild(badge);
+      }
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.style.display = 'block';
+    } else {
+      const badge = document.getElementById('pending-badge');
+      if (badge) badge.style.display = 'none';
+    }
+  }
+}
+function flushPendingMessages() {
+  if (!conn || !conn.open) return;
+  if (pendingMessages.length === 0) return;
+  const toSend = [...pendingMessages];
+  clearPendingMessages();
+  for (let msg of toSend) {
+    const m = { t:'text', text: msg.text, ts: msg.ts };
+    conn.send(m);
+    appendMsg({ ...m, own: true });
+    persistMsg({ ...m, own: true });
+  }
+  toast(`📨 ${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} gesendet`);
+}
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
@@ -715,22 +791,18 @@ function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)
 function localName(code, fallback) { return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4)); }
 function setAlias(code, name) { const c = getContacts(); if (name) c[code] = name; else delete c[code]; saveContacts(c); }
 
-/* ══ NEU: Aktualisierung der Statuszeile (für Tipp-Indikator) ══ */
 function refreshStatusText() {
   const statusEl = document.getElementById('pstatus');
   if (!statusEl) return;
-  // Priorität: Tipp-Indikator des Partners
   if (partnerTypingTimer !== null) {
     statusEl.textContent = '✍️ schreibt...';
     statusEl.className = 'pstatus';
     return;
   }
-  // Normaler Verbindungsstatus
   if (conn && conn.open) {
     statusEl.textContent = '● Verbunden';
     statusEl.className = 'pstatus';
   } else {
-    // Im Chat-Screen, aber nicht verbunden
     if (document.getElementById('s-chat').classList.contains('active')) {
       statusEl.textContent = '○ Verbinde...';
       statusEl.className = 'pstatus dim';
@@ -753,23 +825,19 @@ window.addEventListener('load', () => {
   window.addEventListener('online', () => { if (!peer || peer.destroyed) initPeer(); });
   window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
   document.addEventListener('click', e => { if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu(); });
-  // Service Worker registrieren (falls nicht schon geschehen)
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registriert', reg)).catch(err => console.warn('SW fehler', err));
   }
   
-  // ══ Tipp-Indikator: Event-Listener auf Textarea (einmalig) ══
   const textarea = document.getElementById('minp');
   if (textarea) {
     textarea.addEventListener('input', () => {
-      if (!conn || !conn.open) return; // nur wenn verbunden
+      if (!conn || !conn.open) return;
       if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
       if (!typingStarted) {
-        // Sende "start" an Partner
         conn.send({ t:'typing', state:'start' });
         typingStarted = true;
       }
-      // Nach 2 Sekunden Inaktivität "end" senden
       typingDebounceTimer = setTimeout(() => {
         if (conn && conn.open && typingStarted) {
           conn.send({ t:'typing', state:'end' });
@@ -781,12 +849,12 @@ window.addEventListener('load', () => {
   }
 });
 
-/* ══ PROFIL-BACKUP ══ */
+/* ══ PROFIL-BACKUP (erweitert um Warteschlange) ══ */
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
 function backupProfile() {
   closeHomeMenu();
-  const backup = { _spotme_backup: true, _version: 1, _date: new Date().toISOString(), sm_code: localStorage.getItem('sm_code') || '', sm_name: localStorage.getItem('sm_name') || '', sm_contacts: localStorage.getItem('sm_contacts') || '{}', sm_idx: localStorage.getItem('sm_idx') || '[]', sm_missed: localStorage.getItem('sm_missed') || '[]' };
+  const backup = { _spotme_backup: true, _version: 2, _date: new Date().toISOString(), sm_code: localStorage.getItem('sm_code') || '', sm_name: localStorage.getItem('sm_name') || '', sm_contacts: localStorage.getItem('sm_contacts') || '{}', sm_idx: localStorage.getItem('sm_idx') || '[]', sm_missed: localStorage.getItem('sm_missed') || '[]' };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -818,7 +886,7 @@ function restoreProfile(input) {
   input.value = '';
 }
 
-/* ══ PEERJS ══ */
+/* ══ PEERJS (erweitert um Flush bei Verbindungsaufbau) ══ */
 let peerRetries = 0;
 function initPeer() {
   if (peer && !peer.destroyed && peer.open) return;
@@ -881,6 +949,9 @@ function connectToPeer() {
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
+  // Lade gespeicherte Warteschlange für diesen Chat
+  loadPendingMessages();
+  updatePendingBadge();
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
   outgoingCallTimer = setTimeout(() => {
@@ -911,7 +982,6 @@ function openChat(c) {
     if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
-    // Status wird über refreshStatusText gesetzt
     refreshStatusText();
     document.getElementById('pav').className = 'pav';
     const alias = getContacts()[partnerCode];
@@ -922,6 +992,8 @@ function openChat(c) {
     if (h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     updateIdx('');
     toast('✓ Verbunden');
+    // Warteschlange leeren und senden
+    flushPendingMessages();
   };
   if (conn.open) onOpen(); else conn.on('open', onOpen);
   
@@ -930,13 +1002,8 @@ function openChat(c) {
   conn.on('close', () => {
     if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     conn = null;
-    // Tipp-Indikatoren zurücksetzen
     if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
-    if (typingStarted) {
-      // Kein Senden mehr nötig, da Verbindung weg
-      typingStarted = false;
-      if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
-    }
+    if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
     document.getElementById('sbtn').disabled = true;
     refreshStatusText();
     document.getElementById('pav').className = 'pav offline';
@@ -953,7 +1020,6 @@ function prepChat() {
   const alias = getContacts()[partnerCode];
   if (alias) partnerName = alias;
   applyPartnerName();
-  // Status zurücksetzen (kein Partner-Tippen)
   if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
   if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
   refreshStatusText();
@@ -969,8 +1035,15 @@ function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
-  if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
-  // Tipp-Indikator beenden, falls noch aktiv
+  // Wenn nicht verbunden, in Warteschlange
+  if (!conn || !conn.open) {
+    addPendingMessage(text);
+    toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`);
+    inp.value = '';
+    inp.style.height = 'auto';
+    return;
+  }
+  // Verbunden: Tipp-Indikator beenden
   if (typingStarted) {
     conn.send({ t:'typing', state:'end' });
     if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
@@ -986,9 +1059,8 @@ function sendMsg() {
 async function sendFile(inp) {
   const f = inp.files[0]; inp.value = '';
   if (!f) return;
-  if (!conn || !conn.open) { toast('⚠️ Nicht verbunden'); return; }
+  if (!conn || !conn.open) { toast('⚠️ Dateiübertragung nur bei aktiver Verbindung möglich'); return; }
   if (f.size > 100 * 1024 * 1024) { toast('⚠️ Max. 100 MB'); return; }
-  // Tipp-Indikator beenden (falls aktiv)
   if (typingStarted) {
     conn.send({ t:'typing', state:'end' });
     if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
@@ -1174,6 +1246,8 @@ function renameContact(code, networkName) {
 function reconnectTo(code, name, cid) {
   if (!peer || !peer.open) { toast('⚠️ Warte auf Server...'); return; }
   partnerCode = code; partnerName = name; chatId = cid;
+  loadPendingMessages();
+  updatePendingBadge();
   openChat(peer.connect(code, { reliable:true, metadata:{ name: myName } }));
 }
 function exportChat() {
@@ -1246,9 +1320,10 @@ function goHome() {
   stopRingingTone();
   if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
-  // Tipp-Indikatoren zurücksetzen
   if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
   if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
+  pendingMessages = []; // Warteschlange wird nicht gelöscht, sondern bleibt für den Chat erhalten
+  updatePendingBadge();
   pendingConn = null; lastDate = null;
   document.querySelectorAll('.dinp').forEach(d => { d.value=''; d.classList.remove('filled'); });
   document.getElementById('cbtn').disabled = true;
