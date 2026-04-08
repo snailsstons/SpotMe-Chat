@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v21</title>
+<title>SpotMe · Chat v22</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V21">
+<meta name="apple-mobile-web-app-title" content="SpotMe V22,">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -515,7 +515,7 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V21</b></span>
+    <span class="bname">Spot<b>Me V22</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
     <!-- Home Menu Dropdown -->
@@ -782,11 +782,15 @@ function clearMissed() {
 }
 
 function callBack(code) {
-  // Digit-Felder füllen
   const inps = document.querySelectorAll('.dinp');
   code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
   document.getElementById('cbtn').disabled = false;
   connectToPeer();
+  // Inputs nach Verbindungsaufbau leeren damit kein alter Code stehen bleibt
+  setTimeout(() => {
+    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+    document.getElementById('cbtn').disabled = true;
+  }, 200);
 }
 
 /* ══ LOKALE KONTAKTE (Spitznamen) ══ */
@@ -836,10 +840,11 @@ function backupProfile() {
   closeHomeMenu();
   const backup = {
     _spotme_backup: true, _version: 1, _date: new Date().toISOString(),
-    sm_code: localStorage.getItem('sm_code') || '',
-    sm_name: localStorage.getItem('sm_name') || '',
+    sm_code:     localStorage.getItem('sm_code')     || '',
+    sm_name:     localStorage.getItem('sm_name')     || '',
     sm_contacts: localStorage.getItem('sm_contacts') || '{}',
-    sm_idx: localStorage.getItem('sm_idx') || '[]'
+    sm_idx:      localStorage.getItem('sm_idx')      || '[]',
+    sm_missed:   localStorage.getItem('sm_missed')   || '[]'   // ← verpasste Anrufe
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
@@ -863,6 +868,7 @@ function restoreProfile(input) {
       if (d.sm_name) localStorage.setItem('sm_name', d.sm_name);
       if (d.sm_contacts) localStorage.setItem('sm_contacts', d.sm_contacts);
       if (d.sm_idx) localStorage.setItem('sm_idx', d.sm_idx);
+      if (d.sm_missed) localStorage.setItem('sm_missed', d.sm_missed);  // ← verpasste Anrufe
       toast('✅ Profil wiederhergestellt · Seite wird neu geladen...');
       setTimeout(() => location.reload(), 1800);
     } catch { toast('❌ Datei konnte nicht gelesen werden'); }
@@ -943,9 +949,10 @@ function acceptCall() {
 }
 function declineCall() {
   if (pendingConn) {
-    addMissed(pendingConn.peer, localName(pendingConn.peer, pendingConn.metadata?.name));
-    try { pendingConn.close(); } catch(e){}
-    pendingConn = null;
+    const c = pendingConn;
+    pendingConn = null;                                              // ← erst null setzen
+    addMissed(c.peer, localName(c.peer, c.metadata?.name));         // ← dann eintragen
+    try { c.close(); } catch(e){}                                   // ← close() feuert close-Event, aber pendingConn ist schon null → kein doppelter Eintrag
   }
   showScreen('s-home');
 }
@@ -1035,8 +1042,11 @@ function openChat(c) {
     document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
     document.getElementById('pstatus').className = 'pstatus dim';
     document.getElementById('pav').className = 'pav offline';
-    document.getElementById('rcbar').classList.add('show');
-    toast('○ Partner hat den Chat verlassen');
+    // Nur anzeigen wenn User noch im Chat-Screen ist (nicht nach Timeout/goHome)
+    if (document.getElementById('s-chat').classList.contains('active')) {
+      document.getElementById('rcbar').classList.add('show');
+      toast('○ Partner hat den Chat verlassen');
+    }
   });
   
   conn.on('error', err => {
