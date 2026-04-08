@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v23</title>
+<title>SpotMe · Chat v24</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V23">
+<meta name="apple-mobile-web-app-title" content="SpotMe V24">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -515,7 +515,7 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V23</b></span>
+    <span class="bname">Spot<b>Me V24</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
     <!-- Home Menu Dropdown -->
@@ -734,28 +734,29 @@ let fileBufs    = {};
 let isOffline   = false;
 let outgoingCallTimer = null;   // Timer für ausgehenden Ruf (30s)
 
+// ══ NEU: Klingelton-Variablen ══
+let ringingInterval = null;
+let ringingAudioCtx = null;
+
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* ══ TON & VIBRATION (NEU in V23) ══ */
+/* ══ TON & VIBRATION (für Nachrichten) ══ */
 function playNotificationSound() {
   try {
-    // Kurzer, angenehmer Piepton über Web Audio API
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = 880; // a'' (heller Ton)
-    gainNode.gain.value = 0.2;        // Lautstärke
+    oscillator.frequency.value = 880;
+    gainNode.gain.value = 0.2;
     oscillator.type = 'sine';
     oscillator.start();
     gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
     oscillator.stop(audioCtx.currentTime + 0.5);
-    // AudioContext muss durch Benutzerinteraktion gestartet werden – bei eingehender Nachricht ist das erlaubt
     if (audioCtx.state === 'suspended') audioCtx.resume();
   } catch (e) {
-    // Fallback: kurzes <audio>-Element mit Base64-Ton (sehr klein)
     const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCB3YXZlIGZpbGU=');
     audio.volume = 0.3;
     audio.play().catch(() => {});
@@ -764,7 +765,47 @@ function playNotificationSound() {
 
 function triggerHaptic() {
   if (navigator.vibrate) {
-    navigator.vibrate(200); // 200 ms Vibration
+    navigator.vibrate(200);
+  }
+}
+
+/* ══ NEU: Wiederholender Klingelton für eingehenden Ruf ══ */
+function startRingingSound() {
+  stopRingingSound(); // vorherigen Ton stoppen
+  
+  function playBeep() {
+    try {
+      if (!ringingAudioCtx || ringingAudioCtx.state === 'closed') {
+        ringingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = ringingAudioCtx;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      gain.gain.value = 0.3;
+      osc.type = 'sine';
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+      osc.stop(now + 0.5);
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch(e) {}
+  }
+  
+  playBeep(); // sofort erster Ton
+  ringingInterval = setInterval(playBeep, 800); // alle 800ms wiederholen
+}
+
+function stopRingingSound() {
+  if (ringingInterval) {
+    clearInterval(ringingInterval);
+    ringingInterval = null;
+  }
+  if (ringingAudioCtx) {
+    try { ringingAudioCtx.close(); } catch(e) {}
+    ringingAudioCtx = null;
   }
 }
 
@@ -956,10 +997,12 @@ function initPeer() {
     showScreen('s-in');
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
-    playNotificationSound();   // Ton bei eingehendem Ruf
-    triggerHaptic();           // Vibration bei eingehendem Ruf
+    // 🔔 Klingelton starten (wiederholend)
+    startRingingSound();
+    triggerHaptic();
     incoming.on('close', () => {
       if (pendingConn === incoming) {
+        stopRingingSound(); // Ton stoppen
         addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
         pendingConn = null;
         showScreen('s-home');
@@ -971,6 +1014,7 @@ function initPeer() {
 
 /* ══ ACCEPT / DECLINE ══ */
 function acceptCall() {
+  stopRingingSound(); // Klingelton stoppen
   if (!pendingConn) { toast('⚠️ Verbindung nicht mehr verfügbar'); return; }
   const c = pendingConn; pendingConn = null;
   partnerCode = c.peer;
@@ -979,6 +1023,7 @@ function acceptCall() {
   openChat(c);
 }
 function declineCall() {
+  stopRingingSound(); // Klingelton stoppen
   if (pendingConn) {
     const c = pendingConn;
     pendingConn = null;
@@ -1152,8 +1197,8 @@ function handleData(d) {
     const m = { ...d, own:false };
     appendMsg(m); persistMsg(m);
     notify(d.text);
-    playNotificationSound();  // 🔔 Ton bei eingehender Textnachricht
-    triggerHaptic();          // 📳 Vibration bei eingehender Textnachricht
+    playNotificationSound();  // kurzer Ping bei Nachricht
+    triggerHaptic();
   } else if (d.t === 'f-start') {
     fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) };
     toast(`📥 Empfange "${d.name}"...`);
@@ -1170,8 +1215,8 @@ function handleData(d) {
       const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false };
       appendMsg(msg); persistMsg(msg);
       notify('📎 Datei: ' + b.meta.name);
-      playNotificationSound();  // 🔔 Ton bei eingehender Datei
-      triggerHaptic();          // 📳 Vibration bei eingehender Datei
+      playNotificationSound();
+      triggerHaptic();
       delete fileBufs[d.id];
     };
     rd.readAsDataURL(blob);
@@ -1433,6 +1478,7 @@ function setSpill(type, text) {
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
+  stopRingingSound(); // Klingelton stoppen beim Verlassen
   if (outgoingCallTimer) {
     clearTimeout(outgoingCallTimer);
     outgoingCallTimer = null;
