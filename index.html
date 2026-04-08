@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V30</title>
+<title>SpotMe · Chat V31</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V30">
+<meta name="apple-mobile-web-app-title" content="SpotMe V31">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -54,6 +54,23 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .home-menu-btn:hover { color:var(--text); border-color:var(--bord2) }
 .home-drop { position:absolute; top:calc(100% + 4px); right:0; background:var(--card2); border:1px solid var(--bord2); border-radius:14px; padding:.5rem; display:none; flex-direction:column; gap:.15rem; box-shadow:0 12px 40px rgba(0,0,0,.65); min-width:250px; z-index:100 }
 .home-drop.open { display:flex; animation:sIn .18s ease }
+/* Angepasst: Einträge im Home-Dropdown wie im Chat-Menü (Bottom Sheet) */
+.home-drop .sitem {
+  display:flex; align-items:center; gap:.9rem;
+  padding:.9rem 1.1rem; border-radius:14px; cursor:pointer;
+  border:none; background:none; width:100%; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:.97rem; text-align:left;
+  transition:background .15s; min-height:64px;
+}
+.home-drop .sitem:active { background:rgba(255,255,255,.06); }
+.home-drop .sico {
+  width:44px; height:44px; border-radius:12px; display:flex; align-items:center;
+  justify-content:center; font-size:1.25rem; flex-shrink:0;
+  background:rgba(0,229,192,.1);
+}
+.home-drop .slab { flex:1; }
+.home-drop .sdesc { font-size:.8rem; color:var(--muted2); margin-top:.2rem; }
+
 .hero-title { font-family:'Syne',sans-serif; font-weight:800; font-size:2.3rem; letter-spacing:-.03em; line-height:1.08; margin-bottom:.6rem }
 .hero-sub { color:var(--muted2); font-size:.95rem; font-weight:300; line-height:1.65; margin-bottom:1.75rem }
 .spill { display:inline-flex; align-items:center; gap:.5rem; padding:.42rem 1rem; border-radius:100px; font-size:.82rem; font-weight:500; margin-bottom:1.5rem; transition:all .4s ease; border:1px solid rgba(123,92,250,.25); background:rgba(123,92,250,.08); color:var(--p2); }
@@ -211,19 +228,29 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V30</b></span>
-    <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
+    <span class="bname">Spot<b>Me V31</b></span>
+    <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Menü">⋮</button>
+    <!-- Home-Dropdown im Stil des Chat-Menüs -->
     <div class="home-drop" id="home-drop">
-      <button class="mitem" onclick="backupProfile()"><span class="mico">💾</span><div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
-      <button class="mitem" onclick="document.getElementById('restore-inp').click()"><span class="mico">📂</span><div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div></button>
+      <button class="sitem" onclick="backupProfile()">
+        <div class="sico si-g">💾</div>
+        <div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div>
+      </button>
+      <button class="sitem" onclick="document.getElementById('restore-inp').click()">
+        <div class="sico si-g">📂</div>
+        <div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div>
+      </button>
       <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+      <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'">
+        <div class="sico si-g">👤</div>
+        <div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div>
+      </button>
     </div>
   </div>
   <div class="hero-title">Privat &amp;<br>Direkt.</div>
   <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
   <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
   <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
-  <!-- KEIN separater Profil-Link mehr hier – wurde ins Menü verschoben -->
   <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
   <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow" id="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
   <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
@@ -242,7 +269,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
-<!-- BOTTOM SHEET MENU (Chat-Optionen) – hier wurde der neue Profil-Eintrag hinzugefügt -->
+<!-- BOTTOM SHEET MENU (Chat-Optionen) – unverändert -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
@@ -252,41 +279,30 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
       <div class="sico">✏️</div>
       <div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div>
     </button>
-
     <div class="ssep"></div>
-
-    <!-- NEU: Mein Profil – passt optisch perfekt zu den anderen Menüpunkten -->
     <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'">
       <div class="sico">👤</div>
       <div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div>
     </button>
-
     <div class="ssep"></div>
-
     <button class="sitem si-g" onclick="exportChat()">
       <div class="sico">💾</div>
       <div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div>
     </button>
-
     <button class="sitem si-b" onclick="triggerImport()">
       <div class="sico">📂</div>
       <div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div>
     </button>
-
     <div class="ssep"></div>
-
     <button class="sitem si-y warning" onclick="closeSheet(); goOffline()">
       <div class="sico">🔌</div>
       <div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div>
     </button>
-
     <button class="sitem si-r danger" onclick="closeSheet(); clearChat()">
       <div class="sico">🗑️</div>
       <div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div>
     </button>
-
     <div class="ssep"></div>
-
     <button class="sitem" onclick="closeSheet(); goHome()">
       <div class="sico" style="background:rgba(255,255,255,.05)">✕</div>
       <div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div>
@@ -316,12 +332,12 @@ let isOffline   = false;
 let outgoingCallTimer = null;
 let currentRingingAudio = null;
 
-// Tipp-Indikator Variablen
+// Tipp-Indikator
 let typingStarted = false;
 let typingDebounceTimer = null;
 let partnerTypingTimer = null;
 
-// Offline-Warteschlange (korrigiert aus V29)
+// Offline-Warteschlange
 let pendingMessages = [];
 
 function getPendingStorageKey() {
@@ -427,7 +443,7 @@ function migratePendingMessages(newChatId) {
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* Klingelton (unverändert) */
+/* Klingelton */
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
 
