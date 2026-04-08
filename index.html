@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat</title>
+<title>SpotMe · Chat v18</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
@@ -64,7 +64,7 @@ html, body {
 ════════════════════════════════ */
 
 /* Brand */
-.brand { display:flex; align-items:center; gap:.55rem; margin-bottom:2.25rem }
+.brand { display:flex; align-items:center; gap:.55rem; margin-bottom:2.25rem; position:relative }
 .bdot {
   width:9px; height:9px; border-radius:50%;
   background:var(--acc); box-shadow:0 0 14px var(--acc);
@@ -73,6 +73,24 @@ html, body {
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
 .bname { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--acc); letter-spacing:-.02em }
 .bname b { color:var(--text) }
+
+/* Home menu button */
+.home-menu-btn {
+  margin-left:auto; width:32px; height:32px; border-radius:9px;
+  border:1px solid var(--bord); background:transparent;
+  color:var(--muted2); font-size:1.3rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .2s; line-height:1;
+}
+.home-menu-btn:hover { color:var(--text); border-color:var(--bord2) }
+.home-drop {
+  position:absolute; top:calc(100% + 4px); right:0;
+  background:var(--card2); border:1px solid var(--bord2);
+  border-radius:14px; padding:.5rem; display:none;
+  flex-direction:column; gap:.15rem;
+  box-shadow:0 12px 40px rgba(0,0,0,.65); min-width:250px; z-index:100
+}
+.home-drop.open { display:flex; animation:sIn .18s ease }
 
 /* Hero text */
 .hero-title { font-family:'Syne',sans-serif; font-weight:800; font-size:2.3rem; letter-spacing:-.03em; line-height:1.08; margin-bottom:.6rem }
@@ -467,7 +485,24 @@ html, body {
 ════════════════════════════════ -->
 <div id="s-home" class="screen active">
 <div class="inner">
-  <div class="brand"><div class="bdot"></div><span class="bname">Spot<b>Me</b></span></div>
+  <div class="brand">
+    <div class="bdot"></div>
+    <span class="bname">Spot<b>Me</b></span>
+    <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
+
+    <!-- Home Menu Dropdown — INSIDE brand so position:absolute works -->
+    <div class="home-drop" id="home-drop">
+      <button class="mitem" onclick="backupProfile()">
+        <span class="mico">💾</span>
+        <div class="mlab"><div>Profil sichern</div><div class="mdesc">Code · Kontakte · Chatverlauf-Index</div></div>
+      </button>
+      <button class="mitem" onclick="document.getElementById('restore-inp').click()">
+        <span class="mico">📂</span>
+        <div class="mlab"><div>Profil wiederherstellen</div><div class="mdesc">Backup-Datei einlesen</div></div>
+      </button>
+      <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+    </div>
+  </div>
 
   <div class="hero-title">Privat &amp;<br>Direkt.</div>
   <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
@@ -695,9 +730,77 @@ window.addEventListener('load', () => {
     if (!e.target.closest('.sheet') && !e.target.closest('.menu-btn') &&
         !e.target.closest('.sheet-ovl')) return;
   });
+
+  // Home-Menü schließen bei Außenklick
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) {
+      closeHomeMenu();
+    }
+  });
 });
 
-function newCode() { return String(Math.floor(100000 + Math.random() * 900000)); }
+/* ══ PROFIL-BACKUP ══ */
+function toggleHomeMenu(e) {
+  e.stopPropagation(); // verhindert dass document-click das Menu sofort wieder schließt
+  const d = document.getElementById('home-drop');
+  d.classList.toggle('open');
+}
+
+function closeHomeMenu() {
+  document.getElementById('home-drop').classList.remove('open');
+}
+
+function backupProfile() {
+  closeHomeMenu();
+  const backup = {
+    _spotme_backup: true,
+    _version: 1,
+    _date: new Date().toISOString(),
+    sm_code:     localStorage.getItem('sm_code')     || '',
+    sm_name:     localStorage.getItem('sm_name')     || '',
+    sm_contacts: localStorage.getItem('sm_contacts') || '{}',
+    sm_idx:      localStorage.getItem('sm_idx')      || '[]'
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href     = url;
+  a.download = `SpotMe_Backup_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('💾 Backup gespeichert');
+}
+
+function restoreProfile(input) {
+  closeHomeMenu();
+  if (!input.files[0]) return;
+  const rd = new FileReader();
+  rd.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (!d._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); return; }
+
+      if (!confirm(
+        `Profil wiederherstellen?\n\n` +
+        `Code:     ${d.sm_code}\n` +
+        `Name:     ${d.sm_name}\n` +
+        `Gesichert: ${d._date ? new Date(d._date).toLocaleString('de-DE') : 'unbekannt'}\n\n` +
+        `Dein aktueller Code wird ersetzt.`
+      )) return;
+
+      if (d.sm_code)     localStorage.setItem('sm_code',     d.sm_code);
+      if (d.sm_name)     localStorage.setItem('sm_name',     d.sm_name);
+      if (d.sm_contacts) localStorage.setItem('sm_contacts', d.sm_contacts);
+      if (d.sm_idx)      localStorage.setItem('sm_idx',      d.sm_idx);
+
+      toast('✅ Profil wiederhergestellt · Seite wird neu geladen...');
+      setTimeout(() => location.reload(), 1800);
+    } catch { toast('❌ Datei konnte nicht gelesen werden'); }
+  };
+  rd.readAsText(input.files[0]);
+  input.value = '';
+}
 
 /* ══ PEERJS ══ */
 let peerRetries = 0;
