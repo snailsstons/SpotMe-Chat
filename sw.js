@@ -5,7 +5,7 @@
    → Neue Version wird sofort aktiv
 ══════════════════════════════════════════════════ */
 
-const CACHE  = 'spotme-v26';
+const CACHE  = 'spotme-v28';
 const ASSETS = [
   './',
   './index.html',
