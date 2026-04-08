@@ -5,10 +5,10 @@
    → Neue Version wird sofort aktiv
 ══════════════════════════════════════════════════ */
 
-const CACHE  = 'spotme-v1';
+const CACHE  = 'spotme-v25';
 const ASSETS = [
   './',
-  './spotme-v10.html',
+  './index.html',
   './manifest.json',
   './pwa_180.png',
   './pwa_512.png'
