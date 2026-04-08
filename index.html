@@ -223,7 +223,10 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
   <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
   <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
-  <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
+  <div style="margin-top:0.8rem; text-align:center;">
+  
+<a href="profil.html" class="csbtn" style="display:inline-flex; text-decoration:none;">👤 Mein Profil</a> </div>
+<div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
   <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow" id="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
   <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
   <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
