@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v20</title>
+<title>SpotMe · Chat v21</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V20">
+<meta name="apple-mobile-web-app-title" content="SpotMe V21">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -515,7 +515,7 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V20</b></span>
+    <span class="bname">Spot<b>Me V21</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
     <!-- Home Menu Dropdown -->
@@ -732,6 +732,7 @@ let lastDate    = null;
 const CHUNK     = 16384;
 let fileBufs    = {};
 let isOffline   = false;
+let outgoingCallTimer = null;   // Timer für ausgehenden Ruf (30s)
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
@@ -949,15 +950,36 @@ function declineCall() {
   showScreen('s-home');
 }
 
-/* ══ CONNECT (Anrufer) ══ */
+/* ══ CONNECT (Anrufer) mit 30‑Sekunden‑Timeout ══ */
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
   if (!peer || !peer.open) { toast('⚠️ Noch nicht verbunden'); return; }
+  
+  // Alten Timer löschen, falls vorhanden
+  if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
+  
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
-  openChat(peer.connect(code, { reliable:true, metadata:{ name: myName } }));
+  
+  // Verbindung initiieren
+  const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
+  openChat(newConn);
+  
+  // Timer starten: 30 Sekunden warten auf 'open'
+  outgoingCallTimer = setTimeout(() => {
+    // Prüfen: existiert die Verbindung und ist noch nicht offen?
+    if (conn && conn === newConn && !conn.open) {
+      toast('⏰ Keine Antwort innerhalb von 30 Sekunden');
+      addMissed(partnerCode, partnerName);
+      // Verbindung schließen und zurück zur Startseite
+      try { conn.close(); } catch(e) {}
+      conn = null;
+      goHome();
+    }
+    outgoingCallTimer = null;
+  }, 30000);
 }
 
 /* ══ RECONNECT ══ */
@@ -974,7 +996,13 @@ function openChat(c) {
   conn = c;
   prepChat();
   showScreen('s-chat');
+  
   const onOpen = () => {
+    // Erfolgreich verbunden -> Timer löschen
+    if (outgoingCallTimer) {
+      clearTimeout(outgoingCallTimer);
+      outgoingCallTimer = null;
+    }
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     document.getElementById('pstatus').textContent = '● Verbunden';
@@ -991,9 +1019,17 @@ function openChat(c) {
     updateIdx('');
     toast('✓ Verbunden');
   };
+  
   if (conn.open) onOpen(); else conn.on('open', onOpen);
+  
   conn.on('data', d => handleData(d));
+  
   conn.on('close', () => {
+    // Timer löschen, falls noch aktiv (z.B. bei Abbruch durch Partner)
+    if (outgoingCallTimer) {
+      clearTimeout(outgoingCallTimer);
+      outgoingCallTimer = null;
+    }
     conn = null;
     document.getElementById('sbtn').disabled = true;
     document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
@@ -1002,8 +1038,17 @@ function openChat(c) {
     document.getElementById('rcbar').classList.add('show');
     toast('○ Partner hat den Chat verlassen');
   });
-  conn.on('error', err => { console.warn('[conn]', err); document.getElementById('rcbar').classList.add('show'); });
+  
+  conn.on('error', err => {
+    console.warn('[conn]', err);
+    if (outgoingCallTimer) {
+      clearTimeout(outgoingCallTimer);
+      outgoingCallTimer = null;
+    }
+    document.getElementById('rcbar').classList.add('show');
+  });
 }
+
 function prepChat() {
   const alias = getContacts()[partnerCode];
   if (alias) partnerName = alias;
@@ -1351,6 +1396,11 @@ function setSpill(type, text) {
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
+  // Timer löschen, falls noch aktiv (ausgehender Anruf)
+  if (outgoingCallTimer) {
+    clearTimeout(outgoingCallTimer);
+    outgoingCallTimer = null;
+  }
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
   pendingConn = null; lastDate = null;
   document.querySelectorAll('.dinp').forEach(d => { d.value=''; d.classList.remove('filled'); });
