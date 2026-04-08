@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat v22</title>
+<title>SpotMe · Chat v23</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V22,">
+<meta name="apple-mobile-web-app-title" content="SpotMe V23">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -515,7 +515,7 @@ html, body {
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V22</b></span>
+    <span class="bname">Spot<b>Me V23</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Datensicherung">⋮</button>
 
     <!-- Home Menu Dropdown -->
@@ -737,13 +737,43 @@ let outgoingCallTimer = null;   // Timer für ausgehenden Ruf (30s)
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
+/* ══ TON & VIBRATION (NEU in V23) ══ */
+function playNotificationSound() {
+  try {
+    // Kurzer, angenehmer Piepton über Web Audio API
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.frequency.value = 880; // a'' (heller Ton)
+    gainNode.gain.value = 0.2;        // Lautstärke
+    oscillator.type = 'sine';
+    oscillator.start();
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+    oscillator.stop(audioCtx.currentTime + 0.5);
+    // AudioContext muss durch Benutzerinteraktion gestartet werden – bei eingehender Nachricht ist das erlaubt
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {
+    // Fallback: kurzes <audio>-Element mit Base64-Ton (sehr klein)
+    const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCB3YXZlIGZpbGU=');
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  }
+}
+
+function triggerHaptic() {
+  if (navigator.vibrate) {
+    navigator.vibrate(200); // 200 ms Vibration
+  }
+}
+
 /* ══ VERPASSTE ANRUFE (MISSED CALLS) ══ */
 function getMissed()    { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a)  { localStorage.setItem('sm_missed', JSON.stringify(a)); }
 
 function addMissed(code, name) {
   const arr = getMissed();
-  // Neuester Eintrag desselben Callers ersetzen falls < 60s her
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
   const entry  = { code, name, ts: Date.now() };
   if (recent >= 0) arr[recent] = entry;
@@ -786,7 +816,6 @@ function callBack(code) {
   code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
   document.getElementById('cbtn').disabled = false;
   connectToPeer();
-  // Inputs nach Verbindungsaufbau leeren damit kein alter Code stehen bleibt
   setTimeout(() => {
     inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
     document.getElementById('cbtn').disabled = true;
@@ -844,7 +873,7 @@ function backupProfile() {
     sm_name:     localStorage.getItem('sm_name')     || '',
     sm_contacts: localStorage.getItem('sm_contacts') || '{}',
     sm_idx:      localStorage.getItem('sm_idx')      || '[]',
-    sm_missed:   localStorage.getItem('sm_missed')   || '[]'   // ← verpasste Anrufe
+    sm_missed:   localStorage.getItem('sm_missed')   || '[]'
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
@@ -868,7 +897,7 @@ function restoreProfile(input) {
       if (d.sm_name) localStorage.setItem('sm_name', d.sm_name);
       if (d.sm_contacts) localStorage.setItem('sm_contacts', d.sm_contacts);
       if (d.sm_idx) localStorage.setItem('sm_idx', d.sm_idx);
-      if (d.sm_missed) localStorage.setItem('sm_missed', d.sm_missed);  // ← verpasste Anrufe
+      if (d.sm_missed) localStorage.setItem('sm_missed', d.sm_missed);
       toast('✅ Profil wiederhergestellt · Seite wird neu geladen...');
       setTimeout(() => location.reload(), 1800);
     } catch { toast('❌ Datei konnte nicht gelesen werden'); }
@@ -927,6 +956,8 @@ function initPeer() {
     showScreen('s-in');
     pushNotif(partnerName, 'möchte mit dir chatten');
     inAppNotif(partnerName, 'Eingehender Chat');
+    playNotificationSound();   // Ton bei eingehendem Ruf
+    triggerHaptic();           // Vibration bei eingehendem Ruf
     incoming.on('close', () => {
       if (pendingConn === incoming) {
         addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
@@ -950,9 +981,9 @@ function acceptCall() {
 function declineCall() {
   if (pendingConn) {
     const c = pendingConn;
-    pendingConn = null;                                              // ← erst null setzen
-    addMissed(c.peer, localName(c.peer, c.metadata?.name));         // ← dann eintragen
-    try { c.close(); } catch(e){}                                   // ← close() feuert close-Event, aber pendingConn ist schon null → kein doppelter Eintrag
+    pendingConn = null;
+    addMissed(c.peer, localName(c.peer, c.metadata?.name));
+    try { c.close(); } catch(e){}
   }
   showScreen('s-home');
 }
@@ -963,24 +994,19 @@ function connectToPeer() {
   if (code.length !== 6 || code === myCode) return;
   if (!peer || !peer.open) { toast('⚠️ Noch nicht verbunden'); return; }
   
-  // Alten Timer löschen, falls vorhanden
   if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
   
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
   
-  // Verbindung initiieren
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
   
-  // Timer starten: 30 Sekunden warten auf 'open'
   outgoingCallTimer = setTimeout(() => {
-    // Prüfen: existiert die Verbindung und ist noch nicht offen?
     if (conn && conn === newConn && !conn.open) {
       toast('⏰ Keine Antwort innerhalb von 30 Sekunden');
       addMissed(partnerCode, partnerName);
-      // Verbindung schließen und zurück zur Startseite
       try { conn.close(); } catch(e) {}
       conn = null;
       goHome();
@@ -1005,7 +1031,6 @@ function openChat(c) {
   showScreen('s-chat');
   
   const onOpen = () => {
-    // Erfolgreich verbunden -> Timer löschen
     if (outgoingCallTimer) {
       clearTimeout(outgoingCallTimer);
       outgoingCallTimer = null;
@@ -1032,7 +1057,6 @@ function openChat(c) {
   conn.on('data', d => handleData(d));
   
   conn.on('close', () => {
-    // Timer löschen, falls noch aktiv (z.B. bei Abbruch durch Partner)
     if (outgoingCallTimer) {
       clearTimeout(outgoingCallTimer);
       outgoingCallTimer = null;
@@ -1042,7 +1066,6 @@ function openChat(c) {
     document.getElementById('pstatus').textContent = '○ Verbindung getrennt';
     document.getElementById('pstatus').className = 'pstatus dim';
     document.getElementById('pav').className = 'pav offline';
-    // Nur anzeigen wenn User noch im Chat-Screen ist (nicht nach Timeout/goHome)
     if (document.getElementById('s-chat').classList.contains('active')) {
       document.getElementById('rcbar').classList.add('show');
       toast('○ Partner hat den Chat verlassen');
@@ -1129,6 +1152,8 @@ function handleData(d) {
     const m = { ...d, own:false };
     appendMsg(m); persistMsg(m);
     notify(d.text);
+    playNotificationSound();  // 🔔 Ton bei eingehender Textnachricht
+    triggerHaptic();          // 📳 Vibration bei eingehender Textnachricht
   } else if (d.t === 'f-start') {
     fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) };
     toast(`📥 Empfange "${d.name}"...`);
@@ -1145,6 +1170,8 @@ function handleData(d) {
       const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false };
       appendMsg(msg); persistMsg(msg);
       notify('📎 Datei: ' + b.meta.name);
+      playNotificationSound();  // 🔔 Ton bei eingehender Datei
+      triggerHaptic();          // 📳 Vibration bei eingehender Datei
       delete fileBufs[d.id];
     };
     rd.readAsDataURL(blob);
@@ -1406,7 +1433,6 @@ function setSpill(type, text) {
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
-  // Timer löschen, falls noch aktiv (ausgehender Anruf)
   if (outgoingCallTimer) {
     clearTimeout(outgoingCallTimer);
     outgoingCallTimer = null;
