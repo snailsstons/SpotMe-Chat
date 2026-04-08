@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>SpotMe · Community</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#060a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════
+   DESIGN TOKENS — identisch mit SpotMe
+═══════════════════════════════ */
+:root {
+  --bg:      #060a0f;
+  --sur:     #0c1219;
+  --card:    #101820;
+  --card2:   #141f2e;
+  --bord:    rgba(255,255,255,.08);
+  --bord2:   rgba(255,255,255,.13);
+  --acc:     #00e5c0;
+  --acc-dim: rgba(0,229,192,.12);
+  --p2:      #7b5cfa;
+  --p3:      #ff4f7b;
+  --text:    #dde4f0;
+  --muted:   #4e6070;
+  --muted2:  #7a8fa8;
+  --green:   #1ecc68;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+html, body {
+  min-height:100%; background:var(--bg); color:var(--text);
+  font-family:'DM Sans', sans-serif; font-size:17px; line-height:1.5;
+  overscroll-behavior-y:contain;
+}
+
+/* ═══════════════════════════════
+   LAYOUT
+═══════════════════════════════ */
+.page { max-width:480px; margin:0 auto; padding:0 1.25rem 6rem; }
+
+/* ═══════════════════════════════
+   STICKY NAV
+═══════════════════════════════ */
+.topnav {
+  position:sticky; top:0; z-index:100;
+  background:rgba(6,10,15,.96); backdrop-filter:blur(24px) saturate(1.6);
+  border-bottom:1px solid var(--bord);
+  padding:.7rem 1.25rem;
+}
+.topnav-inner {
+  max-width:480px; margin:0 auto;
+  display:flex; align-items:center; gap:.7rem;
+}
+.back-link {
+  width:40px; height:40px; border-radius:11px;
+  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
+  color:var(--muted2); font-size:1.3rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  text-decoration:none; flex-shrink:0; transition:all .2s;
+}
+.back-link:active { background:rgba(255,255,255,.09); color:var(--text) }
+.nav-title {
+  flex:1; font-family:'Syne',sans-serif; font-weight:800;
+  font-size:1.15rem; color:var(--acc); letter-spacing:-.02em;
+}
+.nav-title b { color:var(--text) }
+.refresh-btn {
+  width:40px; height:40px; border-radius:11px;
+  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
+  color:var(--muted2); font-size:1.1rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .2s; flex-shrink:0;
+}
+.refresh-btn:active { background:rgba(255,255,255,.09); color:var(--acc) }
+.refresh-btn.spinning { animation:spin .6s linear infinite }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ═══════════════════════════════
+   EIGENES PROFIL — MY CARD
+═══════════════════════════════ */
+.my-section { padding:1.4rem 0 0 }
+.section-label {
+  font-size:.72rem; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:.9rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.section-label span { flex:1 }
+
+.my-card {
+  background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%);
+  border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem;
+  margin-bottom:1.25rem; position:relative; overflow:hidden;
+}
+.my-card::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(circle at 80% 0%, rgba(0,229,192,.04), transparent 60%);
+  pointer-events:none;
+}
+
+.my-card-header { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem }
+.my-avatar {
+  width:56px; height:56px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,var(--p2),var(--p3));
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.5rem; border:2px solid var(--bord2); overflow:hidden;
+}
+.my-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50% }
+.my-info { flex:1; min-width:0 }
+.my-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem }
+.my-meta { font-size:.82rem; color:var(--muted2); margin-top:.2rem }
+.my-code { font-size:.75rem; color:var(--acc); opacity:.8; margin-top:.15rem; font-family:'Syne',sans-serif; font-weight:700 }
+
+/* Publish toggle row */
+.publish-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.7rem .9rem; border-radius:12px;
+  background:rgba(255,255,255,.04); border:1px solid var(--bord);
+}
+.publish-label { font-size:.88rem }
+.publish-hint  { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
+.toggle {
+  width:46px; height:26px; border-radius:13px;
+  background:var(--sur); border:1.5px solid var(--bord2);
+  position:relative; cursor:pointer; transition:background .2s, border-color .2s;
+  flex-shrink:0;
+}
+.toggle.on { background:var(--acc); border-color:var(--acc) }
+.toggle::after {
+  content:''; position:absolute; width:18px; height:18px;
+  border-radius:50%; background:#fff; top:2px; left:2px;
+  transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.4);
+}
+.toggle.on::after { transform:translateX(20px) }
+
+.no-profile-hint {
+  background:rgba(255,185,0,.06); border:1px solid rgba(255,185,0,.18);
+  border-radius:14px; padding:1rem 1.1rem; margin-bottom:1.25rem;
+  font-size:.88rem; color:#f5a623; line-height:1.55;
+  display:flex; align-items:flex-start; gap:.7rem;
+}
+.no-profile-hint a {
+  color:var(--acc); text-decoration:none; font-weight:500;
+}
+
+/* ═══════════════════════════════
+   FILTER BAR
+═══════════════════════════════ */
+.filter-bar {
+  background:var(--card); border:1px solid var(--bord);
+  border-radius:16px; padding:1rem; margin-bottom:1.25rem;
+}
+.filter-title { font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.85rem }
+.filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem }
+.fsel {
+  width:100%; padding:.58rem .85rem;
+  background:var(--sur); border:1.5px solid var(--bord2);
+  border-radius:11px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:.85rem;
+  outline:none; cursor:pointer; -webkit-appearance:none;
+  transition:border-color .2s;
+}
+.fsel:focus { border-color:rgba(0,229,192,.4) }
+.fsel option { background:var(--card); color:var(--text) }
+.filter-chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem }
+.chip {
+  padding:.32rem .8rem; border-radius:100px;
+  border:1.5px solid var(--bord2); background:transparent;
+  color:var(--muted2); font-size:.78rem; cursor:pointer;
+  font-family:'DM Sans',sans-serif; transition:all .2s; user-select:none;
+}
+.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc) }
+.chip:active { opacity:.8 }
+.filter-reset {
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-size:.77rem; color:var(--muted2); background:none; border:none;
+  cursor:pointer; font-family:'DM Sans',sans-serif;
+  padding:.25rem .5rem; border-radius:6px; margin-top:.5rem;
+  transition:color .2s;
+}
+.filter-reset:active { color:var(--acc) }
+
+/* ═══════════════════════════════
+   COMMUNITY LIST
+═══════════════════════════════ */
+.community-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:.85rem;
+}
+.community-count { font-size:.8rem; color:var(--muted2) }
+.community-count b { color:var(--text); font-weight:600 }
+
+/* ═══════════════════════════════
+   PROFILE CARD
+═══════════════════════════════ */
+.profile-card {
+  background:var(--card2); border:1px solid var(--bord);
+  border-radius:18px; padding:1.1rem; margin-bottom:.9rem;
+  transition:border-color .2s;
+  position:relative; overflow:hidden;
+}
+.profile-card:active { border-color:var(--bord2) }
+.profile-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  border-radius:2px 2px 0 0; opacity:0; transition:opacity .3s;
+}
+.profile-card.homo::before   { background:linear-gradient(90deg,var(--p2),var(--acc)); opacity:1 }
+.profile-card.bi::before     { background:linear-gradient(90deg,var(--p3),var(--p2)); opacity:1 }
+.profile-card.hetero::before { background:linear-gradient(90deg,var(--muted),var(--muted2)); opacity:.4 }
+
+.card-top { display:flex; align-items:flex-start; gap:.85rem; margin-bottom:.8rem }
+.card-av {
+  width:50px; height:50px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,var(--p2),var(--p3));
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.35rem; border:2px solid var(--bord2);
+}
+.card-info { flex:1; min-width:0 }
+.card-name {
+  font-family:'Syne',sans-serif; font-weight:700; font-size:1rem;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.card-age-loc { font-size:.8rem; color:var(--muted2); margin-top:.2rem }
+.card-age-loc b { color:var(--muted); font-weight:500 }
+.online-dot {
+  width:9px; height:9px; border-radius:50%;
+  background:var(--green); box-shadow:0 0 8px var(--green);
+  flex-shrink:0; margin-top:6px; animation:blink 2s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Badges */
+.card-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.75rem }
+.badge {
+  padding:.22rem .65rem; border-radius:100px; font-size:.73rem; font-weight:500;
+  border:1px solid transparent;
+}
+.badge-homo   { background:rgba(123,92,250,.12); color:var(--p2); border-color:rgba(123,92,250,.25) }
+.badge-bi     { background:rgba(255,79,123,.1);  color:var(--p3); border-color:rgba(255,79,123,.22) }
+.badge-hetero { background:rgba(255,255,255,.05); color:var(--muted2); border-color:var(--bord2) }
+.badge-role   { background:rgba(0,229,192,.08); color:var(--acc); border-color:rgba(0,229,192,.2) }
+.badge-trans  { background:rgba(0,229,192,.06); color:var(--acc); border-color:rgba(0,229,192,.15); font-size:.7rem }
+.badge-cross  { background:rgba(255,185,0,.07); color:#f5a623; border-color:rgba(255,185,0,.18); font-size:.7rem }
+
+/* Bio */
+.card-bio {
+  font-size:.83rem; color:var(--muted2); line-height:1.55;
+  margin-bottom:.85rem;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+/* Chat button */
+.card-footer { display:flex; align-items:center; justify-content:space-between; gap:.7rem }
+.card-time { font-size:.7rem; color:var(--muted) }
+.btn-chat {
+  display:flex; align-items:center; gap:.45rem;
+  padding:.52rem 1.1rem; border-radius:10px; border:none;
+  background:var(--acc); color:var(--bg);
+  font-family:'DM Sans',sans-serif; font-size:.85rem; font-weight:700;
+  cursor:pointer; transition:all .2s; flex-shrink:0;
+}
+.btn-chat:active { transform:scale(.96); opacity:.9 }
+
+/* ═══════════════════════════════
+   STATES
+═══════════════════════════════ */
+.state-box {
+  text-align:center; padding:3rem 1.5rem; color:var(--muted);
+}
+.state-ico { font-size:2.8rem; margin-bottom:.85rem; opacity:.35 }
+.state-txt { font-size:.95rem; margin-bottom:.4rem }
+.state-hint { font-size:.8rem; opacity:.7 }
+
+.loading-row {
+  display:flex; align-items:center; justify-content:center;
+  gap:.6rem; color:var(--muted2); font-size:.85rem; padding:2rem 0;
+}
+.spinner {
+  width:18px; height:18px; border:2px solid var(--bord2);
+  border-top-color:var(--acc); border-radius:50%;
+  animation:sp .7s linear infinite; flex-shrink:0;
+}
+@keyframes sp { to{transform:rotate(360deg)} }
+
+/* ═══════════════════════════════
+   TOAST
+═══════════════════════════════ */
+.toast {
+  position:fixed; bottom:2.5rem; left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--card2); border:1px solid var(--bord2);
+  border-radius:100px; padding:.55rem 1.25rem;
+  font-size:.83rem; font-weight:500; z-index:9999;
+  transition:all .3s cubic-bezier(.175,.885,.32,1.275);
+  opacity:0; white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.5);
+}
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
+
+/* ═══════════════════════════════
+   DIVIDER
+═══════════════════════════════ */
+.divider { height:1px; background:var(--bord); margin:1.25rem 0 }
+</style>
+</head>
+<body>
+
+<!-- ══ STICKY NAV ══ -->
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="back-link" href="index.html" title="Zurück zum Chat">‹</a>
+    <div class="nav-title">Spot<b>Me</b> <span style="color:var(--muted2);font-family:'DM Sans',sans-serif;font-weight:300;font-size:.9rem">Community</span></div>
+    <button class="refresh-btn" id="refresh-btn" onclick="loadCommunity()" title="Aktualisieren">↺</button>
+  </div>
+</nav>
+
+<!-- ══ PAGE CONTENT ══ -->
+<div class="page">
+
+  <!-- ── MEIN PROFIL ── -->
+  <div class="my-section">
+    <div class="section-label"><span>Mein Profil</span></div>
+
+    <!-- Kein Profil angelegt -->
+    <div class="no-profile-hint" id="no-profile-hint" style="display:none">
+      <span>⚠️</span>
+      <div>Noch kein Profil erstellt.<br>
+        <a href="profil.html">Profil anlegen →</a> um in der Community sichtbar zu sein.</div>
+    </div>
+
+    <!-- My Card -->
+    <div class="my-card" id="my-card" style="display:none">
+      <div class="my-card-header">
+        <div class="my-avatar" id="my-avatar">🧑</div>
+        <div class="my-info">
+          <div class="my-name" id="my-name">—</div>
+          <div class="my-meta" id="my-meta">—</div>
+          <div class="my-code" id="my-code">—</div>
+        </div>
+      </div>
+      <div class="publish-row">
+        <div>
+          <div class="publish-label">In Community anzeigen</div>
+          <div class="publish-hint" id="publish-hint">Dein Profil ist nicht sichtbar</div>
+        </div>
+        <div class="toggle" id="publish-toggle" onclick="togglePublish()"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── FILTER ── -->
+  <div class="section-label" style="margin-top:.25rem"><span>Community durchsuchen</span></div>
+
+  <div class="filter-bar">
+    <div class="filter-title">Filter</div>
+    <div class="filter-grid">
+      <select class="fsel" id="f-region" onchange="applyFilters()">
+        <option value="">Alle Regionen</option>
+      </select>
+      <select class="fsel" id="f-age" onchange="applyFilters()">
+        <option value="">Alle Altersgruppen</option>
+        <option value="18-29">18–29</option>
+        <option value="30-39">30–39</option>
+        <option value="40-49">40–49</option>
+        <option value="50+">50+</option>
+      </select>
+    </div>
+    <div class="filter-chips" id="filter-chips">
+      <button class="chip" data-filter="homo"      onclick="toggleChip(this)">🏳️‍🌈 Homo</button>
+      <button class="chip" data-filter="bi"        onclick="toggleChip(this)">Bi</button>
+      <button class="chip" data-filter="hetero"    onclick="toggleChip(this)">Hetero</button>
+      <button class="chip" data-filter="bottom"    onclick="toggleChip(this)">Bottom</button>
+      <button class="chip" data-filter="top"       onclick="toggleChip(this)">Top</button>
+      <button class="chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</button>
+      <button class="chip" data-filter="trans"     onclick="toggleChip(this)">Trans</button>
+    </div>
+    <button class="filter-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+  </div>
+
+  <!-- ── COMMUNITY LIST ── -->
+  <div class="community-header">
+    <div class="section-label" style="margin-bottom:0"><span>Profile</span></div>
+    <div class="community-count" id="community-count"></div>
+  </div>
+
+  <div id="community-list">
+    <div class="loading-row"><div class="spinner"></div>Lade Community...</div>
+  </div>
+
+</div><!-- /page -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ══ CONFIG ══ */
+const API = 'https://spotme-chat.onrender.com/api';
+const CHAT_PAGE = 'index.html';   // ← spotme-v31.html oder index.html
+const PROFILE_KEY = 'sm_profile';
+
+/* ══ STATE ══ */
+let myProfile   = null;
+let myCode      = localStorage.getItem('sm_code') || '';
+let isPublished = false;
+let allProfiles = [];   // alle vom Server
+let filtered    = [];   // nach Filter
+
+/* ══ REGIONEN (aus Spanische_Geographie.md) ══ */
+const REGIONS = [
+  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
+  'Extremadura','Galicien','Kanaren','Kantabrien',
+  'Kastilien-La Mancha','Kastilien-León','Katalonien',
+  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
+];
+
+/* ══ INIT ══ */
+window.addEventListener('load', () => {
+  buildRegionFilter();
+  loadMyProfile();
+  loadCommunity();
+});
+
+/* ══ REGION FILTER DROPDOWN ══ */
+function buildRegionFilter() {
+  const sel = document.getElementById('f-region');
+  REGIONS.forEach(r => {
+    const o = document.createElement('option');
+    o.value = o.textContent = r;
+    sel.appendChild(o);
+  });
+}
+
+/* ══ MEIN PROFIL LADEN ══ */
+function loadMyProfile() {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) {
+    document.getElementById('no-profile-hint').style.display = 'flex';
+    document.getElementById('my-card').style.display = 'none';
+    return;
+  }
+  try {
+    myProfile = JSON.parse(raw);
+  } catch { return; }
+
+  document.getElementById('no-profile-hint').style.display = 'none';
+  document.getElementById('my-card').style.display = 'block';
+
+  // Avatar
+  const av = document.getElementById('my-avatar');
+  if (myProfile.avatar) {
+    av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  } else {
+    av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
+  }
+
+  // Name
+  document.getElementById('my-name').textContent = myProfile.name || '—';
+
+  // Meta
+  const age  = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  const loc  = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
+  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
+  document.getElementById('my-meta').textContent = meta || 'Kein Ort angegeben';
+
+  // Code
+  document.getElementById('my-code').textContent = myCode
+    ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6)
+    : '';
+
+  // Publish-Status aus localStorage lesen
+  isPublished = localStorage.getItem('sm_spot_published') === '1';
+  updatePublishUI();
+}
+
+function updatePublishUI() {
+  const toggle = document.getElementById('publish-toggle');
+  const hint   = document.getElementById('publish-hint');
+  toggle.classList.toggle('on', isPublished);
+  hint.textContent = isPublished
+    ? '✓ Dein Profil ist in der Community sichtbar'
+    : 'Dein Profil ist nicht sichtbar';
+  hint.style.color = isPublished ? 'var(--green)' : '';
+}
+
+/* ══ PROFIL VERÖFFENTLICHEN / ZURÜCKZIEHEN ══ */
+async function togglePublish() {
+  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
+  if (!myProfile.name || !myProfile.region) {
+    toast('⚠️ Profilname und Region sind Pflicht'); return;
+  }
+
+  const btn = document.getElementById('publish-toggle');
+  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
+
+  try {
+    if (isPublished) {
+      await unpublishProfile();
+    } else {
+      await publishProfile();
+    }
+    updatePublishUI();
+    // Community neu laden um eigenes Profil zu sehen/verschwinden
+    await loadCommunity();
+  } catch(e) {
+    toast('⚠️ Serverfehler: ' + (e.message || 'unbekannt'));
+  } finally {
+    btn.style.opacity = ''; btn.style.pointerEvents = '';
+  }
+}
+
+async function publishProfile() {
+  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  // Avatar wird NICHT übertragen — nur lokal
+  const payload = {
+    code:        myCode,
+    name:        myProfile.name,
+    age:         age,
+    region:      myProfile.region,
+    province:    myProfile.province  || null,
+    city:        myProfile.city      || null,
+    orientation: myProfile.orientation || null,
+    role:        myProfile.role      || null,
+    trans:       myProfile.trans     || false,
+    cross:       myProfile.cross     || false,
+    bio:         myProfile.bio       || null,
+  };
+
+  const res = await fetch(API + '/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+
+  isPublished = true;
+  localStorage.setItem('sm_spot_published', '1');
+  toast('✅ Profil veröffentlicht');
+}
+
+async function unpublishProfile() {
+  const res = await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error('HTTP ' + res.status);
+  isPublished = false;
+  localStorage.setItem('sm_spot_published', '0');
+  toast('○ Profil aus Community entfernt');
+}
+
+/* ══ COMMUNITY LADEN ══ */
+async function loadCommunity() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+
+  try {
+    const res = await fetch(API + '/profiles');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    allProfiles = await res.json();
+    applyFilters();
+  } catch(e) {
+    document.getElementById('community-list').innerHTML = `
+      <div class="state-box">
+        <div class="state-ico">⚠️</div>
+        <div class="state-txt">Server nicht erreichbar</div>
+        <div class="state-hint">Bitte später erneut versuchen</div>
+      </div>`;
+    document.getElementById('community-count').textContent = '';
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+/* ══ FILTER ══ */
+function toggleChip(btn) {
+  btn.classList.toggle('on');
+  applyFilters();
+}
+
+function applyFilters() {
+  const region      = document.getElementById('f-region').value;
+  const ageRange    = document.getElementById('f-age').value;
+  const activeChips = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.filter);
+
+  filtered = allProfiles.filter(p => {
+    // Eigenes Profil herausfiltern aus Community-Liste (zeigen wir oben schon)
+    if (p.code === myCode) return false;
+
+    // Region
+    if (region && p.region !== region) return false;
+
+    // Alter
+    if (ageRange && p.age) {
+      const [lo, hi] = ageRange === '50+' ? [50, 999] : ageRange.split('-').map(Number);
+      if (p.age < lo || p.age > hi) return false;
+    }
+
+    // Chips: Orientierung
+    const orientChips = activeChips.filter(f => ['homo','bi','hetero'].includes(f));
+    if (orientChips.length && (!p.orientation || !orientChips.includes(p.orientation))) return false;
+
+    // Chips: Rolle
+    const roleChips = activeChips.filter(f => ['bottom','top','versatile'].includes(f));
+    if (roleChips.length && (!p.role || !roleChips.includes(p.role))) return false;
+
+    // Chips: Trans
+    if (activeChips.includes('trans') && !p.trans) return false;
+
+    return true;
+  });
+
+  renderCommunity();
+}
+
+function resetFilters() {
+  document.getElementById('f-region').value = '';
+  document.getElementById('f-age').value    = '';
+  document.querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
+  applyFilters();
+}
+
+/* ══ COMMUNITY RENDERN ══ */
+function renderCommunity() {
+  const list  = document.getElementById('community-list');
+  const count = document.getElementById('community-count');
+  const n     = filtered.length;
+
+  count.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
+
+  if (!n) {
+    list.innerHTML = `
+      <div class="state-box">
+        <div class="state-ico">🔍</div>
+        <div class="state-txt">Keine Profile gefunden</div>
+        <div class="state-hint">Filter anpassen oder später wiederkommen</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => profileCard(p)).join('');
+}
+
+function profileCard(p) {
+  // Avatar — erste Initialen oder Emoji
+  const initial = p.name ? p.name[0].toUpperCase() : '?';
+
+  // Alter
+  const age = p.age ? `${p.age} J.` : '? J.';
+
+  // Ort
+  const loc = [p.city, p.region].filter(Boolean).join(', ');
+
+  // Badges
+  let badges = '';
+  if (p.orientation) {
+    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
+    badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
+  }
+  if (p.role) {
+    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
+    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+  }
+  if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+  if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+
+  // Zeit
+  const ago = timeAgo(p.ts);
+
+  // Bio
+  const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+
+  // Orientierungs-Klasse für Farbstreifen oben
+  const cardClass = p.orientation ? ` ${p.orientation}` : '';
+
+  return `
+  <div class="profile-card${cardClass}">
+    <div class="card-top">
+      <div class="card-av">${esc(initial)}</div>
+      <div class="card-info">
+        <div class="card-name">${esc(p.name)}</div>
+        <div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div>
+      </div>
+      <div class="online-dot" title="Online"></div>
+    </div>
+    ${badges ? `<div class="card-badges">${badges}</div>` : ''}
+    ${bio}
+    <div class="card-footer">
+      <div class="card-time">🕐 ${ago}</div>
+      <button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">
+        💬 Chat starten
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ══ CHAT STARTEN ══ */
+function startChat(code, name) {
+  if (!code) return;
+  // Code für Auto-Connect im Chat speichern
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = CHAT_PAGE;
+}
+
+/* ══ HELPERS ══ */
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2)  return 'gerade aktiv';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24)   return `vor ${h} Std`;
+  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+}
+
+let tTimer = null;
+function toast(msg, ms = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+</script>
+</body>
+</html>
