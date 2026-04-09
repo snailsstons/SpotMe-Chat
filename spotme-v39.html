@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V39</title>
+<title>SpotMe · Chat V39 (fixed)</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
@@ -602,7 +602,66 @@ function prepChat() { const alias = getContacts()[partnerCode]; if(alias) partne
 
 function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
-async function sendFile(inp) { const f = inp.files[0]; inp.value = ''; if(!f) return; if(!conn || !conn.open){ toast('⚠️ Dateiübertragung nur bei aktiver Verbindung möglich'); return; } if(f.size > 100*1024*1024){ toast('⚠️ Max. 100 MB'); return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const id = Math.random().toString(36).slice(2,10); const total = Math.ceil(f.size / CHUNK); conn.send({ t:'f-start', id, name:f.name, type:f.type, size:f.size, total }); showUP(true); toast(`📤 Sende "${f.name}"...`); const reader = new FileReader(); let off = 0, idx = 0; reader.onload = async e => { conn.send({ t:'f-chunk', id, idx, data:e.target.result }); off += CHUNK; idx++; document.getElementById('upb').style.width = Math.floor((idx/total)*100) + '%'; if(off < f.size){ if(idx % 20 === 0) await new Promise(r => setTimeout(r,20)); reader.readAsArrayBuffer(f.slice(off, off+CHUNK)); } else { conn.send({ t:'f-end', id }); showUP(false); toast(`✅ "${f.name}" gesendet!`); const url = await fileToB64(f); const msg = { t:'file', url, name:f.name, ftype:f.type, size:f.size, ts:Date.now(), own:true }; appendMsg(msg); persistMsg(msg); } }; reader.readAsArrayBuffer(f.slice(0, CHUNK)); }
+// ⭐⭐⭐ GEFIXTE sendFile-Funktion – mit Pausen für stabile Übertragung ⭐⭐⭐
+async function sendFile(inp) {
+  const f = inp.files[0];
+  inp.value = '';
+  if (!f) return;
+  if (!conn || !conn.open) {
+    toast('⚠️ Dateiübertragung nur bei aktiver Verbindung möglich');
+    return;
+  }
+  if (f.size > 100 * 1024 * 1024) {
+    toast('⚠️ Max. 100 MB');
+    return;
+  }
+  if (typingStarted) {
+    conn.send({ t: 'typing', state: 'end' });
+    if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
+    typingStarted = false;
+  }
+
+  const id = Math.random().toString(36).slice(2, 10);
+  const total = Math.ceil(f.size / CHUNK);
+  conn.send({ t: 'f-start', id, name: f.name, type: f.type, size: f.size, total });
+  showUP(true);
+  toast(`📤 Sende "${f.name}"...`);
+
+  const reader = new FileReader();
+  let off = 0, idx = 0;
+
+  reader.onload = async e => {
+    conn.send({ t: 'f-chunk', id, idx, data: e.target.result });
+    off += CHUNK;
+    idx++;
+    document.getElementById('upb').style.width = Math.floor((idx / total) * 100) + '%';
+
+    if (off < f.size) {
+      // Kurze Pause alle 10 Chunks – verhindert Überlastung des Datenkanals
+      if (idx % 10 === 0) await new Promise(r => setTimeout(r, 20));
+      reader.readAsArrayBuffer(f.slice(off, off + CHUNK));
+    } else {
+      conn.send({ t: 'f-end', id });
+      showUP(false);
+      toast(`✅ "${f.name}" gesendet!`);
+      const url = await fileToB64(f);
+      const msg = {
+        t: 'file',
+        url,
+        name: f.name,
+        ftype: f.type,
+        size: f.size,
+        ts: Date.now(),
+        own: true
+      };
+      appendMsg(msg);
+      persistMsg(msg);
+    }
+  };
+
+  reader.readAsArrayBuffer(f.slice(0, CHUNK));
+}
+
 function showUP(v) { document.getElementById('upw').style.opacity = v ? '1' : '0'; if(!v) setTimeout(()=>{ document.getElementById('upb').style.width = '0%'; },400); }
 function fileToB64(f) { return new Promise(r => { const rd = new FileReader(); rd.onload = () => r(rd.result); rd.readAsDataURL(f); }); }
 
