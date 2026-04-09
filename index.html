@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V43</title>
+<title>SpotMe · Chat V43.1</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V43">
+<meta name="apple-mobile-web-app-title" content="SpotMe V43.1">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V41
+   DESIGN TOKENS – unverändert aus V43
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -241,7 +241,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V43</b></span>
+    <span class="bname">Spot<b>Me V43.1</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -277,10 +277,9 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
-<!-- SCREEN 4 – EIGENES PORTFOLIO (veraltet, kann bleiben) -->
-<div id="s-vault" class="screen"><!-- ... --></div>
-<!-- SCREEN 5 – PARTNER PORTFOLIO (veraltet) -->
-<div id="s-partner-vault" class="screen"><!-- ... --></div>
+<!-- SCREEN 4 / 5 (veraltet) -->
+<div id="s-vault" class="screen"></div>
+<div id="s-partner-vault" class="screen"></div>
 
 <!-- BOTTOM SHEETS -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
@@ -541,6 +540,9 @@ function selectPartnerAlbum(albumId) {
 }
 
 function showImageOverlayLoader() {
+  // Altes Overlay entfernen
+  const old = document.getElementById('dynamic-image-overlay');
+  if (old) old.remove();
   const overlay = document.createElement('div');
   overlay.className = 'image-overlay';
   overlay.id = 'dynamic-image-overlay';
@@ -548,10 +550,61 @@ function showImageOverlayLoader() {
   document.body.appendChild(overlay);
 }
 
-let pendingAlbumChunks = new Map();
+// ⭐ Chunking für Album-Bilder (byte-genau)
+let pendingAlbumChunks = new Map(); // key: albumId_photoId -> { chunks: Uint8Array[], total, name, timeout }
+
+function handleAlbumImageChunk(d) {
+  const key = `${d.albumId}_${d.photoId}`;
+  let entry = pendingAlbumChunks.get(key);
+  if (!entry) {
+    const chunks = new Array(d.total);
+    entry = { chunks, total: d.total, name: d.name, albumId: d.albumId };
+    pendingAlbumChunks.set(key, entry);
+    // Timeout, falls Übertragung abbricht
+    entry.timeout = setTimeout(() => {
+      pendingAlbumChunks.delete(key);
+      const overlay = document.getElementById('dynamic-image-overlay');
+      if (overlay) overlay.remove();
+      toast('⚠️ Bildübertragung fehlgeschlagen');
+    }, 15000);
+  }
+  // ArrayBuffer in Uint8Array umwandeln
+  const bytes = new Uint8Array(d.chunk);
+  entry.chunks[d.idx] = bytes;
+  
+  // Prüfen, ob alle Chunks da sind
+  if (entry.chunks.every(c => c !== undefined && c !== null)) {
+    clearTimeout(entry.timeout);
+    // Gesamtlänge berechnen
+    const totalLength = entry.chunks.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const arr of entry.chunks) {
+      merged.set(arr, offset);
+      offset += arr.length;
+    }
+    // Zurück in String decodieren
+    const dataURL = new TextDecoder().decode(merged);
+    // Overlay aktualisieren
+    const overlay = document.getElementById('dynamic-image-overlay');
+    if (overlay) {
+      overlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(entry.name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
+      overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+    } else {
+      // Fallback – neues Overlay erzeugen
+      const newOverlay = document.createElement('div');
+      newOverlay.className = 'image-overlay';
+      newOverlay.id = 'dynamic-image-overlay';
+      newOverlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(entry.name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
+      document.body.appendChild(newOverlay);
+      newOverlay.onclick = (e) => { if(e.target === newOverlay) newOverlay.remove(); };
+    }
+    pendingAlbumChunks.delete(key);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG
+// PEERJS & VERBINDUNG (unverändert bis auf handleData)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -638,7 +691,7 @@ function handleData(d) {
   else if(d.t === 'f-chunk') { const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data; }
   else if(d.t === 'f-end') { const b = fileBufs[d.id]; if(!b) return; const valid = b.chunks.filter(c=>c!==null); if(valid.length !== b.meta.total){ toast('❌ Übertragungsfehler'); return; } const blob = new Blob(valid, { type:b.meta.type }); const rd = new FileReader(); rd.onload = e => { const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false }; appendMsg(msg); persistMsg(msg); notify('📎 Datei: ' + b.meta.name); playNotificationSound(); triggerHaptic(); delete fileBufs[d.id]; }; rd.readAsDataURL(blob); }
   
-  // ⭐ NEUE ALBEN-NACHRICHTEN
+  // ⭐ NEUE ALBEN-NACHRICHTEN (mit byte-genauem Chunking)
   else if (d.t === 'album_list_request') {
     getAllAlbums().then(async albums => {
       const list = [];
@@ -662,11 +715,13 @@ function handleData(d) {
     getPhotosByAlbum(albumId).then(photos => {
       for (const photo of photos) {
         const dataURL = photo.dataURL;
-        const totalChunks = Math.ceil(dataURL.length / CHUNK);
+        // In Bytes umwandeln
+        const bytes = new TextEncoder().encode(dataURL);
+        const totalChunks = Math.ceil(bytes.length / CHUNK);
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK;
-          const end = Math.min(start + CHUNK, dataURL.length);
-          const chunk = dataURL.slice(start, end);
+          const end = Math.min(start + CHUNK, bytes.length);
+          const chunk = bytes.slice(start, end).buffer; // ArrayBuffer senden
           conn.send({
             t: 'album_image_chunk',
             albumId: albumId,
@@ -682,25 +737,11 @@ function handleData(d) {
     }).catch(e => console.warn(e));
   }
   else if (d.t === 'album_image_chunk') {
-    const key = `${d.albumId}_${d.photoId}`;
-    if (!pendingAlbumChunks.has(key)) {
-      pendingAlbumChunks.set(key, { chunks: new Array(d.total), total: d.total, name: d.name, albumId: d.albumId });
-    }
-    const entry = pendingAlbumChunks.get(key);
-    entry.chunks[d.idx] = d.chunk;
-    if (entry.chunks.every(c => c !== undefined)) {
-      const dataURL = entry.chunks.join('');
-      const overlay = document.getElementById('dynamic-image-overlay');
-      if (overlay) overlay.remove();
-      const newOverlay = document.createElement('div');
-      newOverlay.className = 'image-overlay';
-      newOverlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(entry.name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
-      document.body.appendChild(newOverlay);
-      newOverlay.onclick = (e) => { if(e.target === newOverlay) newOverlay.remove(); };
-      pendingAlbumChunks.delete(key);
-    }
+    handleAlbumImageChunk(d);
   }
-  else if (d.t === 'album_images_end') { /* optional */ }
+  else if (d.t === 'album_images_end') {
+    // optional: könnte für Galerie genutzt werden
+  }
   
   // Alte Portfolio-Logik (optional)
   else if(d.t === 'portfolio_list_request') {
@@ -709,7 +750,7 @@ function handleData(d) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHAT-VERLAUF & UI-HILFEN
+// CHAT-VERLAUF & UI-HILFEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function appendMsg(m) { const list = document.getElementById('messages'); const hint = document.getElementById('ehint'); if(hint && !hint.querySelector('.spin')) hint.remove(); const d = new Date(m.ts); const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' }); const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }); if(ds !== lastDate){ lastDate = ds; const sep = document.createElement('div'); sep.className = 'date-sep'; sep.textContent = ds; list.appendChild(sep); } const w = document.createElement('div'); w.className = 'msg ' + (m.own ? 'msg-o' : 'msg-i'); if(m.t === 'text'){ w.innerHTML = `<div class="bubble"><div class="btxt">${esc(m.text)}</div><div class="btime">${ts}${m.own?' ✓✓':''}</div></div>`; } else if(m.t === 'file'){ const isImg = m.ftype && m.ftype.startsWith('image/'); if(isImg){ w.innerHTML = `<div class="imgbbl" onclick="bigImg('${m.url}')"><img src="${m.url}" loading="lazy"></div><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } else { const icon = m.ftype?.includes('pdf') ? '📕' : m.ftype?.includes('zip') ? '🗜️' : m.ftype?.includes('video') ? '🎥' : '📄'; const sz = m.size > 1048576 ? (m.size/1048576).toFixed(1)+' MB' : Math.round(m.size/1024)+' KB'; w.innerHTML = `<a class="filbbl" href="${m.url}" download="${esc(m.name)}"><span style="font-size:1.4rem">${icon}</span><div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } } list.appendChild(w); list.scrollTop = list.scrollHeight; }
 function bigImg(url) { const w = window.open(); w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`); }
