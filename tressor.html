@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>SpotMe · Chat V19</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #080c10;
+  --sur:   #0f1520;
+  --card:  #131c2b;
+  --bord:  rgba(255,255,255,.07);
+  --acc:   #00e5c0;
+  --p2:    #7b5cfa;
+  --p3:    #ff4f7b;
+  --text:  #e8edf5;
+  --muted: #5a6a80;
+  --green: #22d46e;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+html, body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); overscroll-behavior-y: contain; }
+
+.screen { display:none; position:fixed; inset:0; flex-direction:column; background:var(--bg); z-index: 10; }
+.screen.active { display:flex; animation:sIn .25s ease }
+@keyframes sIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+.inner { flex:1; overflow-y:auto; padding:1.5rem 1.25rem 5rem; max-width:480px; width:100%; margin:0 auto }
+
+/* BRAND & UI */
+.brand { display:flex; align-items:center; gap:.5rem; margin-bottom:2rem }
+.bdot { width:8px; height:8px; border-radius:50%; background:var(--acc); box-shadow:0 0 12px var(--acc); animation:blink 2s ease infinite }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.bname { font-family:'Syne',sans-serif; font-weight:800; font-size:1.25rem; color:var(--acc); letter-spacing:-.02em }
+.spill { display:inline-flex; align-items:center; gap:.5rem; padding:.4rem 1rem; border-radius:100px; font-size:.8rem; margin-bottom:1.5rem; background:rgba(123,92,250,0.1); border:1px solid rgba(123,92,250,0.2); color:#7b5cfa; }
+
+/* CHAT BAR */
+.chat-bar { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 1rem; border-bottom:1px solid var(--bord); background:rgba(8,12,16,.96); backdrop-filter:blur(25px); flex-shrink:0; position:relative; z-index:100; height:70px; }
+.peer-wrap { display:flex; align-items:center; gap:.75rem; flex:1; min-width:0; }
+.back-btn { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--muted); cursor: pointer; }
+.pav { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1rem; position:relative; }
+.pav::after { content:''; position:absolute; bottom:2px; right:2px; width:10px; height:10px; border-radius:50%; background:var(--green); border:2px solid var(--bg) }
+.pname { font-weight:600; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* GRID FÜR ALBUM */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 1rem; }
+.grid-item { aspect-ratio: 1/1; background: var(--sur); border-radius: 12px; overflow: hidden; border: 1px solid var(--bord); position: relative; }
+.grid-item img { width: 100%; height: 100%; object-fit: cover; }
+.grid-del { position: absolute; top: 4px; right: 4px; background: rgba(255,79,123,0.8); color: white; border: none; border-radius: 6px; padding: 4px; font-size: 0.6rem; cursor: pointer; }
+
+/* MENU & TOAST */
+.drop { position:absolute; top:75px; right:1rem; background:var(--card); border:1px solid var(--bord); border-radius:14px; padding:.5rem; display:none; flex-direction:column; z-index:110; min-width:220px; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.drop.show { display:flex; }
+.mitem { display:flex; align-items:center; gap:.8rem; padding:.8rem; border-radius:10px; background:transparent; border:none; color:var(--text); text-align:left; cursor:pointer; font-size: 0.9rem; }
+.mitem:hover { background:rgba(255,255,255,0.06); }
+
+.toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--sur); border:1px solid var(--bord); border-radius:100px; padding:.65rem 1.3rem; font-size:.85rem; z-index:9999; transition:all .3s; opacity:0; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
+
+/* PORTFOLIO VIEW */
+#s-vault { background: rgba(8,12,16,0.98); backdrop-filter: blur(10px); }
+
+/* MESSAGES */
+.messages { flex:1; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:.4rem; max-width:480px; width:100%; margin:0 auto }
+.bubble { padding:.6rem .9rem; border-radius:18px; max-width: 85%; }
+.msg-o { align-self: flex-end; background: var(--acc); color: var(--bg); border-radius: 18px 4px 18px 18px; }
+.msg-i { align-self: flex-start; background: var(--sur); border: 1px solid var(--bord); border-radius: 4px 18px 18px 18px; }
+
+/* DIGITS */
+.code-digits { font-family:'Syne',sans-serif; font-weight:800; font-size:2.8rem; letter-spacing:.05em; color:var(--acc); text-align: center; margin-bottom: 1rem; }
+.dinp { width:44px; height:54px; border-radius:10px; border:1.5px solid var(--bord); background:var(--sur); color:var(--text); font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:700; text-align:center; outline:none; }
+.dinp.filled { border-color:var(--acc); }
+</style>
+</head>
+<body>
+
+<div id="s-home" class="screen active">
+  <div class="inner">
+    <div class="brand"><div class="bdot"></div><span class="bname">Spot<b>Me</b></span></div>
+    <h1>Privat &amp;<br>Direkt.</h1>
+    <p class="sub">V19 · Shared Portfolio<br>Verschlüsseltes IndexedDB Archiv.</p>
+
+    <div id="spill" class="spill connecting"><span id="spill-txt">Verbinde...</span></div>
+
+    <div class="code-card" style="margin-bottom: 2rem;">
+      <div class="code-digits" id="mycode">------</div>
+      <div style="display:flex; gap:.5rem; justify-content:center">
+        <button onclick="copyCode()" style="background:var(--sur); border:1px solid var(--bord); color:var(--text); padding:.5rem 1rem; border-radius:10px; font-size:.8rem;">📋 Kopieren</button>
+        <button onclick="showVault()" style="background:var(--p2); border:none; color:white; padding:.5rem 1rem; border-radius:10px; font-size:.8rem; font-weight: 700;">🖼️ Mein Portfolio</button>
+      </div>
+    </div>
+
+    <div style="background:var(--card); border:1px solid var(--bord); border-radius:20px; padding:1.5rem;">
+      <div style="display:flex; gap:.5rem; justify-content:center; margin-bottom: 1rem;">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+        <input class="dinp" maxlength="1" inputmode="numeric">
+      </div>
+      <button id="cbtn" onclick="connectToPeer()" disabled style="width:100%; height:50px; background:var(--acc); color:var(--bg); border:none; border-radius:12px; font-weight:800; cursor:pointer">Chat starten</button>
+    </div>
+
+    <div id="psec" style="display:none; margin-top:2rem">
+      <div style="font-size:.7rem; text-transform:uppercase; color:var(--muted); margin-bottom:.8rem;">Letzte Chats</div>
+      <div id="plist"></div>
+    </div>
+  </div>
+</div>
+
+<div id="s-vault" class="screen">
+  <div class="chat-bar">
+    <div class="peer-wrap">
+      <div class="back-btn" onclick="showScreen('s-home')">‹</div>
+      <div class="pname">Mein Portfolio</div>
+    </div>
+    <button class="ibtn" onclick="document.getElementById('vault-inp').click()" style="background: var(--acc); color: var(--bg); border:none;">+</button>
+    <input type="file" id="vault-inp" hidden multiple accept="image/*" onchange="addToVault(this)">
+  </div>
+  <div class="inner">
+    <p class="sub">Diese Bilder sind nur auf deinem Handy. Chat-Partner können sie nur auf Anfrage sehen.</p>
+    <div id="vault-grid" class="grid"></div>
+  </div>
+</div>
+
+<div id="s-partner-vault" class="screen">
+  <div class="chat-bar">
+    <div class="peer-wrap">
+      <div class="back-btn" onclick="showScreen('s-chat')">‹</div>
+      <div class="pname" id="pv-name">Album</div>
+    </div>
+  </div>
+  <div class="inner">
+    <div id="pv-grid" class="grid"></div>
+    <div id="pv-loader" style="text-align:center; padding:2rem; color:var(--muted)">Lade Portfolio...</div>
+  </div>
+</div>
+
+<div id="s-chat" class="screen">
+  <div class="chat-bar">
+    <div class="peer-wrap">
+      <div class="back-btn" onclick="goHome()">‹</div>
+      <div class="pav" id="pav">🧑</div>
+      <div>
+        <div class="pname" id="pname">Partner</div>
+        <div class="pstatus" id="pstatus" style="font-size:.7rem; color:var(--green)">● Online</div>
+      </div>
+    </div>
+    <div style="display:flex; gap: 8px;">
+      <button class="ibtn" onclick="requestPartnerVault()" title="Album ansehen">🖼️</button>
+      <button class="ibtn" onclick="toggleDrop()">⋮</button>
+    </div>
+    <div class="drop" id="drop">
+      <button class="mitem" onclick="renamePartner()">✏️ Umbenennen</button>
+      <button class="mitem mr" onclick="clearChat()">🗑️ Verlauf löschen</button>
+    </div>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div class="icont">
+    <div class="ibar">
+      <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)"></textarea>
+      <button class="sbtn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let peer = null, conn = null;
+let myCode = localStorage.getItem('sm_code') || Math.random().toString().substring(2,8);
+let partnerCode = '', partnerName = '', chatId = '';
+let db = null;
+
+localStorage.setItem('sm_code', myCode);
+
+/* ══ INDEXED DB LOGIK ══ */
+const request = indexedDB.open("SpotMeDB", 1);
+request.onupgradeneeded = e => {
+  db = e.target.result;
+  db.createObjectStore("vault", { autoIncrement: true });
+};
+request.onsuccess = e => { db = e.target.result; renderVault(); };
+
+window.onload = () => {
+  document.getElementById('mycode').textContent = myCode.slice(0,3) + '-' + myCode.slice(3,6);
+  initDigits();
+  renderPrev();
+  initPeer();
+};
+
+function initPeer() {
+  peer = new Peer(myCode, {
+    host: 'DEIN-SERVERNAME.onrender.com', // Deine Render URL hier
+    port: 443, path: '/peerjs', secure: true
+  });
+  peer.on('open', () => document.getElementById('spill-txt').textContent = 'Online');
+  peer.on('connection', c => startChat(c));
+}
+
+function startChat(c) {
+  conn = c; partnerCode = c.peer;
+  const customName = getLocalName(partnerCode);
+  partnerName = customName || 'User ' + partnerCode;
+  chatId = 'sm_'+[myCode, partnerCode].sort().join('_');
+  showScreen('s-chat');
+  document.getElementById('pname').textContent = partnerName;
+  document.getElementById('messages').innerHTML = '';
+  loadHistory();
+  c.on('open', () => { document.getElementById('sbtn').disabled = false; toast('Verbunden'); });
+  c.on('data', d => handleData(d));
+  c.on('close', () => setStatusOffline());
+}
+
+/* ══ HANDLING SHARED PORTFOLIO ══ */
+function handleData(d) {
+  if(d.t === 'text') { appendMsg({...d, own:false}); persistMsg({...d, own:false}); }
+  
+  // Anfrage für Portfolio erhalten
+  if(d.t === 'v-req') {
+    const tx = db.transaction("vault", "readonly");
+    const store = tx.objectStore("vault");
+    store.openCursor().onsuccess = e => {
+      const cursor = e.target.result;
+      if(cursor) {
+        conn.send({ t: 'v-item', data: cursor.value });
+        cursor.continue();
+      } else {
+        conn.send({ t: 'v-done' });
+      }
+    };
+  }
+  
+  // Bild von Partner erhalten
+  if(d.t === 'v-item') {
+    document.getElementById('pv-loader').style.display = 'none';
+    const img = document.createElement('div');
+    img.className = 'grid-item';
+    img.innerHTML = `<img src="${d.data}">`;
+    document.getElementById('pv-grid').appendChild(img);
+  }
+}
+
+function requestPartnerVault() {
+  if(!conn) return;
+  document.getElementById('pv-grid').innerHTML = '';
+  document.getElementById('pv-loader').style.display = 'block';
+  document.getElementById('pv-name').textContent = 'Album von ' + partnerName;
+  showScreen('s-partner-vault');
+  conn.send({ t: 'v-req' });
+}
+
+/* ══ VAULT MANAGEMENT ══ */
+function addToVault(inp) {
+  const files = inp.files;
+  for(let f of files) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const tx = db.transaction("vault", "readwrite");
+      tx.objectStore("vault").add(e.target.result);
+      tx.oncomplete = () => renderVault();
+    };
+    reader.readAsDataURL(f);
+  }
+}
+
+function renderVault() {
+  const grid = document.getElementById('vault-grid');
+  grid.innerHTML = '';
+  const tx = db.transaction("vault", "readonly");
+  tx.objectStore("vault").openCursor().onsuccess = e => {
+    const cursor = e.target.result;
+    if(cursor) {
+      const div = document.createElement('div');
+      div.className = 'grid-item';
+      div.innerHTML = `<img src="${cursor.value}"><button class="grid-del" onclick="deleteVaultItem(${cursor.key})">✕</button>`;
+      grid.appendChild(div);
+      cursor.continue();
+    }
+  };
+}
+
+function deleteVaultItem(key) {
+  const tx = db.transaction("vault", "readwrite");
+  tx.objectStore("vault").delete(key);
+  tx.oncomplete = () => renderVault();
+}
+
+function showVault() { showScreen('s-vault'); renderVault(); }
+
+/* ══ BASIS CHAT LOGIK ══ */
+function sendMsg() {
+  const i = document.getElementById('minp'); if(!i.value.trim() || !conn) return;
+  const m = {t:'text', text:i.value, ts:Date.now()};
+  conn.send(m); appendMsg({...m, own:true}); persistMsg({...m, own:true});
+  i.value = ''; i.style.height = 'auto';
+}
+
+function appendMsg(m) {
+  const l = document.getElementById('messages');
+  const w = document.createElement('div');
+  w.className = `bubble ${m.own?'msg-o':'msg-i'}`;
+  w.innerHTML = `<div>${esc(m.text)}</div><div style="font-size:0.6rem; opacity:0.6; margin-top:4px;">${new Date(m.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`;
+  l.appendChild(w); l.scrollTop = l.scrollHeight;
+}
+
+function getLocalName(code) {
+  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  const entry = idx.find(e => e.code === code);
+  return entry ? entry.localName : null;
+}
+
+function renamePartner() {
+  const newName = prompt("Name lokal vergeben:", partnerName);
+  if (newName) {
+    partnerName = newName.trim();
+    document.getElementById('pname').textContent = partnerName;
+    const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+    const i = idx.findIndex(e => e.code === partnerCode);
+    if(i >= 0) { idx[i].localName = partnerName; localStorage.setItem('sm_idx', JSON.stringify(idx)); }
+    else { updateIdx("Kontakt benannt"); }
+    closeDrop();
+  }
+}
+
+function persistMsg(m) {
+  const k = 'smmsg_'+chatId;
+  const a = JSON.parse(localStorage.getItem(k)||'[]'); a.push(m);
+  localStorage.setItem(k, JSON.stringify(a.slice(-50)));
+  updateIdx(m.text);
+}
+
+function loadHistory() {
+  const a = JSON.parse(localStorage.getItem('smmsg_'+chatId)||'[]');
+  a.forEach(m => appendMsg(m));
+}
+
+function updateIdx(p) {
+  const k = 'sm_idx', a = JSON.parse(localStorage.getItem(k)||'[]');
+  const i = a.findIndex(x=>x.id===chatId);
+  const existing = i >= 0 ? a[i] : {};
+  const e = { id: chatId, partner: partnerName, localName: existing.localName || null, code: partnerCode, ts: Date.now(), prev: p };
+  if(i>=0) a[i]=e; else a.unshift(e);
+  localStorage.setItem(k, JSON.stringify(a.slice(0,15)));
+}
+
+function renderPrev() {
+  const a = JSON.parse(localStorage.getItem('sm_idx')||'[]');
+  if(!a.length) return;
+  document.getElementById('psec').style.display = 'block';
+  document.getElementById('plist').innerHTML = a.map(c => {
+    const d = c.localName || 'User ' + c.code;
+    return `<div onclick="reconnect('${c.code}','${d}')" style="background:var(--sur); padding:.9rem; border-radius:14px; border:1px solid var(--bord); margin-bottom:.5rem; cursor:pointer">
+      <div style="font-weight:700; color:var(--acc)">${d}</div>
+      <div style="font-size:.7rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${c.prev}</div>
+    </div>`;
+  }).join('');
+}
+
+function reconnect(code, name) { partnerCode=code; partnerName=name; connectToPeer(); }
+
+function initDigits() {
+  const inps = document.querySelectorAll('.dinp');
+  inps.forEach((p,i) => {
+    p.oninput = () => { 
+      p.classList.toggle('filled', !!p.value);
+      if(p.value && i<5) inps[i+1].focus(); 
+      document.getElementById('cbtn').disabled = [...inps].some(x=>!x.value); 
+    };
+    p.onkeydown = e => { if(e.key==='Backspace' && !p.value && i>0) inps[i-1].focus(); };
+  });
+}
+
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function toggleDrop() { document.getElementById('drop').classList.toggle('show'); }
+function closeDrop() { document.getElementById('drop').classList.remove('show'); }
+function goHome() { if(conn) conn.close(); showScreen('s-home'); renderPrev(); }
+function toast(m) {
+  const t = document.createElement('div'); t.className='toast'; t.textContent=m; document.body.appendChild(t);
+  setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 2500);
+}
+function copyCode() { navigator.clipboard.writeText(myCode); toast('Code kopiert!'); }
+function autoH(e) { e.style.height='auto'; e.style.height=e.scrollHeight+'px'; }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function setStatusOffline() { document.getElementById('pstatus').textContent = '○ Offline'; document.getElementById('sbtn').disabled = true; }
+</script>
+</body>
+</html>
