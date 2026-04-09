@@ -302,9 +302,57 @@ html, body {
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
 
 /* ═══════════════════════════════
-   DIVIDER
+   DEBUG PANEL
 ═══════════════════════════════ */
-.divider { height:1px; background:var(--bord); margin:1.25rem 0 }
+.debug-panel {
+  background:rgba(0,229,192,.04); border:1px solid rgba(0,229,192,.15);
+  border-radius:16px; padding:1rem 1.1rem; margin-bottom:1.25rem;
+  font-size:.8rem;
+}
+.debug-title {
+  font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem;
+  color:var(--acc); margin-bottom:.75rem; display:flex; align-items:center; justify-content:space-between;
+}
+.debug-row {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  padding:.35rem 0; border-bottom:1px solid var(--bord); gap:.5rem;
+}
+.debug-row:last-child { border-bottom:none; padding-bottom:0 }
+.debug-key { color:var(--muted2); flex-shrink:0; min-width:120px }
+.debug-val { color:var(--text); font-weight:500; text-align:right; word-break:break-all }
+.debug-val.ok  { color:var(--green) }
+.debug-val.err { color:var(--p3) }
+.debug-val.warn{ color:#f5a623 }
+.debug-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.85rem }
+.dbtn {
+  padding:.35rem .85rem; border-radius:8px; font-size:.77rem; font-weight:600;
+  cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; border:none;
+}
+.dbtn-cyan  { background:rgba(0,229,192,.12); color:var(--acc); border:1px solid rgba(0,229,192,.25) }
+.dbtn-red   { background:rgba(255,79,123,.1); color:var(--p3); border:1px solid rgba(255,79,123,.25) }
+.dbtn-gray  { background:rgba(255,255,255,.06); color:var(--muted2); border:1px solid var(--bord2) }
+.dbtn:active { opacity:.75 }
+.debug-log {
+  background:var(--bg); border:1px solid var(--bord); border-radius:10px;
+  padding:.65rem .85rem; margin-top:.75rem; font-size:.72rem; color:var(--muted2);
+  max-height:120px; overflow-y:auto; font-family:'Courier New',monospace; line-height:1.6;
+}
+.debug-log .log-ok   { color:var(--green) }
+.debug-log .log-err  { color:var(--p3) }
+.debug-log .log-warn { color:#f5a623 }
+.debug-toggle-btn {
+  font-size:.72rem; color:var(--muted); background:none; border:none;
+  cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .5rem;
+  border-radius:6px; transition:color .2s;
+}
+.debug-toggle-btn:active { color:var(--acc) }
+
+/* keepalive indicator */
+.keepalive-dot {
+  width:7px; height:7px; border-radius:50%; background:var(--green);
+  display:inline-block; margin-right:.35rem;
+  animation:blink 1.5s ease infinite;
+}
 </style>
 </head>
 <body>
@@ -350,6 +398,30 @@ html, body {
         <div class="toggle" id="publish-toggle" onclick="togglePublish()"></div>
       </div>
     </div>
+  </div>
+
+  <!-- ── DEBUG PANEL ── -->
+  <div style="margin-top:.5rem; margin-bottom:.5rem; display:flex; justify-content:flex-end">
+    <button class="debug-toggle-btn" onclick="toggleDebug()">🔧 Debug-Panel</button>
+  </div>
+  <div class="debug-panel" id="debug-panel" style="display:none">
+    <div class="debug-title">
+      🔧 Status-Übersicht
+      <button class="dbtn dbtn-gray" onclick="refreshDebug()" style="font-size:.7rem;padding:.2rem .6rem">↺</button>
+    </div>
+    <div class="debug-row"><span class="debug-key">Mein Code</span><span class="debug-val" id="dbg-mycode">—</span></div>
+    <div class="debug-row"><span class="debug-key">Mein Profil lokal</span><span class="debug-val" id="dbg-profile">—</span></div>
+    <div class="debug-row"><span class="debug-key">Publish-Status lokal</span><span class="debug-val" id="dbg-published">—</span></div>
+    <div class="debug-row"><span class="debug-key">Auf Server gefunden</span><span class="debug-val" id="dbg-on-server">—</span></div>
+    <div class="debug-row"><span class="debug-key">Profile gesamt</span><span class="debug-val" id="dbg-total">—</span></div>
+    <div class="debug-row"><span class="debug-key">Server-API</span><span class="debug-val" id="dbg-api">—</span></div>
+    <div class="debug-row"><span class="debug-key">Keepalive</span><span class="debug-val" id="dbg-keepalive">—</span></div>
+    <div class="debug-actions">
+      <button class="dbtn dbtn-cyan" onclick="debugForceRepublish()">↑ Jetzt veröffentlichen</button>
+      <button class="dbtn dbtn-red"  onclick="debugUnpublish()">✕ Profil entfernen</button>
+      <button class="dbtn dbtn-gray" onclick="debugShowRaw()">{ } Rohdaten</button>
+    </div>
+    <div class="debug-log" id="debug-log"></div>
   </div>
 
   <div class="divider"></div>
@@ -401,9 +473,468 @@ html, body {
 'use strict';
 
 /* ══ CONFIG ══ */
-const API = 'https://spotme-chat.onrender.com/api';
-const CHAT_PAGE = 'index.html';   // ← spotme-v31.html oder index.html
+const API        = 'https://spotme-chat.onrender.com/api';
+const CHAT_PAGE  = 'index.html';
 const PROFILE_KEY = 'sm_profile';
+const KEEPALIVE_INTERVAL = 8 * 60 * 1000; // alle 8 Min neu publizieren
+
+/* ══ STATE ══ */
+let myProfile   = null;
+let myCode      = localStorage.getItem('sm_code') || '';
+let isPublished = false;
+let allProfiles = [];
+let filtered    = [];
+let keepaliveTimer = null;
+let debugVisible   = false;
+
+/* ══ REGIONEN ══ */
+const REGIONS = [
+  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
+  'Extremadura','Galicien','Kanaren','Kantabrien',
+  'Kastilien-La Mancha','Kastilien-León','Katalonien',
+  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
+];
+
+/* ══ INIT ══ */
+window.addEventListener('load', async () => {
+  buildRegionFilter();
+  loadMyProfile();
+  await loadCommunity();
+
+  // Wenn laut localStorage veröffentlicht → prüfen ob Profil
+  // noch auf Server existiert. Falls nicht (Server-Neustart!) → neu senden.
+  if (isPublished && myProfile) {
+    await verifyAndRepublish();
+  }
+
+  startKeepalive();
+  refreshDebug();
+});
+
+/* ══ KEEPALIVE — Profil alle 8 Min erneuern ══
+   Render.com Free löscht In-Memory-Daten bei Neustart.
+   Dieser Timer hält das Profil aktiv solange die Seite offen ist. */
+function startKeepalive() {
+  if (keepaliveTimer) clearInterval(keepaliveTimer);
+  keepaliveTimer = setInterval(async () => {
+    if (isPublished && myProfile) {
+      try {
+        await publishProfile(true); // silent=true → kein Toast
+        dbLog('✓ Keepalive: Profil erneuert', 'ok');
+        document.getElementById('dbg-keepalive').textContent =
+          'zuletzt: ' + new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+      } catch(e) {
+        dbLog('⚠ Keepalive fehlgeschlagen: ' + e.message, 'warn');
+      }
+    }
+    // Auch Community aktualisieren
+    await loadCommunity();
+  }, KEEPALIVE_INTERVAL);
+}
+
+/* ══ PRÜFEN OB PROFIL AUF SERVER EXISTIERT ══ */
+async function verifyAndRepublish() {
+  try {
+    const res = await fetch(API + '/profile/' + myCode);
+    if (res.status === 404) {
+      // Profil fehlt auf Server (Server-Neustart) → neu senden
+      dbLog('⚠ Profil fehlt auf Server → republiziere...', 'warn');
+      await publishProfile(true);
+      dbLog('✓ Profil wiederhergestellt', 'ok');
+      await loadCommunity();
+    } else if (res.ok) {
+      dbLog('✓ Profil auf Server gefunden', 'ok');
+    }
+  } catch(e) {
+    dbLog('⚠ Verify fehlgeschlagen: ' + e.message, 'warn');
+  }
+}
+
+/* ══ REGION FILTER ══ */
+function buildRegionFilter() {
+  const sel = document.getElementById('f-region');
+  REGIONS.forEach(r => {
+    const o = document.createElement('option');
+    o.value = o.textContent = r;
+    sel.appendChild(o);
+  });
+}
+
+/* ══ MEIN PROFIL LADEN ══ */
+function loadMyProfile() {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) {
+    document.getElementById('no-profile-hint').style.display = 'flex';
+    document.getElementById('my-card').style.display = 'none';
+    return;
+  }
+  try { myProfile = JSON.parse(raw); } catch { return; }
+
+  document.getElementById('no-profile-hint').style.display = 'none';
+  document.getElementById('my-card').style.display = 'block';
+
+  const av = document.getElementById('my-avatar');
+  if (myProfile.avatar) {
+    av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  } else {
+    av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
+  }
+  document.getElementById('my-name').textContent = myProfile.name || '—';
+
+  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
+  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
+  document.getElementById('my-meta').textContent = meta || 'Kein Ort angegeben';
+  document.getElementById('my-code').textContent = myCode
+    ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6) : '';
+
+  isPublished = localStorage.getItem('sm_spot_published') === '1';
+  updatePublishUI();
+}
+
+function updatePublishUI() {
+  const toggle = document.getElementById('publish-toggle');
+  const hint   = document.getElementById('publish-hint');
+  toggle.classList.toggle('on', isPublished);
+  hint.textContent = isPublished
+    ? '✓ Dein Profil ist in der Community sichtbar'
+    : 'Dein Profil ist nicht sichtbar';
+  hint.style.color = isPublished ? 'var(--green)' : '';
+}
+
+/* ══ VERÖFFENTLICHEN / ZURÜCKZIEHEN ══ */
+async function togglePublish() {
+  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
+  if (!myProfile.name || !myProfile.region) {
+    toast('⚠️ Profilname und Region sind Pflicht'); return;
+  }
+  const btn = document.getElementById('publish-toggle');
+  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
+  try {
+    if (isPublished) { await unpublishProfile(); }
+    else { await publishProfile(false); }
+    updatePublishUI();
+    await loadCommunity();
+    refreshDebug();
+  } catch(e) {
+    toast('⚠️ Fehler: ' + (e.message || 'unbekannt'));
+    dbLog('✕ Toggle-Fehler: ' + e.message, 'err');
+  } finally {
+    btn.style.opacity = ''; btn.style.pointerEvents = '';
+  }
+}
+
+/* silent=true → kein Toast, kein UI-Update (für Keepalive/Republish) */
+async function publishProfile(silent = false) {
+  if (!myProfile || !myCode) throw new Error('Kein Profil');
+  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  const payload = {
+    code:        myCode,
+    name:        myProfile.name,
+    age,
+    region:      myProfile.region,
+    province:    myProfile.province  || null,
+    city:        myProfile.city      || null,
+    orientation: myProfile.orientation || null,
+    role:        myProfile.role      || null,
+    trans:       myProfile.trans     || false,
+    cross:       myProfile.cross     || false,
+    bio:         myProfile.bio       || null,
+  };
+  const res = await fetch(API + '/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  isPublished = true;
+  localStorage.setItem('sm_spot_published', '1');
+  if (!silent) toast('✅ Profil veröffentlicht');
+}
+
+async function unpublishProfile() {
+  const res = await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error('HTTP ' + res.status);
+  isPublished = false;
+  localStorage.setItem('sm_spot_published', '0');
+  toast('○ Profil aus Community entfernt');
+}
+
+/* ══ COMMUNITY LADEN ══ */
+async function loadCommunity() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  try {
+    const res = await fetch(API + '/profiles');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    allProfiles = await res.json();
+    applyFilters();
+    refreshDebug();
+  } catch(e) {
+    document.getElementById('community-list').innerHTML = `
+      <div class="state-box">
+        <div class="state-ico">⚠️</div>
+        <div class="state-txt">Server nicht erreichbar</div>
+        <div class="state-hint">${e.message}</div>
+      </div>`;
+    document.getElementById('community-count').textContent = '';
+    dbLog('✕ Community-Ladefehler: ' + e.message, 'err');
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+/* ══ FILTER ══ */
+function toggleChip(btn) { btn.classList.toggle('on'); applyFilters(); }
+
+function applyFilters() {
+  const region   = document.getElementById('f-region').value;
+  const ageRange = document.getElementById('f-age').value;
+  const chips    = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.filter);
+
+  filtered = allProfiles.filter(p => {
+    // WICHTIG: Eigenes Profil nur herausfiltern wenn myCode gesetzt
+    // Beim Testen mehrerer Profile: alle anzeigen wenn kein myCode
+    if (myCode && p.code === myCode) return false;
+
+    if (region && p.region !== region) return false;
+
+    if (ageRange && p.age) {
+      const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
+      if (p.age < lo || p.age > hi) return false;
+    }
+
+    const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
+    if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
+
+    const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
+    if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
+
+    if (chips.includes('trans') && !p.trans) return false;
+
+    return true;
+  });
+
+  renderCommunity();
+}
+
+function resetFilters() {
+  document.getElementById('f-region').value = '';
+  document.getElementById('f-age').value    = '';
+  document.querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
+  applyFilters();
+}
+
+/* ══ COMMUNITY RENDERN ══ */
+function renderCommunity() {
+  const list  = document.getElementById('community-list');
+  const count = document.getElementById('community-count');
+  const n     = filtered.length;
+  count.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
+  if (!n) {
+    list.innerHTML = `<div class="state-box">
+      <div class="state-ico">🔍</div>
+      <div class="state-txt">Keine Profile gefunden</div>
+      <div class="state-hint">Filter anpassen oder Profile veröffentlichen</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(p => profileCard(p)).join('');
+}
+
+function profileCard(p) {
+  const initial = p.name ? p.name[0].toUpperCase() : '?';
+  const age     = p.age  ? `${p.age} J.` : '? J.';
+  const loc     = [p.city, p.region].filter(Boolean).join(', ');
+  const ago     = timeAgo(p.ts);
+  const isOwn   = p.code === myCode;
+
+  let badges = '';
+  if (p.orientation) {
+    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
+    badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
+  }
+  if (p.role) {
+    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
+    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+  }
+  if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+  if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+  if (isOwn)   badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
+
+  const bio       = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+  const cardClass = p.orientation ? ` ${p.orientation}` : '';
+
+  // Kein Chat-Button für eigenes Profil
+  const chatBtn = isOwn
+    ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>`
+    : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
+
+  return `
+  <div class="profile-card${cardClass}">
+    <div class="card-top">
+      <div class="card-av">${esc(initial)}</div>
+      <div class="card-info">
+        <div class="card-name">${esc(p.name)}</div>
+        <div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div>
+      </div>
+      <div class="online-dot" title="Online in den letzten 24h"></div>
+    </div>
+    ${badges ? `<div class="card-badges">${badges}</div>` : ''}
+    ${bio}
+    <div class="card-footer">
+      <div class="card-time">🕐 ${ago}</div>
+      ${chatBtn}
+    </div>
+  </div>`;
+}
+
+/* ══ CHAT STARTEN ══ */
+function startChat(code, name) {
+  if (!code) return;
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = CHAT_PAGE;
+}
+
+/* ════════════════════════════════
+   DEBUG PANEL
+════════════════════════════════ */
+function toggleDebug() {
+  debugVisible = !debugVisible;
+  document.getElementById('debug-panel').style.display = debugVisible ? 'block' : 'none';
+  if (debugVisible) refreshDebug();
+}
+
+async function refreshDebug() {
+  if (!debugVisible) return;
+
+  // Lokale Werte
+  document.getElementById('dbg-mycode').textContent =
+    myCode ? myCode.slice(0,3)+' · '+myCode.slice(3,6) : '— (kein Code)';
+  document.getElementById('dbg-profile').textContent = myProfile
+    ? `✓ ${myProfile.name} · ${myProfile.region||'kein Ort'}` : '— nicht vorhanden';
+  document.getElementById('dbg-profile').className = 'debug-val ' + (myProfile ? 'ok' : 'err');
+
+  const pubLocal = localStorage.getItem('sm_spot_published');
+  document.getElementById('dbg-published').textContent = pubLocal === '1' ? '✓ Ja' : '✗ Nein';
+  document.getElementById('dbg-published').className   = 'debug-val ' + (pubLocal === '1' ? 'ok' : 'warn');
+
+  // Server abfragen
+  try {
+    const t0  = Date.now();
+    const res = await fetch(API + '/profiles');
+    const ms  = Date.now() - t0;
+    document.getElementById('dbg-api').textContent = `✓ OK (${ms}ms)`;
+    document.getElementById('dbg-api').className   = 'debug-val ok';
+
+    if (res.ok) {
+      const all = await res.json();
+      document.getElementById('dbg-total').textContent = `${all.length} Profile auf Server`;
+      document.getElementById('dbg-total').className   = 'debug-val ok';
+
+      // Ist eigenes Profil dabei?
+      const mine = all.find(p => p.code === myCode);
+      if (mine) {
+        document.getElementById('dbg-on-server').textContent = `✓ Ja · ts: ${timeAgo(mine.ts)}`;
+        document.getElementById('dbg-on-server').className   = 'debug-val ok';
+      } else if (myCode) {
+        document.getElementById('dbg-on-server').textContent = '✗ Nicht gefunden';
+        document.getElementById('dbg-on-server').className   = 'debug-val err';
+        if (isPublished) {
+          dbLog('⚠ Profil fehlt auf Server → republiziere...', 'warn');
+          await publishProfile(true);
+          dbLog('✓ Republiziert', 'ok');
+          await loadCommunity();
+        }
+      } else {
+        document.getElementById('dbg-on-server').textContent = '— kein Code';
+        document.getElementById('dbg-on-server').className   = 'debug-val warn';
+      }
+
+      // Rohdaten im Log
+      dbLog(`Server hat ${all.length} Profile: ${all.map(p=>p.name+'('+p.code+')').join(', ')||'—'}`, 'ok');
+    }
+  } catch(e) {
+    document.getElementById('dbg-api').textContent = '✕ ' + e.message;
+    document.getElementById('dbg-api').className   = 'debug-val err';
+    dbLog('✕ API-Fehler: ' + e.message, 'err');
+  }
+}
+
+async function debugForceRepublish() {
+  if (!myProfile || !myCode) { dbLog('✕ Kein Profil', 'err'); return; }
+  dbLog('↑ Force-Republish...', 'warn');
+  try {
+    await publishProfile(false);
+    await loadCommunity();
+    await refreshDebug();
+  } catch(e) {
+    dbLog('✕ ' + e.message, 'err');
+  }
+}
+
+async function debugUnpublish() {
+  dbLog('✕ Unpublish...', 'warn');
+  try {
+    await unpublishProfile();
+    updatePublishUI();
+    await loadCommunity();
+    await refreshDebug();
+  } catch(e) {
+    dbLog('✕ ' + e.message, 'err');
+  }
+}
+
+function debugShowRaw() {
+  dbLog('--- localStorage ---', 'warn');
+  dbLog('sm_code: ' + (localStorage.getItem('sm_code')||'—'), '');
+  dbLog('sm_profile: ' + (localStorage.getItem('sm_profile') ? 'vorhanden' : '—'), '');
+  dbLog('sm_spot_published: ' + (localStorage.getItem('sm_spot_published')||'—'), '');
+  dbLog('--- allProfiles vom Server ---', 'warn');
+  if (allProfiles.length) {
+    allProfiles.forEach(p => dbLog(`  ${p.name} (${p.code}) · ${p.region} · ${timeAgo(p.ts)}`, 'ok'));
+  } else {
+    dbLog('  (leer)', '');
+  }
+}
+
+let logLines = [];
+function dbLog(msg, type = '') {
+  const ts = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  logLines.push({ ts, msg, type });
+  if (logLines.length > 50) logLines.shift();
+  const el = document.getElementById('debug-log');
+  if (!el) return;
+  el.innerHTML = logLines.slice().reverse().map(l =>
+    `<div class="${l.type ? 'log-'+l.type : ''}">[${l.ts}] ${esc(l.msg)}</div>`
+  ).join('');
+}
+
+/* ══ HELPERS ══ */
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML;
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2)  return 'gerade aktiv';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24)   return `vor ${h} Std`;
+  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+}
+
+let tTimer = null;
+function toast(msg, ms = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+</script>
 
 /* ══ STATE ══ */
 let myProfile   = null;
