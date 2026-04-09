@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V38</title>
+<title>SpotMe · Chat V39</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V38">
+<meta name="apple-mobile-web-app-title" content="SpotMe V39">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -231,6 +231,10 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .add-photo-btn:active { background:rgba(0,229,192,.2); }
 .empty-portfolio { text-align:center; padding:2rem; color:var(--muted2); font-size:.85rem; }
 .loading-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--bord2); border-top-color:var(--acc); border-radius:50%; animation:sp .7s linear infinite; }
+/* Bild-Overlay für Portfolio */
+.image-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.95); z-index:10000; display:flex; align-items:center; justify-content:center; flex-direction:column; backdrop-filter:blur(10px); }
+.image-overlay img { max-width:90%; max-height:80%; object-fit:contain; border-radius:12px; }
+.image-overlay .close-btn { position:absolute; top:20px; right:20px; width:44px; height:44px; border-radius:22px; background:rgba(255,255,255,.2); color:white; font-size:1.5rem; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
 </style>
 </head>
 <body>
@@ -240,11 +244,11 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V38</b></span>
+    <span class="bname">Spot<b>Me V39</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Menü">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
-      <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
+      <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">??</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
       <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
@@ -509,8 +513,12 @@ function requestImageFromPartner(id, name) {
 }
 
 function showPartnerImageModal(dataURL, name) {
-  const w = window.open();
-  w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${dataURL}" alt="${escapeHtml(name)}">`);
+  // Overlay statt neuem Fenster – verhindert Verbindungsabbruch
+  const overlay = document.createElement('div');
+  overlay.className = 'image-overlay';
+  overlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
 }
 
 /* INIT */
