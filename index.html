@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V43.1</title>
+<title>SpotMe · Chat V43.2</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V43.1">
+<meta name="apple-mobile-web-app-title" content="SpotMe V43.2">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V43
+   DESIGN TOKENS – unverändert aus V43.1
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -219,19 +219,99 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--bord2); border-top-color:var(--acc); border-radius:50%; animation:sp .7s linear infinite; vertical-align:middle; }
 @keyframes sp { to{transform:rotate(360deg)} }
 
-/* Portfolio Grid (unverändert) */
-.portfolio-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:.8rem; padding:.5rem .2rem; }
-.portfolio-item { background:var(--card2); border-radius:14px; overflow:hidden; border:1px solid var(--bord); cursor:pointer; transition:transform .1s; }
-.portfolio-item:active { transform:scale(.96); background:var(--card); }
-.portfolio-img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--sur); }
-.portfolio-name { padding:.5rem .3rem; font-size:.7rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted2); }
-.add-photo-btn { display:flex; align-items:center; justify-content:center; gap:.4rem; background:var(--acc-dim); border:1px solid var(--acc); border-radius:14px; padding:.8rem; color:var(--acc); font-weight:600; margin-top:.8rem; cursor:pointer; transition:all .2s; }
-.add-photo-btn:active { background:rgba(0,229,192,.2); }
-.empty-portfolio { text-align:center; padding:2rem; color:var(--muted2); font-size:.85rem; }
-.loading-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--bord2); border-top-color:var(--acc); border-radius:50%; animation:sp .7s linear infinite; }
-.image-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.95); z-index:10000; display:flex; align-items:center; justify-content:center; flex-direction:column; backdrop-filter:blur(10px); }
-.image-overlay img { max-width:90%; max-height:80%; object-fit:contain; border-radius:12px; }
-.image-overlay .close-btn { position:absolute; top:20px; right:20px; width:44px; height:44px; border-radius:22px; background:rgba(255,255,255,.2); color:white; font-size:1.5rem; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
+/* Galerie-Overlay */
+.gallery-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.95);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.gallery-image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 1rem;
+}
+.gallery-image-container img {
+  max-width: 90%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 12px;
+  transition: opacity 0.2s;
+}
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+.gallery-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.gallery-btn:active { background: rgba(255,255,255,.3); }
+.gallery-dots {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+.gallery-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.3);
+  transition: background 0.2s, transform 0.2s;
+}
+.gallery-dot.active {
+  background: var(--acc);
+  transform: scale(1.3);
+}
+.close-gallery {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.2);
+  color: white;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  z-index: 10;
+}
+.gallery-counter {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  font-size: 0.9rem;
+  background: rgba(0,0,0,.4);
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
 </style>
 </head>
 <body>
@@ -241,7 +321,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V43.1</b></span>
+    <span class="bname">Spot<b>Me V43.2</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -277,7 +357,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
 </div>
 
-<!-- SCREEN 4 / 5 (veraltet) -->
+<!-- Veraltete Screens -->
 <div id="s-vault" class="screen"></div>
 <div id="s-partner-vault" class="screen"></div>
 
@@ -351,7 +431,7 @@ localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PENDING MESSAGES
+// PENDING MESSAGES (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getPendingStorageKey() { return chatId ? 'sm_pending_' + chatId : 'sm_pending_temp'; }
 function loadPendingMessages() { const key = getPendingStorageKey(); const stored = localStorage.getItem(key); try { pendingMessages = stored ? JSON.parse(stored) : []; } catch(e){ pendingMessages = []; } updatePendingBadge(); }
@@ -363,7 +443,7 @@ function flushPendingMessages() { if(!conn || !conn.open) return; if(pendingMess
 function migratePendingMessages(newChatId) { const oldKey = 'sm_pending_temp'; const stored = localStorage.getItem(oldKey); if(stored){ try{ const tempMsgs = JSON.parse(stored); if(tempMsgs.length > 0){ pendingMessages = tempMsgs; savePendingMessages(); localStorage.removeItem(oldKey); updatePendingBadge(); } } catch(e){} } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AUDIO & HAPTIK
+// AUDIO & HAPTIK (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
@@ -380,7 +460,7 @@ function playNotificationSound() { try{ const ctx = new (window.AudioContext || 
 function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERPASSTE ANRUFE
+// VERPASSTE ANRUFE (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
@@ -390,7 +470,7 @@ function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) { const inps = document.querySelectorAll('.dinp'); code.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled = false; connectToPeer(); setTimeout(()=>{ inps.forEach(d=>{ d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; },200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KONTAKTE & NAMEN
+// KONTAKTE & NAMEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
@@ -540,42 +620,106 @@ function selectPartnerAlbum(albumId) {
 }
 
 function showImageOverlayLoader() {
-  // Altes Overlay entfernen
-  const old = document.getElementById('dynamic-image-overlay');
+  const old = document.getElementById('dynamic-gallery-overlay');
   if (old) old.remove();
   const overlay = document.createElement('div');
-  overlay.className = 'image-overlay';
-  overlay.id = 'dynamic-image-overlay';
+  overlay.className = 'gallery-overlay';
+  overlay.id = 'dynamic-gallery-overlay';
   overlay.innerHTML = `<div class="loading-spinner"></div>`;
   document.body.appendChild(overlay);
 }
 
+// ⭐⭐⭐ GALERIE-STEUERUNG
+let currentGalleryImages = []; // { dataURL, name }
+let currentGalleryIndex = 0;
+
+function buildGallery(images) {
+  if (!images.length) return;
+  currentGalleryImages = images;
+  currentGalleryIndex = 0;
+  const overlay = document.getElementById('dynamic-gallery-overlay');
+  if (!overlay) return;
+  
+  const updateImage = () => {
+    const img = currentGalleryImages[currentGalleryIndex];
+    overlay.innerHTML = `
+      <div class="close-gallery" onclick="closeGallery()">✕</div>
+      <div class="gallery-counter">${currentGalleryIndex+1} / ${currentGalleryImages.length}</div>
+      <div class="gallery-image-container">
+        <img src="${img.dataURL}" alt="${escapeHtml(img.name)}" id="gallery-main-image">
+      </div>
+      <div class="gallery-controls">
+        ${currentGalleryImages.length > 1 ? `<button class="gallery-btn" onclick="prevGalleryImage()">◀</button>` : '<div style="width:52px"></div>'}
+        <div class="gallery-dots" id="gallery-dots"></div>
+        ${currentGalleryImages.length > 1 ? `<button class="gallery-btn" onclick="nextGalleryImage()">▶</button>` : '<div style="width:52px"></div>'}
+      </div>
+    `;
+    // Touch-Swipe
+    const imgEl = document.getElementById('gallery-main-image');
+    if (imgEl) {
+      let touchStartX = 0;
+      imgEl.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, {passive: true});
+      imgEl.addEventListener('touchend', (e) => {
+        if (!touchStartX) return;
+        const diff = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) prevGalleryImage();
+          else nextGalleryImage();
+        }
+        touchStartX = 0;
+      });
+    }
+    updateDots();
+  };
+  
+  window.prevGalleryImage = () => {
+    if (currentGalleryIndex > 0) {
+      currentGalleryIndex--;
+      updateImage();
+    }
+  };
+  window.nextGalleryImage = () => {
+    if (currentGalleryIndex < currentGalleryImages.length - 1) {
+      currentGalleryIndex++;
+      updateImage();
+    }
+  };
+  window.updateDots = () => {
+    const dotsContainer = document.getElementById('gallery-dots');
+    if (!dotsContainer) return;
+    dotsContainer.innerHTML = currentGalleryImages.map((_, i) => 
+      `<span class="gallery-dot ${i === currentGalleryIndex ? 'active' : ''}" onclick="setGalleryIndex(${i})"></span>`
+    ).join('');
+  };
+  window.setGalleryIndex = (idx) => {
+    currentGalleryIndex = idx;
+    updateImage();
+  };
+  window.closeGallery = () => {
+    overlay.remove();
+    currentGalleryImages = [];
+  };
+  
+  updateImage();
+}
+
 // ⭐ Chunking für Album-Bilder (byte-genau)
-let pendingAlbumChunks = new Map(); // key: albumId_photoId -> { chunks: Uint8Array[], total, name, timeout }
+let pendingAlbumChunks = new Map(); // key: albumId_photoId
+let pendingAlbumMeta = new Map();   // albumId -> { expectedCount, receivedCount, images[], timeout }
 
 function handleAlbumImageChunk(d) {
   const key = `${d.albumId}_${d.photoId}`;
   let entry = pendingAlbumChunks.get(key);
   if (!entry) {
     const chunks = new Array(d.total);
-    entry = { chunks, total: d.total, name: d.name, albumId: d.albumId };
+    entry = { chunks, total: d.total, name: d.name, albumId: d.albumId, photoId: d.photoId };
     pendingAlbumChunks.set(key, entry);
-    // Timeout, falls Übertragung abbricht
-    entry.timeout = setTimeout(() => {
-      pendingAlbumChunks.delete(key);
-      const overlay = document.getElementById('dynamic-image-overlay');
-      if (overlay) overlay.remove();
-      toast('⚠️ Bildübertragung fehlgeschlagen');
-    }, 15000);
   }
-  // ArrayBuffer in Uint8Array umwandeln
   const bytes = new Uint8Array(d.chunk);
   entry.chunks[d.idx] = bytes;
   
-  // Prüfen, ob alle Chunks da sind
   if (entry.chunks.every(c => c !== undefined && c !== null)) {
-    clearTimeout(entry.timeout);
-    // Gesamtlänge berechnen
+    // Bild vollständig
     const totalLength = entry.chunks.reduce((sum, arr) => sum + arr.length, 0);
     const merged = new Uint8Array(totalLength);
     let offset = 0;
@@ -583,28 +727,39 @@ function handleAlbumImageChunk(d) {
       merged.set(arr, offset);
       offset += arr.length;
     }
-    // Zurück in String decodieren
     const dataURL = new TextDecoder().decode(merged);
-    // Overlay aktualisieren
-    const overlay = document.getElementById('dynamic-image-overlay');
-    if (overlay) {
-      overlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(entry.name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
-      overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-    } else {
-      // Fallback – neues Overlay erzeugen
-      const newOverlay = document.createElement('div');
-      newOverlay.className = 'image-overlay';
-      newOverlay.id = 'dynamic-image-overlay';
-      newOverlay.innerHTML = `<img src="${dataURL}" alt="${escapeHtml(entry.name)}"><button class="close-btn" onclick="this.parentElement.remove()">✕</button>`;
-      document.body.appendChild(newOverlay);
-      newOverlay.onclick = (e) => { if(e.target === newOverlay) newOverlay.remove(); };
-    }
     pendingAlbumChunks.delete(key);
+    
+    // Album-Metadaten aktualisieren
+    let meta = pendingAlbumMeta.get(d.albumId);
+    if (!meta) {
+      meta = { expectedCount: 0, receivedCount: 0, images: [], timeout: null };
+      pendingAlbumMeta.set(d.albumId, meta);
+    }
+    meta.images.push({ dataURL, name: entry.name });
+    meta.receivedCount++;
+    
+    // Prüfen, ob alle erwarteten Bilder da sind (falls wir die Gesamtzahl kennen)
+    // Da wir die Gesamtzahl nicht kennen, warten wir auf album_images_end
+  }
+}
+
+function handleAlbumImagesEnd(albumId) {
+  const meta = pendingAlbumMeta.get(albumId);
+  if (meta) {
+    clearTimeout(meta.timeout);
+    if (meta.images.length > 0) {
+      buildGallery(meta.images);
+    } else {
+      toast('ℹ️ Album enthält keine Bilder');
+      document.getElementById('dynamic-gallery-overlay')?.remove();
+    }
+    pendingAlbumMeta.delete(albumId);
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (unverändert bis auf handleData)
+// PEERJS & VERBINDUNG (angepasst für Galerie)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -642,9 +797,9 @@ function openChat(c) { if(conn && conn !== c) { try{ conn.close(); } catch(e){} 
 function prepChat() { const alias = getContacts()[partnerCode]; if(alias) partnerName = alias; applyPartnerName(); if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } refreshStatusText(); document.getElementById('pav').className = 'pav offline'; document.getElementById('sbtn').disabled = true; document.getElementById('rcbar').classList.remove('show'); document.getElementById('messages').innerHTML = `<div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div>`; lastDate = null; loadHistory(); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NACHRICHTEN & DATEIEN
+// NACHRICHTEN & DATEIEN (mit Galerie-Integration)
 // ══════════════════════════════════════════════════════════════════════════════
-function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
+function sendMsg() { /* unverändert */ const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
 async function sendFile(inp) {
   const f = inp.files[0]; inp.value = '';
@@ -691,7 +846,7 @@ function handleData(d) {
   else if(d.t === 'f-chunk') { const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data; }
   else if(d.t === 'f-end') { const b = fileBufs[d.id]; if(!b) return; const valid = b.chunks.filter(c=>c!==null); if(valid.length !== b.meta.total){ toast('❌ Übertragungsfehler'); return; } const blob = new Blob(valid, { type:b.meta.type }); const rd = new FileReader(); rd.onload = e => { const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false }; appendMsg(msg); persistMsg(msg); notify('📎 Datei: ' + b.meta.name); playNotificationSound(); triggerHaptic(); delete fileBufs[d.id]; }; rd.readAsDataURL(blob); }
   
-  // ⭐ NEUE ALBEN-NACHRICHTEN (mit byte-genauem Chunking)
+  // ⭐ ALBEN-NACHRICHTEN
   else if (d.t === 'album_list_request') {
     getAllAlbums().then(async albums => {
       const list = [];
@@ -713,15 +868,16 @@ function handleData(d) {
   else if (d.t === 'album_images_request') {
     const albumId = d.albumId;
     getPhotosByAlbum(albumId).then(photos => {
+      // Sende zuerst die Anzahl der Bilder, damit der Empfänger weiß, wann alles da ist
+      conn.send({ t: 'album_images_meta', albumId, total: photos.length });
       for (const photo of photos) {
         const dataURL = photo.dataURL;
-        // In Bytes umwandeln
         const bytes = new TextEncoder().encode(dataURL);
         const totalChunks = Math.ceil(bytes.length / CHUNK);
         for (let i = 0; i < totalChunks; i++) {
           const start = i * CHUNK;
           const end = Math.min(start + CHUNK, bytes.length);
-          const chunk = bytes.slice(start, end).buffer; // ArrayBuffer senden
+          const chunk = bytes.slice(start, end).buffer;
           conn.send({
             t: 'album_image_chunk',
             albumId: albumId,
@@ -736,16 +892,31 @@ function handleData(d) {
       conn.send({ t: 'album_images_end', albumId });
     }).catch(e => console.warn(e));
   }
+  else if (d.t === 'album_images_meta') {
+    let meta = pendingAlbumMeta.get(d.albumId);
+    if (!meta) {
+      meta = { expectedCount: d.total, receivedCount: 0, images: [], timeout: null };
+      pendingAlbumMeta.set(d.albumId, meta);
+    } else {
+      meta.expectedCount = d.total;
+    }
+    // Timeout für den Fall, dass nicht alle Bilder ankommen
+    if (meta.timeout) clearTimeout(meta.timeout);
+    meta.timeout = setTimeout(() => {
+      if (meta.images.length > 0) {
+        buildGallery(meta.images);
+      } else {
+        document.getElementById('dynamic-gallery-overlay')?.remove();
+        toast('⚠️ Übertragung unvollständig');
+      }
+      pendingAlbumMeta.delete(d.albumId);
+    }, 20000);
+  }
   else if (d.t === 'album_image_chunk') {
     handleAlbumImageChunk(d);
   }
   else if (d.t === 'album_images_end') {
-    // optional: könnte für Galerie genutzt werden
-  }
-  
-  // Alte Portfolio-Logik (optional)
-  else if(d.t === 'portfolio_list_request') {
-    // ...
+    handleAlbumImagesEnd(d.albumId);
   }
 }
 
