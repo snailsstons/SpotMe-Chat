@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V43.2</title>
+<title>SpotMe · Chat V43.3</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V43.2">
+<meta name="apple-mobile-web-app-title" content="SpotMe V43.3">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V43.1
+   DESIGN TOKENS – unverändert aus V43.2
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -321,7 +321,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V43.2</b></span>
+    <span class="bname">Spot<b>Me V43.3</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -395,6 +395,20 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="sheet-handle"></div>
   <div class="sheet-title" id="partner-albums-title">Alben von ...</div>
   <div class="sheet-body" id="partner-albums-body"></div>
+</div>
+
+<!-- Nachricht hinterlassen Modal -->
+<div class="sheet-ovl" id="leave-message-ovl" onclick="closeLeaveMessageSheet()"></div>
+<div class="sheet" id="leave-message-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Nachricht hinterlassen</div>
+  <div class="sheet-body">
+    <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" style="width:100%; margin-bottom:1rem;"></textarea>
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeLeaveMessageSheet()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitLeaveMessage()">Senden</button>
+    </div>
+  </div>
 </div>
 
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
@@ -654,7 +668,6 @@ function buildGallery(images) {
         ${currentGalleryImages.length > 1 ? `<button class="gallery-btn" onclick="nextGalleryImage()">▶</button>` : '<div style="width:52px"></div>'}
       </div>
     `;
-    // Touch-Swipe
     const imgEl = document.getElementById('gallery-main-image');
     if (imgEl) {
       let touchStartX = 0;
@@ -704,8 +717,8 @@ function buildGallery(images) {
 }
 
 // ⭐ Chunking für Album-Bilder (byte-genau)
-let pendingAlbumChunks = new Map(); // key: albumId_photoId
-let pendingAlbumMeta = new Map();   // albumId -> { expectedCount, receivedCount, images[], timeout }
+let pendingAlbumChunks = new Map();
+let pendingAlbumMeta = new Map();
 
 function handleAlbumImageChunk(d) {
   const key = `${d.albumId}_${d.photoId}`;
@@ -719,7 +732,6 @@ function handleAlbumImageChunk(d) {
   entry.chunks[d.idx] = bytes;
   
   if (entry.chunks.every(c => c !== undefined && c !== null)) {
-    // Bild vollständig
     const totalLength = entry.chunks.reduce((sum, arr) => sum + arr.length, 0);
     const merged = new Uint8Array(totalLength);
     let offset = 0;
@@ -730,7 +742,6 @@ function handleAlbumImageChunk(d) {
     const dataURL = new TextDecoder().decode(merged);
     pendingAlbumChunks.delete(key);
     
-    // Album-Metadaten aktualisieren
     let meta = pendingAlbumMeta.get(d.albumId);
     if (!meta) {
       meta = { expectedCount: 0, receivedCount: 0, images: [], timeout: null };
@@ -738,9 +749,6 @@ function handleAlbumImageChunk(d) {
     }
     meta.images.push({ dataURL, name: entry.name });
     meta.receivedCount++;
-    
-    // Prüfen, ob alle erwarteten Bilder da sind (falls wir die Gesamtzahl kennen)
-    // Da wir die Gesamtzahl nicht kennen, warten wir auf album_images_end
   }
 }
 
@@ -759,7 +767,7 @@ function handleAlbumImagesEnd(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (angepasst für Galerie)
+// PEERJS & VERBINDUNG (mit Nachricht-hinterlassen-Funktion)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -789,7 +797,68 @@ function initPeer() {
 
 function acceptCall() { stopRingingTone(); if(!pendingConn){ toast('⚠️ Verbindung nicht mehr verfügbar'); return; } const c = pendingConn; pendingConn = null; partnerCode = c.peer; partnerName = localName(c.peer, c.metadata?.name); chatId = buildCID(myCode, partnerCode); loadPendingMessages(); migratePendingMessages(chatId); openChat(c); }
 function declineCall() { stopRingingTone(); if(pendingConn){ const c = pendingConn; pendingConn = null; addMissed(c.peer, localName(c.peer, c.metadata?.name)); try{ c.close(); } catch(e){} } showScreen('s-home'); }
-function connectToPeer() { const code = getDigits(); if(code.length !== 6 || code === myCode) return; if(!peer || !peer.open){ toast('⚠️ Noch nicht verbunden'); return; } if(outgoingCallTimer) clearTimeout(outgoingCallTimer); partnerCode = code; partnerName = localName(code); chatId = buildCID(myCode, code); loadPendingMessages(); migratePendingMessages(chatId); const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } }); openChat(newConn); outgoingCallTimer = setTimeout(() => { if(conn && conn === newConn && !conn.open){ toast('⏰ Keine Antwort innerhalb von 30 Sekunden'); addMissed(partnerCode, partnerName); try{ conn.close(); } catch(e){} conn = null; goHome(); } outgoingCallTimer = null; }, 30000); }
+
+function connectToPeer() {
+  const code = getDigits();
+  if(code.length !== 6 || code === myCode) return;
+  if(!peer || !peer.open){ toast('⚠️ Noch nicht verbunden'); return; }
+  if(outgoingCallTimer) clearTimeout(outgoingCallTimer);
+  partnerCode = code;
+  partnerName = localName(code);
+  chatId = buildCID(myCode, code);
+  loadPendingMessages();
+  migratePendingMessages(chatId);
+  const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
+  openChat(newConn);
+  outgoingCallTimer = setTimeout(() => {
+    if(conn && conn === newConn && !conn.open){
+      // Verbindung nicht zustande gekommen – Nachricht hinterlassen anbieten
+      outgoingCallTimer = null;
+      toast('⏰ Keine Antwort');
+      addMissed(partnerCode, partnerName);
+      try{ conn.close(); } catch(e){}
+      conn = null;
+      // Modal für Nachricht anzeigen
+      showLeaveMessageSheet(partnerCode, partnerName);
+    }
+    outgoingCallTimer = null;
+  }, 30000);
+}
+
+function showLeaveMessageSheet(code, name) {
+  document.getElementById('leave-message-input').value = '';
+  document.getElementById('leave-message-ovl').classList.add('open');
+  document.getElementById('leave-message-sheet').classList.add('open');
+  // Fokus setzen
+  setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
+}
+
+function closeLeaveMessageSheet() {
+  document.getElementById('leave-message-ovl').classList.remove('open');
+  document.getElementById('leave-message-sheet').classList.remove('open');
+  showScreen('s-home');
+}
+
+function submitLeaveMessage() {
+  const input = document.getElementById('leave-message-input');
+  const text = input.value.trim();
+  if (!text) {
+    toast('Bitte eine Nachricht eingeben');
+    return;
+  }
+  // ChatId für diesen Partner setzen (falls noch nicht)
+  const cid = buildCID(myCode, partnerCode);
+  const oldChatId = chatId;
+  chatId = cid;
+  // Nachricht als pending speichern
+  addPendingMessage(text);
+  toast(`📨 Nachricht für ${partnerName} hinterlegt`);
+  chatId = oldChatId;
+  closeLeaveMessageSheet();
+  // Zurück zum Home
+  showScreen('s-home');
+}
+
 function tryReconnect() { if(!partnerCode || !peer || !peer.open) return; document.getElementById('rcbar').classList.remove('show'); toast('↺ Verbinde erneut...'); openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } })); }
 
 function openChat(c) { if(conn && conn !== c) { try{ conn.close(); } catch(e){} } conn = c; prepChat(); showScreen('s-chat'); const onOpen = () => { if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } document.getElementById('sbtn').disabled = false; document.getElementById('rcbar').classList.remove('show'); refreshStatusText(); document.getElementById('pav').className = 'pav'; const alias = getContacts()[partnerCode]; const netName = conn.metadata?.name || partnerName; if(!alias && netName) partnerName = netName; applyPartnerName(); const h = document.getElementById('ehint'); if(h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`; updateIdx(''); toast('✓ Verbunden'); flushPendingMessages(); }; if(conn.open) onOpen(); else conn.on('open', onOpen); conn.on('data', d => handleData(d)); conn.on('close', () => { if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } conn = null; if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } document.getElementById('sbtn').disabled = true; refreshStatusText(); document.getElementById('pav').className = 'pav offline'; if(document.getElementById('s-chat').classList.contains('active')){ document.getElementById('rcbar').classList.add('show'); toast('○ Partner hat den Chat verlassen'); } }); conn.on('error', err => { console.warn('[conn]', err); if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } document.getElementById('rcbar').classList.add('show'); }); }
@@ -799,7 +868,7 @@ function prepChat() { const alias = getContacts()[partnerCode]; if(alias) partne
 // ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHTEN & DATEIEN (mit Galerie-Integration)
 // ══════════════════════════════════════════════════════════════════════════════
-function sendMsg() { /* unverändert */ const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
+function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
 async function sendFile(inp) {
   const f = inp.files[0]; inp.value = '';
@@ -868,7 +937,6 @@ function handleData(d) {
   else if (d.t === 'album_images_request') {
     const albumId = d.albumId;
     getPhotosByAlbum(albumId).then(photos => {
-      // Sende zuerst die Anzahl der Bilder, damit der Empfänger weiß, wann alles da ist
       conn.send({ t: 'album_images_meta', albumId, total: photos.length });
       for (const photo of photos) {
         const dataURL = photo.dataURL;
@@ -900,7 +968,6 @@ function handleData(d) {
     } else {
       meta.expectedCount = d.total;
     }
-    // Timeout für den Fall, dass nicht alle Bilder ankommen
     if (meta.timeout) clearTimeout(meta.timeout);
     meta.timeout = setTimeout(() => {
       if (meta.images.length > 0) {
