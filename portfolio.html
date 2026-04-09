@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpotMe · Meine Alben</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Gleiche Design-Tokens wie im Chat für nahtlosen Look */
+    :root {
+      --bg:     #060a0f;
+      --sur:    #0c1219;
+      --card:   #101820;
+      --card2:  #141f2e;
+      --bord:   rgba(255,255,255,.08);
+      --bord2:  rgba(255,255,255,.13);
+      --acc:    #00e5c0;
+      --acc-dim: rgba(0,229,192,.12);
+      --p2:     #7b5cfa;
+      --p3:     #ff4f7b;
+      --text:   #dde4f0;
+      --muted:  #4e6070;
+      --muted2: #7a8fa8;
+      --green:  #1ecc68;
+      --touch:  52px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1.5rem 1.25rem;
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 2rem;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    h1 small {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--muted2);
+      margin-left: auto;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      color: var(--acc);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 1.8rem 0 1rem;
+    }
+    .album-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+    .album-card {
+      background: var(--card2);
+      border: 1px solid var(--bord);
+      border-radius: 18px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .album-card:active { transform: scale(0.97); background: var(--card); }
+    .album-cover {
+      width: 100%;
+      aspect-ratio: 1;
+      background: var(--sur);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: var(--muted2);
+    }
+    .album-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .album-info {
+      padding: 0.7rem 0.6rem;
+    }
+    .album-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .album-meta {
+      font-size: 0.7rem;
+      color: var(--muted2);
+      margin-top: 0.2rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    .add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--acc-dim);
+      border: 1px dashed var(--acc);
+      border-radius: 18px;
+      padding: 1rem;
+      color: var(--acc);
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 1rem;
+      transition: background 0.15s;
+    }
+    .add-btn:active { background: rgba(0,229,192,.2); }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    .photo-item {
+      background: var(--card2);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--bord);
+      cursor: pointer;
+    }
+    .photo-item img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+      background: var(--sur);
+    }
+    .photo-name {
+      padding: 0.4rem 0.3rem;
+      font-size: 0.65rem;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--muted2);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+    }
+    .action-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+    }
+    .btn {
+      padding: 0.8rem 1.2rem;
+      border-radius: 14px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--card2);
+      border: 1px solid var(--bord2);
+      color: var(--text);
+      flex: 1;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--acc);
+      color: var(--bg);
+      border: none;
+    }
+    .btn-danger {
+      color: var(--p3);
+      border-color: rgba(255,79,123,.3);
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--card2);
+      border: 1px solid var(--bord2);
+      border-radius: 24px;
+      padding: 1.8rem 1.5rem;
+      width: 90%;
+      max-width: 360px;
+    }
+    .modal h3 {
+      font-family: 'Syne', sans-serif;
+      margin-bottom: 1.2rem;
+    }
+    .modal input {
+      width: 100%;
+      padding: 0.9rem 1rem;
+      background: var(--sur);
+      border: 1px solid var(--bord2);
+      border-radius: 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+      margin-bottom: 1.2rem;
+      outline: none;
+    }
+    .modal input:focus { border-color: var(--acc); }
+    .modal-actions {
+      display: flex;
+      gap: 0.8rem;
+      justify-content: flex-end;
+    }
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card2);
+      border: 1px solid var(--bord2);
+      border-radius: 100px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.9rem;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<a href="index.html" class="back-link">← Zurück zum Chat</a>
+<h1>
+  📁 Meine Alben
+  <small id="album-count"></small>
+</h1>
+
+<!-- Album-Übersicht (Standardansicht) -->
+<div id="albums-view">
+  <div id="albums-container" class="album-grid"></div>
+  <div class="add-btn" onclick="showCreateAlbumModal()">
+    <span>+</span> Neues Album erstellen
+  </div>
+</div>
+
+<!-- Einzelalbum-Ansicht (wird dynamisch eingeblendet) -->
+<div id="album-detail-view" style="display:none;">
+  <div style="display:flex; align-items:center; gap:0.8rem; margin-bottom:1.5rem;">
+    <button class="btn" style="width:auto; padding:0.5rem 1rem;" onclick="backToAlbums()">← Alben</button>
+    <h2 style="font-family:'Syne',sans-serif; font-size:1.5rem;" id="current-album-name"></h2>
+  </div>
+  
+  <div id="photos-container" class="photo-grid"></div>
+  
+  <div class="add-btn" onclick="showAddPhotoDialog()">
+    <span>+</span> Fotos hinzufügen
+  </div>
+  
+  <div class="action-bar">
+    <button class="btn btn-danger" onclick="deleteCurrentAlbum()">Album löschen</button>
+    <button class="btn" onclick="renameCurrentAlbum()">Umbenennen</button>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this) hideModal()">
+  <div class="modal" id="modal">
+    <h3 id="modal-title">Neues Album</h3>
+    <input type="text" id="modal-input" placeholder="Name" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn" onclick="hideModal()">Abbrechen</button>
+      <button class="btn btn-primary" id="modal-confirm">Erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Versteckter File-Input für Foto-Upload -->
+<input type="file" id="photo-input" accept="image/*" multiple style="display:none">
+
+<div class="toast" id="toast"></div>
+
+<script>
+  (function(){
+    'use strict';
+
+    // ---------- IndexedDB Setup (Version 3) ----------
+    const DB_NAME = 'SpotMeDB';
+    const DB_VERSION = 3;
+    let db = null;
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        if (db && !db.isClosed) return resolve();
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => { db = req.result; resolve(); };
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          // Alben Store
+          if (!db.objectStoreNames.contains('albums')) {
+            const albumStore = db.createObjectStore('albums', { autoIncrement: true });
+            albumStore.createIndex('by_name', 'name');
+          }
+          // Fotos Store
+          if (!db.objectStoreNames.contains('photos')) {
+            const photoStore = db.createObjectStore('photos', { autoIncrement: true });
+            photoStore.createIndex('by_album', 'albumId');
+          }
+          // Migration von altem 'vault' Store (optional)
+          if (db.objectStoreNames.contains('vault')) {
+            // Könnte man später migrieren, ignorieren wir erstmal
+          }
+        };
+      });
+    }
+
+    // ---------- Alben CRUD ----------
+    async function getAlbums() {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('albums', 'readonly');
+        const store = tx.objectStore('albums');
+        const albums = [];
+        const cursorReq = store.openCursor();
+        cursorReq.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            albums.push({ id: cursor.key, ...cursor.value });
+            cursor.continue();
+          } else {
+            resolve(albums);
+          }
+        };
+        cursorReq.onerror = () => reject(cursorReq.error);
+      });
+    }
+
+    async function createAlbum(name) {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('albums', 'readwrite');
+        const store = tx.objectStore('albums');
+        const album = {
+          name: name.trim(),
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        const req = store.add(album);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function updateAlbum(id, updates) {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('albums', 'readwrite');
+        const store = tx.objectStore('albums');
+        const getReq = store.get(id);
+        getReq.onsuccess = () => {
+          const album = getReq.result;
+          if (!album) return reject('Album nicht gefunden');
+          Object.assign(album, updates, { updatedAt: Date.now() });
+          const putReq = store.put(album, id);
+          putReq.onsuccess = () => resolve();
+          putReq.onerror = () => reject(putReq.error);
+        };
+        getReq.onerror = () => reject(getReq.error);
+      });
+    }
+
+    async function deleteAlbum(id) {
+      await initDB();
+      // Erst alle Fotos des Albums löschen
+      await deletePhotosByAlbum(id);
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('albums', 'readwrite');
+        const store = tx.objectStore('albums');
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    // ---------- Fotos CRUD ----------
+    async function getPhotosByAlbum(albumId) {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('photos', 'readonly');
+        const store = tx.objectStore('photos');
+        const index = store.index('by_album');
+        const range = IDBKeyRange.only(albumId);
+        const photos = [];
+        const cursorReq = index.openCursor(range);
+        cursorReq.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            photos.push({ id: cursor.key, ...cursor.value });
+            cursor.continue();
+          } else {
+            resolve(photos);
+          }
+        };
+        cursorReq.onerror = () => reject(cursorReq.error);
+      });
+    }
+
+    async function addPhoto(albumId, dataURL, name) {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('photos', 'readwrite');
+        const store = tx.objectStore('photos');
+        const photo = { albumId, dataURL, name, timestamp: Date.now() };
+        const req = store.add(photo);
+        req.onsuccess = () => {
+          // Album updatedAt aktualisieren
+          updateAlbum(albumId, {}).catch(console.warn);
+          resolve(req.result);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deletePhoto(id) {
+      await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('photos', 'readwrite');
+        const store = tx.objectStore('photos');
+        const req = store.delete(id);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function deletePhotosByAlbum(albumId) {
+      const photos = await getPhotosByAlbum(albumId);
+      for (const p of photos) await deletePhoto(p.id);
+    }
+
+    // ---------- UI State ----------
+    let currentAlbumId = null;
+    let currentAlbumName = '';
+
+    // ---------- Render Funktionen ----------
+    async function renderAlbums() {
+      const container = document.getElementById('albums-container');
+      const countEl = document.getElementById('album-count');
+      try {
+        const albums = await getAlbums();
+        countEl.textContent = albums.length ? `(${albums.length})` : '';
+        if (!albums.length) {
+          container.innerHTML = '<div class="empty-state">📭 Noch keine Alben.<br>Erstelle dein erstes Album.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        for (const album of albums) {
+          // Cover-Bild ermitteln (erstes Foto des Albums)
+          const photos = await getPhotosByAlbum(album.id);
+          const coverURL = photos.length ? photos[0].dataURL : null;
+          
+          const card = document.createElement('div');
+          card.className = 'album-card';
+          card.onclick = () => openAlbum(album.id, album.name);
+          
+          const coverDiv = document.createElement('div');
+          coverDiv.className = 'album-cover';
+          if (coverURL) {
+            const img = document.createElement('img');
+            img.src = coverURL;
+            img.loading = 'lazy';
+            coverDiv.appendChild(img);
+          } else {
+            coverDiv.textContent = '🖼️';
+          }
+          card.appendChild(coverDiv);
+          
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'album-info';
+          infoDiv.innerHTML = `
+            <div class="album-name">${escapeHtml(album.name)}</div>
+            <div class="album-meta">
+              <span>${photos.length} Foto${photos.length !== 1 ? 's' : ''}</span>
+              <span>${new Date(album.updatedAt).toLocaleDateString()}</span>
+            </div>
+          `;
+          card.appendChild(infoDiv);
+          container.appendChild(card);
+        }
+      } catch (e) {
+        console.warn(e);
+        container.innerHTML = '<div class="empty-state">Fehler beim Laden.</div>';
+      }
+    }
+
+    async function openAlbum(id, name) {
+      currentAlbumId = id;
+      currentAlbumName = name;
+      document.getElementById('albums-view').style.display = 'none';
+      document.getElementById('album-detail-view').style.display = 'block';
+      document.getElementById('current-album-name').textContent = name;
+      await renderPhotos();
+    }
+
+    function backToAlbums() {
+      document.getElementById('albums-view').style.display = 'block';
+      document.getElementById('album-detail-view').style.display = 'none';
+      currentAlbumId = null;
+      renderAlbums();
+    }
+
+    async function renderPhotos() {
+      if (!currentAlbumId) return;
+      const container = document.getElementById('photos-container');
+      try {
+        const photos = await getPhotosByAlbum(currentAlbumId);
+        if (!photos.length) {
+          container.innerHTML = '<div class="empty-state">📸 Noch keine Fotos.<br>Füge welche hinzu.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        for (const photo of photos) {
+          const item = document.createElement('div');
+          item.className = 'photo-item';
+          item.innerHTML = `
+            <img src="${photo.dataURL}" loading="lazy">
+            <div class="photo-name">${escapeHtml(photo.name || 'Bild')}</div>
+          `;
+          item.onclick = (e) => {
+            e.stopPropagation();
+            showPhotoOptions(photo);
+          };
+          container.appendChild(item);
+        }
+      } catch (e) {
+        console.warn(e);
+        container.innerHTML = '<div class="empty-state">Fehler beim Laden.</div>';
+      }
+    }
+
+    function showPhotoOptions(photo) {
+      const action = prompt(`Foto "${photo.name}"\n\n1 = Löschen\n2 = Abbrechen`);
+      if (action === '1') {
+        if (confirm('Foto wirklich löschen?')) {
+          deletePhoto(photo.id).then(() => {
+            renderPhotos();
+            renderAlbums(); // Cover könnte sich ändern
+            toast('Foto gelöscht');
+          }).catch(e => toast('Fehler'));
+        }
+      }
+    }
+
+    // ---------- Album Aktionen ----------
+    function showCreateAlbumModal() {
+      showModal('Neues Album', '', async (name) => {
+        if (!name.trim()) return toast('Bitte Namen eingeben');
+        try {
+          await createAlbum(name);
+          await renderAlbums();
+          toast('Album erstellt');
+          hideModal();
+        } catch (e) {
+          toast('Fehler beim Erstellen');
+        }
+      });
+    }
+
+    async function deleteCurrentAlbum() {
+      if (!currentAlbumId) return;
+      if (!confirm(`Album "${currentAlbumName}" wirklich löschen? Alle enthaltenen Fotos gehen verloren.`)) return;
+      try {
+        await deleteAlbum(currentAlbumId);
+        backToAlbums();
+        toast('Album gelöscht');
+      } catch (e) {
+        toast('Fehler beim Löschen');
+      }
+    }
+
+    async function renameCurrentAlbum() {
+      if (!currentAlbumId) return;
+      showModal('Album umbenennen', currentAlbumName, async (newName) => {
+        if (!newName.trim()) return toast('Name darf nicht leer sein');
+        try {
+          await updateAlbum(currentAlbumId, { name: newName.trim() });
+          currentAlbumName = newName.trim();
+          document.getElementById('current-album-name').textContent = currentAlbumName;
+          renderAlbums();
+          toast('Album umbenannt');
+          hideModal();
+        } catch (e) {
+          toast('Fehler');
+        }
+      });
+    }
+
+    // ---------- Foto Upload ----------
+    function showAddPhotoDialog() {
+      const input = document.getElementById('photo-input');
+      input.value = '';
+      input.click();
+    }
+
+    document.getElementById('photo-input').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      if (!currentAlbumId) {
+        toast('Kein Album ausgewählt');
+        return;
+      }
+      
+      let added = 0;
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) {
+          toast(`"${file.name}" ist größer als 10 MB`);
+          continue;
+        }
+        try {
+          const dataURL = await readFileAsDataURL(file);
+          await addPhoto(currentAlbumId, dataURL, file.name);
+          added++;
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+      if (added > 0) {
+        await renderPhotos();
+        await renderAlbums(); // Cover aktualisieren
+        toast(`${added} Foto(s) hinzugefügt`);
+      }
+    });
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ---------- Modal Helpers ----------
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalTitle = document.getElementById('modal-title');
+    const modalInput = document.getElementById('modal-input');
+    const modalConfirm = document.getElementById('modal-confirm');
+    let currentModalCallback = null;
+
+    function showModal(title, defaultValue, callback) {
+      modalTitle.textContent = title;
+      modalInput.value = defaultValue || '';
+      currentModalCallback = callback;
+      modalOverlay.style.display = 'flex';
+      modalInput.focus();
+    }
+
+    function hideModal() {
+      modalOverlay.style.display = 'none';
+      currentModalCallback = null;
+    }
+
+    modalConfirm.onclick = () => {
+      if (currentModalCallback) {
+        currentModalCallback(modalInput.value);
+      }
+    };
+
+    modalInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        modalConfirm.click();
+      }
+    });
+
+    // ---------- Toast ----------
+    function toast(msg, duration = 2000) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), duration);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---------- Init ----------
+    window.backToAlbums = backToAlbums;
+    window.showCreateAlbumModal = showCreateAlbumModal;
+    window.deleteCurrentAlbum = deleteCurrentAlbum;
+    window.renameCurrentAlbum = renameCurrentAlbum;
+    window.showAddPhotoDialog = showAddPhotoDialog;
+    window.hideModal = hideModal;
+
+    initDB().then(() => {
+      renderAlbums();
+    }).catch(e => {
+      console.error('DB Fehler', e);
+      document.getElementById('albums-container').innerHTML = '<div class="empty-state">Datenbankfehler</div>';
+    });
+
+  })();
+</script>
+</body>
+</html>
