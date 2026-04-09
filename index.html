@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V43.3</title>
+<title>SpotMe · Chat V43.4</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V43.3">
+<meta name="apple-mobile-web-app-title" content="SpotMe V43.4">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V43.2
+   DESIGN TOKENS – unverändert
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -321,7 +321,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V43.3</b></span>
+    <span class="bname">Spot<b>Me V43.4</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -767,7 +767,7 @@ function handleAlbumImagesEnd(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (mit Nachricht-hinterlassen-Funktion)
+// PEERJS & VERBINDUNG (mit verbessertem Timeout und Nachricht-Funktion)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -777,7 +777,33 @@ function initPeer() {
   setSpill('connecting', 'Verbinde mit Server...');
   peer = new Peer(myCode, { host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } });
   peer.on('open', () => { peerRetries = 0; setSpill('online', '● Online · Code aktiv'); isOffline = false; showCodeCard(true); });
-  peer.on('error', err => { console.warn('[peer]', err.type, err.message); if(err.type === 'unavailable-id') { peerRetries++; const delay = Math.min(3000 * peerRetries, 15000); setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`); setTimeout(() => { peer = null; initPeer(); }, delay); return; } if(err.type === 'peer-unavailable') { toast('⚠️ Partner nicht erreichbar'); goHome(); return; } peerRetries++; const delay = Math.min(4000 * peerRetries, 20000); setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`); setTimeout(() => { peer = null; initPeer(); }, delay); });
+  peer.on('error', err => {
+    console.warn('[peer]', err.type, err.message);
+    if(err.type === 'unavailable-id') {
+      peerRetries++;
+      const delay = Math.min(3000 * peerRetries, 15000);
+      setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`);
+      setTimeout(() => { peer = null; initPeer(); }, delay);
+      return;
+    }
+    if(err.type === 'peer-unavailable') {
+      // Partner nicht erreichbar – Nachricht hinterlassen anbieten
+      if (outgoingCallTimer) {
+        clearTimeout(outgoingCallTimer);
+        outgoingCallTimer = null;
+      }
+      toast('⚠️ Partner nicht erreichbar');
+      addMissed(partnerCode, partnerName);
+      if (conn) { try{ conn.close(); } catch(e){} conn = null; }
+      // Nachricht-Dialog anzeigen
+      showLeaveMessageSheet(partnerCode, partnerName);
+      return;
+    }
+    peerRetries++;
+    const delay = Math.min(4000 * peerRetries, 20000);
+    setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
+    setTimeout(() => { peer = null; initPeer(); }, delay);
+  });
   peer.on('disconnected', () => { setSpill('connecting', 'Unterbrochen · verbinde erneut...'); setTimeout(() => { peer = null; initPeer(); }, 2500); });
   peer.on('connection', incoming => {
     if(conn && conn.open) { incoming.close(); return; }
@@ -810,26 +836,27 @@ function connectToPeer() {
   migratePendingMessages(chatId);
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
+  // Zeige an, dass gewählt wird
+  setSpill('online', `📞 Rufe ${partnerName} an...`);
   outgoingCallTimer = setTimeout(() => {
-    if(conn && conn === newConn && !conn.open){
-      // Verbindung nicht zustande gekommen – Nachricht hinterlassen anbieten
-      outgoingCallTimer = null;
-      toast('⏰ Keine Antwort');
-      addMissed(partnerCode, partnerName);
-      try{ conn.close(); } catch(e){}
-      conn = null;
-      // Modal für Nachricht anzeigen
-      showLeaveMessageSheet(partnerCode, partnerName);
-    }
+    // Timeout – Verbindung nicht zustande gekommen
     outgoingCallTimer = null;
+    toast('⏰ Keine Antwort');
+    addMissed(partnerCode, partnerName);
+    if (conn) { try{ conn.close(); } catch(e){} conn = null; }
+    // Nachricht-Dialog anzeigen
+    showLeaveMessageSheet(partnerCode, partnerName);
+    setSpill('online', '● Online · Code aktiv'); // Status zurücksetzen
   }, 30000);
 }
 
 function showLeaveMessageSheet(code, name) {
+  // Sicherstellen, dass partnerCode gesetzt ist
+  partnerCode = code;
+  partnerName = name;
   document.getElementById('leave-message-input').value = '';
   document.getElementById('leave-message-ovl').classList.add('open');
   document.getElementById('leave-message-sheet').classList.add('open');
-  // Fokus setzen
   setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
 }
 
@@ -837,6 +864,7 @@ function closeLeaveMessageSheet() {
   document.getElementById('leave-message-ovl').classList.remove('open');
   document.getElementById('leave-message-sheet').classList.remove('open');
   showScreen('s-home');
+  setSpill('online', '● Online · Code aktiv');
 }
 
 function submitLeaveMessage() {
@@ -846,22 +874,63 @@ function submitLeaveMessage() {
     toast('Bitte eine Nachricht eingeben');
     return;
   }
-  // ChatId für diesen Partner setzen (falls noch nicht)
   const cid = buildCID(myCode, partnerCode);
   const oldChatId = chatId;
   chatId = cid;
-  // Nachricht als pending speichern
   addPendingMessage(text);
   toast(`📨 Nachricht für ${partnerName} hinterlegt`);
   chatId = oldChatId;
   closeLeaveMessageSheet();
-  // Zurück zum Home
   showScreen('s-home');
+  setSpill('online', '● Online · Code aktiv');
 }
 
 function tryReconnect() { if(!partnerCode || !peer || !peer.open) return; document.getElementById('rcbar').classList.remove('show'); toast('↺ Verbinde erneut...'); openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } })); }
 
-function openChat(c) { if(conn && conn !== c) { try{ conn.close(); } catch(e){} } conn = c; prepChat(); showScreen('s-chat'); const onOpen = () => { if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } document.getElementById('sbtn').disabled = false; document.getElementById('rcbar').classList.remove('show'); refreshStatusText(); document.getElementById('pav').className = 'pav'; const alias = getContacts()[partnerCode]; const netName = conn.metadata?.name || partnerName; if(!alias && netName) partnerName = netName; applyPartnerName(); const h = document.getElementById('ehint'); if(h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`; updateIdx(''); toast('✓ Verbunden'); flushPendingMessages(); }; if(conn.open) onOpen(); else conn.on('open', onOpen); conn.on('data', d => handleData(d)); conn.on('close', () => { if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } conn = null; if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } document.getElementById('sbtn').disabled = true; refreshStatusText(); document.getElementById('pav').className = 'pav offline'; if(document.getElementById('s-chat').classList.contains('active')){ document.getElementById('rcbar').classList.add('show'); toast('○ Partner hat den Chat verlassen'); } }); conn.on('error', err => { console.warn('[conn]', err); if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } document.getElementById('rcbar').classList.add('show'); }); }
+function openChat(c) {
+  if(conn && conn !== c) { try{ conn.close(); } catch(e){} }
+  conn = c;
+  prepChat();
+  showScreen('s-chat');
+  const onOpen = () => {
+    if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+    document.getElementById('sbtn').disabled = false;
+    document.getElementById('rcbar').classList.remove('show');
+    refreshStatusText();
+    document.getElementById('pav').className = 'pav';
+    const alias = getContacts()[partnerCode];
+    const netName = conn.metadata?.name || partnerName;
+    if(!alias && netName) partnerName = netName;
+    applyPartnerName();
+    const h = document.getElementById('ehint');
+    if(h) h.innerHTML = `<div class="empty-icon">💬</div><div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div><div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
+    updateIdx('');
+    toast('✓ Verbunden');
+    flushPendingMessages();
+    setSpill('online', '● Online · Code aktiv');
+  };
+  if(conn.open) onOpen();
+  else conn.on('open', onOpen);
+  conn.on('data', d => handleData(d));
+  conn.on('close', () => {
+    if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+    conn = null;
+    if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
+    if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); }
+    document.getElementById('sbtn').disabled = true;
+    refreshStatusText();
+    document.getElementById('pav').className = 'pav offline';
+    if(document.getElementById('s-chat').classList.contains('active')){
+      document.getElementById('rcbar').classList.add('show');
+      toast('○ Partner hat den Chat verlassen');
+    }
+  });
+  conn.on('error', err => {
+    console.warn('[conn]', err);
+    if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+    document.getElementById('rcbar').classList.add('show');
+  });
+}
 
 function prepChat() { const alias = getContacts()[partnerCode]; if(alias) partnerName = alias; applyPartnerName(); if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } refreshStatusText(); document.getElementById('pav').className = 'pav offline'; document.getElementById('sbtn').disabled = true; document.getElementById('rcbar').classList.remove('show'); document.getElementById('messages').innerHTML = `<div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div>`; lastDate = null; loadHistory(); }
 
@@ -1017,7 +1086,7 @@ function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.clas
 function setSpill(type, text) { const el = document.getElementById('spill'); el.className = 'spill ' + type; document.getElementById('spill-txt').textContent = text; }
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
-function goHome() { stopRingingTone(); if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } pendingConn = null; lastDate = null; document.querySelectorAll('.dinp').forEach(d=>{ d.value=''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; closeSheet(); showScreen('s-home'); renderPrev(); }
+function goHome() { stopRingingTone(); if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } pendingConn = null; lastDate = null; document.querySelectorAll('.dinp').forEach(d=>{ d.value=''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; closeSheet(); showScreen('s-home'); renderPrev(); setSpill('online', '● Online · Code aktiv'); }
 function hkey(e) { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } }
 function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
