@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V45</title>
+<title>SpotMe · Chat V46</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V45">
+<meta name="apple-mobile-web-app-title" content="SpotMe V46">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <!-- Leaflet für Karten -->
@@ -22,7 +22,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V44
+   DESIGN TOKENS – unverändert aus V45
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -341,11 +341,11 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V45</b></span>
+    <span class="bname">Spot<b>Me V46</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
-      <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
-      <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">??</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
+      <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
+      <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
       <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
@@ -558,7 +558,7 @@ function setAlias(code, name) { const c = getContacts(); if(name) c[code] = name
 function refreshStatusText() { const statusEl = document.getElementById('pstatus'); if(!statusEl) return; if(partnerTypingTimer !== null){ statusEl.textContent = '✍️ schreibt...'; statusEl.className = 'pstatus'; return; } if(conn && conn.open){ statusEl.textContent = '● Verbunden'; statusEl.className = 'pstatus'; } else { if(document.getElementById('s-chat').classList.contains('active')){ statusEl.textContent = '○ Verbinde...'; statusEl.className = 'pstatus dim'; } else { statusEl.textContent = '○ Verbindung getrennt'; statusEl.className = 'pstatus dim'; } } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INDEXEDDB – VERSION 3 (Alben & Fotos) – unverändert
+// INDEXEDDB – VERSION 3 (Alben & Fotos)
 // ══════════════════════════════════════════════════════════════════════════════
 let db = null;
 const DB_NAME = 'SpotMeDB';
@@ -624,6 +624,71 @@ async function getPhotosByAlbum(albumId) {
     };
     cursorReq.onerror = () => reject(cursorReq.error);
   });
+}
+
+async function createAlbum(name) {
+  await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('albums', 'readwrite');
+    const store = tx.objectStore('albums');
+    const album = { name: name.trim(), createdAt: Date.now(), updatedAt: Date.now() };
+    const req = store.add(album);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteAlbum(id) {
+  await initDB();
+  await deletePhotosByAlbum(id);
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('albums', 'readwrite');
+    const store = tx.objectStore('albums');
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function addPhoto(albumId, dataURL, name) {
+  await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('photos', 'readwrite');
+    const store = tx.objectStore('photos');
+    const photo = { albumId, dataURL, name, timestamp: Date.now() };
+    const req = store.add(photo);
+    req.onsuccess = () => {
+      updateAlbumTimestamp(albumId);
+      resolve(req.result);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function updateAlbumTimestamp(albumId) {
+  const tx = db.transaction('albums', 'readwrite');
+  const store = tx.objectStore('albums');
+  const getReq = store.get(albumId);
+  getReq.onsuccess = () => {
+    const album = getReq.result;
+    if (album) {
+      album.updatedAt = Date.now();
+      store.put(album, albumId);
+    }
+  };
+}
+
+async function deletePhotosByAlbum(albumId) {
+  const photos = await getPhotosByAlbum(albumId);
+  for (const p of photos) {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('photos', 'readwrite');
+      const store = tx.objectStore('photos');
+      const req = store.delete(p.id);
+      req.onsuccess = resolve;
+      req.onerror = reject;
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -851,17 +916,15 @@ function closeLocationScreen() {
 
 function initLocationMap() {
   if (locationMap) return;
-  locationMap = L.map('location-map').setView([51.1657, 10.4515], 6); // Deutschland-Mitte
+  locationMap = L.map('location-map').setView([51.1657, 10.4515], 6);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 19
   }).addTo(locationMap);
   
-  // Marker initialisieren
   myMarker = L.marker([0,0], { icon: blueIcon() }).addTo(locationMap).bindPopup('Ich').openPopup();
   partnerMarker = L.marker([0,0], { icon: greenIcon() }).addTo(locationMap).bindPopup(partnerName || 'Partner');
   
-  // Slider-Event
   const slider = document.getElementById('radius-slider');
   slider.addEventListener('input', () => {
     currentRadius = parseInt(slider.value);
@@ -894,10 +957,7 @@ function startLocationSharing() {
       },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
-  } else {
-    toast('❌ Geolocation nicht unterstützt');
-  }
-  // Regelmäßiges Senden (alle 5s)
+  } else { toast('❌ Geolocation nicht unterstützt'); }
   locationInterval = setInterval(() => { if (myPosition) sendLocationUpdate(); }, 5000);
 }
 
@@ -1349,8 +1409,171 @@ function shareCode() { if(navigator.share) navigator.share({ title:'SpotMe', tex
 function escapeHtml(s) { return esc(s); }
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
-function backupProfile() { closeHomeMenu(); const backup = { _spotme_backup: true, _version: 2, _date: new Date().toISOString(), sm_code: localStorage.getItem('sm_code') || '', sm_name: localStorage.getItem('sm_name') || '', sm_contacts: localStorage.getItem('sm_contacts') || '{}', sm_idx: localStorage.getItem('sm_idx') || '[]', sm_missed: localStorage.getItem('sm_missed') || '[]' }; const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `SpotMe_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); toast('💾 Backup gespeichert'); }
-function restoreProfile(input) { closeHomeMenu(); if(!input.files[0]) return; const rd = new FileReader(); rd.onload = e => { try { const d = JSON.parse(e.target.result); if(!d._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); return; } if(!confirm(`Profil wiederherstellen?\n\nCode: ${d.sm_code}\nName: ${d.sm_name}\n\nDein aktueller Code wird ersetzt.`)) return; if(d.sm_code) localStorage.setItem('sm_code', d.sm_code); if(d.sm_name) localStorage.setItem('sm_name', d.sm_name); if(d.sm_contacts) localStorage.setItem('sm_contacts', d.sm_contacts); if(d.sm_idx) localStorage.setItem('sm_idx', d.sm_idx); if(d.sm_missed) localStorage.setItem('sm_missed', d.sm_missed); toast('✅ Profil wiederhergestellt · Seite wird neu geladen...'); setTimeout(() => location.reload(), 1800); } catch { toast('❌ Datei konnte nicht gelesen werden'); } }; rd.readAsText(input.files[0]); input.value = ''; }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ⭐⭐⭐ NEUE BACKUP-FUNKTIONEN (KOMPLETT)
+// ══════════════════════════════════════════════════════════════════════════════
+async function backupProfile() {
+  closeHomeMenu();
+  toast('📦 Sammle Daten für Backup...');
+
+  try {
+    // --- LocalStorage-Daten sammeln ---
+    const lsData = {};
+    const keysToBackup = [
+      'sm_code', 'sm_name', 'sm_contacts', 'sm_idx', 'sm_missed',
+      'sm_voice_enabled', 'sm_spot_published', 'sm_profile'
+    ];
+    for (const key of keysToBackup) {
+      const val = localStorage.getItem(key);
+      if (val !== null) lsData[key] = val;
+    }
+    // Pending Messages
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sm_pending_')) {
+        lsData[key] = localStorage.getItem(key);
+      }
+    }
+
+    // --- Chatverläufe ---
+    const chatMessages = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('smmsg_')) {
+        chatMessages[key] = localStorage.getItem(key);
+      }
+    }
+
+    // --- IndexedDB-Daten (Alben & Fotos) ---
+    await initDB();
+    const albums = await getAllAlbums();
+    const photos = [];
+    for (const album of albums) {
+      const albumPhotos = await getPhotosByAlbum(album.id);
+      photos.push(...albumPhotos.map(p => ({
+        albumName: album.name,
+        dataURL: p.dataURL,
+        name: p.name,
+        timestamp: p.timestamp
+      })));
+    }
+    const albumsClean = albums.map(a => ({
+      name: a.name,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt
+    }));
+
+    const backup = {
+      _spotme_backup: true,
+      _version: 3,
+      _date: new Date().toISOString(),
+      localStorage: lsData,
+      chatMessages,
+      indexedDB: {
+        albums: albumsClean,
+        photos
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SpotMe_FullBackup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('💾 Vollständiges Backup gespeichert');
+  } catch (e) {
+    console.error('Backup error:', e);
+    toast('❌ Fehler beim Backup: ' + e.message);
+  }
+}
+
+async function restoreProfile(input) {
+  closeHomeMenu();
+  if (!input.files[0]) return;
+  const rd = new FileReader();
+  rd.onload = async e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (!d._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); return; }
+
+      const version = d._version || 1;
+      const date = d._date ? new Date(d._date).toLocaleString() : 'unbekannt';
+      const code = d.localStorage?.sm_code ? formatCode(JSON.parse(d.localStorage.sm_code)) : 'unbekannt';
+      const name = d.localStorage?.sm_name ? JSON.parse(d.localStorage.sm_name) : 'unbekannt';
+      const albumCount = d.indexedDB?.albums?.length || 0;
+      const photoCount = d.indexedDB?.photos?.length || 0;
+      const chatCount = Object.keys(d.chatMessages || {}).length;
+
+      if (!confirm(`Vollständiges Backup wiederherstellen?\n\n` +
+                   `Code: ${code}\nName: ${name}\n` +
+                   `Alben: ${albumCount}, Fotos: ${photoCount}\n` +
+                   `Chats: ${chatCount}\n` +
+                   `Datum: ${date}\n\n` +
+                   `⚠️ Alle aktuellen Daten werden überschrieben!`)) return;
+
+      toast('🔄 Stelle Backup wieder her...');
+
+      // 1. LocalStorage leeren und neu befüllen
+      const keysToClear = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sm_') || key.startsWith('smmsg_') || key.startsWith('sm_pending_'))) {
+          keysToClear.push(key);
+        }
+      }
+      keysToClear.forEach(k => localStorage.removeItem(k));
+
+      if (d.localStorage) {
+        for (const [key, val] of Object.entries(d.localStorage)) {
+          localStorage.setItem(key, val);
+        }
+      }
+
+      // 2. Chatverläufe
+      if (d.chatMessages) {
+        for (const [key, val] of Object.entries(d.chatMessages)) {
+          localStorage.setItem(key, val);
+        }
+      }
+
+      // 3. IndexedDB leeren und neu befüllen
+      await initDB();
+      const oldAlbums = await getAllAlbums();
+      for (const album of oldAlbums) {
+        await deleteAlbum(album.id);
+      }
+
+      const albumIdMap = new Map();
+      if (d.indexedDB?.albums) {
+        for (const album of d.indexedDB.albums) {
+          const newId = await createAlbum(album.name);
+          albumIdMap.set(album.name, newId);
+        }
+      }
+
+      if (d.indexedDB?.photos) {
+        for (const photo of d.indexedDB.photos) {
+          const albumId = albumIdMap.get(photo.albumName);
+          if (albumId) {
+            await addPhoto(albumId, photo.dataURL, photo.name);
+          }
+        }
+      }
+
+      toast('✅ Backup vollständig wiederhergestellt · Seite wird neu geladen...');
+      setTimeout(() => location.reload(), 2000);
+    } catch (ex) {
+      console.error(ex);
+      toast('❌ Datei konnte nicht gelesen werden');
+    }
+  };
+  rd.readAsText(input.files[0]);
+  input.value = '';
+}
+
 function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', 'Offline'); showScreen('s-home'); }
 function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
 
