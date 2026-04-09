@@ -5,21 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V44</title>
+<title>SpotMe · Chat V45</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V44">
+<meta name="apple-mobile-web-app-title" content="SpotMe V45">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<!-- Leaflet für Karten -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V43.4
+   DESIGN TOKENS – unverändert aus V44
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -149,6 +152,24 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .menu-btn:active { background:rgba(255,255,255,.09); color:var(--text) }
 .album-btn { width:var(--touch); height:var(--touch); border-radius:13px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; transition:all .2s; margin-right:.2rem; }
 .album-btn:active { background:rgba(255,255,255,.09); color:var(--acc); }
+/* NEU: Location Button */
+.location-btn {
+  width: var(--touch);
+  height: var(--touch);
+  border-radius: 13px;
+  border: 1px solid var(--bord2);
+  background: rgba(255,255,255,.04);
+  color: var(--muted2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  margin-right: 0.2rem;
+}
+.location-btn:active { background: rgba(255,255,255,.09); color: var(--p2); }
 .rcbar { display:none; align-items:center; justify-content:space-between; gap:.7rem; padding:.6rem 1.1rem; flex-shrink:0; background:rgba(255,79,123,.06); border-bottom:1px solid rgba(255,79,123,.15); font-size:.85rem; color:var(--p3); }
 .rcbar.show { display:flex }
 .rc-btn { padding:.35rem .85rem; border-radius:8px; cursor:pointer; border:1px solid rgba(255,79,123,.3); background:rgba(255,79,123,.1); color:var(--p3); font-family:'DM Sans',sans-serif; font-size:.8rem; font-weight:600; white-space:nowrap; min-height:38px; }
@@ -190,80 +211,31 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .send-btn { width:var(--touch); height:var(--touch); border-radius:13px; background:var(--acc); color:var(--bg); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.05rem; flex-shrink:0; align-self:flex-end; transition:all .2s; }
 .send-btn:disabled { opacity:.3; cursor:not-allowed }
 .send-btn:not(:disabled):active { transform:scale(.92) }
-
-/* Audio-Button */
 .voice-btn {
-  width: var(--touch);
-  height: var(--touch);
-  border-radius: 13px;
-  background: rgba(255,255,255,.05);
-  border: 1px solid var(--bord2);
-  color: var(--muted2);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  flex-shrink: 0;
-  align-self: flex-end;
-  transition: all 0.2s;
+  width: var(--touch); height: var(--touch); border-radius: 13px;
+  background: rgba(255,255,255,.05); border: 1px solid var(--bord2);
+  color: var(--muted2); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 1.2rem;
+  flex-shrink: 0; align-self: flex-end; transition: all 0.2s;
 }
-.voice-btn.recording {
-  background: var(--p3);
-  color: white;
-  border-color: var(--p3);
-}
+.voice-btn.recording { background: var(--p3); color: white; border-color: var(--p3); }
 .voice-btn:active { background: rgba(255,255,255,.09); }
 
-/* Audio-Player in Nachrichten */
 .audio-player {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: var(--card);
-  border: 1px solid var(--bord);
-  border-radius: 18px;
-  padding: 0.5rem 0.8rem;
-  max-width: 240px;
-  margin-bottom: 3px;
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--card); border: 1px solid var(--bord);
+  border-radius: 18px; padding: 0.5rem 0.8rem; max-width: 240px; margin-bottom: 3px;
 }
 .audio-play-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--acc);
-  color: var(--bg);
-  border: none;
-  font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--acc); color: var(--bg); border: none;
+  font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
 }
-.audio-wave {
-  flex: 1;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.audio-wave-bar {
-  flex: 1;
-  height: 4px;
-  background: var(--bord2);
-  border-radius: 2px;
-  transition: height 0.1s;
-}
-.audio-wave-bar.active {
-  background: var(--acc);
-}
-.audio-duration {
-  font-size: 0.7rem;
-  color: var(--muted2);
-  min-width: 40px;
-  text-align: right;
-}
+.audio-wave { flex: 1; height: 30px; display: flex; align-items: center; gap: 3px; }
+.audio-wave-bar { flex: 1; height: 4px; background: var(--bord2); border-radius: 2px; transition: height 0.1s; }
+.audio-wave-bar.active { background: var(--acc); }
+.audio-duration { font-size: 0.7rem; color: var(--muted2); min-width: 40px; text-align: right; }
 
 .sheet-ovl { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; opacity:0; pointer-events:none; transition:opacity .25s; backdrop-filter:blur(3px); }
 .sheet-ovl.open { opacity:1; pointer-events:all }
@@ -296,96 +268,69 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 
 /* Galerie-Overlay (unverändert) */
 .gallery-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,.95);
-  backdrop-filter: blur(10px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.95); backdrop-filter: blur(10px);
+  z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column;
 }
-.gallery-image-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 1rem;
-}
-.gallery-image-container img {
-  max-width: 90%;
-  max-height: 80vh;
-  object-fit: contain;
-  border-radius: 12px;
-  transition: opacity 0.2s;
-}
-.gallery-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  padding: 1rem 0;
-}
-.gallery-btn {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.15);
-  border: none;
-  color: white;
-  font-size: 1.8rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.2s;
-}
+.gallery-image-container { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding: 1rem; }
+.gallery-image-container img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 12px; transition: opacity 0.2s; }
+.gallery-controls { display: flex; align-items: center; justify-content: center; gap: 2rem; padding: 1rem 0; }
+.gallery-btn { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.15); border: none; color: white; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
 .gallery-btn:active { background: rgba(255,255,255,.3); }
-.gallery-dots {
+.gallery-dots { display: flex; gap: 0.5rem; padding: 0.5rem; }
+.gallery-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.3); transition: background 0.2s, transform 0.2s; }
+.gallery-dot.active { background: var(--acc); transform: scale(1.3); }
+.close-gallery { position: absolute; top: 20px; right: 20px; width: 44px; height: 44px; border-radius: 22px; background: rgba(255,255,255,.2); color: white; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; z-index: 10; }
+.gallery-counter { position: absolute; top: 20px; left: 20px; color: white; font-size: 0.9rem; background: rgba(0,0,0,.4); padding: 0.3rem 0.8rem; border-radius: 20px; backdrop-filter: blur(4px); }
+
+/* Location Screen */
+#s-location { background: var(--bg); }
+#location-map { flex: 1; width: 100%; background: var(--sur); }
+.location-controls {
+  padding: 1rem 1.25rem;
+  background: var(--card);
+  border-top: 1px solid var(--bord);
   display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  flex-direction: column;
+  gap: 0.8rem;
 }
-.gallery-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.3);
-  transition: background 0.2s, transform 0.2s;
-}
-.gallery-dot.active {
-  background: var(--acc);
-  transform: scale(1.3);
-}
-.close-gallery {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.2);
-  color: white;
-  font-size: 1.5rem;
+.location-radius-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  z-index: 10;
+  gap: 1rem;
 }
-.gallery-counter {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  color: white;
+.location-radius-row label {
   font-size: 0.9rem;
-  background: rgba(0,0,0,.4);
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  backdrop-filter: blur(4px);
+  color: var(--muted2);
+  min-width: 70px;
+}
+.location-radius-row input {
+  flex: 1;
+  accent-color: var(--acc);
+}
+.radius-value {
+  min-width: 60px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--acc);
+}
+.distance-info {
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 12px;
+  background: var(--sur);
+  font-size: 0.95rem;
+}
+.distance-info.inside {
+  background: rgba(30, 204, 104, 0.12);
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-weight: 600;
+}
+.location-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
 }
 </style>
 </head>
@@ -396,7 +341,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V44</b></span>
+    <span class="bname">Spot<b>Me V45</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -425,6 +370,8 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div id="s-chat" class="screen">
   <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div>
     <button class="album-btn" onclick="showAlbumMenu()" title="Alben">🖼️</button>
+    <!-- NEU: Location Button -->
+    <button class="location-btn" onclick="openLocationScreen()" title="Treffpunkt">📍</button>
     <button class="menu-btn" onclick="openSheet()">☰</button>
   </div>
   <div class="rcbar" id="rcbar"><span>○ Verbindung unterbrochen</span><button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button></div>
@@ -432,11 +379,31 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar">
     <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button>
     <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
-    <!-- NEU: Voice-Button -->
     <button class="voice-btn" id="voice-btn" onclick="toggleVoiceRecording()" title="Sprachnachricht" style="display:none;">🎤</button>
     <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
     <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
   </div></div>
+</div>
+
+<!-- SCREEN 6 – LOCATION -->
+<div id="s-location" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="closeLocationScreen()">‹</button>
+    <div class="peer-wrap">
+      <div class="pinfo"><div class="pname">📍 Treffpunkt</div><div class="pstatus dim" id="location-status-text">Warte auf Standort...</div></div>
+    </div>
+    <div style="width:52px"></div>
+  </div>
+  <div id="location-map"></div>
+  <div class="location-controls">
+    <div class="location-radius-row">
+      <label>Radius</label>
+      <input type="range" id="radius-slider" min="50" max="5000" step="10" value="500">
+      <span class="radius-value" id="radius-value">500 m</span>
+    </div>
+    <div class="distance-info" id="distance-info">--</div>
+    <div class="location-status" id="location-status">Teilen aktiv – Position wird alle 5s gesendet</div>
+  </div>
 </div>
 
 <!-- Veraltete Screens -->
@@ -451,10 +418,9 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="sheet-body">
     <button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button>
     <div class="ssep"></div>
-    <!-- NEU: Toggle für Sprachnachrichten -->
-    <div class="sitem" onclick="toggleVoiceMessages()">
+    <div class="sitem" onclick="toggleVoiceButton()">
       <div class="sico si-g" id="voice-toggle-icon">🎤</div>
-      <div class="slab"><div>Sprachnachrichten</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Tippen zum Deaktivieren</div></div>
+      <div class="slab"><div>Mikrofon‑Button</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Button in Chatleiste</div></div>
     </div>
     <div class="ssep"></div>
     <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
@@ -529,8 +495,15 @@ let partnerTypingTimer = null;
 
 let pendingMessages = [];
 
-// Einstellungen
-let voiceEnabled = localStorage.getItem('sm_voice_enabled') !== 'false'; // default true
+let voiceEnabled = localStorage.getItem('sm_voice_enabled') !== 'false';
+
+// Location Variablen
+let locationMap = null;
+let myMarker = null, partnerMarker = null;
+let myPosition = null, partnerPosition = null;
+let locationWatchId = null;
+let locationInterval = null;
+let currentRadius = 500; // Meter
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
@@ -796,13 +769,13 @@ function handleAlbumImagesEnd(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPRACHNACHRICHTEN
+// SPRACHNACHRICHTEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingStartTime = 0;
 
-function toggleVoiceMessages() {
+function toggleVoiceButton() {
   voiceEnabled = !voiceEnabled;
   localStorage.setItem('sm_voice_enabled', voiceEnabled);
   const btn = document.getElementById('voice-btn');
@@ -811,22 +784,18 @@ function toggleVoiceMessages() {
   const desc = document.getElementById('voice-toggle-desc');
   if (voiceEnabled) {
     icon.textContent = '🎤';
-    desc.textContent = 'Aktiviert · Tippen zum Deaktivieren';
+    desc.textContent = 'Aktiviert · Button in Chatleiste';
   } else {
     icon.textContent = '🔇';
-    desc.textContent = 'Deaktiviert · Tippen zum Aktivieren';
+    desc.textContent = 'Deaktiviert · Button ausgeblendet';
   }
   closeSheet();
 }
 
 async function toggleVoiceRecording() {
-  if (!conn || !conn.open) {
-    toast('⚠️ Keine aktive Verbindung');
-    return;
-  }
+  if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
   const btn = document.getElementById('voice-btn');
   if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-    // Aufnahme starten
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
@@ -836,7 +805,6 @@ async function toggleVoiceRecording() {
         btn.classList.remove('recording');
         const blob = new Blob(audioChunks, { type: 'audio/webm' });
         if (blob.size === 0) return;
-        // Senden
         const id = Math.random().toString(36).slice(2,10);
         const total = Math.ceil(blob.size / CHUNK);
         conn.send({ t: 'audio-start', id, size: blob.size, total, duration: (Date.now()-recordingStartTime)/1000 });
@@ -845,16 +813,13 @@ async function toggleVoiceRecording() {
         reader.onload = e => {
           conn.send({ t: 'audio-chunk', id, idx, data: e.target.result });
           off += CHUNK; idx++;
-          if (off < blob.size) {
-            reader.readAsArrayBuffer(blob.slice(off, off+CHUNK));
-          } else {
+          if (off < blob.size) { reader.readAsArrayBuffer(blob.slice(off, off+CHUNK)); }
+          else {
             conn.send({ t: 'audio-end', id });
             toast('🎤 Sprachnachricht gesendet');
-            // Lokal anzeigen
             const url = URL.createObjectURL(blob);
             const msg = { t: 'audio', url, duration: (Date.now()-recordingStartTime)/1000, ts: Date.now(), own: true };
-            appendMsg(msg);
-            persistMsg(msg);
+            appendMsg(msg); persistMsg(msg);
           }
         };
         reader.readAsArrayBuffer(blob.slice(0, CHUNK));
@@ -865,17 +830,136 @@ async function toggleVoiceRecording() {
       recordingStartTime = Date.now();
       btn.classList.add('recording');
       toast('🎤 Aufnahme läuft...');
-    } catch (e) {
-      toast('❌ Mikrofon nicht verfügbar');
-    }
-  } else {
-    // Aufnahme stoppen
-    mediaRecorder.stop();
-  }
+    } catch (e) { toast('❌ Mikrofon nicht verfügbar'); }
+  } else { mediaRecorder.stop(); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (mit Nachricht hinterlassen)
+// LOCATION FUNKTIONEN (NEU)
+// ══════════════════════════════════════════════════════════════════════════════
+function openLocationScreen() {
+  if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
+  showScreen('s-location');
+  initLocationMap();
+  startLocationSharing();
+}
+
+function closeLocationScreen() {
+  stopLocationSharing();
+  showScreen('s-chat');
+}
+
+function initLocationMap() {
+  if (locationMap) return;
+  locationMap = L.map('location-map').setView([51.1657, 10.4515], 6); // Deutschland-Mitte
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(locationMap);
+  
+  // Marker initialisieren
+  myMarker = L.marker([0,0], { icon: blueIcon() }).addTo(locationMap).bindPopup('Ich').openPopup();
+  partnerMarker = L.marker([0,0], { icon: greenIcon() }).addTo(locationMap).bindPopup(partnerName || 'Partner');
+  
+  // Slider-Event
+  const slider = document.getElementById('radius-slider');
+  slider.addEventListener('input', () => {
+    currentRadius = parseInt(slider.value);
+    document.getElementById('radius-value').textContent = formatDistance(currentRadius);
+    updateDistanceDisplay();
+  });
+}
+
+function blueIcon() {
+  return L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px #3b82f6;"></div>', iconSize: [22,22], popupAnchor: [0,-11] });
+}
+function greenIcon() {
+  return L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#1ecc68;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px #1ecc68;"></div>', iconSize: [22,22], popupAnchor: [0,-11] });
+}
+
+function startLocationSharing() {
+  if (locationWatchId) return;
+  document.getElementById('location-status').textContent = 'Warte auf GPS...';
+  if (navigator.geolocation) {
+    locationWatchId = navigator.geolocation.watchPosition(
+      pos => {
+        myPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        updateMyMarker();
+        sendLocationUpdate();
+        document.getElementById('location-status').textContent = `GPS aktiv (Genauigkeit: ±${Math.round(pos.coords.accuracy)}m)`;
+      },
+      err => {
+        toast('⚠️ Standort nicht verfügbar');
+        document.getElementById('location-status').textContent = 'Standortfehler';
+      },
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+  } else {
+    toast('❌ Geolocation nicht unterstützt');
+  }
+  // Regelmäßiges Senden (alle 5s)
+  locationInterval = setInterval(() => { if (myPosition) sendLocationUpdate(); }, 5000);
+}
+
+function stopLocationSharing() {
+  if (locationWatchId) { navigator.geolocation.clearWatch(locationWatchId); locationWatchId = null; }
+  if (locationInterval) { clearInterval(locationInterval); locationInterval = null; }
+  myPosition = null;
+}
+
+function sendLocationUpdate() {
+  if (!conn || !conn.open || !myPosition) return;
+  conn.send({ t: 'location_update', lat: myPosition.lat, lng: myPosition.lng, accuracy: myPosition.accuracy });
+}
+
+function updateMyMarker() {
+  if (!myMarker || !myPosition) return;
+  myMarker.setLatLng([myPosition.lat, myPosition.lng]);
+  locationMap.setView([myPosition.lat, myPosition.lng], locationMap.getZoom());
+  updateDistanceDisplay();
+}
+
+function updatePartnerMarker(lat, lng) {
+  if (!partnerMarker) return;
+  partnerMarker.setLatLng([lat, lng]);
+  partnerMarker.getPopup().setContent(partnerName || 'Partner');
+  updateDistanceDisplay();
+}
+
+function updateDistanceDisplay() {
+  const infoEl = document.getElementById('distance-info');
+  const statusEl = document.getElementById('location-status-text');
+  if (!myPosition || !partnerPosition) {
+    infoEl.textContent = 'Warte auf Position des Partners...';
+    infoEl.className = 'distance-info';
+    statusEl.textContent = '○ Warte auf Partner';
+    return;
+  }
+  const dist = getDistance(myPosition.lat, myPosition.lng, partnerPosition.lat, partnerPosition.lng);
+  const inside = dist <= currentRadius;
+  infoEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius!' : ''}`;
+  infoEl.className = 'distance-info' + (inside ? ' inside' : '');
+  statusEl.textContent = inside ? '✅ Innerhalb des Radius' : '📍 Außerhalb';
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function formatDistance(m) {
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m/1000).toFixed(1) + ' km';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PEERJS & VERBINDUNG (erweitert um location_update)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -1035,12 +1119,11 @@ function prepChat() {
   document.getElementById('messages').innerHTML = `<div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div>`;
   lastDate = null;
   loadHistory();
-  // Voice-Button je nach Einstellung anzeigen
   document.getElementById('voice-btn').style.display = voiceEnabled ? 'flex' : 'none';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NACHRICHTEN & DATEIEN (erweitert um Audio)
+// NACHRICHTEN & DATEIEN (erweitert um location_update)
 // ══════════════════════════════════════════════════════════════════════════════
 function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
@@ -1088,14 +1171,11 @@ function handleData(d) {
   } else if(d.t === 'f-start') { fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) }; toast(`📥 Empfange "${d.name}"...`); }
   else if(d.t === 'f-chunk') { const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data; }
   else if(d.t === 'f-end') { const b = fileBufs[d.id]; if(!b) return; const valid = b.chunks.filter(c=>c!==null); if(valid.length !== b.meta.total){ toast('❌ Übertragungsfehler'); return; } const blob = new Blob(valid, { type:b.meta.type }); const rd = new FileReader(); rd.onload = e => { const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false }; appendMsg(msg); persistMsg(msg); notify('📎 Datei: ' + b.meta.name); playNotificationSound(); triggerHaptic(); delete fileBufs[d.id]; }; rd.readAsDataURL(blob); }
-  // NEU: Audio-Nachrichten
   else if (d.t === 'audio-start') {
     fileBufs[d.id] = { meta: d, chunks: new Array(d.total).fill(null) };
     toast(`🎤 Empfange Sprachnachricht (${d.duration.toFixed(1)}s)...`);
   }
-  else if (d.t === 'audio-chunk') {
-    const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data;
-  }
+  else if (d.t === 'audio-chunk') { const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data; }
   else if (d.t === 'audio-end') {
     const b = fileBufs[d.id]; if(!b) return;
     const valid = b.chunks.filter(c=>c!==null);
@@ -1106,6 +1186,13 @@ function handleData(d) {
     appendMsg(msg); persistMsg(msg);
     notify('🎤 Sprachnachricht'); playNotificationSound(); triggerHaptic();
     delete fileBufs[d.id];
+  }
+  // ⭐ NEU: Location Update
+  else if (d.t === 'location_update') {
+    partnerPosition = { lat: d.lat, lng: d.lng, accuracy: d.accuracy };
+    updatePartnerMarker(d.lat, d.lng);
+    document.getElementById('location-status-text').textContent = '📍 Partner online';
+    updateDistanceDisplay();
   }
   // Alben-Nachrichten (unverändert)
   else if (d.t === 'album_list_request') {
@@ -1175,7 +1262,6 @@ function appendMsg(m) {
       w.innerHTML = `<a class="filbbl" href="${m.url}" download="${esc(m.name)}"><span style="font-size:1.4rem">${icon}</span><div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${m.own?' ✓✓':''}</div>`;
     }
   } else if(m.t === 'audio'){
-    // Audio-Player rendern
     const duration = m.duration || 0;
     const mins = Math.floor(duration / 60);
     const secs = Math.floor(duration % 60);
@@ -1188,14 +1274,12 @@ function appendMsg(m) {
       </div>
       <div class="btime">${ts}${m.own?' ✓✓':''}</div>
     `;
-    // Audio-Element erstellen (wird bei Play initialisiert)
     setTimeout(() => initAudioPlayer(w.querySelector('.audio-player'), m.url), 10);
   }
   list.appendChild(w);
   list.scrollTop = list.scrollHeight;
 }
 
-// Audio-Player Logik
 window.toggleAudioPlay = function(btn) {
   const player = btn.closest('.audio-player');
   const audio = player._audio;
@@ -1222,7 +1306,6 @@ function initAudioPlayer(player, url) {
   audio.onplay = () => btn.textContent = '⏸';
   audio.onpause = () => btn.textContent = '▶';
   audio.onended = () => btn.textContent = '▶';
-  // Einfache Wellenform (statisch, könnte durch echte Visualisierung ersetzt werden)
   const wave = player.querySelector('.audio-wave');
   if (wave) {
     wave.innerHTML = Array.from({length:12}, () => `<div class="audio-wave-bar" style="height:${Math.floor(Math.random()*20+4)}px"></div>`).join('');
@@ -1285,13 +1368,11 @@ window.addEventListener('load', () => {
   initPeer();
   initDB();
   ensureRingingToneCached();
-  // Voice-Button initial anzeigen
   document.getElementById('voice-btn').style.display = voiceEnabled ? 'flex' : 'none';
-  // Toggle-Icon im Menü setzen
   const icon = document.getElementById('voice-toggle-icon');
   const desc = document.getElementById('voice-toggle-desc');
-  if (voiceEnabled) { icon.textContent = '🎤'; desc.textContent = 'Aktiviert · Tippen zum Deaktivieren'; }
-  else { icon.textContent = '🔇'; desc.textContent = 'Deaktiviert · Tippen zum Aktivieren'; }
+  if (voiceEnabled) { icon.textContent = '🎤'; desc.textContent = 'Aktiviert · Button in Chatleiste'; }
+  else { icon.textContent = '🔇'; desc.textContent = 'Deaktiviert · Button ausgeblendet'; }
   if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   window.addEventListener('online', () => { if(!peer || peer.destroyed) initPeer(); });
   window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
