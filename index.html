@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V33</title>
+<title>SpotMe · Chat V36</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V33">
+<meta name="apple-mobile-web-app-title" content="SpotMe V36">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ════════════════════════════════
-   DESIGN TOKENS (unverändert)
+   DESIGN TOKENS (unverändert aus V32)
 ════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -54,7 +54,6 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .home-menu-btn:hover { color:var(--text); border-color:var(--bord2) }
 .home-drop { position:absolute; top:calc(100% + 4px); right:0; background:var(--card2); border:1px solid var(--bord2); border-radius:14px; padding:.5rem; display:none; flex-direction:column; gap:.15rem; box-shadow:0 12px 40px rgba(0,0,0,.65); min-width:250px; z-index:100 }
 .home-drop.open { display:flex; animation:sIn .18s ease }
-/* Angepasst: Einträge im Home-Dropdown wie im Chat-Menü (Bottom Sheet) */
 .home-drop .sitem {
   display:flex; align-items:center; gap:.9rem;
   padding:.9rem 1.1rem; border-radius:14px; cursor:pointer;
@@ -150,6 +149,8 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .pstatus.dim { color:var(--muted2) }
 .menu-btn { width:var(--touch); height:var(--touch); border-radius:13px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; transition:all .2s; }
 .menu-btn:active { background:rgba(255,255,255,.09); color:var(--text) }
+.album-btn { width:var(--touch); height:var(--touch); border-radius:13px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; transition:all .2s; margin-right:.2rem; }
+.album-btn:active { background:rgba(255,255,255,.09); color:var(--acc); }
 .rcbar { display:none; align-items:center; justify-content:space-between; gap:.7rem; padding:.6rem 1.1rem; flex-shrink:0; background:rgba(255,79,123,.06); border-bottom:1px solid rgba(255,79,123,.15); font-size:.85rem; color:var(--p3); }
 .rcbar.show { display:flex }
 .rc-btn { padding:.35rem .85rem; border-radius:8px; cursor:pointer; border:1px solid rgba(255,79,123,.3); background:rgba(255,79,123,.1); color:var(--p3); font-family:'DM Sans',sans-serif; font-size:.8rem; font-weight:600; white-space:nowrap; min-height:38px; }
@@ -219,6 +220,17 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
 .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--bord2); border-top-color:var(--acc); border-radius:50%; animation:sp .7s linear infinite; vertical-align:middle; }
 @keyframes sp { to{transform:rotate(360deg)} }
+
+/* Portfolio Screens */
+.portfolio-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(100px,1fr)); gap:.8rem; padding:.5rem .2rem; }
+.portfolio-item { background:var(--card2); border-radius:14px; overflow:hidden; border:1px solid var(--bord); cursor:pointer; transition:transform .1s; }
+.portfolio-item:active { transform:scale(.96); background:var(--card); }
+.portfolio-img { width:100%; aspect-ratio:1; object-fit:cover; display:block; background:var(--sur); }
+.portfolio-name { padding:.5rem .3rem; font-size:.7rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted2); }
+.add-photo-btn { display:flex; align-items:center; justify-content:center; gap:.4rem; background:var(--acc-dim); border:1px solid var(--acc); border-radius:14px; padding:.8rem; color:var(--acc); font-weight:600; margin-top:.8rem; cursor:pointer; transition:all .2s; }
+.add-photo-btn:active { background:rgba(0,229,192,.2); }
+.empty-portfolio { text-align:center; padding:2rem; color:var(--muted2); font-size:.85rem; }
+.loading-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--bord2); border-top-color:var(--acc); border-radius:50%; animation:sp .7s linear infinite; }
 </style>
 </head>
 <body>
@@ -228,9 +240,8 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V33</b></span>
+    <span class="bname">Spot<b>Me V36</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)" id="home-menu-btn" title="Menü">⋮</button>
-    <!-- Home-Dropdown im Stil des Chat-Menüs -->
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()">
         <div class="sico si-g">💾</div>
@@ -245,10 +256,13 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
         <div class="sico si-g">👤</div>
         <div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div>
       </button>
-      <!-- NEU: Spot / Community -->
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'">
         <div class="sico si-g">👥</div>
         <div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div>
+      </button>
+      <button class="sitem" onclick="closeHomeMenu(); showMyPortfolio()">
+        <div class="sico si-g">🖼️</div>
+        <div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Bilder verwalten</div></div>
       </button>
     </div>
   </div>
@@ -268,10 +282,50 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 
 <!-- SCREEN 3 — CHAT -->
 <div id="s-chat" class="screen">
-  <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div><button class="menu-btn" onclick="openSheet()">☰</button></div>
+  <div class="chat-bar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="peer-wrap">
+      <div class="pav offline" id="pav">🧑</div>
+      <div class="pinfo">
+        <div class="pname" id="pname">...</div>
+        <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
+      </div>
+    </div>
+    <button class="album-btn" onclick="openPartnerPortfolio()" title="Portfolio des Partners">🖼️</button>
+    <button class="menu-btn" onclick="openSheet()">☰</button>
+  </div>
   <div class="rcbar" id="rcbar"><span>○ Verbindung unterbrochen</span><button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button></div>
   <div class="messages" id="messages"><div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div></div>
   <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar"><button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button><input type="file" id="finp" style="display:none" onchange="sendFile(this)"><textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea><button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button></div></div>
+</div>
+
+<!-- SCREEN 4 — EIGENES PORTFOLIO (VAULT) -->
+<div id="s-vault" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="peer-wrap"><div class="pinfo"><div class="pname">Mein Portfolio</div><div class="pstatus dim">Lokale Bilder</div></div></div>
+    <div style="width:52px"></div>
+  </div>
+  <div class="messages" style="padding:1rem">
+    <div id="vault-grid" class="portfolio-grid">
+      <div class="empty-portfolio">Noch keine Bilder.<br>Tippe unten auf +, um Fotos hinzuzufügen.</div>
+    </div>
+    <div class="add-photo-btn" onclick="addPortfolioPhoto()">+ Neues Foto hinzufügen</div>
+  </div>
+</div>
+
+<!-- SCREEN 5 — PARTNER PORTFOLIO -->
+<div id="s-partner-vault" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="peer-wrap"><div class="pinfo"><div class="pname" id="partner-vault-name">Portfolio</div><div class="pstatus dim">Bilder des Partners</div></div></div>
+    <div style="width:52px"></div>
+  </div>
+  <div class="messages" style="padding:1rem">
+    <div id="partner-grid" class="portfolio-grid">
+      <div class="empty-portfolio">Lade Portfolio des Partners...</div>
+    </div>
+  </div>
 </div>
 
 <!-- BOTTOM SHEET MENU (Chat-Optionen) – unverändert -->
@@ -280,38 +334,17 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="sheet-handle"></div>
   <div class="sheet-title">Chat-Optionen</div>
   <div class="sheet-body">
-    <button class="sitem si-g" onclick="renamePartner()">
-      <div class="sico">✏️</div>
-      <div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div>
-    </button>
+    <button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'">
-      <div class="sico">👤</div>
-      <div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div>
-    </button>
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem si-g" onclick="exportChat()">
-      <div class="sico">💾</div>
-      <div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div>
-    </button>
-    <button class="sitem si-b" onclick="triggerImport()">
-      <div class="sico">📂</div>
-      <div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div>
-    </button>
+    <button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button>
+    <button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()">
-      <div class="sico">🔌</div>
-      <div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div>
-    </button>
-    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()">
-      <div class="sico">🗑️</div>
-      <div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div>
-    </button>
+    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button>
+    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem" onclick="closeSheet(); goHome()">
-      <div class="sico" style="background:rgba(255,255,255,.05)">✕</div>
-      <div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div>
-    </button>
+    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button>
   </div>
 </div>
 
@@ -448,7 +481,7 @@ function migratePendingMessages(newChatId) {
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
-/* Klingelton */
+/* Klingelton (unverändert aus V32) */
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
 
@@ -656,6 +689,161 @@ function refreshStatusText() {
   }
 }
 
+// ═══ INDEXEDDB FÜR PORTFOLIO (Firefox-kompatibel) ═══
+let db = null;
+const DB_NAME = 'SpotMeDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'portfolio';
+
+function initIndexedDB() {
+  return new Promise((resolve, reject) => {
+    if (db && db.name === DB_NAME) { resolve(); return; }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => { db = request.result; resolve(); };
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function saveImageToDB(blob, name, type) {
+  await initIndexedDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const id = Date.now() + '_' + Math.random().toString(36);
+    const record = { id, blob, name, type, timestamp: Date.now() };
+    const req = store.add(record);
+    req.onsuccess = () => resolve(id);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getAllImages() {
+  await initIndexedDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteImageFromDB(id) {
+  await initIndexedDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// Portfolio UI
+async function renderMyPortfolio() {
+  const container = document.getElementById('vault-grid');
+  if (!container) return;
+  try {
+    const images = await getAllImages();
+    if (!images.length) {
+      container.innerHTML = '<div class="empty-portfolio">Noch keine Bilder.<br>Tippe unten auf +, um Fotos hinzuzufügen.</div>';
+      return;
+    }
+    container.innerHTML = '';
+    for (const img of images) {
+      const url = URL.createObjectURL(img.blob);
+      const div = document.createElement('div');
+      div.className = 'portfolio-item';
+      div.onclick = () => showImageOptions(img);
+      div.innerHTML = `<img class="portfolio-img" src="${url}" loading="lazy"><div class="portfolio-name">${escapeHtml(img.name || 'Bild')}</div>`;
+      container.appendChild(div);
+    }
+  } catch(e) {
+    console.warn('renderMyPortfolio error', e);
+    container.innerHTML = '<div class="empty-portfolio">Fehler beim Laden der Bilder.</div>';
+  }
+}
+
+function showImageOptions(img) {
+  if (confirm(`Möchtest du dieses Bild löschen?\n"${img.name || 'Bild'}"`)) {
+    deleteImageFromDB(img.id).then(() => renderMyPortfolio()).catch(e => toast('Fehler beim Löschen'));
+  }
+}
+
+async function addPortfolioPhoto() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast('Max. 10 MB pro Bild'); return; }
+    try {
+      const blob = file.slice(0, file.size, file.type);
+      const name = file.name;
+      await saveImageToDB(blob, name, file.type);
+      await renderMyPortfolio();
+      toast('Foto gespeichert');
+    } catch(err) {
+      console.error('addPortfolioPhoto error', err);
+      toast('Fehler beim Speichern');
+    }
+  };
+  input.click();
+}
+
+function showMyPortfolio() {
+  renderMyPortfolio();
+  showScreen('s-vault');
+}
+
+// Partner Portfolio
+let partnerPortfolioList = [];
+let pendingPortfolioChunks = new Map();
+
+async function openPartnerPortfolio() {
+  if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung zum Partner'); return; }
+  document.getElementById('partner-vault-name').textContent = `${partnerName}'s Portfolio`;
+  showScreen('s-partner-vault');
+  document.getElementById('partner-grid').innerHTML = '<div class="empty-portfolio"><div class="loading-spinner"></div> Portfolio wird geladen...</div>';
+  // Liste anfordern
+  conn.send({ t: 'portfolio_list_request' });
+}
+
+function renderPartnerPortfolio() {
+  const container = document.getElementById('partner-grid');
+  if (!partnerPortfolioList.length) {
+    container.innerHTML = '<div class="empty-portfolio">Der Partner hat noch keine Bilder in seinem Portfolio.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  for (const item of partnerPortfolioList) {
+    const div = document.createElement('div');
+    div.className = 'portfolio-item';
+    div.innerHTML = `<div class="portfolio-img" style="display:flex;align-items:center;justify-content:center;background:var(--sur);font-size:2rem;">🖼️</div>
+                     <div class="portfolio-name">${escapeHtml(item.name)}</div>`;
+    div.onclick = () => requestImageFromPartner(item.id, item.name);
+    container.appendChild(div);
+  }
+}
+
+function requestImageFromPartner(id, name) {
+  if (!conn || !conn.open) { toast('⚠️ Verbindung unterbrochen'); return; }
+  toast(`📥 Fordere Bild an...`);
+  conn.send({ t: 'portfolio_image_request', id, name });
+}
+
+function showPartnerImageModal(url, name) {
+  const w = window.open();
+  w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}" alt="${escapeHtml(name)}">`);
+}
+
 /* INIT */
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
@@ -690,11 +878,10 @@ window.addEventListener('load', () => {
     });
   }
 
-  // ═══ AUTO-CONNECT von spot.html ═══
+  // Auto-Connect von spot.html
   const autoConnect = sessionStorage.getItem('sm_connect_to');
   if (autoConnect && peer) {
     sessionStorage.removeItem('sm_connect_to');
-    // warte kurz, bis PeerJS wirklich online ist
     setTimeout(() => {
       const inps = document.querySelectorAll('.dinp');
       autoConnect.split('').forEach((ch, i) => {
@@ -990,6 +1177,46 @@ function handleData(d) {
     };
     rd.readAsDataURL(blob);
   }
+  // ═══ PORTFOLIO NACHRICHTEN ═══
+  else if (d.t === 'portfolio_list_request') {
+    getAllImages().then(images => {
+      const list = images.map(img => ({ id: img.id, name: img.name, type: img.type }));
+      if (conn && conn.open) conn.send({ t: 'portfolio_list_response', list });
+    }).catch(e => console.warn(e));
+  } else if (d.t === 'portfolio_list_response') {
+    partnerPortfolioList = d.list || [];
+    renderPartnerPortfolio();
+  } else if (d.t === 'portfolio_image_request') {
+    const reqId = d.id;
+    getAllImages().then(images => {
+      const img = images.find(i => i.id == reqId);
+      if (!img) { toast('Bild nicht gefunden'); return; }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target.result;
+        const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * CHUNK;
+          const end = Math.min(start + CHUNK, arrayBuffer.byteLength);
+          const chunk = arrayBuffer.slice(start, end);
+          conn.send({ t: 'portfolio_image_chunk', id: img.id, idx: i, total: totalChunks, chunk, name: img.name, type: img.type });
+        }
+      };
+      reader.readAsArrayBuffer(img.blob);
+    }).catch(e => console.warn(e));
+  } else if (d.t === 'portfolio_image_chunk') {
+    if (!pendingPortfolioChunks.has(d.id)) {
+      pendingPortfolioChunks.set(d.id, { chunks: new Array(d.total), total: d.total, name: d.name, type: d.type });
+    }
+    const entry = pendingPortfolioChunks.get(d.id);
+    entry.chunks[d.idx] = d.chunk;
+    if (entry.chunks.every(c => c !== undefined)) {
+      const blob = new Blob(entry.chunks, { type: entry.type });
+      const url = URL.createObjectURL(blob);
+      showPartnerImageModal(url, entry.name);
+      pendingPortfolioChunks.delete(d.id);
+    }
+  }
 }
 
 function appendMsg(m) {
@@ -1190,6 +1417,7 @@ function esc2(s) { return s.replace(/'/g,"\\'"); }
 function formatCode(c) { return c.slice(0,3)+' · '+c.slice(3,6); }
 function copyCode()  { navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: '+myCode)); }
 function shareCode() { if (navigator.share) navigator.share({ title:'SpotMe', text:`Mein Code: ${formatCode(myCode)} – schreib mir!` }); else copyCode(); }
+function escapeHtml(s) { return esc(s); }
 let tTimer = null;
 function toast(msg, ms=2400) {
   const ex = document.querySelector('.toast'); if (ex) ex.remove();
