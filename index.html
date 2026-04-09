@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V43.4</title>
+<title>SpotMe · Chat V43.5</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V43.4">
+<meta name="apple-mobile-web-app-title" content="SpotMe V43.5">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -312,6 +312,92 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   border-radius: 20px;
   backdrop-filter: blur(4px);
 }
+
+/* Neue Sektion: Hinterlassene Nachrichten */
+.left-messages-section {
+  margin-top: 1.4rem;
+}
+.left-messages-label {
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--acc);
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.left-messages-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--acc);
+  animation: blink 0.9s ease infinite;
+}
+.left-message-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 229, 192, 0.15);
+  background: rgba(0, 229, 192, 0.04);
+  margin-bottom: 0.45rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.left-message-item:active {
+  background: rgba(0, 229, 192, 0.09);
+}
+.left-message-av {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(0, 229, 192, 0.15);
+  border: 1px solid rgba(0, 229, 192, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.left-message-info {
+  flex: 1;
+  min-width: 0;
+}
+.left-message-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.left-message-preview {
+  font-size: 0.75rem;
+  color: var(--muted2);
+  margin-top: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.left-message-time {
+  font-size: 0.7rem;
+  color: var(--muted2);
+  flex-shrink: 0;
+}
+.left-message-clear-btn {
+  font-size: 0.72rem;
+  color: var(--muted2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  transition: color 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.left-message-clear-btn:active {
+  color: var(--acc);
+}
 </style>
 </head>
 <body>
@@ -321,7 +407,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V43.4</b></span>
+    <span class="bname">Spot<b>Me V43.5</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf-Index</div></div></button>
@@ -338,6 +424,17 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
   <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
   <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
+  
+  <!-- NEUE SEKTION: Hinterlassene Nachrichten -->
+  <div class="left-messages-section" id="left-messages-sec" style="display:none">
+    <div class="left-messages-label">
+      <div class="left-messages-dot"></div>
+      ✉️ Nachrichten für dich
+      <button class="left-message-clear-btn" onclick="clearLeftMessages()">Alle löschen</button>
+    </div>
+    <div id="left-messages-list"></div>
+  </div>
+  
   <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
   <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
 </div>
@@ -484,6 +581,64 @@ function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) { const inps = document.querySelectorAll('.dinp'); code.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled = false; connectToPeer(); setTimeout(()=>{ inps.forEach(d=>{ d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; },200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// HINTERLASSENE NACHRICHTEN (NEU)
+// ══════════════════════════════════════════════════════════════════════════════
+function getLeftMessages() {
+  return JSON.parse(localStorage.getItem('sm_left_messages') || '[]');
+}
+function saveLeftMessages(arr) {
+  localStorage.setItem('sm_left_messages', JSON.stringify(arr));
+}
+function addLeftMessage(fromCode, fromName, text) {
+  const arr = getLeftMessages();
+  // Doppelte Einträge vermeiden (gleicher Absender + Text innerhalb 1 min)
+  const recent = arr.findIndex(m => m.fromCode === fromCode && m.text === text && Date.now() - m.ts < 60000);
+  const entry = { fromCode, fromName, text, ts: Date.now() };
+  if (recent >= 0) arr[recent] = entry;
+  else arr.unshift(entry);
+  saveLeftMessages(arr.slice(0, 30));
+  renderLeftMessages();
+}
+function renderLeftMessages() {
+  const arr = getLeftMessages();
+  const sec = document.getElementById('left-messages-sec');
+  const lst = document.getElementById('left-messages-list');
+  if (!arr.length) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = 'block';
+  lst.innerHTML = arr.map(m => {
+    const d = new Date(m.ts);
+    const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE')
+      ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})
+      : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'});
+    const preview = m.text.length > 30 ? m.text.slice(0,30)+'…' : m.text;
+    return `<div class="left-message-item" onclick="returnCallFromLeftMessage('${m.fromCode}')">
+      <div class="left-message-av">✉️</div>
+      <div class="left-message-info">
+        <div class="left-message-name">${esc(m.fromName)}</div>
+        <div class="left-message-preview">${esc(preview)}</div>
+      </div>
+      <div class="left-message-time">${t}</div>
+    </div>`;
+  }).join('');
+}
+function clearLeftMessages() {
+  saveLeftMessages([]);
+  renderLeftMessages();
+}
+function returnCallFromLeftMessage(code) {
+  // Code in Eingabefelder setzen und Anruf starten
+  const inps = document.querySelectorAll('.dinp');
+  code.split('').forEach((ch,i) => { if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } });
+  document.getElementById('cbtn').disabled = false;
+  connectToPeer();
+  // Nach erfolgreicher Verbindung die Nachricht automatisch löschen?
+  // (optional – wir lassen sie erstmal stehen, bis der Nutzer sie manuell löscht)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // KONTAKTE & NAMEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
@@ -563,40 +718,32 @@ async function getPhotosByAlbum(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ALBUM-MENÜ & PARTNER-INTERAKTION
+// ALBUM-MENÜ & PARTNER-INTERAKTION (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function showAlbumMenu() {
-  if (!conn || !conn.open) {
-    toast('⚠️ Keine aktive Verbindung');
-    return;
-  }
+  if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
   const body = document.getElementById('album-menu-body');
   body.innerHTML = `
     <button class="sitem" onclick="window.open('portfolio.html','_blank'); closeAlbumMenu();">
-      <div class="sico si-g">📁</div>
-      <div class="slab"><div>Meine Alben</div><div class="sdesc">Verwalten & neue Fotos hinzufügen</div></div>
+      <div class="sico si-g">📁</div><div class="slab"><div>Meine Alben</div><div class="sdesc">Verwalten & neue Fotos hinzufügen</div></div>
     </button>
     <div class="ssep"></div>
     <button class="sitem" onclick="requestPartnerAlbums(); closeAlbumMenu();">
-      <div class="sico si-g">👥</div>
-      <div class="slab"><div>Alben von ${partnerName}</div><div class="sdesc">Durchstöbern</div></div>
+      <div class="sico si-g">👥</div><div class="slab"><div>Alben von ${partnerName}</div><div class="sdesc">Durchstöbern</div></div>
     </button>
   `;
   document.getElementById('album-menu-ovl').classList.add('open');
   document.getElementById('album-menu-sheet').classList.add('open');
 }
-
 function closeAlbumMenu() {
   document.getElementById('album-menu-ovl').classList.remove('open');
   document.getElementById('album-menu-sheet').classList.remove('open');
 }
-
 function requestPartnerAlbums() {
   if (!conn || !conn.open) return toast('Keine Verbindung');
   conn.send({ t: 'album_list_request' });
   toast('📡 Fordere Alben an...');
 }
-
 let partnerAlbumsList = [];
 function showPartnerAlbumsSheet(albums) {
   partnerAlbumsList = albums;
@@ -609,22 +756,17 @@ function showPartnerAlbumsSheet(albums) {
     body.innerHTML = albums.map(album => `
       <button class="sitem" onclick="selectPartnerAlbum(${album.id})">
         <div class="sico si-g">🖼️</div>
-        <div class="slab">
-          <div>${escapeHtml(album.name)}</div>
-          <div class="sdesc">${album.photoCount || 0} Foto${album.photoCount !== 1 ? 's' : ''}</div>
-        </div>
+        <div class="slab"><div>${escapeHtml(album.name)}</div><div class="sdesc">${album.photoCount||0} Foto${album.photoCount!==1?'s':''}</div></div>
       </button>
     `).join('');
   }
   document.getElementById('partner-albums-ovl').classList.add('open');
   document.getElementById('partner-albums-sheet').classList.add('open');
 }
-
 function closePartnerAlbumsSheet() {
   document.getElementById('partner-albums-ovl').classList.remove('open');
   document.getElementById('partner-albums-sheet').classList.remove('open');
 }
-
 function selectPartnerAlbum(albumId) {
   closePartnerAlbumsSheet();
   if (!conn || !conn.open) return toast('Verbindung unterbrochen');
@@ -632,7 +774,6 @@ function selectPartnerAlbum(albumId) {
   toast('📥 Lade Bilder...');
   showImageOverlayLoader();
 }
-
 function showImageOverlayLoader() {
   const old = document.getElementById('dynamic-gallery-overlay');
   if (old) old.remove();
@@ -643,29 +784,25 @@ function showImageOverlayLoader() {
   document.body.appendChild(overlay);
 }
 
-// ⭐⭐⭐ GALERIE-STEUERUNG
-let currentGalleryImages = []; // { dataURL, name }
+// ⭐⭐⭐ GALERIE-STEUERUNG (unverändert)
+let currentGalleryImages = [];
 let currentGalleryIndex = 0;
-
 function buildGallery(images) {
   if (!images.length) return;
   currentGalleryImages = images;
   currentGalleryIndex = 0;
   const overlay = document.getElementById('dynamic-gallery-overlay');
   if (!overlay) return;
-  
   const updateImage = () => {
     const img = currentGalleryImages[currentGalleryIndex];
     overlay.innerHTML = `
       <div class="close-gallery" onclick="closeGallery()">✕</div>
       <div class="gallery-counter">${currentGalleryIndex+1} / ${currentGalleryImages.length}</div>
-      <div class="gallery-image-container">
-        <img src="${img.dataURL}" alt="${escapeHtml(img.name)}" id="gallery-main-image">
-      </div>
+      <div class="gallery-image-container"><img src="${img.dataURL}" alt="${escapeHtml(img.name)}" id="gallery-main-image"></div>
       <div class="gallery-controls">
-        ${currentGalleryImages.length > 1 ? `<button class="gallery-btn" onclick="prevGalleryImage()">◀</button>` : '<div style="width:52px"></div>'}
+        ${currentGalleryImages.length>1?`<button class="gallery-btn" onclick="prevGalleryImage()">◀</button>`:'<div style="width:52px"></div>'}
         <div class="gallery-dots" id="gallery-dots"></div>
-        ${currentGalleryImages.length > 1 ? `<button class="gallery-btn" onclick="nextGalleryImage()">▶</button>` : '<div style="width:52px"></div>'}
+        ${currentGalleryImages.length>1?`<button class="gallery-btn" onclick="nextGalleryImage()">▶</button>`:'<div style="width:52px"></div>'}
       </div>
     `;
     const imgEl = document.getElementById('gallery-main-image');
@@ -675,99 +812,55 @@ function buildGallery(images) {
       imgEl.addEventListener('touchend', (e) => {
         if (!touchStartX) return;
         const diff = e.changedTouches[0].clientX - touchStartX;
-        if (Math.abs(diff) > 50) {
-          if (diff > 0) prevGalleryImage();
-          else nextGalleryImage();
-        }
+        if (Math.abs(diff) > 50) { if (diff > 0) prevGalleryImage(); else nextGalleryImage(); }
         touchStartX = 0;
       });
     }
     updateDots();
   };
-  
-  window.prevGalleryImage = () => {
-    if (currentGalleryIndex > 0) {
-      currentGalleryIndex--;
-      updateImage();
-    }
-  };
-  window.nextGalleryImage = () => {
-    if (currentGalleryIndex < currentGalleryImages.length - 1) {
-      currentGalleryIndex++;
-      updateImage();
-    }
-  };
+  window.prevGalleryImage = () => { if (currentGalleryIndex > 0) { currentGalleryIndex--; updateImage(); } };
+  window.nextGalleryImage = () => { if (currentGalleryIndex < currentGalleryImages.length-1) { currentGalleryIndex++; updateImage(); } };
   window.updateDots = () => {
-    const dotsContainer = document.getElementById('gallery-dots');
-    if (!dotsContainer) return;
-    dotsContainer.innerHTML = currentGalleryImages.map((_, i) => 
-      `<span class="gallery-dot ${i === currentGalleryIndex ? 'active' : ''}" onclick="setGalleryIndex(${i})"></span>`
-    ).join('');
+    const dots = document.getElementById('gallery-dots');
+    if (dots) dots.innerHTML = currentGalleryImages.map((_,i)=>`<span class="gallery-dot ${i===currentGalleryIndex?'active':''}" onclick="setGalleryIndex(${i})"></span>`).join('');
   };
-  window.setGalleryIndex = (idx) => {
-    currentGalleryIndex = idx;
-    updateImage();
-  };
-  window.closeGallery = () => {
-    overlay.remove();
-    currentGalleryImages = [];
-  };
-  
+  window.setGalleryIndex = (idx) => { currentGalleryIndex = idx; updateImage(); };
+  window.closeGallery = () => { overlay.remove(); currentGalleryImages = []; };
   updateImage();
 }
 
-// ⭐ Chunking für Album-Bilder (byte-genau)
+// ⭐ Chunking für Album-Bilder (byte-genau) – unverändert
 let pendingAlbumChunks = new Map();
 let pendingAlbumMeta = new Map();
-
 function handleAlbumImageChunk(d) {
   const key = `${d.albumId}_${d.photoId}`;
   let entry = pendingAlbumChunks.get(key);
-  if (!entry) {
-    const chunks = new Array(d.total);
-    entry = { chunks, total: d.total, name: d.name, albumId: d.albumId, photoId: d.photoId };
-    pendingAlbumChunks.set(key, entry);
-  }
-  const bytes = new Uint8Array(d.chunk);
-  entry.chunks[d.idx] = bytes;
-  
-  if (entry.chunks.every(c => c !== undefined && c !== null)) {
-    const totalLength = entry.chunks.reduce((sum, arr) => sum + arr.length, 0);
+  if (!entry) { entry = { chunks: new Array(d.total), total: d.total, name: d.name, albumId: d.albumId, photoId: d.photoId }; pendingAlbumChunks.set(key, entry); }
+  entry.chunks[d.idx] = new Uint8Array(d.chunk);
+  if (entry.chunks.every(c=>c!==undefined)) {
+    const totalLength = entry.chunks.reduce((s,arr)=>s+arr.length,0);
     const merged = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const arr of entry.chunks) {
-      merged.set(arr, offset);
-      offset += arr.length;
-    }
+    let off=0; for(const arr of entry.chunks) { merged.set(arr,off); off+=arr.length; }
     const dataURL = new TextDecoder().decode(merged);
     pendingAlbumChunks.delete(key);
-    
     let meta = pendingAlbumMeta.get(d.albumId);
-    if (!meta) {
-      meta = { expectedCount: 0, receivedCount: 0, images: [], timeout: null };
-      pendingAlbumMeta.set(d.albumId, meta);
-    }
+    if (!meta) { meta = { expectedCount:0, receivedCount:0, images:[], timeout:null }; pendingAlbumMeta.set(d.albumId, meta); }
     meta.images.push({ dataURL, name: entry.name });
     meta.receivedCount++;
   }
 }
-
 function handleAlbumImagesEnd(albumId) {
   const meta = pendingAlbumMeta.get(albumId);
   if (meta) {
     clearTimeout(meta.timeout);
-    if (meta.images.length > 0) {
-      buildGallery(meta.images);
-    } else {
-      toast('ℹ️ Album enthält keine Bilder');
-      document.getElementById('dynamic-gallery-overlay')?.remove();
-    }
+    if (meta.images.length) buildGallery(meta.images);
+    else { document.getElementById('dynamic-gallery-overlay')?.remove(); toast('ℹ️ Album enthält keine Bilder'); }
     pendingAlbumMeta.delete(albumId);
   }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (mit verbessertem Timeout und Nachricht-Funktion)
+// PEERJS & VERBINDUNG (mit Nachricht hinterlassen & Mailbox)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -780,27 +873,20 @@ function initPeer() {
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
     if(err.type === 'unavailable-id') {
-      peerRetries++;
-      const delay = Math.min(3000 * peerRetries, 15000);
+      peerRetries++; const delay = Math.min(3000*peerRetries,15000);
       setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay/1000}s...`);
       setTimeout(() => { peer = null; initPeer(); }, delay);
       return;
     }
     if(err.type === 'peer-unavailable') {
-      // Partner nicht erreichbar – Nachricht hinterlassen anbieten
-      if (outgoingCallTimer) {
-        clearTimeout(outgoingCallTimer);
-        outgoingCallTimer = null;
-      }
+      if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
       toast('⚠️ Partner nicht erreichbar');
       addMissed(partnerCode, partnerName);
       if (conn) { try{ conn.close(); } catch(e){} conn = null; }
-      // Nachricht-Dialog anzeigen
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
     }
-    peerRetries++;
-    const delay = Math.min(4000 * peerRetries, 20000);
+    peerRetries++; const delay = Math.min(4000*peerRetries,20000);
     setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
     setTimeout(() => { peer = null; initPeer(); }, delay);
   });
@@ -836,48 +922,40 @@ function connectToPeer() {
   migratePendingMessages(chatId);
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
-  // Zeige an, dass gewählt wird
   setSpill('online', `📞 Rufe ${partnerName} an...`);
   outgoingCallTimer = setTimeout(() => {
-    // Timeout – Verbindung nicht zustande gekommen
     outgoingCallTimer = null;
     toast('⏰ Keine Antwort');
     addMissed(partnerCode, partnerName);
     if (conn) { try{ conn.close(); } catch(e){} conn = null; }
-    // Nachricht-Dialog anzeigen
     showLeaveMessageSheet(partnerCode, partnerName);
-    setSpill('online', '● Online · Code aktiv'); // Status zurücksetzen
+    setSpill('online', '● Online · Code aktiv');
   }, 30000);
 }
 
 function showLeaveMessageSheet(code, name) {
-  // Sicherstellen, dass partnerCode gesetzt ist
-  partnerCode = code;
-  partnerName = name;
+  partnerCode = code; partnerName = name;
   document.getElementById('leave-message-input').value = '';
   document.getElementById('leave-message-ovl').classList.add('open');
   document.getElementById('leave-message-sheet').classList.add('open');
   setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
 }
-
 function closeLeaveMessageSheet() {
   document.getElementById('leave-message-ovl').classList.remove('open');
   document.getElementById('leave-message-sheet').classList.remove('open');
   showScreen('s-home');
   setSpill('online', '● Online · Code aktiv');
 }
-
 function submitLeaveMessage() {
   const input = document.getElementById('leave-message-input');
   const text = input.value.trim();
-  if (!text) {
-    toast('Bitte eine Nachricht eingeben');
-    return;
-  }
+  if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
   const cid = buildCID(myCode, partnerCode);
   const oldChatId = chatId;
   chatId = cid;
-  addPendingMessage(text);
+  addPendingMessage(text);                    // für eigenen späteren Versand
+  // NEU: Nachricht beim Empfänger speichern (über localStorage – wird beim nächsten Öffnen angezeigt)
+  addLeftMessage(partnerCode, partnerName, text);
   toast(`📨 Nachricht für ${partnerName} hinterlegt`);
   chatId = oldChatId;
   closeLeaveMessageSheet();
@@ -983,47 +1061,27 @@ function handleData(d) {
   } else if(d.t === 'f-start') { fileBufs[d.id] = { meta:d, chunks: new Array(d.total).fill(null) }; toast(`📥 Empfange "${d.name}"...`); }
   else if(d.t === 'f-chunk') { const b = fileBufs[d.id]; if(b) b.chunks[d.idx] = d.data; }
   else if(d.t === 'f-end') { const b = fileBufs[d.id]; if(!b) return; const valid = b.chunks.filter(c=>c!==null); if(valid.length !== b.meta.total){ toast('❌ Übertragungsfehler'); return; } const blob = new Blob(valid, { type:b.meta.type }); const rd = new FileReader(); rd.onload = e => { const msg = { t:'file', url:e.target.result, name:b.meta.name, ftype:b.meta.type, size:b.meta.size, ts:Date.now(), own:false }; appendMsg(msg); persistMsg(msg); notify('📎 Datei: ' + b.meta.name); playNotificationSound(); triggerHaptic(); delete fileBufs[d.id]; }; rd.readAsDataURL(blob); }
-  
-  // ⭐ ALBEN-NACHRICHTEN
   else if (d.t === 'album_list_request') {
     getAllAlbums().then(async albums => {
       const list = [];
-      for (const album of albums) {
-        const photos = await getPhotosByAlbum(album.id);
-        list.push({ id: album.id, name: album.name, photoCount: photos.length });
-      }
+      for (const album of albums) { const photos = await getPhotosByAlbum(album.id); list.push({ id: album.id, name: album.name, photoCount: photos.length }); }
       if (conn && conn.open) conn.send({ t: 'album_list_response', list });
     }).catch(e => console.warn(e));
   }
   else if (d.t === 'album_list_response') {
     const albums = d.list || [];
-    if (albums.length) {
-      showPartnerAlbumsSheet(albums);
-    } else {
-      toast('ℹ️ Partner hat keine Alben');
-    }
+    if (albums.length) showPartnerAlbumsSheet(albums); else toast('ℹ️ Partner hat keine Alben');
   }
   else if (d.t === 'album_images_request') {
     const albumId = d.albumId;
     getPhotosByAlbum(albumId).then(photos => {
       conn.send({ t: 'album_images_meta', albumId, total: photos.length });
       for (const photo of photos) {
-        const dataURL = photo.dataURL;
-        const bytes = new TextEncoder().encode(dataURL);
+        const bytes = new TextEncoder().encode(photo.dataURL);
         const totalChunks = Math.ceil(bytes.length / CHUNK);
         for (let i = 0; i < totalChunks; i++) {
-          const start = i * CHUNK;
-          const end = Math.min(start + CHUNK, bytes.length);
-          const chunk = bytes.slice(start, end).buffer;
-          conn.send({
-            t: 'album_image_chunk',
-            albumId: albumId,
-            photoId: photo.id,
-            idx: i,
-            total: totalChunks,
-            chunk: chunk,
-            name: photo.name
-          });
+          const chunk = bytes.slice(i*CHUNK, Math.min((i+1)*CHUNK, bytes.length)).buffer;
+          conn.send({ t:'album_image_chunk', albumId, photoId:photo.id, idx:i, total:totalChunks, chunk, name:photo.name });
         }
       }
       conn.send({ t: 'album_images_end', albumId });
@@ -1031,35 +1089,23 @@ function handleData(d) {
   }
   else if (d.t === 'album_images_meta') {
     let meta = pendingAlbumMeta.get(d.albumId);
-    if (!meta) {
-      meta = { expectedCount: d.total, receivedCount: 0, images: [], timeout: null };
-      pendingAlbumMeta.set(d.albumId, meta);
-    } else {
-      meta.expectedCount = d.total;
-    }
+    if (!meta) { meta = { expectedCount: d.total, receivedCount:0, images:[], timeout:null }; pendingAlbumMeta.set(d.albumId, meta); }
+    else meta.expectedCount = d.total;
     if (meta.timeout) clearTimeout(meta.timeout);
     meta.timeout = setTimeout(() => {
-      if (meta.images.length > 0) {
-        buildGallery(meta.images);
-      } else {
-        document.getElementById('dynamic-gallery-overlay')?.remove();
-        toast('⚠️ Übertragung unvollständig');
-      }
+      if (meta.images.length) buildGallery(meta.images);
+      else { document.getElementById('dynamic-gallery-overlay')?.remove(); toast('⚠️ Übertragung unvollständig'); }
       pendingAlbumMeta.delete(d.albumId);
     }, 20000);
   }
-  else if (d.t === 'album_image_chunk') {
-    handleAlbumImageChunk(d);
-  }
-  else if (d.t === 'album_images_end') {
-    handleAlbumImagesEnd(d.albumId);
-  }
+  else if (d.t === 'album_image_chunk') handleAlbumImageChunk(d);
+  else if (d.t === 'album_images_end') handleAlbumImagesEnd(d.albumId);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CHAT-VERLAUF & UI-HILFEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
-function appendMsg(m) { const list = document.getElementById('messages'); const hint = document.getElementById('ehint'); if(hint && !hint.querySelector('.spin')) hint.remove(); const d = new Date(m.ts); const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' }); const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }); if(ds !== lastDate){ lastDate = ds; const sep = document.createElement('div'); sep.className = 'date-sep'; sep.textContent = ds; list.appendChild(sep); } const w = document.createElement('div'); w.className = 'msg ' + (m.own ? 'msg-o' : 'msg-i'); if(m.t === 'text'){ w.innerHTML = `<div class="bubble"><div class="btxt">${esc(m.text)}</div><div class="btime">${ts}${m.own?' ✓✓':''}</div></div>`; } else if(m.t === 'file'){ const isImg = m.ftype && m.ftype.startsWith('image/'); if(isImg){ w.innerHTML = `<div class="imgbbl" onclick="bigImg('${m.url}')"><img src="${m.url}" loading="lazy"></div><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } else { const icon = m.ftype?.includes('pdf') ? '📕' : m.ftype?.includes('zip') ? '🗜️' : m.ftype?.includes('video') ? '🎥' : '📄'; const sz = m.size > 1048576 ? (m.size/1048576).toFixed(1)+' MB' : Math.round(m.size/1024)+' KB'; w.innerHTML = `<a class="filbbl" href="${m.url}" download="${esc(m.name)}"><span style="font-size:1.4rem">${icon}</span><div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } } list.appendChild(w); list.scrollTop = list.scrollHeight; }
+function appendMsg(m) { const list = document.getElementById('messages'); const hint = document.getElementById('ehint'); if(hint && !hint.querySelector('.spin')) hint.remove(); const d = new Date(m.ts); const ds = d.toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long' }); const ts = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }); if(ds !== lastDate){ lastDate = ds; const sep = document.createElement('div'); sep.className = 'date-sep'; sep.textContent = ds; list.appendChild(sep); } const w = document.createElement('div'); w.className = 'msg ' + (m.own ? 'msg-o' : 'msg-i'); if(m.t === 'text'){ w.innerHTML = `<div class="bubble"><div class="btxt">${esc(m.text)}</div><div class="btime">${ts}${m.own?' ✓✓':''}</div></div>`; } else if(m.t === 'file'){ const isImg = m.ftype && m.ftype.startsWith('image/'); if(isImg){ w.innerHTML = `<div class="imgbbl" onclick="bigImg('${m.url}')"><img src="${m.url}" loading="lazy"></div><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } else { const icon = m.ftype?.includes('pdf')?'📕':m.ftype?.includes('zip')?'🗜️':m.ftype?.includes('video')?'🎥':'📄'; const sz = m.size>1048576?(m.size/1048576).toFixed(1)+' MB':Math.round(m.size/1024)+' KB'; w.innerHTML = `<a class="filbbl" href="${m.url}" download="${esc(m.name)}"><span style="font-size:1.4rem">${icon}</span><div><div class="fnam">${esc(m.name)}</div><div class="fsiz">${sz} · Tippen zum Speichern</div></div></a><div class="btime">${ts}${m.own?' ✓✓':''}</div>`; } } list.appendChild(w); list.scrollTop = list.scrollHeight; }
 function bigImg(url) { const w = window.open(); w.document.write(`<style>body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh}</style><img src="${url}">`); }
 
 function buildCID(a,b) { return 'sm_' + [a,b].sort().join('_'); }
@@ -1113,6 +1159,7 @@ window.addEventListener('load', () => {
   initDigits();
   renderPrev();
   renderMissed();
+  renderLeftMessages();   // NEU
   initPeer();
   initDB();
   ensureRingingToneCached();
