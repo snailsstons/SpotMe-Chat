@@ -689,6 +689,24 @@ window.addEventListener('load', () => {
       }, 2000);
     });
   }
+
+  // ═══ AUTO-CONNECT von spot.html ═══
+  const autoConnect = sessionStorage.getItem('sm_connect_to');
+  if (autoConnect && peer) {
+    sessionStorage.removeItem('sm_connect_to');
+    // warte kurz, bis PeerJS wirklich online ist
+    setTimeout(() => {
+      const inps = document.querySelectorAll('.dinp');
+      autoConnect.split('').forEach((ch, i) => {
+        if (inps[i]) {
+          inps[i].value = ch;
+          inps[i].classList.add('filled');
+        }
+      });
+      document.getElementById('cbtn').disabled = false;
+      connectToPeer();
+    }, 1500);
+  }
 });
 
 /* PROFIL-BACKUP */
