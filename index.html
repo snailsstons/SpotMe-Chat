@@ -5,24 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V46.1</title>
+<title>SpotMe · Chat V47</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V46.1">
+<meta name="apple-mobile-web-app-title" content="SpotMe V47">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
-<!-- Leaflet für Karten -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V46
+   DESIGN TOKENS – unverändert aus V46.1
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -322,6 +321,19 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   color: var(--muted);
   text-align: center;
 }
+
+/* Backup-Passwort Modal */
+#backup-password-modal .modal {
+  max-width: 360px;
+}
+#backup-password-input {
+  margin-bottom: 0.5rem;
+}
+.password-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.2rem;
+}
 </style>
 </head>
 <body>
@@ -331,10 +343,10 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V46.1</b></span>
+    <span class="bname">Spot<b>Me V47</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
-      <button class="sitem" onclick="backupProfile()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
+      <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
       <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
       <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
       <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
@@ -454,6 +466,35 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   </div>
 </div>
 
+<!-- Backup-Passwort Modal -->
+<div class="sheet-ovl" id="backup-password-ovl" onclick="closeBackupPasswordModal()"></div>
+<div class="sheet" id="backup-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup verschlüsseln?</div>
+  <div class="sheet-body">
+    <input type="password" id="backup-password-input" class="minp" placeholder="Passwort (leer = unverschlüsselt)" style="width:100%;">
+    <div class="password-hint">⚡ Empfohlen, wenn du sensible Daten sicherst.</div>
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeBackupPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="performBackupWithPassword()">Backup erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import-Passwort Modal -->
+<div class="sheet-ovl" id="import-password-ovl" onclick="closeImportPasswordModal()"></div>
+<div class="sheet" id="import-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup entschlüsseln</div>
+  <div class="sheet-body">
+    <input type="password" id="import-password-input" class="minp" placeholder="Passwort" style="width:100%; margin-bottom:1rem;">
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeImportPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitImportPassword()">Entschlüsseln</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
 <div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
 
@@ -494,11 +535,14 @@ let locationWatchId = null;
 let locationInterval = null;
 let currentRadius = 500;
 
+// Backup-Zwischenspeicher für Passwort-Import
+let pendingRestoreFile = null;
+
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PENDING MESSAGES
+// PENDING MESSAGES (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getPendingStorageKey() { return chatId ? 'sm_pending_' + chatId : 'sm_pending_temp'; }
 function loadPendingMessages() { const key = getPendingStorageKey(); const stored = localStorage.getItem(key); try { pendingMessages = stored ? JSON.parse(stored) : []; } catch(e){ pendingMessages = []; } updatePendingBadge(); }
@@ -510,7 +554,7 @@ function flushPendingMessages() { if(!conn || !conn.open) return; if(pendingMess
 function migratePendingMessages(newChatId) { const oldKey = 'sm_pending_temp'; const stored = localStorage.getItem(oldKey); if(stored){ try{ const tempMsgs = JSON.parse(stored); if(tempMsgs.length > 0){ pendingMessages = tempMsgs; savePendingMessages(); localStorage.removeItem(oldKey); updatePendingBadge(); } } catch(e){} } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AUDIO & HAPTIK
+// AUDIO & HAPTIK (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
@@ -527,7 +571,7 @@ function playNotificationSound() { try{ const ctx = new (window.AudioContext || 
 function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERPASSTE ANRUFE
+// VERPASSTE ANRUFE (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
@@ -537,7 +581,7 @@ function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) { const inps = document.querySelectorAll('.dinp'); code.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled = false; connectToPeer(); setTimeout(()=>{ inps.forEach(d=>{ d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; },200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KONTAKTE & NAMEN
+// KONTAKTE & NAMEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
@@ -547,7 +591,7 @@ function setAlias(code, name) { const c = getContacts(); if(name) c[code] = name
 function refreshStatusText() { const statusEl = document.getElementById('pstatus'); if(!statusEl) return; if(partnerTypingTimer !== null){ statusEl.textContent = '✍️ schreibt...'; statusEl.className = 'pstatus'; return; } if(conn && conn.open){ statusEl.textContent = '● Verbunden'; statusEl.className = 'pstatus'; } else { if(document.getElementById('s-chat').classList.contains('active')){ statusEl.textContent = '○ Verbinde...'; statusEl.className = 'pstatus dim'; } else { statusEl.textContent = '○ Verbindung getrennt'; statusEl.className = 'pstatus dim'; } } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INDEXEDDB – VERSION 3 (Alben & Fotos)
+// INDEXEDDB – VERSION 3 (Alben & Fotos) – unverändert
 // ══════════════════════════════════════════════════════════════════════════════
 let db = null;
 const DB_NAME = 'SpotMeDB';
@@ -675,7 +719,7 @@ async function deletePhotosByAlbum(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ALBUM-MENÜ & PARTNER-INTERAKTION
+// ALBUM-MENÜ & PARTNER-INTERAKTION (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function showAlbumMenu() {
   if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
@@ -741,7 +785,7 @@ function showImageOverlayLoader() {
   document.body.appendChild(overlay);
 }
 
-// ⭐⭐⭐ GALERIE-STEUERUNG
+// ⭐⭐⭐ GALERIE-STEUERUNG (unverändert)
 let currentGalleryImages = [];
 let currentGalleryIndex = 0;
 function buildGallery(images) {
@@ -786,7 +830,7 @@ function buildGallery(images) {
   updateImage();
 }
 
-// ⭐ Chunking für Album-Bilder (byte-genau)
+// ⭐ Chunking für Album-Bilder (byte-genau) – unverändert
 let pendingAlbumChunks = new Map();
 let pendingAlbumMeta = new Map();
 function handleAlbumImageChunk(d) {
@@ -817,7 +861,7 @@ function handleAlbumImagesEnd(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPRACHNACHRICHTEN
+// SPRACHNACHRICHTEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 let mediaRecorder = null;
 let audioChunks = [];
@@ -883,7 +927,7 @@ async function toggleVoiceRecording() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// LOCATION FUNKTIONEN
+// LOCATION FUNKTIONEN (NEU) – unverändert
 // ══════════════════════════════════════════════════════════════════════════════
 function openLocationScreen() {
   if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
@@ -996,7 +1040,7 @@ function formatDistance(m) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG
+// PEERJS & VERBINDUNG (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -1160,7 +1204,7 @@ function prepChat() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NACHRICHTEN & DATEIEN
+// NACHRICHTEN & DATEIEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
@@ -1272,7 +1316,7 @@ function handleData(d) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHAT-VERLAUF & UI-HILFEN
+// CHAT-VERLAUF & UI-HILFEN (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function appendMsg(m) {
   const list = document.getElementById('messages');
@@ -1382,14 +1426,34 @@ function shareCode() { if(navigator.share) navigator.share({ title:'SpotMe', tex
 function escapeHtml(s) { return esc(s); }
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
+function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', 'Offline'); showScreen('s-home'); }
+function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ⭐⭐⭐ VOLLSTÄNDIGES BACKUP (KORRIGIERT)
+// VERSCHLÜSSELTES BACKUP (NEU)
 // ══════════════════════════════════════════════════════════════════════════════
-async function backupProfile() {
+function showBackupPasswordModal() {
   closeHomeMenu();
+  document.getElementById('backup-password-input').value = '';
+  document.getElementById('backup-password-ovl').classList.add('open');
+  document.getElementById('backup-password-sheet').classList.add('open');
+}
+
+function closeBackupPasswordModal() {
+  document.getElementById('backup-password-ovl').classList.remove('open');
+  document.getElementById('backup-password-sheet').classList.remove('open');
+}
+
+async function performBackupWithPassword() {
+  const password = document.getElementById('backup-password-input').value;
+  closeBackupPasswordModal();
+  await createBackup(password);
+}
+
+async function createBackup(password) {
   toast('📦 Sammle Daten für Backup...');
   try {
+    // Daten sammeln (wie zuvor)
     const lsData = {};
     const keysToBackup = ['sm_code','sm_name','sm_contacts','sm_idx','sm_missed','sm_voice_enabled','sm_spot_published','sm_profile'];
     for (const key of keysToBackup) { const val = localStorage.getItem(key); if (val !== null) lsData[key] = val; }
@@ -1403,53 +1467,174 @@ async function backupProfile() {
       const albumPhotos = await getPhotosByAlbum(album.id);
       photos.push(...albumPhotos.map(p => ({ albumName: album.name, dataURL: p.dataURL, name: p.name, timestamp: p.timestamp })));
     }
-    const backup = {
+    const backupData = {
       _spotme_backup: true, _version: 3, _date: new Date().toISOString(),
       localStorage: lsData, chatMessages,
       indexedDB: { albums: albums.map(a=>({ name:a.name, createdAt:a.createdAt, updatedAt:a.updatedAt })), photos }
     };
-    const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `SpotMe_FullBackup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
-    toast('💾 Vollständiges Backup gespeichert');
-  } catch(e) { toast('❌ Fehler: '+e.message); }
+
+    let finalBlob;
+    if (password) {
+      // Verschlüsseln
+      const enc = await encryptData(JSON.stringify(backupData), password);
+      finalBlob = new Blob([JSON.stringify({ _spotme_backup: true, _encrypted: true, _version: 3, data: enc })], {type:'application/json'});
+      toast('🔐 Verschlüsseltes Backup erstellt');
+    } else {
+      finalBlob = new Blob([JSON.stringify(backupData, null, 2)], {type:'application/json'});
+      toast('💾 Unverschlüsseltes Backup gespeichert');
+    }
+
+    const url = URL.createObjectURL(finalBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SpotMe_Backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    toast('❌ Fehler: ' + e.message);
+  }
 }
 
-async function restoreProfile(input) {
+// Verschlüsselung: AES-GCM, PBKDF2
+async function encryptData(text, password) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+  
+  // Alles in ein Objekt packen und als Base64
+  const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
+  
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptData(encryptedBase64, password) {
+  const enc = new TextEncoder();
+  const combined = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+  
+  const salt = combined.slice(0, 16);
+  const iv = combined.slice(16, 28);
+  const ciphertext = combined.slice(28);
+  
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return new TextDecoder().decode(decrypted);
+}
+
+// Import-Funktionen (mit Passwortabfrage)
+function restoreProfile(input) {
   closeHomeMenu();
   if (!input.files[0]) return;
-  const rd = new FileReader();
-  rd.onload = async e => {
+  pendingRestoreFile = input.files[0];
+  const reader = new FileReader();
+  reader.onload = async (e) => {
     try {
-      const d = JSON.parse(e.target.result);
-      if (!d._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); return; }
-      let codeDisplay='unbekannt', nameDisplay='unbekannt';
-      try { codeDisplay = d.localStorage?.sm_code ? formatCode(JSON.parse(d.localStorage.sm_code)) : 'unbekannt'; } catch {}
-      try { nameDisplay = d.localStorage?.sm_name ? JSON.parse(d.localStorage.sm_name) : 'unbekannt'; } catch {}
-      if (!confirm(`Vollständiges Backup wiederherstellen?\n\nCode: ${codeDisplay}\nName: ${nameDisplay}\nAlben: ${d.indexedDB?.albums?.length||0}, Fotos: ${d.indexedDB?.photos?.length||0}\nChats: ${Object.keys(d.chatMessages||{}).length}\nDatum: ${d._date?.slice(0,10)||'?'}\n\n⚠️ Alle aktuellen Daten werden überschrieben!`)) return;
-      toast('🔄 Stelle Backup wieder her...');
-      const keysToClear = [];
-      for (let i=0; i<localStorage.length; i++) { const key=localStorage.key(i); if (key&&(key.startsWith('sm_')||key.startsWith('smmsg_')||key.startsWith('sm_pending_'))) keysToClear.push(key); }
-      keysToClear.forEach(k=>localStorage.removeItem(k));
-      if (d.localStorage) Object.entries(d.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
-      if (d.chatMessages) Object.entries(d.chatMessages).forEach(([k,v])=>localStorage.setItem(k,v));
-      await initDB();
-      const oldAlbums = await getAllAlbums();
-      for (const a of oldAlbums) await deleteAlbum(a.id);
-      const albumIdMap = new Map();
-      if (d.indexedDB?.albums) for (const a of d.indexedDB.albums) { const id = await createAlbum(a.name); albumIdMap.set(a.name, id); }
-      if (d.indexedDB?.photos) for (const p of d.indexedDB.photos) { const aid = albumIdMap.get(p.albumName); if (aid) await addPhoto(aid, p.dataURL, p.name); }
-      toast('✅ Backup wiederhergestellt · Neustart...');
-      setTimeout(()=>location.reload(),2000);
-    } catch(ex) { toast('❌ Fehler: '+ex.message); }
+      const raw = e.target.result;
+      const json = JSON.parse(raw);
+      if (!json._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); pendingRestoreFile = null; return; }
+      
+      if (json._encrypted) {
+        // Verschlüsselt → Passwort abfragen
+        document.getElementById('import-password-input').value = '';
+        document.getElementById('import-password-ovl').classList.add('open');
+        document.getElementById('import-password-sheet').classList.add('open');
+      } else {
+        // Unverschlüsselt → direkt wiederherstellen
+        await performRestore(json);
+        pendingRestoreFile = null;
+      }
+    } catch (ex) {
+      toast('❌ Ungültige Datei');
+      pendingRestoreFile = null;
+    }
   };
-  rd.readAsText(input.files[0]);
+  reader.readAsText(pendingRestoreFile);
   input.value = '';
 }
 
-function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', 'Offline'); showScreen('s-home'); }
-function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
+function closeImportPasswordModal() {
+  document.getElementById('import-password-ovl').classList.remove('open');
+  document.getElementById('import-password-sheet').classList.remove('open');
+  pendingRestoreFile = null;
+}
+
+async function submitImportPassword() {
+  const password = document.getElementById('import-password-input').value;
+  if (!password) { toast('Bitte Passwort eingeben'); return; }
+  closeImportPasswordModal();
+  
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const json = JSON.parse(e.target.result);
+        const decrypted = await decryptData(json.data, password);
+        const backupData = JSON.parse(decrypted);
+        await performRestore(backupData);
+      } catch (ex) {
+        toast('❌ Falsches Passwort oder beschädigte Datei');
+      }
+      pendingRestoreFile = null;
+    };
+    reader.readAsText(pendingRestoreFile);
+  } catch (e) {
+    toast('❌ Fehler beim Entschlüsseln');
+    pendingRestoreFile = null;
+  }
+}
+
+async function performRestore(backupData) {
+  try {
+    let codeDisplay='unbekannt', nameDisplay='unbekannt';
+    try { codeDisplay = backupData.localStorage?.sm_code ? formatCode(JSON.parse(backupData.localStorage.sm_code)) : 'unbekannt'; } catch {}
+    try { nameDisplay = backupData.localStorage?.sm_name ? JSON.parse(backupData.localStorage.sm_name) : 'unbekannt'; } catch {}
+    if (!confirm(`Backup wiederherstellen?\n\nCode: ${codeDisplay}\nName: ${nameDisplay}\nAlben: ${backupData.indexedDB?.albums?.length||0}, Fotos: ${backupData.indexedDB?.photos?.length||0}\nChats: ${Object.keys(backupData.chatMessages||{}).length}\nDatum: ${backupData._date?.slice(0,10)||'?'}\n\n⚠️ Alle aktuellen Daten werden überschrieben!`)) return;
+
+    toast('🔄 Stelle Backup wieder her...');
+    
+    // LocalStorage leeren
+    const keysToClear = [];
+    for (let i=0; i<localStorage.length; i++) { const key=localStorage.key(i); if (key&&(key.startsWith('sm_')||key.startsWith('smmsg_')||key.startsWith('sm_pending_'))) keysToClear.push(key); }
+    keysToClear.forEach(k=>localStorage.removeItem(k));
+    
+    if (backupData.localStorage) Object.entries(backupData.localStorage).forEach(([k,v])=>localStorage.setItem(k,v));
+    if (backupData.chatMessages) Object.entries(backupData.chatMessages).forEach(([k,v])=>localStorage.setItem(k,v));
+    
+    await initDB();
+    const oldAlbums = await getAllAlbums();
+    for (const a of oldAlbums) await deleteAlbum(a.id);
+    
+    const albumIdMap = new Map();
+    if (backupData.indexedDB?.albums) for (const a of backupData.indexedDB.albums) { const id = await createAlbum(a.name); albumIdMap.set(a.name, id); }
+    if (backupData.indexedDB?.photos) for (const p of backupData.indexedDB.photos) { const aid = albumIdMap.get(p.albumName); if (aid) await addPhoto(aid, p.dataURL, p.name); }
+    
+    toast('✅ Backup wiederhergestellt · Neustart...');
+    setTimeout(()=>location.reload(),2000);
+  } catch (ex) {
+    toast('❌ Fehler: ' + ex.message);
+  }
+}
 
 let tTimer = null;
 function toast(msg, ms=2400) { const ex = document.querySelector('.toast'); if(ex) ex.remove(); const t = document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show'))); clearTimeout(tTimer); tTimer = setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, ms); }
