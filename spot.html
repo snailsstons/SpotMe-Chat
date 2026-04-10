@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>SpotMe · Community</title>
+<title>SpotMe · Community v2.1</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -282,6 +282,7 @@ html, body {
 }
 .btn-chat:active { transform:scale(.96); opacity:.9 }
 
+/* Location Modal (erweitert) */
 .location-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.8);
   z-index: 1000; display: none; align-items: center; justify-content: center;
@@ -290,6 +291,11 @@ html, body {
 .location-modal {
   background: var(--card2); border: 1px solid var(--bord2);
   border-radius: 24px; padding: 1.5rem; width: 90%; max-width: 400px;
+  transition: background 0.2s;
+}
+.location-modal.inside {
+  background: rgba(30, 204, 104, 0.08);
+  border-color: var(--green);
 }
 .location-modal-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -304,7 +310,34 @@ html, body {
   color: var(--text); font-size: 1.2rem; cursor: pointer;
 }
 #location-map-small { height: 200px; border-radius: 12px; margin-bottom: 1rem; }
-.location-distance { text-align: center; font-weight: 600; }
+.location-distance {
+  text-align: center;
+  font-weight: 600;
+  padding: 0.5rem;
+  border-radius: 12px;
+  margin-bottom: 0.8rem;
+}
+.location-distance.inside {
+  background: rgba(30, 204, 104, 0.15);
+  color: var(--green);
+}
+.checkin-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--acc);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+.checkin-btn:active { transform: scale(0.97); }
 
 .state-box {
   text-align:center; padding:3rem 1.5rem; color:var(--muted);
@@ -341,7 +374,7 @@ html, body {
 <nav class="topnav">
   <div class="topnav-inner">
     <a class="back-link" href="index.html" title="Zurück zum Chat">‹</a>
-    <div class="nav-title">Spot<b>Me</b> <span style="color:var(--muted2);font-family:'DM Sans',sans-serif;font-weight:300;font-size:.9rem">Community</span></div>
+    <div class="nav-title">Spot<b>Me</b> <span style="color:var(--muted2);font-family:'DM Sans',sans-serif;font-weight:300;font-size:.9rem">Community v2.1</span></div>
     <button class="refresh-btn" id="refresh-btn" onclick="loadCommunity()" title="Aktualisieren">↺</button>
   </div>
 </nav>
@@ -415,13 +448,14 @@ html, body {
 </div>
 
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
-  <div class="location-modal" onclick="event.stopPropagation()">
+  <div class="location-modal" id="location-modal-content" onclick="event.stopPropagation()">
     <div class="location-modal-header">
       <div class="location-modal-title" id="location-modal-name">Standort</div>
       <button class="location-modal-close" onclick="closeLocationModal()">✕</button>
     </div>
     <div id="location-map-small"></div>
     <div class="location-distance" id="location-distance"></div>
+    <button class="checkin-btn" id="checkin-btn" onclick="performCheckIn()">📍 Hier einchecken</button>
   </div>
 </div>
 
@@ -435,6 +469,7 @@ const CHAT_PAGE = 'index.html';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
+const DEFAULT_RADIUS = 500; // Meter
 
 let myProfile = null;
 let myCode = localStorage.getItem('sm_code') || '';
@@ -445,6 +480,12 @@ let filtered = [];
 let keepaliveTimer = null;
 let locationTimer = null;
 let locationWatchId = null;
+
+// Für Check‑In Modal
+let currentTargetCode = null;
+let currentTargetLat = null, currentTargetLng = null;
+let currentMap = null, userMarker = null, targetMarker = null;
+let userPosition = null;
 
 const REGIONS = [
   'Andalusien','Aragón','Asturien','Balearen','Baskenland',
@@ -731,47 +772,140 @@ function profileCard(p) {
   </div>`;
 }
 
-let currentLocationMap = null, userMarker = null, targetMarker = null, userPosition = null;
+// ═══════════════════════════════════════════════════════════════════
+// CHECK‑IN FUNKTIONEN
+// ═══════════════════════════════════════════════════════════════════
 function showLocationOnMap(code, name, lat, lng) {
+  currentTargetCode = code;
+  currentTargetLat = lat;
+  currentTargetLng = lng;
+  
   const modal = document.getElementById('location-modal');
+  const modalContent = document.getElementById('location-modal-content');
   document.getElementById('location-modal-name').textContent = name;
   modal.style.display = 'flex';
+  
+  // Reset Modal-Styles
+  modalContent.classList.remove('inside');
+  document.getElementById('location-distance').classList.remove('inside');
+  
   setTimeout(() => {
-    if (!currentLocationMap) {
-      currentLocationMap = L.map('location-map-small').setView([lat, lng], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentLocationMap);
-    } else { currentLocationMap.setView([lat, lng], 14); }
-    if (targetMarker) currentLocationMap.removeLayer(targetMarker);
-    targetMarker = L.marker([lat, lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup(name).openPopup();
-    if (userPosition) {
-      if (userMarker) currentLocationMap.removeLayer(userMarker);
-      userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
-    }
-    if (userPosition) {
-      document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
+    if (!currentMap) {
+      currentMap = L.map('location-map-small').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
     } else {
-      document.getElementById('location-distance').textContent = '';
+      currentMap.setView([lat, lng], 14);
     }
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if (userMarker) currentLocationMap.removeLayer(userMarker);
-        userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
-        document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
-      }, () => {});
+    
+    // Ziel-Marker
+    if (targetMarker) currentMap.removeLayer(targetMarker);
+    targetMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup(name).openPopup();
+    
+    // Prüfen, ob bereits eine eigene Position bekannt ist
+    updateModalDistance();
+    
+    // Falls keine Position, dezenten Hinweis
+    if (!userPosition) {
+      document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
     }
   }, 100);
 }
-function closeLocationModal(e) { if (e && e.target !== document.getElementById('location-modal')) return; document.getElementById('location-modal').style.display = 'none'; }
-function formatDistanceToUser(locData) { if (!userPosition) return ''; return formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng)); }
+
+async function performCheckIn() {
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '⏳ Position wird ermittelt...';
+  btn.disabled = true;
+  
+  if (!navigator.geolocation) {
+    toast('❌ Geolocation nicht unterstützt');
+    btn.textContent = '📍 Hier einchecken';
+    btn.disabled = false;
+    return;
+  }
+  
+  try {
+    const pos = await new Promise((res, rej) => 
+      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 })
+    );
+    userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    
+    // Eigene Position an Server senden (für andere sichtbar machen)
+    if (myCode) {
+      await sendLocationToServer(userPosition.lat, userPosition.lng);
+      if (!isSharingLocation) {
+        // Automatisch "teilen" aktivieren, wenn noch nicht geschehen
+        isSharingLocation = true;
+        localStorage.setItem('sm_spot_location', '1');
+        updateLocationUI();
+        startLocationSharing();
+      }
+    }
+    
+    // Marker aktualisieren
+    if (userMarker) currentMap.removeLayer(userMarker);
+    userMarker = L.marker([userPosition.lat, userPosition.lng], {
+      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup('Du').openPopup();
+    
+    updateModalDistance();
+    toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
+  } catch (e) {
+    toast('❌ Standort konnte nicht ermittelt werden');
+  } finally {
+    btn.textContent = '📍 Hier einchecken';
+    btn.disabled = false;
+  }
+}
+
+function updateModalDistance() {
+  if (!userPosition || !currentTargetLat || !currentTargetLng) return;
+  
+  const dist = getDistance(userPosition.lat, userPosition.lng, currentTargetLat, currentTargetLng);
+  const inside = dist <= DEFAULT_RADIUS;
+  
+  const distEl = document.getElementById('location-distance');
+  distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
+  
+  const modalContent = document.getElementById('location-modal-content');
+  if (inside) {
+    distEl.classList.add('inside');
+    modalContent.classList.add('inside');
+  } else {
+    distEl.classList.remove('inside');
+    modalContent.classList.remove('inside');
+  }
+}
+
+function closeLocationModal(e) {
+  if (e && e.target !== document.getElementById('location-modal')) return;
+  document.getElementById('location-modal').style.display = 'none';
+  // Nicht alles löschen, damit bei erneutem Öffnen die Karte erhalten bleibt
+}
+
+function formatDistanceToUser(locData) {
+  if (!userPosition) return '';
+  return formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng));
+}
+
 function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180, Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
   const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-function formatDistance(m) { return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km'; }
 
-function startChat(code, name) { if (!code) return; sessionStorage.setItem('sm_connect_to', code); sessionStorage.setItem('sm_connect_name', name); window.location.href = CHAT_PAGE; }
+function formatDistance(m) {
+  return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km';
+}
+
+function startChat(code, name) {
+  if (!code) return;
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = CHAT_PAGE;
+}
 
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 function timeAgo(ts) {
@@ -781,7 +915,12 @@ function timeAgo(ts) {
   return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
 }
 let tTimer = null;
-function toast(msg, ms = 2800) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(tTimer); tTimer = setTimeout(() => el.classList.remove('show'), ms); }
+function toast(msg, ms = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(tTimer);
+  tTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
 </script>
 </body>
 </html>
