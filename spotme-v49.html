@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>SpotMe · Chat V49</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SpotMe V49">
+
+  <!-- Externe Bibliotheken -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- Eigene Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- SCREEN 1 – HOME -->
+<div id="s-home" class="screen active">
+  <div class="inner">
+    <div class="brand">
+      <div class="bdot"></div>
+      <span class="bname">Spot<b>Me V49</b></span>
+      <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
+      <div class="home-drop" id="home-drop">
+        <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
+        <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
+        <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
+      </div>
+    </div>
+    <div class="hero-title">Privat &amp;<br>Direkt.</div>
+    <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
+    <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
+    <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
+    <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
+    <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
+    <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
+    <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
+  </div>
+</div>
+
+<!-- SCREEN 2 – INCOMING CALL -->
+<div id="s-in" class="screen"><div class="call-wrap"><div class="caller-ring">🧑</div><div class="caller-name" id="in-name">...</div><div class="caller-code" id="in-code">Code: ---</div><div class="caller-hint">möchte mit dir chatten</div><div class="call-btns"><button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button><button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button></div></div></div>
+
+<!-- SCREEN 3 – CHAT -->
+<div id="s-chat" class="screen">
+  <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div>
+    <button class="album-btn" onclick="showAlbumMenu()" title="Alben">🖼️</button>
+    <button class="location-btn" onclick="openLocationScreen()" title="Treffpunkt">📍</button>
+    <button class="menu-btn" onclick="openSheet()">☰</button>
+  </div>
+  <div class="rcbar" id="rcbar"><span>○ Verbindung unterbrochen</span><button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button></div>
+  <div class="messages" id="messages"><div class="empty-chat" id="ehint"><div class="empty-icon">💬</div><div class="empty-txt">Verbindung wird aufgebaut...</div><div class="empty-hint"><span class="spin"></span></div></div></div>
+  <div class="icont"><div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div><div class="ibar">
+    <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button>
+    <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
+    <button class="voice-btn" id="voice-btn" onclick="toggleVoiceRecording()" title="Sprachnachricht" style="display:none;">🎤</button>
+    <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
+    <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
+  </div></div>
+</div>
+
+<!-- SCREEN 6 – LOCATION -->
+<div id="s-location" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="closeLocationScreen()">‹</button>
+    <div class="peer-wrap">
+      <div class="pinfo"><div class="pname">📍 Treffpunkt</div><div class="pstatus dim" id="location-status-text">Warte auf Standort...</div></div>
+    </div>
+    <div style="width:52px"></div>
+  </div>
+  <div id="location-map"></div>
+  <div class="location-controls">
+    <div class="location-radius-row">
+      <label>Radius</label>
+      <input type="range" id="radius-slider" min="50" max="5000" step="10" value="500">
+      <span class="radius-value" id="radius-value">500 m</span>
+    </div>
+    <div class="distance-info" id="distance-info">--</div>
+    <div class="location-status" id="location-status">Teilen aktiv – Position wird alle 5s gesendet</div>
+  </div>
+</div>
+
+<!-- Veraltete Screens -->
+<div id="s-vault" class="screen"></div>
+<div id="s-partner-vault" class="screen"></div>
+
+<!-- BOTTOM SHEETS -->
+<div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Chat-Optionen</div>
+  <div class="sheet-body">
+    <button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button>
+    <div class="ssep"></div>
+    <div class="sitem" onclick="toggleVoiceButton()">
+      <div class="sico si-g" id="voice-toggle-icon">🎤</div>
+      <div class="slab"><div>Mikrofon‑Button</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Button in Chatleiste</div></div>
+    </div>
+    <div class="ssep"></div>
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button>
+    <button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button>
+    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button>
+  </div>
+</div>
+
+<!-- Album-Menü Sheet -->
+<div class="sheet-ovl" id="album-menu-ovl" onclick="closeAlbumMenu()"></div>
+<div class="sheet" id="album-menu-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Alben</div>
+  <div class="sheet-body" id="album-menu-body"></div>
+</div>
+
+<!-- Partner-Alben Auswahl Sheet -->
+<div class="sheet-ovl" id="partner-albums-ovl" onclick="closePartnerAlbumsSheet()"></div>
+<div class="sheet" id="partner-albums-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="partner-albums-title">Alben von ...</div>
+  <div class="sheet-body" id="partner-albums-body"></div>
+</div>
+
+<!-- Nachricht hinterlassen Modal -->
+<div class="sheet-ovl" id="leave-message-ovl" onclick="closeLeaveMessageSheet()"></div>
+<div class="sheet" id="leave-message-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Nachricht hinterlassen</div>
+  <div class="sheet-body">
+    <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" style="width:100%; margin-bottom:1rem;"></textarea>
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeLeaveMessageSheet()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitLeaveMessage()">Senden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Backup-Passwort Modal -->
+<div class="sheet-ovl" id="backup-password-ovl" onclick="closeBackupPasswordModal()"></div>
+<div class="sheet" id="backup-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup verschlüsseln?</div>
+  <div class="sheet-body">
+    <input type="password" id="backup-password-input" class="minp" placeholder="Passwort (leer = unverschlüsselt)" style="width:100%;">
+    <div class="password-hint">⚡ Empfohlen, wenn du sensible Daten sicherst.</div>
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeBackupPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="performBackupWithPassword()">Backup erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import-Passwort Modal -->
+<div class="sheet-ovl" id="import-password-ovl" onclick="closeImportPasswordModal()"></div>
+<div class="sheet" id="import-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup entschlüsseln</div>
+  <div class="sheet-body">
+    <input type="password" id="import-password-input" class="minp" placeholder="Passwort" style="width:100%; margin-bottom:1rem;">
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeImportPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitImportPassword()">Entschlüsseln</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+<div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
+
+<!-- Externes JavaScript -->
+<script src="script.js"></script>
+</body>
+</html>
