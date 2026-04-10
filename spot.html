@@ -44,7 +44,7 @@
 
     /* ─── Header ─── */
     .app-header {
-      padding: 1rem 1.25rem;
+      padding: 0.75rem 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -53,16 +53,35 @@
       backdrop-filter: blur(24px);
       flex-shrink: 0;
     }
+    .header-left, .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .back-btn, .refresh-btn {
+      width: 40px; height: 40px; border-radius: 12px;
+      border: 1px solid var(--bord2); background: rgba(255,255,255,.04);
+      color: var(--muted2); font-size: 1.5rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; text-decoration: none;
+    }
+    .back-btn { font-size: 1.8rem; line-height: 1; }
+    .refresh-btn { font-size: 1.2rem; }
+    .back-btn:active, .refresh-btn:active { background: rgba(255,255,255,.09); color: var(--text); }
+    .refresh-btn.spinning { animation: spin 0.6s linear infinite; pointer-events: none; opacity: 0.6; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .logo {
       font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: 1px;
-      font-size: 1.3rem; color: var(--acc);
+      font-size: 1.2rem; color: var(--acc);
     }
     .logo b { color: var(--text); font-weight: 800; }
     .status-badge {
-      font-size: 0.65rem; font-weight: 600; letter-spacing: 1px;
+      font-size: 0.6rem; font-weight: 600; letter-spacing: 1px;
       color: var(--acc); background: var(--acc-dim);
-      padding: 0.25rem 0.8rem; border-radius: 100px;
+      padding: 0.2rem 0.6rem; border-radius: 100px;
       border: 1px solid rgba(0,229,192,.2);
+      white-space: nowrap;
     }
 
     /* ─── Profil‑Card (kompakt) ─── */
@@ -339,8 +358,14 @@
 <body>
 
 <header class="app-header">
-  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.9rem;">RADAR</span></div>
-  <div class="status-badge" id="status-indicator">● DISCOVERY</div>
+  <div class="header-left">
+    <button class="back-btn" onclick="goHome()" title="Zurück zum Chat">‹</button>
+  </div>
+  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">RADAR</span></div>
+  <div class="header-right">
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
+    <div class="status-badge" id="status-indicator">● DISCOVERY</div>
+  </div>
 </header>
 
 <div class="profile-bar" id="profile-bar" style="display:none;">
@@ -464,6 +489,24 @@ window.addEventListener('load', async () => {
   if (isSharingLocation) await startLocationSharing();
   renderAll();
 });
+
+function goHome() {
+  window.location.href = 'index.html';
+}
+
+async function refreshSpot() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  try {
+    await loadCommunity();
+    renderAll();
+    toast('🔄 Community aktualisiert');
+  } catch (e) {
+    toast('⚠️ Aktualisierung fehlgeschlagen');
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
 
 function buildRegionFilter() {
   const sel = document.getElementById('f-region');
@@ -602,13 +645,11 @@ async function sendLocationToServer(lat, lng) {
 }
 
 async function loadCommunity() {
-  try {
-    const res = await fetch(API + '/profiles');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    allProfiles = await res.json();
-    await Promise.all(allProfiles.map(p => fetchLocationForProfile(p.code)));
-    applyFilters();
-  } catch(e) { console.warn('Community load error', e); }
+  const res = await fetch(API + '/profiles');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  allProfiles = await res.json();
+  await Promise.all(allProfiles.map(p => fetchLocationForProfile(p.code)));
+  applyFilters();
 }
 
 async function fetchLocationForProfile(code) {
