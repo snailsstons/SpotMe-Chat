@@ -165,24 +165,34 @@ body {
 }
 .peer-node:hover::after { opacity: 1; }
 
-/* ─── Listenbereich ─── */
+/* ─── Horizontale Profil-Liste ─── */
 .community-list-section {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 1.25rem 1rem;
+  flex: 0 0 auto;
+  padding: 0 0 0.5rem 0;
   background: var(--bg);
 }
-.section-label {
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--muted);
+.horizontal-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.5rem 1.25rem 1rem 1.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
-.community-count { font-size: 0.8rem; color: var(--muted2); }
-.community-count b { color: var(--text); font-weight: 600; }
+.horizontal-scroll::-webkit-scrollbar { display: none; }
 
 .profile-card {
-  background: var(--card2); border: 1px solid var(--bord);
-  border-radius: 18px; padding: 1rem; margin-bottom: 0.8rem;
-  transition: border-color 0.2s; position: relative; overflow: hidden;
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  background: var(--card2);
+  border: 1px solid var(--bord);
+  border-radius: 18px;
+  padding: 0.9rem;
+  margin-bottom: 0;
+  transition: border-color 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 .profile-card:active { border-color: var(--bord2); }
 .profile-card::before {
@@ -193,19 +203,19 @@ body {
 .profile-card.bi::before     { background: linear-gradient(90deg,var(--p3),var(--p2)); opacity: 1; }
 .profile-card.hetero::before { background: linear-gradient(90deg,var(--muted),var(--muted2)); opacity: 0.4; }
 
-.card-top { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.8rem; }
+.card-top { display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.6rem; }
 .card-av {
-  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
   background: linear-gradient(135deg,var(--p2),var(--p3));
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; border: 2px solid var(--bord2);
+  font-size: 1.1rem; border: 2px solid var(--bord2);
 }
 .card-info { flex: 1; min-width: 0; }
 .card-name {
-  font-family: 'Syne',sans-serif; font-weight: 700; font-size: 1rem;
+  font-family: 'Syne',sans-serif; font-weight: 700; font-size: 0.95rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.card-age-loc { font-size: 0.8rem; color: var(--muted2); margin-top: 0.2rem; }
+.card-age-loc { font-size: 0.75rem; color: var(--muted2); margin-top: 0.2rem; }
 .card-age-loc b { color: var(--muted); font-weight: 500; }
 .online-dot {
   width: 9px; height: 9px; border-radius: 50%;
@@ -222,30 +232,32 @@ body {
 }
 .location-badge:active { background: rgba(0,229,192,.2); }
 
-.card-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+.card-badges {
+  display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem;
+}
 .badge {
-  padding: 0.22rem 0.65rem; border-radius: 100px; font-size: 0.73rem; font-weight: 500;
+  padding: 0.15rem 0.5rem; border-radius: 100px; font-size: 0.7rem; font-weight: 500;
   border: 1px solid transparent;
 }
 .badge-homo   { background: rgba(123,92,250,.12); color: var(--p2); border-color: rgba(123,92,250,.25); }
 .badge-bi     { background: rgba(255,79,123,.1);  color: var(--p3); border-color: rgba(255,79,123,.22); }
 .badge-hetero { background: rgba(255,255,255,.05); color: var(--muted2); border-color: var(--bord2); }
 .badge-role   { background: rgba(0,229,192,.08); color: var(--acc); border-color: rgba(0,229,192,.2); }
-.badge-trans  { background: rgba(0,229,192,.06); color: var(--acc); border-color: rgba(0,229,192,.15); font-size: 0.7rem; }
-.badge-cross  { background: rgba(255,185,0,.07); color: #f5a623; border-color: rgba(255,185,0,.18); font-size: 0.7rem; }
+.badge-trans  { background: rgba(0,229,192,.06); color: var(--acc); border-color: rgba(0,229,192,.15); font-size: 0.65rem; }
+.badge-cross  { background: rgba(255,185,0,.07); color: #f5a623; border-color: rgba(255,185,0,.18); font-size: 0.65rem; }
 
 .card-bio {
-  font-size: 0.83rem; color: var(--muted2); line-height: 1.55;
-  margin-bottom: 0.85rem;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-size: 0.8rem; color: var(--muted2); line-height: 1.4;
+  margin-bottom: 0.75rem;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
 }
 .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
 .card-time { font-size: 0.7rem; color: var(--muted); }
 .btn-chat {
   display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.52rem 1.1rem; border-radius: 10px; border: none;
+  padding: 0.4rem 0.9rem; border-radius: 10px; border: none;
   background: var(--acc); color: var(--bg);
-  font-family: 'DM Sans',sans-serif; font-size: 0.85rem; font-weight: 700;
+  font-family: 'DM Sans',sans-serif; font-size: 0.8rem; font-weight: 700;
   cursor: pointer; transition: all 0.2s; flex-shrink: 0;
 }
 .btn-chat:active { transform: scale(0.96); opacity: 0.9; }
@@ -338,77 +350,3 @@ nav {
   z-index: 9999; transition: all 0.3s; opacity: 0; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
-
-/* ─── Horizontale Profil-Liste ─── */
-.community-list-section {
-  flex: 0 0 auto;
-  padding: 0 0 0.5rem 0;
-  background: var(--bg);
-}
-
-.horizontal-scroll {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding: 0.5rem 1.25rem 1rem 1.25rem;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.horizontal-scroll::-webkit-scrollbar { display: none; }
-
-.profile-card {
-  flex: 0 0 280px;
-  scroll-snap-align: start;
-  background: var(--card2);
-  border: 1px solid var(--bord);
-  border-radius: 18px;
-  padding: 0.9rem;
-  margin-bottom: 0;
-  transition: border-color 0.2s;
-  position: relative;
-  overflow: hidden;
-}
-.profile-card:active { border-color: var(--bord2); }
-
-.card-bio {
-  font-size: 0.8rem;
-  color: var(--muted2);
-  line-height: 1.4;
-  margin-bottom: 0.75rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;          /* nur eine Zeile */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-bottom: 0.6rem;
-}
-.badge {
-  padding: 0.15rem 0.5rem;
-  border-radius: 100px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  border: 1px solid transparent;
-}
-
-.card-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  margin-bottom: 0.6rem;
-}
-.card-av {
-  width: 40px;
-  height: 40px;
-}
-.card-name {
-  font-size: 0.95rem;
-}
-.card-age-loc {
-  font-size: 0.75rem;
-}
