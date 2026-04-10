@@ -25,7 +25,7 @@ const peerServer = ExpressPeerServer(server, {
 app.use('/peerjs', peerServer);
 
 // ---------- Dateipfad für verpasste Anrufe ----------
-const DATA_DIR = '/data';
+const DATA_DIR = './data';
 const MISSED_CALLS_FILE = path.join(DATA_DIR, 'missed_calls.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
