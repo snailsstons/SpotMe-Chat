@@ -90,6 +90,7 @@ async function addMissed(code, name) {
     });
   } catch (e) { console.warn('Server missed call sync failed', e); }
 }
+
 function renderMissed() {
   const arr = getMissed();
   const sec = document.getElementById('missed-sec');
@@ -97,13 +98,15 @@ function renderMissed() {
   if (!arr.length) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
   lst.innerHTML = arr.map(m => {
+    // Display-Name: erst Alias aus Kontakten, dann gespeicherter Name, dann Fallback
+    const displayName = getContacts()[m.code] || m.name || formatCode(m.code);
     const d = new Date(m.ts);
     const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     return `<div class="chat-card missed-card">
       <div class="card-row">
         <div class="card-avatar">📵</div>
         <div class="card-details">
-          <div class="card-name">${esc(m.name)}</div>
+          <div class="card-name">${esc(displayName)}</div>
           <div class="card-preview">${formatCode(m.code)} · ${time}</div>
         </div>
       </div>
@@ -111,6 +114,7 @@ function renderMissed() {
     </div>`;
   }).join('');
 }
+
 function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) {
   const inps = document.querySelectorAll('.dinp-new');
