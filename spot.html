@@ -234,6 +234,7 @@ async function sendLocationToServer(lat, lng) {
       body:JSON.stringify({ code:myCode, lat, lng })
     });
     if (!res.ok) throw new Error('HTTP '+res.status);
+    console.log('📍 Location sent to server:', lat, lng);
   } catch (e) {
     console.warn('Send location failed:', e);
   }
@@ -290,10 +291,15 @@ async function fetchLocationForProfile(code) {
     if (res.ok) {
       const data = await res.json();
       locationCache.set(code, data);
+      console.log(`📍 Location for ${code}:`, data);
     } else {
       locationCache.delete(code);
+      console.warn(`📍 Location for ${code} not found (${res.status})`);
     }
-  } catch { locationCache.delete(code); }
+  } catch (e) {
+    locationCache.delete(code);
+    console.warn(`📍 Location fetch failed for ${code}:`, e);
+  }
   renderCommunity();
 }
 
