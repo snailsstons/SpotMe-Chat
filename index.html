@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <title>SpotMe · Chat V49</title>
+  <title>SpotMe · Chat</title>
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#060a0f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="SpotMe V49">
+  <meta name="apple-mobile-web-app-title" content="SpotMe">
 
   <!-- Externe Bibliotheken -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
@@ -25,12 +25,16 @@
 </head>
 <body>
 
-<!-- SCREEN 1 – HOME -->
+<!-- SCREEN 1 – HOME (neu gestaltet) -->
 <div id="s-home" class="screen active">
-  <div class="inner">
-    <div class="brand">
-      <div class="bdot"></div>
-      <span class="bname">Spot<b>Me V49</b></span>
+  <!-- Header im Spot-Stil -->
+  <header class="app-header">
+    <div class="header-left">
+      <!-- Platzhalter für Symmetrie, kein Zurück-Pfeil auf Home -->
+    </div>
+    <div class="logo">SPOT<b>ME</b></div>
+    <div class="header-right">
+      <div class="status-badge" id="header-status">● ONLINE</div>
       <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
       <div class="home-drop" id="home-drop">
         <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
@@ -41,21 +45,57 @@
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
       </div>
     </div>
-    <div class="hero-title">Privat &amp;<br>Direkt.</div>
-    <p class="hero-sub">P2P Chat · Dateiübertragung · Lokal gespeichert<br>Kein Account nötig.</p>
-    <div class="spill" id="spill"><div class="spill-dot"></div><span id="spill-txt">Verbinde mit Server...</span></div>
-    <div class="code-card" id="code-card"><div class="code-label">Dein persönlicher Code</div><div class="code-value" id="mycode">--- ---</div><div class="code-actions"><button class="csbtn" onclick="copyCode()">📋 Kopieren</button><button class="csbtn" onclick="shareCode()">↗️ Teilen</button></div></div>
-    <div class="offline-banner" id="offline-banner"><p>Du bist derzeit offline.<br>Klicke um wieder verbinden.</p><button onclick="location.reload()">Wieder Online gehen</button></div>
-    <div class="conn-box"><div class="conn-label">Partner verbinden</div><div class="drow"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"><input class="dinp" maxlength="1" inputmode="numeric" autocomplete="off"></div><button class="btn-main" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button></div>
-    <div id="psec" style="display:none; margin-top:1.5rem"><div class="prev-label">Letzte Chats</div><div id="plist"></div></div>
-    <div class="missed-section" id="missed-sec" style="display:none"><div class="missed-label"><div class="missed-dot"></div>Verpasste Anrufe<button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button></div><div id="missed-list"></div></div>
+  </header>
+
+  <!-- Hauptinhalt (scrollbar) -->
+  <div class="home-content">
+    <!-- Code-Karte im neuen Stil -->
+    <div class="code-card-new">
+      <div class="code-label">Dein persönlicher Code</div>
+      <div class="code-value" id="mycode">--- ---</div>
+      <div class="code-actions">
+        <button class="csbtn-new" onclick="copyCode()">📋 Kopieren</button>
+        <button class="csbtn-new" onclick="shareCode()">↗️ Teilen</button>
+      </div>
+    </div>
+
+    <!-- Verbindungsbox -->
+    <div class="conn-box-new">
+      <div class="conn-label">Partner verbinden</div>
+      <div class="drow-new">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
+    </div>
+
+    <!-- Letzte Chats (horizontal) -->
+    <div id="psec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label">Letzte Chats</span>
+      </div>
+      <div id="plist" class="horizontal-scroll"></div>
+    </div>
+
+    <!-- Verpasste Anrufe (horizontal) -->
+    <div id="missed-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label missed-label-text">Verpasste Anrufe</span>
+        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
+      </div>
+      <div id="missed-list" class="horizontal-scroll"></div>
+    </div>
   </div>
 </div>
 
-<!-- SCREEN 2 – INCOMING CALL -->
+<!-- SCREEN 2 – INCOMING CALL (unverändert) -->
 <div id="s-in" class="screen"><div class="call-wrap"><div class="caller-ring">🧑</div><div class="caller-name" id="in-name">...</div><div class="caller-code" id="in-code">Code: ---</div><div class="caller-hint">möchte mit dir chatten</div><div class="call-btns"><button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button><button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button></div></div></div>
 
-<!-- SCREEN 3 – CHAT -->
+<!-- SCREEN 3 – CHAT (unverändert) -->
 <div id="s-chat" class="screen">
   <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div>
     <button class="album-btn" onclick="showAlbumMenu()" title="Alben">🖼️</button>
@@ -73,7 +113,7 @@
   </div></div>
 </div>
 
-<!-- SCREEN 6 – LOCATION -->
+<!-- SCREEN 6 – LOCATION (unverändert) -->
 <div id="s-location" class="screen">
   <div class="chat-bar">
     <button class="back-btn" onclick="closeLocationScreen()">‹</button>
@@ -98,7 +138,7 @@
 <div id="s-vault" class="screen"></div>
 <div id="s-partner-vault" class="screen"></div>
 
-<!-- BOTTOM SHEETS -->
+<!-- BOTTOM SHEETS (unverändert) -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
@@ -185,7 +225,6 @@
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
 <div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
 
-<!-- Externes JavaScript -->
 <script src="script.js"></script>
 </body>
 </html>
