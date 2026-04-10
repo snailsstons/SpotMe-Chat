@@ -1,9 +1,22 @@
 const express = require('express');
 const cors = require('cors');
+const { ExpressPeerServer } = require('peer');
+
 const app = express();
 
+// CORS für API und PeerJS
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// ---------- PeerJS Server ----------
+const server = require('http').createServer(app);
+const peerServer = ExpressPeerServer(server, {
+  path: '/',
+  allow_discovery: true,
+  proxied: true
+});
+
+app.use('/peerjs', peerServer);
 
 // ---------- In-Memory Speicher ----------
 const profiles = new Map();           // code -> Profil
@@ -79,7 +92,8 @@ app.get('/api/location/:code', (req, res) => {
 });
 
 // ---------- Health Check ----------
-app.get('/', (req, res) => res.send('SpotMe Community Server läuft'));
+app.get('/', (req, res) => res.send('SpotMe Community + PeerJS Server läuft'));
 
+// ---------- Start ----------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+server.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
