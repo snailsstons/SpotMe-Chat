@@ -338,3 +338,77 @@ nav {
   z-index: 9999; transition: all 0.3s; opacity: 0; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+
+/* ─── Horizontale Profil-Liste ─── */
+.community-list-section {
+  flex: 0 0 auto;
+  padding: 0 0 0.5rem 0;
+  background: var(--bg);
+}
+
+.horizontal-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.5rem 1.25rem 1rem 1.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.horizontal-scroll::-webkit-scrollbar { display: none; }
+
+.profile-card {
+  flex: 0 0 280px;
+  scroll-snap-align: start;
+  background: var(--card2);
+  border: 1px solid var(--bord);
+  border-radius: 18px;
+  padding: 0.9rem;
+  margin-bottom: 0;
+  transition: border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.profile-card:active { border-color: var(--bord2); }
+
+.card-bio {
+  font-size: 0.8rem;
+  color: var(--muted2);
+  line-height: 1.4;
+  margin-bottom: 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;          /* nur eine Zeile */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+.badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-bottom: 0.6rem;
+}
+.card-av {
+  width: 40px;
+  height: 40px;
+}
+.card-name {
+  font-size: 0.95rem;
+}
+.card-age-loc {
+  font-size: 0.75rem;
+}
