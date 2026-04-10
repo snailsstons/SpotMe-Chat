@@ -14,62 +14,36 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-/* ═══════════════════════════════
-   DESIGN TOKENS — unverändert
-═══════════════════════════════ */
 :root {
-  --bg:      #060a0f;
-  --sur:     #0c1219;
-  --card:    #101820;
-  --card2:   #141f2e;
-  --bord:    rgba(255,255,255,.08);
-  --bord2:   rgba(255,255,255,.13);
-  --acc:     #00e5c0;
-  --acc-dim: rgba(0,229,192,.12);
-  --p2:      #7b5cfa;
-  --p3:      #ff4f7b;
-  --text:    #dde4f0;
-  --muted:   #4e6070;
-  --muted2:  #7a8fa8;
-  --green:   #1ecc68;
+  --bg: #060a0f; --sur: #0c1219; --card: #101820; --card2: #141f2e;
+  --bord: rgba(255,255,255,.08); --bord2: rgba(255,255,255,.13);
+  --acc: #00e5c0; --acc-dim: rgba(0,229,192,.12); --p2: #7b5cfa; --p3: #ff4f7b;
+  --text: #dde4f0; --muted: #4e6070; --muted2: #7a8fa8; --green: #1ecc68;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
-html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans', sans-serif; font-size:17px; line-height:1.5; overscroll-behavior-y:contain; }
+html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans', sans-serif; font-size:17px; }
 .page { max-width:480px; margin:0 auto; padding:0 1.25rem 6rem; }
 .topnav { position:sticky; top:0; z-index:100; background:rgba(6,10,15,.96); backdrop-filter:blur(24px); border-bottom:1px solid var(--bord); padding:.7rem 1.25rem; }
 .topnav-inner { max-width:480px; margin:0 auto; display:flex; align-items:center; gap:.7rem; }
-.back-link { width:40px; height:40px; border-radius:11px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); font-size:1.3rem; display:flex; align-items:center; justify-content:center; text-decoration:none; flex-shrink:0; }
+.back-link { width:40px; height:40px; border-radius:11px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); font-size:1.3rem; display:flex; align-items:center; justify-content:center; text-decoration:none; }
 .nav-title { flex:1; font-family:'Syne',sans-serif; font-weight:800; font-size:1.15rem; color:var(--acc); }
 .refresh-btn { width:40px; height:40px; border-radius:11px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); font-size:1.1rem; display:flex; align-items:center; justify-content:center; cursor:pointer; }
 .refresh-btn.spinning { animation:spin .6s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-.my-section { padding:1.4rem 0 0 }
-.section-label { font-size:.72rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.9rem; }
-.my-card { background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%); border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem; margin-bottom:1.25rem; }
+.my-card { background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%); border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem; margin:1rem 0; }
 .my-card-header { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem }
 .my-avatar { width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.5rem; border:2px solid var(--bord2); overflow:hidden; }
-.my-avatar img { width:100%; height:100%; object-fit:cover; }
-.my-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem }
-.my-meta { font-size:.82rem; color:var(--muted2); }
-.my-code { font-size:.75rem; color:var(--acc); opacity:.8; }
+.my-name { font-family:'Syne',sans-serif; font-weight:700; }
 .publish-row, .location-row { display:flex; align-items:center; justify-content:space-between; padding:.7rem .9rem; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid var(--bord); margin-bottom:0.5rem; }
 .toggle { width:46px; height:26px; border-radius:13px; background:var(--sur); border:1.5px solid var(--bord2); position:relative; cursor:pointer; }
 .toggle.on { background:var(--acc); border-color:var(--acc); }
 .toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:2px; left:2px; transition:transform .2s; }
 .toggle.on::after { transform:translateX(20px); }
-.filter-bar { background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1rem; margin-bottom:1.25rem; }
-.filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem }
-.fsel { width:100%; padding:.58rem; background:var(--sur); border:1.5px solid var(--bord2); border-radius:11px; color:var(--text); }
-.filter-chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem }
-.chip { padding:.32rem .8rem; border-radius:100px; border:1.5px solid var(--bord2); background:transparent; color:var(--muted2); font-size:.78rem; cursor:pointer; }
-.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc); }
 .profile-card { background:var(--card2); border:1px solid var(--bord); border-radius:18px; padding:1.1rem; margin-bottom:.9rem; }
-.card-top { display:flex; align-items:flex-start; gap:.85rem; margin-bottom:.8rem }
-.card-av { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.35rem; }
-.card-name { font-family:'Syne',sans-serif; font-weight:700; }
+.card-top { display:flex; align-items:flex-start; gap:.85rem; }
 .location-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); border-radius:100px; padding:2px 8px; font-size:0.65rem; color:var(--acc); margin-left:8px; cursor:pointer; }
 .btn-chat { padding:.52rem 1.1rem; border-radius:10px; background:var(--acc); color:var(--bg); font-weight:700; border:none; cursor:pointer; }
-.toast { position:fixed; bottom:2.5rem; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--bord2); border-radius:100px; padding:.55rem 1.25rem; font-size:.83rem; z-index:9999; opacity:0; transition:opacity .3s; }
+.toast { position:fixed; bottom:2.5rem; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--bord2); border-radius:100px; padding:.55rem 1.25rem; z-index:9999; opacity:0; transition:opacity .3s; }
 .toast.show { opacity:1; }
 .location-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(4px); z-index:1000; display:none; align-items:center; justify-content:center; }
 .location-modal { background:var(--card2); border-radius:24px; padding:1.5rem; width:90%; max-width:400px; }
@@ -95,7 +69,7 @@ html, body { min-height:100%; background:var(--bg); color:var(--text); font-fami
       <select class="fsel" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
       <select class="fsel" id="f-age" onchange="applyFilters()"><option value="">Alle Altersgruppen</option><option value="18-29">18–29</option><option value="30-39">30–39</option><option value="40-49">40–49</option><option value="50+">50+</option></select>
     </div>
-    <div class="filter-chips" id="filter-chips">
+    <div class="filter-chips">
       <button class="chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</button>
       <button class="chip" data-filter="bi" onclick="toggleChip(this)">Bi</button>
       <button class="chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</button>
@@ -107,7 +81,7 @@ html, body { min-height:100%; background:var(--bg); color:var(--text); font-fami
     <button class="filter-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
   </div>
   <div class="community-header"><div class="section-label"><span>Profile</span></div><div class="community-count" id="community-count"></div></div>
-  <div id="community-list"><div class="loading-row"><div class="spinner"></div>Lade Community...</div></div>
+  <div id="community-list"><div class="loading-row">Lade Community...</div></div>
 </div>
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)"><div class="location-modal" onclick="event.stopPropagation()"><div class="location-modal-header"><div class="location-modal-title" id="location-modal-name"></div><button class="location-modal-close" onclick="closeLocationModal()">✕</button></div><div id="location-map-small"></div><div class="location-distance" id="location-distance"></div></div></div>
 <div class="toast" id="toast"></div>
@@ -118,7 +92,7 @@ const CHAT_PAGE = 'index.html';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
-const LOCATION_REFRESH_INTERVAL = 10000; // Alle 10s Locations neu laden
+const LOCATION_REFRESH_INTERVAL = 10000;
 
 let myProfile = null, myCode = localStorage.getItem('sm_code') || '', isPublished = false, isSharingLocation = false;
 let allProfiles = [], filtered = [];
@@ -135,6 +109,10 @@ window.addEventListener('load', async () => {
   updateLocationUI();
   if (isSharingLocation) startLocationSharing();
   startLocationRefresh();
+  // Eigene Position für Entfernungsberechnung merken
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => { userPos = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
+  }
 });
 
 function startKeepalive() {
@@ -205,7 +183,8 @@ async function toggleLocationSharing() {
       isSharingLocation = true;
       localStorage.setItem('sm_spot_location', '1');
       updateLocationUI();
-      toast('📍 Standort wird geteilt');
+    } else {
+      toast('❌ Standort konnte nicht aktiviert werden. Erlaube den Zugriff in den Einstellungen.');
     }
   }
 }
@@ -213,8 +192,9 @@ async function toggleLocationSharing() {
 async function startLocationSharing() {
   if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); return false; }
   try {
-    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
     await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
+    toast('📍 Standort erfolgreich gesendet');
     if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = navigator.geolocation.watchPosition(
       async p => { await sendLocationToServer(p.coords.latitude, p.coords.longitude); },
@@ -224,12 +204,15 @@ async function startLocationSharing() {
     if (locationTimer) clearInterval(locationTimer);
     locationTimer = setInterval(async () => {
       try {
-        const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
+        const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
         await sendLocationToServer(p.coords.latitude, p.coords.longitude);
       } catch {}
     }, LOCATION_UPDATE_INTERVAL);
     return true;
-  } catch { toast('⚠️ Standort nicht verfügbar'); return false; }
+  } catch (e) {
+    console.warn('Location error:', e);
+    return false;
+  }
 }
 
 function stopLocationSharing() {
@@ -238,7 +221,17 @@ function stopLocationSharing() {
 }
 
 async function sendLocationToServer(lat, lng) {
-  try { await fetch(API + '/location', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:myCode, lat, lng }) }); } catch {}
+  try {
+    const res = await fetch(API + '/location', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ code:myCode, lat, lng })
+    });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    console.log('📍 Location sent to server:', lat, lng);
+  } catch (e) {
+    console.warn('Send location failed:', e);
+  }
 }
 
 async function togglePublish() {
@@ -292,6 +285,7 @@ async function fetchLocationForProfile(code) {
     if (res.ok) {
       const data = await res.json();
       locationCache.set(code, data);
+      console.log(`📍 Location for ${code}:`, data);
     } else {
       locationCache.delete(code);
     }
@@ -327,6 +321,7 @@ function resetFilters() {
   applyFilters();
 }
 
+let userPos = null;
 function renderCommunity() {
   const list = document.getElementById('community-list');
   const n = filtered.length;
@@ -344,7 +339,7 @@ function renderCommunity() {
   }).join('');
 }
 
-let currentMap = null, userMarker = null, targetMarker = null, userPos = null;
+let currentMap = null, userMarker = null, targetMarker = null;
 function showLocationOnMap(code, name, lat, lng) {
   document.getElementById('location-modal-name').textContent = name;
   document.getElementById('location-modal').style.display = 'flex';
