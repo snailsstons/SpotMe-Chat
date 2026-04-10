@@ -39,6 +39,12 @@ html, body { min-height:100%; background:var(--bg); color:var(--text); font-fami
 .toggle.on { background:var(--acc); border-color:var(--acc); }
 .toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:2px; left:2px; transition:transform .2s; }
 .toggle.on::after { transform:translateX(20px); }
+.filter-bar { background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1rem; margin-bottom:1.25rem; }
+.filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem }
+.fsel { width:100%; padding:.58rem; background:var(--sur); border:1.5px solid var(--bord2); border-radius:11px; color:var(--text); }
+.filter-chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem }
+.chip { padding:.32rem .8rem; border-radius:100px; border:1.5px solid var(--bord2); background:transparent; color:var(--muted2); font-size:.78rem; cursor:pointer; }
+.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc); }
 .profile-card { background:var(--card2); border:1px solid var(--bord); border-radius:18px; padding:1.1rem; margin-bottom:.9rem; }
 .card-top { display:flex; align-items:flex-start; gap:.85rem; }
 .location-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); border-radius:100px; padding:2px 8px; font-size:0.65rem; color:var(--acc); margin-left:8px; cursor:pointer; }
@@ -97,6 +103,7 @@ const LOCATION_REFRESH_INTERVAL = 10000;
 let myProfile = null, myCode = localStorage.getItem('sm_code') || '', isPublished = false, isSharingLocation = false;
 let allProfiles = [], filtered = [];
 let keepaliveTimer = null, locationTimer = null, locationWatchId = null, locationRefreshTimer = null;
+let userPos = null;
 const REGIONS = ['Andalusien','Aragón','Asturien','Balearen','Baskenland','Extremadura','Galicien','Kanaren','Kantabrien','Kastilien-La Mancha','Kastilien-León','Katalonien','La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'];
 
 window.addEventListener('load', async () => {
@@ -109,7 +116,6 @@ window.addEventListener('load', async () => {
   updateLocationUI();
   if (isSharingLocation) startLocationSharing();
   startLocationRefresh();
-  // Eigene Position für Entfernungsberechnung merken
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(p => { userPos = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {});
   }
@@ -184,7 +190,7 @@ async function toggleLocationSharing() {
       localStorage.setItem('sm_spot_location', '1');
       updateLocationUI();
     } else {
-      toast('❌ Standort konnte nicht aktiviert werden. Erlaube den Zugriff in den Einstellungen.');
+      toast('❌ Standortzugriff verweigert. Bitte in den Einstellungen erlauben.');
     }
   }
 }
@@ -228,7 +234,6 @@ async function sendLocationToServer(lat, lng) {
       body:JSON.stringify({ code:myCode, lat, lng })
     });
     if (!res.ok) throw new Error('HTTP '+res.status);
-    console.log('📍 Location sent to server:', lat, lng);
   } catch (e) {
     console.warn('Send location failed:', e);
   }
@@ -285,7 +290,6 @@ async function fetchLocationForProfile(code) {
     if (res.ok) {
       const data = await res.json();
       locationCache.set(code, data);
-      console.log(`📍 Location for ${code}:`, data);
     } else {
       locationCache.delete(code);
     }
@@ -321,7 +325,6 @@ function resetFilters() {
   applyFilters();
 }
 
-let userPos = null;
 function renderCommunity() {
   const list = document.getElementById('community-list');
   const n = filtered.length;
