@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<title>SpotMe · Chat V47</title>
+<title>SpotMe · Chat V48</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#060a0f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="SpotMe V47">
+<meta name="apple-mobile-web-app-title" content="SpotMe V48">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,7 +21,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
-   DESIGN TOKENS – unverändert aus V46.1
+   DESIGN TOKENS – unverändert aus V47
 ═══════════════════════════════════════════════════════════════════ */
 :root {
   --bg:     #060a0f;
@@ -343,7 +343,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 <div class="inner">
   <div class="brand">
     <div class="bdot"></div>
-    <span class="bname">Spot<b>Me V47</b></span>
+    <span class="bname">Spot<b>Me V48</b></span>
     <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
     <div class="home-drop" id="home-drop">
       <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
@@ -506,6 +506,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 // ══════════════════════════════════════════════════════════════════════════════
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
+const API_MISSED = 'https://spotme-chat.onrender.com/api/missed-call'; // NEU
 function newCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 let peer = null, conn = null, pendingConn = null;
@@ -571,14 +572,39 @@ function playNotificationSound() { try{ const ctx = new (window.AudioContext || 
 function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERPASSTE ANRUFE (unverändert)
+// VERPASSTE ANRUFE (erweitert um Server-Sync)
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
-function addMissed(code, name) { const arr = getMissed(); const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000); const entry = { code, name, ts: Date.now() }; if(recent >= 0) arr[recent] = entry; else arr.unshift(entry); saveMissed(arr.slice(0,30)); renderMissed(); }
+async function addMissed(code, name) {
+  const arr = getMissed();
+  const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
+  const entry = { code, name, ts: Date.now() };
+  if (recent >= 0) arr[recent] = entry; else arr.unshift(entry);
+  saveMissed(arr.slice(0,30));
+  renderMissed();
+
+  // An Server senden (NEU)
+  try {
+    await fetch(API_MISSED, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient: myCode, callerId: code, callerName: name })
+    });
+  } catch (e) { console.warn('Server missed call sync failed', e); }
+}
 function renderMissed() { const arr = getMissed(); const sec = document.getElementById('missed-sec'); const lst = document.getElementById('missed-list'); if(!arr.length){ sec.style.display = 'none'; return; } sec.style.display = 'block'; lst.innerHTML = arr.map(m => { const d = new Date(m.ts); const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE') ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}); return `<div class="missed-item" onclick="callBack('${m.code}')"><div class="missed-av">📵</div><div class="missed-info"><div class="missed-name">${esc(m.name)}</div><div class="missed-time">${formatCode(m.code)} · ${t}</div></div><div class="missed-call-icon" title="Zurückrufen">📞</div></div>`; }).join(''); }
 function clearMissed() { saveMissed([]); renderMissed(); }
 function callBack(code) { const inps = document.querySelectorAll('.dinp'); code.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled = false; connectToPeer(); setTimeout(()=>{ inps.forEach(d=>{ d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; },200); }
+
+// Remote verpasste Anrufe abrufen (NEU)
+async function fetchRemoteMissedCalls() {
+  try {
+    const res = await fetch(`https://spotme-chat.onrender.com/api/missed-calls/${myCode}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) { return []; }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // KONTAKTE & NAMEN (unverändert)
@@ -1430,7 +1456,7 @@ function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if
 function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERSCHLÜSSELTES BACKUP (NEU)
+// VERSCHLÜSSELTES BACKUP (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 function showBackupPasswordModal() {
   closeHomeMenu();
@@ -1453,7 +1479,6 @@ async function performBackupWithPassword() {
 async function createBackup(password) {
   toast('📦 Sammle Daten für Backup...');
   try {
-    // Daten sammeln (wie zuvor)
     const lsData = {};
     const keysToBackup = ['sm_code','sm_name','sm_contacts','sm_idx','sm_missed','sm_voice_enabled','sm_spot_published','sm_profile'];
     for (const key of keysToBackup) { const val = localStorage.getItem(key); if (val !== null) lsData[key] = val; }
@@ -1475,7 +1500,6 @@ async function createBackup(password) {
 
     let finalBlob;
     if (password) {
-      // Verschlüsseln
       const enc = await encryptData(JSON.stringify(backupData), password);
       finalBlob = new Blob([JSON.stringify({ _spotme_backup: true, _encrypted: true, _version: 3, data: enc })], {type:'application/json'});
       toast('🔐 Verschlüsseltes Backup erstellt');
@@ -1490,12 +1514,9 @@ async function createBackup(password) {
     a.download = `SpotMe_Backup_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) {
-    toast('❌ Fehler: ' + e.message);
-  }
+  } catch (e) { toast('❌ Fehler: ' + e.message); }
 }
 
-// Verschlüsselung: AES-GCM, PBKDF2
 async function encryptData(text, password) {
   const enc = new TextEncoder();
   const salt = crypto.getRandomValues(new Uint8Array(16));
@@ -1512,7 +1533,6 @@ async function encryptData(text, password) {
   
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
   
-  // Alles in ein Objekt packen und als Base64
   const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
   combined.set(salt, 0);
   combined.set(iv, salt.length);
@@ -1542,7 +1562,6 @@ async function decryptData(encryptedBase64, password) {
   return new TextDecoder().decode(decrypted);
 }
 
-// Import-Funktionen (mit Passwortabfrage)
 function restoreProfile(input) {
   closeHomeMenu();
   if (!input.files[0]) return;
@@ -1555,12 +1574,10 @@ function restoreProfile(input) {
       if (!json._spotme_backup) { toast('❌ Keine SpotMe-Backup-Datei'); pendingRestoreFile = null; return; }
       
       if (json._encrypted) {
-        // Verschlüsselt → Passwort abfragen
         document.getElementById('import-password-input').value = '';
         document.getElementById('import-password-ovl').classList.add('open');
         document.getElementById('import-password-sheet').classList.add('open');
       } else {
-        // Unverschlüsselt → direkt wiederherstellen
         await performRestore(json);
         pendingRestoreFile = null;
       }
@@ -1613,7 +1630,6 @@ async function performRestore(backupData) {
 
     toast('🔄 Stelle Backup wieder her...');
     
-    // LocalStorage leeren
     const keysToClear = [];
     for (let i=0; i<localStorage.length; i++) { const key=localStorage.key(i); if (key&&(key.startsWith('sm_')||key.startsWith('smmsg_')||key.startsWith('sm_pending_'))) keysToClear.push(key); }
     keysToClear.forEach(k=>localStorage.removeItem(k));
@@ -1631,16 +1647,14 @@ async function performRestore(backupData) {
     
     toast('✅ Backup wiederhergestellt · Neustart...');
     setTimeout(()=>location.reload(),2000);
-  } catch (ex) {
-    toast('❌ Fehler: ' + ex.message);
-  }
+  } catch (ex) { toast('❌ Fehler: ' + ex.message); }
 }
 
 let tTimer = null;
 function toast(msg, ms=2400) { const ex = document.querySelector('.toast'); if(ex) ex.remove(); const t = document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show'))); clearTimeout(tTimer); tTimer = setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, ms); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INIT
+// INIT (erweitert um Remote Missed Calls)
 // ══════════════════════════════════════════════════════════════════════════════
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
@@ -1658,6 +1672,21 @@ window.addEventListener('load', () => {
   if(textarea) textarea.addEventListener('input', () => { if(!conn||!conn.open) return; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); if(!typingStarted){ conn.send({t:'typing',state:'start'}); typingStarted=true; } typingDebounceTimer = setTimeout(()=>{ if(conn&&conn.open&&typingStarted){ conn.send({t:'typing',state:'end'}); typingStarted=false; } typingDebounceTimer=null; },2000); });
   const autoConnect = sessionStorage.getItem('sm_connect_to');
   if(autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(()=>{ const inps=document.querySelectorAll('.dinp'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); },1500); }
+
+  // Remote verpasste Anrufe abrufen (NEU)
+  setTimeout(async () => {
+    const remoteMissed = await fetchRemoteMissedCalls();
+    const localMissed = getMissed();
+    for (const call of remoteMissed) {
+      const exists = localMissed.some(m => 
+        m.code === call.callerId && 
+        Math.abs(m.ts - new Date(call.timestamp).getTime()) < 300000
+      );
+      if (!exists) {
+        addMissed(call.callerId, call.callerName);
+      }
+    }
+  }, 2000);
 });
 </script>
 </body>
