@@ -449,20 +449,139 @@ function renderList() {
   }).join('');
 }
 
-// ... (alle weiteren Funktionen wie showLocationOnMap, performCheckIn, etc. bleiben unverändert)
+function showLocationOnMap(code, name, lat, lng) {
+  currentTargetCode = code;
+  currentTargetLat = lat;
+  currentTargetLng = lng;
+  const modal = document.getElementById('location-modal');
+  const modalContent = document.getElementById('location-modal-content');
+  document.getElementById('location-modal-name').textContent = name;
+  modal.style.display = 'flex';
+  modalContent.classList.remove('inside');
+  document.getElementById('location-distance').classList.remove('inside');
+  setTimeout(() => {
+    if (!currentMap) {
+      currentMap = L.map('location-map-small').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
+    } else { currentMap.setView([lat, lng], 14); }
+    if (targetMarker) currentMap.removeLayer(targetMarker);
+    targetMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup(name).openPopup();
+    updateModalDistance();
+    if (!userPosition) document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
+  }, 100);
+}
 
-function showLocationOnMap(code, name, lat, lng) { /* unverändert */ }
-async function performCheckIn() { /* unverändert */ }
-function updateModalDistance() { /* unverändert */ }
-function closeLocationModal(e) { /* unverändert */ }
-function getDistance(lat1, lon1, lat2, lon2) { /* unverändert */ }
-function formatDistance(m) { /* unverändert */ }
-function startKeepalive() { /* unverändert */ }
-async function verifyAndRepublish() { /* unverändert */ }
-function startChat(code, name) { /* unverändert */ }
-function timeAgo(ts) { /* unverändert */ }
-function esc(s) { /* unverändert */ }
-function toast(msg, ms = 2800) { /* unverändert */ }
+async function performCheckIn() {
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '⏳ Position wird ermittelt...';
+  btn.disabled = true;
+  if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); btn.textContent = '📍 Hier einchecken'; btn.disabled = false; return; }
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
+    userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    if (myCode) {
+      await sendLocationToServer(userPosition.lat, userPosition.lng);
+      if (!isSharingLocation) {
+        isSharingLocation = true;
+        localStorage.setItem('sm_spot_location', '1');
+        updateLocationUI();
+        startLocationSharing();
+      }
+    }
+    if (userMarker) currentMap.removeLayer(userMarker);
+    userMarker = L.marker([userPosition.lat, userPosition.lng], {
+      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup('Du').openPopup();
+    updateModalDistance();
+    toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
+    renderAll();
+  } catch (e) { toast('❌ Standort konnte nicht ermittelt werden'); }
+  finally { btn.textContent = '📍 Hier einchecken'; btn.disabled = false; }
+}
+
+function updateModalDistance() {
+  if (!userPosition || !currentTargetLat || !currentTargetLng) return;
+  const dist = getDistance(userPosition.lat, userPosition.lng, currentTargetLat, currentTargetLng);
+  const inside = dist <= DEFAULT_RADIUS;
+  const distEl = document.getElementById('location-distance');
+  distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
+  const modalContent = document.getElementById('location-modal-content');
+  if (inside) { distEl.classList.add('inside'); modalContent.classList.add('inside'); }
+  else { distEl.classList.remove('inside'); modalContent.classList.remove('inside'); }
+}
+
+function closeLocationModal(e) {
+  if (e && e.target !== document.getElementById('location-modal')) return;
+  document.getElementById('location-modal').style.display = 'none';
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatDistance(m) {
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m/1000).toFixed(1) + ' km';
+}
+
+function startKeepalive() {
+  if (keepaliveTimer) clearInterval(keepaliveTimer);
+  keepaliveTimer = setInterval(async () => {
+    if (isPublished && myProfile) {
+      try { 
+        const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+        await fetch(API + '/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: myCode, name: myProfile.name, age,
+            region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
+          })
+        });
+      } catch(e) {}
+    }
+    await loadCommunity();
+  }, KEEPALIVE_INTERVAL);
+}
+
+async function verifyAndRepublish() {
+  try {
+    const res = await fetch(API + '/profile/' + myCode);
+    if (res.status === 404) await togglePublish();
+  } catch(e) {}
+}
+
+function startChat(code, name) {
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = 'index.html';
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2) return 'gerade aktiv';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `vor ${h} Std`;
+  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+function toast(msg, ms = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
 </script>
 </body>
 </html>
