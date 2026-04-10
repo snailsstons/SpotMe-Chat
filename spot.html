@@ -115,7 +115,6 @@ html, body {
 .my-meta { font-size:.82rem; color:var(--muted2); margin-top:.2rem }
 .my-code { font-size:.75rem; color:var(--acc); opacity:.8; margin-top:.15rem; font-family:'Syne',sans-serif; font-weight:700 }
 
-/* Publish toggle row */
 .publish-row {
   display:flex; align-items:center; justify-content:space-between;
   padding:.7rem .9rem; border-radius:12px;
@@ -138,7 +137,6 @@ html, body {
 }
 .toggle.on::after { transform:translateX(20px) }
 
-/* Location toggle row */
 .location-row {
   display:flex; align-items:center; justify-content:space-between;
   padding:.7rem .9rem; border-radius:12px;
@@ -158,7 +156,7 @@ html, body {
 }
 
 /* ═══════════════════════════════
-   FILTER BAR (unverändert)
+   FILTER BAR
 ═══════════════════════════════ */
 .filter-bar {
   background:var(--card); border:1px solid var(--bord);
@@ -204,9 +202,6 @@ html, body {
 .community-count { font-size:.8rem; color:var(--muted2) }
 .community-count b { color:var(--text); font-weight:600 }
 
-/* ═══════════════════════════════
-   PROFILE CARD (erweitert um Location)
-═══════════════════════════════ */
 .profile-card {
   background:var(--card2); border:1px solid var(--bord);
   border-radius:18px; padding:1.1rem; margin-bottom:.9rem;
@@ -243,7 +238,6 @@ html, body {
 }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-/* Location Badge */
 .location-badge {
   display: inline-flex;
   align-items: center;
@@ -259,7 +253,6 @@ html, body {
 }
 .location-badge:active { background: rgba(0,229,192,.2); }
 
-/* Badges */
 .card-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.75rem }
 .badge {
   padding:.22rem .65rem; border-radius:100px; font-size:.73rem; font-weight:500;
@@ -272,14 +265,12 @@ html, body {
 .badge-trans  { background:rgba(0,229,192,.06); color:var(--acc); border-color:rgba(0,229,192,.15); font-size:.7rem }
 .badge-cross  { background:rgba(255,185,0,.07); color:#f5a623; border-color:rgba(255,185,0,.18); font-size:.7rem }
 
-/* Bio */
 .card-bio {
   font-size:.83rem; color:var(--muted2); line-height:1.55;
   margin-bottom:.85rem;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
 
-/* Chat button */
 .card-footer { display:flex; align-items:center; justify-content:space-between; gap:.7rem }
 .card-time { font-size:.7rem; color:var(--muted) }
 .btn-chat {
@@ -291,7 +282,6 @@ html, body {
 }
 .btn-chat:active { transform:scale(.96); opacity:.9 }
 
-/* Location Modal */
 .location-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.8);
   z-index: 1000; display: none; align-items: center; justify-content: center;
@@ -316,9 +306,6 @@ html, body {
 #location-map-small { height: 200px; border-radius: 12px; margin-bottom: 1rem; }
 .location-distance { text-align: center; font-weight: 600; }
 
-/* ═══════════════════════════════
-   STATES
-═══════════════════════════════ */
 .state-box {
   text-align:center; padding:3rem 1.5rem; color:var(--muted);
 }
@@ -337,9 +324,6 @@ html, body {
 }
 @keyframes sp { to{transform:rotate(360deg)} }
 
-/* ═══════════════════════════════
-   TOAST
-═══════════════════════════════ */
 .toast {
   position:fixed; bottom:2.5rem; left:50%;
   transform:translateX(-50%) translateY(80px);
@@ -350,60 +334,10 @@ html, body {
   opacity:0; white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.5);
 }
 .toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
-
-/* Debug Panel (unverändert) */
-.debug-panel {
-  background:rgba(0,229,192,.04); border:1px solid rgba(0,229,192,.15);
-  border-radius:16px; padding:1rem 1.1rem; margin-bottom:1.25rem;
-  font-size:.8rem;
-}
-.debug-title {
-  font-family:'Syne',sans-serif; font-weight:700; font-size:.85rem;
-  color:var(--acc); margin-bottom:.75rem; display:flex; align-items:center; justify-content:space-between;
-}
-.debug-row {
-  display:flex; align-items:flex-start; justify-content:space-between;
-  padding:.35rem 0; border-bottom:1px solid var(--bord); gap:.5rem;
-}
-.debug-row:last-child { border-bottom:none; padding-bottom:0 }
-.debug-key { color:var(--muted2); flex-shrink:0; min-width:120px }
-.debug-val { color:var(--text); font-weight:500; text-align:right; word-break:break-all }
-.debug-val.ok  { color:var(--green) }
-.debug-val.err { color:var(--p3) }
-.debug-val.warn{ color:#f5a623 }
-.debug-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.85rem }
-.dbtn {
-  padding:.35rem .85rem; border-radius:8px; font-size:.77rem; font-weight:600;
-  cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; border:none;
-}
-.dbtn-cyan  { background:rgba(0,229,192,.12); color:var(--acc); border:1px solid rgba(0,229,192,.25) }
-.dbtn-red   { background:rgba(255,79,123,.1); color:var(--p3); border:1px solid rgba(255,79,123,.25) }
-.dbtn-gray  { background:rgba(255,255,255,.06); color:var(--muted2); border:1px solid var(--bord2) }
-.dbtn:active { opacity:.75 }
-.debug-log {
-  background:var(--bg); border:1px solid var(--bord); border-radius:10px;
-  padding:.65rem .85rem; margin-top:.75rem; font-size:.72rem; color:var(--muted2);
-  max-height:120px; overflow-y:auto; font-family:'Courier New',monospace; line-height:1.6;
-}
-.debug-log .log-ok   { color:var(--green) }
-.debug-log .log-err  { color:var(--p3) }
-.debug-log .log-warn { color:#f5a623 }
-.debug-toggle-btn {
-  font-size:.72rem; color:var(--muted); background:none; border:none;
-  cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .5rem;
-  border-radius:6px; transition:color .2s;
-}
-.debug-toggle-btn:active { color:var(--acc) }
-.keepalive-dot {
-  width:7px; height:7px; border-radius:50%; background:var(--green);
-  display:inline-block; margin-right:.35rem;
-  animation:blink 1.5s ease infinite;
-}
 </style>
 </head>
 <body>
 
-<!-- ══ STICKY NAV ══ -->
 <nav class="topnav">
   <div class="topnav-inner">
     <a class="back-link" href="index.html" title="Zurück zum Chat">‹</a>
@@ -412,19 +346,13 @@ html, body {
   </div>
 </nav>
 
-<!-- ══ PAGE CONTENT ══ -->
 <div class="page">
-
-  <!-- ── MEIN PROFIL ── -->
   <div class="my-section">
     <div class="section-label"><span>Mein Profil</span></div>
-
     <div class="no-profile-hint" id="no-profile-hint" style="display:none">
       <span>⚠️</span>
-      <div>Noch kein Profil erstellt.<br>
-        <a href="profil.html">Profil anlegen →</a> um in der Community sichtbar zu sein.</div>
+      <div>Noch kein Profil erstellt.<br><a href="profil.html">Profil anlegen →</a> um in der Community sichtbar zu sein.</div>
     </div>
-
     <div class="my-card" id="my-card" style="display:none">
       <div class="my-card-header">
         <div class="my-avatar" id="my-avatar">🧑</div>
@@ -441,36 +369,21 @@ html, body {
         </div>
         <div class="toggle" id="publish-toggle" onclick="togglePublish()"></div>
       </div>
-      <!-- NEU: Location Toggle -->
       <div class="location-row">
         <div>
           <div class="location-label">📍 An diesem Ort anzutreffen</div>
-          <div class="location-hint" id="location-hint">Teile deinen aktuellen Standort</div>
+          <div class="location-hint" id="location-hint">Standort teilen</div>
         </div>
         <div class="toggle" id="location-toggle" onclick="toggleLocationSharing()"></div>
       </div>
     </div>
   </div>
 
-  <!-- ── DEBUG PANEL ── -->
-  <div style="margin-top:.5rem; margin-bottom:.5rem; display:flex; justify-content:flex-end">
-    <button class="debug-toggle-btn" onclick="toggleDebug()">🔧 Debug-Panel</button>
-  </div>
-  <div class="debug-panel" id="debug-panel" style="display:none">
-    <!-- Debug-Inhalt unverändert -->
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ── FILTER ── -->
   <div class="section-label" style="margin-top:.25rem"><span>Community durchsuchen</span></div>
-
   <div class="filter-bar">
     <div class="filter-title">Filter</div>
     <div class="filter-grid">
-      <select class="fsel" id="f-region" onchange="applyFilters()">
-        <option value="">Alle Regionen</option>
-      </select>
+      <select class="fsel" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
       <select class="fsel" id="f-age" onchange="applyFilters()">
         <option value="">Alle Altersgruppen</option>
         <option value="18-29">18–29</option>
@@ -491,7 +404,6 @@ html, body {
     <button class="filter-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
   </div>
 
-  <!-- ── COMMUNITY LIST ── -->
   <div class="community-header">
     <div class="section-label" style="margin-bottom:0"><span>Profile</span></div>
     <div class="community-count" id="community-count"></div>
@@ -500,10 +412,8 @@ html, body {
   <div id="community-list">
     <div class="loading-row"><div class="spinner"></div>Lade Community...</div>
   </div>
+</div>
 
-</div><!-- /page -->
-
-<!-- Location Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
   <div class="location-modal" onclick="event.stopPropagation()">
     <div class="location-modal-header">
@@ -520,26 +430,22 @@ html, body {
 <script>
 'use strict';
 
-/* ══ CONFIG ══ */
-const API        = 'https://spotme-chat.onrender.com/api';
-const CHAT_PAGE  = 'index.html';
+const API = 'https://spotme-chat.onrender.com/api';
+const CHAT_PAGE = 'index.html';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
-const LOCATION_UPDATE_INTERVAL = 30000; // 30 Sekunden
+const LOCATION_UPDATE_INTERVAL = 30000;
 
-/* ══ STATE ══ */
-let myProfile   = null;
-let myCode      = localStorage.getItem('sm_code') || '';
+let myProfile = null;
+let myCode = localStorage.getItem('sm_code') || '';
 let isPublished = false;
 let isSharingLocation = false;
 let allProfiles = [];
-let filtered    = [];
+let filtered = [];
 let keepaliveTimer = null;
 let locationTimer = null;
 let locationWatchId = null;
-let debugVisible = false;
 
-/* ══ REGIONEN ══ */
 const REGIONS = [
   'Andalusien','Aragón','Asturien','Balearen','Baskenland',
   'Extremadura','Galicien','Kanaren','Kantabrien',
@@ -547,36 +453,22 @@ const REGIONS = [
   'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
 ];
 
-/* ══ INIT ══ */
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
   await loadCommunity();
-
-  if (isPublished && myProfile) {
-    await verifyAndRepublish();
-  }
-
+  if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
-  refreshDebug();
-  
-  // Location-Sharing Status aus localStorage laden
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
   if (isSharingLocation) startLocationSharing();
 });
 
-/* ══ KEEPALIVE ══ */
 function startKeepalive() {
   if (keepaliveTimer) clearInterval(keepaliveTimer);
   keepaliveTimer = setInterval(async () => {
     if (isPublished && myProfile) {
-      try {
-        await publishProfile(true);
-        dbLog('✓ Keepalive: Profil erneuert', 'ok');
-      } catch(e) {
-        dbLog('⚠ Keepalive fehlgeschlagen: ' + e.message, 'warn');
-      }
+      try { await publishProfile(true); } catch(e) {}
     }
     await loadCommunity();
   }, KEEPALIVE_INTERVAL);
@@ -586,9 +478,7 @@ async function verifyAndRepublish() {
   try {
     const res = await fetch(API + '/profile/' + myCode);
     if (res.status === 404) {
-      dbLog('⚠ Profil fehlt auf Server → republiziere...', 'warn');
       await publishProfile(true);
-      dbLog('✓ Profil wiederhergestellt', 'ok');
       await loadCommunity();
     }
   } catch(e) {}
@@ -599,7 +489,6 @@ function buildRegionFilter() {
   REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
 }
 
-/* ══ MEIN PROFIL LADEN ══ */
 function loadMyProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) {
@@ -608,24 +497,19 @@ function loadMyProfile() {
     return;
   }
   try { myProfile = JSON.parse(raw); } catch { return; }
-
   document.getElementById('no-profile-hint').style.display = 'none';
   document.getElementById('my-card').style.display = 'block';
 
   const av = document.getElementById('my-avatar');
-  if (myProfile.avatar) {
-    av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
-  } else {
-    av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
-  }
+  if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
   document.getElementById('my-name').textContent = myProfile.name || '—';
 
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
   const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
   const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
   document.getElementById('my-meta').textContent = meta || 'Kein Ort angegeben';
-  document.getElementById('my-code').textContent = myCode
-    ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6) : '';
+  document.getElementById('my-code').textContent = myCode ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6) : '';
 
   isPublished = localStorage.getItem('sm_spot_published') === '1';
   updatePublishUI();
@@ -633,28 +517,22 @@ function loadMyProfile() {
 
 function updatePublishUI() {
   const toggle = document.getElementById('publish-toggle');
-  const hint   = document.getElementById('publish-hint');
+  const hint = document.getElementById('publish-hint');
   toggle.classList.toggle('on', isPublished);
-  hint.textContent = isPublished
-    ? '✓ Dein Profil ist in der Community sichtbar'
-    : 'Dein Profil ist nicht sichtbar';
+  hint.textContent = isPublished ? '✓ Dein Profil ist in der Community sichtbar' : 'Dein Profil ist nicht sichtbar';
   hint.style.color = isPublished ? 'var(--green)' : '';
 }
 
 function updateLocationUI() {
   const toggle = document.getElementById('location-toggle');
-  const hint   = document.getElementById('location-hint');
+  const hint = document.getElementById('location-hint');
   toggle.classList.toggle('on', isSharingLocation);
-  hint.textContent = isSharingLocation
-    ? '✓ Dein Standort wird geteilt'
-    : 'Standort teilen';
+  hint.textContent = isSharingLocation ? '✓ Dein Standort wird geteilt' : 'Standort teilen';
   hint.style.color = isSharingLocation ? 'var(--green)' : '';
 }
 
-/* ══ LOCATION SHARING ══ */
 async function toggleLocationSharing() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
-  
   if (isSharingLocation) {
     stopLocationSharing();
     isSharingLocation = false;
@@ -673,53 +551,28 @@ async function toggleLocationSharing() {
 }
 
 async function startLocationSharing() {
-  if (!navigator.geolocation) {
-    toast('❌ Geolocation nicht unterstützt');
-    return false;
-  }
-  
+  if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); return false; }
   try {
-    // Einmalige Position holen und senden
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-    });
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
     await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
-    
-    // Watch für kontinuierliche Updates
     if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
-      },
+      async (pos) => { await sendLocationToServer(pos.coords.latitude, pos.coords.longitude); },
       (err) => console.warn('Location watch error:', err),
       { enableHighAccuracy: true, maximumAge: 30000 }
     );
-    
-    // Regelmäßiges Senden als Fallback
     if (locationTimer) clearInterval(locationTimer);
     locationTimer = setInterval(async () => {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-      }).catch(() => null);
+      const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true })).catch(() => null);
       if (pos) await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
     }, LOCATION_UPDATE_INTERVAL);
-    
     return true;
-  } catch (e) {
-    toast('⚠️ Standort nicht verfügbar');
-    return false;
-  }
+  } catch (e) { toast('⚠️ Standort nicht verfügbar'); return false; }
 }
 
 function stopLocationSharing() {
-  if (locationWatchId) {
-    navigator.geolocation.clearWatch(locationWatchId);
-    locationWatchId = null;
-  }
-  if (locationTimer) {
-    clearInterval(locationTimer);
-    locationTimer = null;
-  }
+  if (locationWatchId) { navigator.geolocation.clearWatch(locationWatchId); locationWatchId = null; }
+  if (locationTimer) { clearInterval(locationTimer); locationTimer = null; }
 }
 
 async function sendLocationToServer(lat, lng) {
@@ -729,15 +582,12 @@ async function sendLocationToServer(lat, lng) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: myCode, lat, lng })
     });
-  } catch (e) {}
+  } catch(e) {}
 }
 
-/* ══ VERÖFFENTLICHEN ══ */
 async function togglePublish() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
-  if (!myProfile.name || !myProfile.region) {
-    toast('⚠️ Profilname und Region sind Pflicht'); return;
-  }
+  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
   const btn = document.getElementById('publish-toggle');
   btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
   try {
@@ -745,29 +595,18 @@ async function togglePublish() {
     else { await publishProfile(false); }
     updatePublishUI();
     await loadCommunity();
-    refreshDebug();
-  } catch(e) {
-    toast('⚠️ Fehler: ' + (e.message || 'unbekannt'));
-  } finally {
-    btn.style.opacity = ''; btn.style.pointerEvents = '';
-  }
+  } catch(e) { toast('⚠️ Fehler: ' + (e.message || 'unbekannt')); }
+  finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
 }
 
 async function publishProfile(silent = false) {
   if (!myProfile || !myCode) throw new Error('Kein Profil');
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
   const payload = {
-    code:        myCode,
-    name:        myProfile.name,
-    age,
-    region:      myProfile.region,
-    province:    myProfile.province  || null,
-    city:        myProfile.city      || null,
-    orientation: myProfile.orientation || null,
-    role:        myProfile.role      || null,
-    trans:       myProfile.trans     || false,
-    cross:       myProfile.cross     || false,
-    bio:         myProfile.bio       || null,
+    code: myCode, name: myProfile.name, age,
+    region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+    orientation: myProfile.orientation || null, role: myProfile.role || null,
+    trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
   };
   const res = await fetch(API + '/profile', {
     method: 'POST',
@@ -788,7 +627,6 @@ async function unpublishProfile() {
   toast('○ Profil aus Community entfernt');
 }
 
-/* ══ COMMUNITY LADEN ══ */
 async function loadCommunity() {
   const btn = document.getElementById('refresh-btn');
   btn.classList.add('spinning');
@@ -796,55 +634,30 @@ async function loadCommunity() {
     const res = await fetch(API + '/profiles');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     allProfiles = await res.json();
-    
-    // Für jedes Profil Location-Status abfragen (asynchron im Hintergrund)
-    for (const p of allProfiles) {
-      if (p.code === myCode) continue;
-      fetchLocationForProfile(p.code);
-    }
-    
+    for (const p of allProfiles) { if (p.code !== myCode) fetchLocationForProfile(p.code); }
     applyFilters();
-    refreshDebug();
   } catch(e) {
-    document.getElementById('community-list').innerHTML = `
-      <div class="state-box">
-        <div class="state-ico">⚠️</div>
-        <div class="state-txt">Server nicht erreichbar</div>
-        <div class="state-hint">${e.message}</div>
-      </div>`;
+    document.getElementById('community-list').innerHTML = `<div class="state-box"><div class="state-ico">⚠️</div><div class="state-txt">Server nicht erreichbar</div><div class="state-hint">${e.message}</div></div>`;
     document.getElementById('community-count').textContent = '';
-  } finally {
-    btn.classList.remove('spinning');
-  }
+  } finally { btn.classList.remove('spinning'); }
 }
 
-// Cache für Locations (vermeidet zu viele Anfragen)
 const locationCache = new Map();
-
 async function fetchLocationForProfile(code) {
   if (locationCache.has(code)) return locationCache.get(code);
   try {
     const res = await fetch(API + '/location/' + code);
-    if (res.ok) {
-      const data = await res.json();
-      locationCache.set(code, data);
-      // UI aktualisieren, falls das Profil gerade sichtbar ist
-      renderCommunity();
-      return data;
-    }
-  } catch (e) {}
+    if (res.ok) { const data = await res.json(); locationCache.set(code, data); renderCommunity(); return data; }
+  } catch(e) {}
   locationCache.set(code, null);
   return null;
 }
 
-/* ══ FILTER ══ */
 function toggleChip(btn) { btn.classList.toggle('on'); applyFilters(); }
-
 function applyFilters() {
-  const region   = document.getElementById('f-region').value;
+  const region = document.getElementById('f-region').value;
   const ageRange = document.getElementById('f-age').value;
-  const chips    = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.filter);
-
+  const chips = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.filter);
   filtered = allProfiles.filter(p => {
     if (myCode && p.code === myCode) return false;
     if (region && p.region !== region) return false;
@@ -859,29 +672,22 @@ function applyFilters() {
     if (chips.includes('trans') && !p.trans) return false;
     return true;
   });
-
   renderCommunity();
 }
-
 function resetFilters() {
   document.getElementById('f-region').value = '';
-  document.getElementById('f-age').value    = '';
+  document.getElementById('f-age').value = '';
   document.querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
   applyFilters();
 }
 
-/* ══ COMMUNITY RENDERN (mit Location-Badge) ══ */
 function renderCommunity() {
-  const list  = document.getElementById('community-list');
+  const list = document.getElementById('community-list');
   const count = document.getElementById('community-count');
-  const n     = filtered.length;
+  const n = filtered.length;
   count.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
   if (!n) {
-    list.innerHTML = `<div class="state-box">
-      <div class="state-ico">🔍</div>
-      <div class="state-txt">Keine Profile gefunden</div>
-      <div class="state-hint">Filter anpassen oder Profile veröffentlichen</div>
-    </div>`;
+    list.innerHTML = `<div class="state-box"><div class="state-ico">🔍</div><div class="state-txt">Keine Profile gefunden</div><div class="state-hint">Filter anpassen oder Profile veröffentlichen</div></div>`;
     return;
   }
   list.innerHTML = filtered.map(p => profileCard(p)).join('');
@@ -889,10 +695,10 @@ function renderCommunity() {
 
 function profileCard(p) {
   const initial = p.name ? p.name[0].toUpperCase() : '?';
-  const age     = p.age  ? `${p.age} J.` : '? J.';
-  const loc     = [p.city, p.region].filter(Boolean).join(', ');
-  const ago     = timeAgo(p.ts);
-  const isOwn   = p.code === myCode;
+  const age = p.age ? `${p.age} J.` : '? J.';
+  const loc = [p.city, p.region].filter(Boolean).join(', ');
+  const ago = timeAgo(p.ts);
+  const isOwn = p.code === myCode;
 
   let badges = '';
   if (p.orientation) {
@@ -905,177 +711,77 @@ function profileCard(p) {
   }
   if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
   if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
-  if (isOwn)   badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
+  if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
 
-  // Location-Badge, wenn Standort verfügbar
   const locData = locationCache.get(p.code);
   let locationBadge = '';
   if (locData && !isOwn) {
     locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${formatDistanceToUser(locData)}</span>`;
   }
 
-  const bio       = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+  const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
   const cardClass = p.orientation ? ` ${p.orientation}` : '';
+  const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
 
-  const chatBtn = isOwn
-    ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>`
-    : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
-
-  return `
-  <div class="profile-card${cardClass}">
-    <div class="card-top">
-      <div class="card-av">${esc(initial)}</div>
-      <div class="card-info">
-        <div class="card-name">${esc(p.name)}${locationBadge}</div>
-        <div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div>
-      </div>
-      <div class="online-dot" title="Online in den letzten 24h"></div>
-    </div>
+  return `<div class="profile-card${cardClass}">
+    <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" title="Online in den letzten 24h"></div></div>
     ${badges ? `<div class="card-badges">${badges}</div>` : ''}
     ${bio}
-    <div class="card-footer">
-      <div class="card-time">🕐 ${ago}</div>
-      ${chatBtn}
-    </div>
+    <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
   </div>`;
 }
 
-/* ══ LOCATION MODAL ══ */
-let currentLocationMap = null;
-let userMarker = null, targetMarker = null;
-let userPosition = null;
-
+let currentLocationMap = null, userMarker = null, targetMarker = null, userPosition = null;
 function showLocationOnMap(code, name, lat, lng) {
   const modal = document.getElementById('location-modal');
   document.getElementById('location-modal-name').textContent = name;
   modal.style.display = 'flex';
-  
   setTimeout(() => {
     if (!currentLocationMap) {
       currentLocationMap = L.map('location-map-small').setView([lat, lng], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-      }).addTo(currentLocationMap);
-    } else {
-      currentLocationMap.setView([lat, lng], 14);
-    }
-    
-    // Ziel-Marker
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentLocationMap);
+    } else { currentLocationMap.setView([lat, lng], 14); }
     if (targetMarker) currentLocationMap.removeLayer(targetMarker);
-    targetMarker = L.marker([lat, lng], {
-      icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-    }).addTo(currentLocationMap).bindPopup(name).openPopup();
-    
-    // Eigene Position (falls verfügbar)
+    targetMarker = L.marker([lat, lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup(name).openPopup();
     if (userPosition) {
       if (userMarker) currentLocationMap.removeLayer(userMarker);
-      userMarker = L.marker([userPosition.lat, userPosition.lng], {
-        icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-      }).addTo(currentLocationMap).bindPopup('Du');
+      userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
     }
-    
-    // Entfernung berechnen
     if (userPosition) {
-      const dist = getDistance(userPosition.lat, userPosition.lng, lat, lng);
-      document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(dist)}`;
+      document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
     } else {
       document.getElementById('location-distance').textContent = '';
     }
-    
-    // Eigene Position einmalig holen
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(pos => {
         userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         if (userMarker) currentLocationMap.removeLayer(userMarker);
-        userMarker = L.marker([userPosition.lat, userPosition.lng], {
-          icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-        }).addTo(currentLocationMap).bindPopup('Du');
-        const dist = getDistance(userPosition.lat, userPosition.lng, lat, lng);
-        document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(dist)}`;
+        userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
+        document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
       }, () => {});
     }
   }, 100);
 }
-
-function closeLocationModal(e) {
-  if (e && e.target !== document.getElementById('location-modal')) return;
-  document.getElementById('location-modal').style.display = 'none';
-}
-
-function formatDistanceToUser(locData) {
-  if (!userPosition) return '';
-  const dist = getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng);
-  return formatDistance(dist);
-}
-
+function closeLocationModal(e) { if (e && e.target !== document.getElementById('location-modal')) return; document.getElementById('location-modal').style.display = 'none'; }
+function formatDistanceToUser(locData) { if (!userPosition) return ''; return formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng)); }
 function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180, Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
   const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
+function formatDistance(m) { return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km'; }
 
-function formatDistance(m) {
-  if (m < 1000) return Math.round(m) + ' m';
-  return (m/1000).toFixed(1) + ' km';
-}
+function startChat(code, name) { if (!code) return; sessionStorage.setItem('sm_connect_to', code); sessionStorage.setItem('sm_connect_name', name); window.location.href = CHAT_PAGE; }
 
-/* ══ CHAT STARTEN ══ */
-function startChat(code, name) {
-  if (!code) return;
-  sessionStorage.setItem('sm_connect_to', code);
-  sessionStorage.setItem('sm_connect_name', name);
-  window.location.href = CHAT_PAGE;
-}
-
-/* ══ HELPER ══ */
-function esc(s) {
-  if (!s) return '';
-  const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML;
-}
-
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 function timeAgo(ts) {
-  if (!ts) return '';
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 2)  return 'gerade aktiv';
-  if (min < 60) return `vor ${min} Min`;
-  const h = Math.floor(min / 60);
-  if (h < 24)   return `vor ${h} Std`;
+  if (!ts) return ''; const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2) return 'gerade aktiv'; if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60); if (h < 24) return `vor ${h} Std`;
   return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
 }
-
 let tTimer = null;
-function toast(msg, ms = 2800) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(tTimer);
-  tTimer = setTimeout(() => el.classList.remove('show'), ms);
-}
-
-/* ══ DEBUG ══ */
-function toggleDebug() {
-  debugVisible = !debugVisible;
-  document.getElementById('debug-panel').style.display = debugVisible ? 'block' : 'none';
-  if (debugVisible) refreshDebug();
-}
-
-async function refreshDebug() {
-  // Debug-Funktionen unverändert – hier aus Platzgründen gekürzt
-}
-
-let logLines = [];
-function dbLog(msg, type = '') {
-  const ts = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  logLines.push({ ts, msg, type });
-  if (logLines.length > 50) logLines.shift();
-  const el = document.getElementById('debug-log');
-  if (!el) return;
-  el.innerHTML = logLines.slice().reverse().map(l =>
-    `<div class="${l.type ? 'log-'+l.type : ''}">[${l.ts}] ${esc(l.msg)}</div>`
-  ).join('');
-}
+function toast(msg, ms = 2800) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(tTimer); tTimer = setTimeout(() => el.classList.remove('show'), ms); }
 </script>
-
 </body>
 </html>
