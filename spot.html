@@ -1,452 +1,322 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>SpotMe · Community v2.1</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#060a0f">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-/* ═══════════════════════════════
-   DESIGN TOKENS — identisch mit SpotMe
-═══════════════════════════════ */
-:root {
-  --bg:      #060a0f;
-  --sur:     #0c1219;
-  --card:    #101820;
-  --card2:   #141f2e;
-  --bord:    rgba(255,255,255,.08);
-  --bord2:   rgba(255,255,255,.13);
-  --acc:     #00e5c0;
-  --acc-dim: rgba(0,229,192,.12);
-  --p2:      #7b5cfa;
-  --p3:      #ff4f7b;
-  --text:    #dde4f0;
-  --muted:   #4e6070;
-  --muted2:  #7a8fa8;
-  --green:   #1ecc68;
-}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>SpotMe · Radar Community</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <style>
+    /* ─── SpotMe Design Tokens ─── */
+    :root {
+      --bg:      #060a0f;
+      --sur:     #0c1219;
+      --card:    #101820;
+      --card2:   #141f2e;
+      --bord:    rgba(255,255,255,.08);
+      --bord2:   rgba(255,255,255,.13);
+      --acc:     #00e5c0;
+      --acc-dim: rgba(0,229,192,.12);
+      --p2:      #7b5cfa;
+      --p3:      #ff4f7b;
+      --text:    #dde4f0;
+      --muted:   #4e6070;
+      --muted2:  #7a8fa8;
+      --green:   #1ecc68;
+      --touch:   52px;
+    }
 
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
-html, body {
-  min-height:100%; background:var(--bg); color:var(--text);
-  font-family:'DM Sans', sans-serif; font-size:17px; line-height:1.5;
-  overscroll-behavior-y:contain;
-}
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 17px; line-height: 1.5;
+      height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+    }
 
-.page { max-width:480px; margin:0 auto; padding:0 1.25rem 6rem; }
+    /* ─── Header ─── */
+    .app-header {
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bord);
+      background: rgba(6,10,15,.96);
+      backdrop-filter: blur(24px);
+      flex-shrink: 0;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: 1px;
+      font-size: 1.3rem; color: var(--acc);
+    }
+    .logo b { color: var(--text); font-weight: 800; }
+    .status-badge {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 1px;
+      color: var(--acc); background: var(--acc-dim);
+      padding: 0.25rem 0.8rem; border-radius: 100px;
+      border: 1px solid rgba(0,229,192,.2);
+    }
 
-/* ═══════════════════════════════
-   STICKY NAV
-═══════════════════════════════ */
-.topnav {
-  position:sticky; top:0; z-index:100;
-  background:rgba(6,10,15,.96); backdrop-filter:blur(24px) saturate(1.6);
-  border-bottom:1px solid var(--bord);
-  padding:.7rem 1.25rem;
-}
-.topnav-inner {
-  max-width:480px; margin:0 auto;
-  display:flex; align-items:center; gap:.7rem;
-}
-.back-link {
-  width:40px; height:40px; border-radius:11px;
-  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
-  color:var(--muted2); font-size:1.3rem; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  text-decoration:none; flex-shrink:0; transition:all .2s;
-}
-.back-link:active { background:rgba(255,255,255,.09); color:var(--text) }
-.nav-title {
-  flex:1; font-family:'Syne',sans-serif; font-weight:800;
-  font-size:1.15rem; color:var(--acc); letter-spacing:-.02em;
-}
-.nav-title b { color:var(--text) }
-.refresh-btn {
-  width:40px; height:40px; border-radius:11px;
-  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
-  color:var(--muted2); font-size:1.1rem; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:all .2s; flex-shrink:0;
-}
-.refresh-btn:active { background:rgba(255,255,255,.09); color:var(--acc) }
-.refresh-btn.spinning { animation:spin .6s linear infinite }
-@keyframes spin { to{transform:rotate(360deg)} }
+    /* ─── Profil‑Card (kompakt) ─── */
+    .profile-bar {
+      padding: 0.75rem 1.25rem;
+      background: var(--card); border-bottom: 1px solid var(--bord);
+      display: flex; align-items: center; gap: 0.8rem; flex-shrink: 0;
+    }
+    .profile-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--p2), var(--p3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; border: 2px solid var(--bord2); flex-shrink: 0;
+      overflow: hidden;
+    }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .profile-meta {
+      font-size: 0.75rem; color: var(--muted2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .profile-actions {
+      display: flex; gap: 6px;
+    }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 10px;
+      border: 1px solid var(--bord2); background: rgba(255,255,255,.04);
+      color: var(--muted2); font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .icon-btn.active { background: var(--acc); color: var(--bg); border-color: var(--acc); }
+    .icon-btn:active { background: rgba(255,255,255,.09); }
 
-/* ═══════════════════════════════
-   EIGENES PROFIL — MY CARD
-═══════════════════════════════ */
-.my-section { padding:1.4rem 0 0 }
-.section-label {
-  font-size:.72rem; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--muted); margin-bottom:.9rem;
-  display:flex; align-items:center; gap:.5rem;
-}
-.section-label span { flex:1 }
+    /* ─── Radar Viewport ─── */
+    .radar-viewport {
+      flex: 1; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.5rem;
+    }
+    .radar-canvas {
+      position: relative; width: 100%; height: 100%;
+      max-width: min(80vw, 80vh); max-height: min(80vw, 80vh);
+      aspect-ratio: 1/1;
+    }
+    .radar-bg {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(0,229,192,.03) 0%, transparent 70%);
+      border: 1px solid rgba(0,229,192,.15);
+      box-shadow: 0 0 40px rgba(0,0,0,.5);
+    }
+    .ring {
+      position: absolute; inset: 0; border: 1px solid rgba(0,229,192,.08); border-radius: 50%;
+    }
+    .ring-label {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      color: var(--acc); font-size: 0.6rem; opacity: 0.5;
+      background: var(--bg); padding: 0 4px;
+    }
+    .radar-sweep {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: conic-gradient(from 0deg, transparent 0%, rgba(0,229,192,.08) 100%);
+      animation: sweep 8s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.my-card {
-  background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%);
-  border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem;
-  margin-bottom:1.25rem; position:relative; overflow:hidden;
-}
-.my-card::before {
-  content:''; position:absolute; inset:0;
-  background:radial-gradient(circle at 80% 0%, rgba(0,229,192,.04), transparent 60%);
-  pointer-events:none;
-}
+    .center-dot {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 14px; height: 14px; background: white; border-radius: 50%;
+      box-shadow: 0 0 20px var(--acc); border: 2px solid var(--bg); z-index: 10;
+    }
 
-.my-card-header { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem }
-.my-avatar {
-  width:56px; height:56px; border-radius:50%; flex-shrink:0;
-  background:linear-gradient(135deg,var(--p2),var(--p3));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.5rem; border:2px solid var(--bord2); overflow:hidden;
-}
-.my-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50% }
-.my-info { flex:1; min-width:0 }
-.my-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem }
-.my-meta { font-size:.82rem; color:var(--muted2); margin-top:.2rem }
-.my-code { font-size:.75rem; color:var(--acc); opacity:.8; margin-top:.15rem; font-family:'Syne',sans-serif; font-weight:700 }
+    /* Peer Nodes */
+    .peer-node {
+      position: absolute; width: 14px; height: 14px; margin-left: -7px; margin-top: -7px;
+      background: var(--acc); border-radius: 50%;
+      box-shadow: 0 0 12px var(--acc); cursor: pointer;
+      z-index: 50; transition: transform 0.2s;
+      border: 2px solid var(--bg);
+    }
+    .peer-node:active { transform: scale(1.4); }
+    .peer-node::after {
+      content: attr(data-label); position: absolute; top: 18px; left: 50%;
+      transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap;
+      background: var(--card2); padding: 2px 8px; border-radius: 12px;
+      border: 1px solid var(--bord2); color: var(--text);
+      pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    }
+    .peer-node:hover::after { opacity: 1; }
 
-.publish-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.7rem .9rem; border-radius:12px;
-  background:rgba(255,255,255,.04); border:1px solid var(--bord);
-  margin-bottom: 0.5rem;
-}
-.publish-label { font-size:.88rem }
-.publish-hint  { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
-.toggle {
-  width:46px; height:26px; border-radius:13px;
-  background:var(--sur); border:1.5px solid var(--bord2);
-  position:relative; cursor:pointer; transition:background .2s, border-color .2s;
-  flex-shrink:0;
-}
-.toggle.on { background:var(--acc); border-color:var(--acc) }
-.toggle::after {
-  content:''; position:absolute; width:18px; height:18px;
-  border-radius:50%; background:#fff; top:2px; left:2px;
-  transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.4);
-}
-.toggle.on::after { transform:translateX(20px) }
+    /* ─── Filter Drawer ─── */
+    .filter-drawer {
+      background: var(--card); border-top: 1px solid var(--bord);
+      padding: 1rem 1.25rem; flex-shrink: 0;
+    }
+    .filter-title {
+      font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 0.75rem;
+    }
+    .filter-row {
+      display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    .filter-chip {
+      background: var(--sur); border: 1.5px solid var(--bord2);
+      padding: 6px 14px; border-radius: 20px; font-size: 0.8rem;
+      white-space: nowrap; color: var(--muted2); cursor: pointer;
+      transition: all 0.15s; user-select: none;
+    }
+    .filter-chip.active {
+      background: var(--acc-dim); border-color: var(--acc); color: var(--acc);
+    }
+    .filter-select-row {
+      display: flex; gap: 8px; margin-bottom: 10px;
+    }
+    .filter-select {
+      flex: 1; padding: 8px 12px; background: var(--sur);
+      border: 1.5px solid var(--bord2); border-radius: 12px;
+      color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    }
+    .reset-link {
+      font-size: 0.75rem; color: var(--muted2); background: none; border: none;
+      padding: 4px 8px; cursor: pointer;
+    }
 
-.location-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.7rem .9rem; border-radius:12px;
-  background:rgba(255,255,255,.04); border:1px solid var(--bord);
-}
-.location-label { font-size:.88rem }
-.location-hint  { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
+    /* ─── Bottom Navigation ─── */
+    nav {
+      display: flex; justify-content: space-around; padding: 0.5rem 0 1.2rem;
+      border-top: 1px solid var(--bord); background: var(--bg); flex-shrink: 0;
+    }
+    .nav-btn {
+      background: none; border: none; color: var(--muted2); opacity: 0.5;
+      font-family: 'Syne', sans-serif; font-size: 0.8rem; letter-spacing: 1px;
+      cursor: pointer; padding: 8px 16px; border-radius: 12px; transition: all 0.15s;
+    }
+    .nav-btn.active { opacity: 1; color: var(--acc); background: var(--acc-dim); }
 
-.no-profile-hint {
-  background:rgba(255,185,0,.06); border:1px solid rgba(255,185,0,.18);
-  border-radius:14px; padding:1rem 1.1rem; margin-bottom:1.25rem;
-  font-size:.88rem; color:#f5a623; line-height:1.55;
-  display:flex; align-items:flex-start; gap:.7rem;
-}
-.no-profile-hint a {
-  color:var(--acc); text-decoration:none; font-weight:500;
-}
+    /* ─── Modal (wie in spot.html) ─── */
+    .location-modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+      z-index: 1000; display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .location-modal {
+      background: var(--card2); border: 1px solid var(--bord2);
+      border-radius: 24px; padding: 1.5rem; width: 90%; max-width: 400px;
+    }
+    .location-modal.inside { background: rgba(30, 204, 104, 0.08); border-color: var(--green); }
+    .location-modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .location-modal-title { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--acc); }
+    .location-modal-close {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,.1); border: none; color: var(--text);
+      font-size: 1.2rem; cursor: pointer;
+    }
+    #location-map-small { height: 200px; border-radius: 12px; margin-bottom: 1rem; }
+    .location-distance {
+      text-align: center; font-weight: 600; padding: 0.5rem;
+      border-radius: 12px; margin-bottom: 0.8rem;
+    }
+    .location-distance.inside { background: rgba(30, 204, 104, 0.15); color: var(--green); }
+    .checkin-btn {
+      width: 100%; padding: 0.8rem; border: none; border-radius: 12px;
+      background: var(--acc); color: var(--bg); font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 0.4rem; transition: all 0.2s;
+    }
 
-/* ═══════════════════════════════
-   FILTER BAR
-═══════════════════════════════ */
-.filter-bar {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:16px; padding:1rem; margin-bottom:1.25rem;
-}
-.filter-title { font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.85rem }
-.filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem }
-.fsel {
-  width:100%; padding:.58rem .85rem;
-  background:var(--sur); border:1.5px solid var(--bord2);
-  border-radius:11px; color:var(--text);
-  font-family:'DM Sans',sans-serif; font-size:.85rem;
-  outline:none; cursor:pointer; -webkit-appearance:none;
-  transition:border-color .2s;
-}
-.fsel:focus { border-color:rgba(0,229,192,.4) }
-.fsel option { background:var(--card); color:var(--text) }
-.filter-chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem }
-.chip {
-  padding:.32rem .8rem; border-radius:100px;
-  border:1.5px solid var(--bord2); background:transparent;
-  color:var(--muted2); font-size:.78rem; cursor:pointer;
-  font-family:'DM Sans',sans-serif; transition:all .2s; user-select:none;
-}
-.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc) }
-.chip:active { opacity:.8 }
-.filter-reset {
-  display:inline-flex; align-items:center; gap:.3rem;
-  font-size:.77rem; color:var(--muted2); background:none; border:none;
-  cursor:pointer; font-family:'DM Sans',sans-serif;
-  padding:.25rem .5rem; border-radius:6px; margin-top:.5rem;
-  transition:color .2s;
-}
-.filter-reset:active { color:var(--acc) }
-
-/* ═══════════════════════════════
-   COMMUNITY LIST
-═══════════════════════════════ */
-.community-header {
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:.85rem;
-}
-.community-count { font-size:.8rem; color:var(--muted2) }
-.community-count b { color:var(--text); font-weight:600 }
-
-.profile-card {
-  background:var(--card2); border:1px solid var(--bord);
-  border-radius:18px; padding:1.1rem; margin-bottom:.9rem;
-  transition:border-color .2s;
-  position:relative; overflow:hidden;
-}
-.profile-card:active { border-color:var(--bord2) }
-.profile-card::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  border-radius:2px 2px 0 0; opacity:0; transition:opacity .3s;
-}
-.profile-card.homo::before   { background:linear-gradient(90deg,var(--p2),var(--acc)); opacity:1 }
-.profile-card.bi::before     { background:linear-gradient(90deg,var(--p3),var(--p2)); opacity:1 }
-.profile-card.hetero::before { background:linear-gradient(90deg,var(--muted),var(--muted2)); opacity:.4 }
-
-.card-top { display:flex; align-items:flex-start; gap:.85rem; margin-bottom:.8rem }
-.card-av {
-  width:50px; height:50px; border-radius:50%; flex-shrink:0;
-  background:linear-gradient(135deg,var(--p2),var(--p3));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.35rem; border:2px solid var(--bord2);
-}
-.card-info { flex:1; min-width:0 }
-.card-name {
-  font-family:'Syne',sans-serif; font-weight:700; font-size:1rem;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.card-age-loc { font-size:.8rem; color:var(--muted2); margin-top:.2rem }
-.card-age-loc b { color:var(--muted); font-weight:500 }
-.online-dot {
-  width:9px; height:9px; border-radius:50%;
-  background:var(--green); box-shadow:0 0 8px var(--green);
-  flex-shrink:0; margin-top:6px; animation:blink 2s ease infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-.location-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0,229,192,.1);
-  border: 1px solid rgba(0,229,192,.3);
-  border-radius: 100px;
-  padding: 2px 8px;
-  font-size: 0.65rem;
-  color: var(--acc);
-  margin-left: 8px;
-  cursor: pointer;
-}
-.location-badge:active { background: rgba(0,229,192,.2); }
-
-.card-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.75rem }
-.badge {
-  padding:.22rem .65rem; border-radius:100px; font-size:.73rem; font-weight:500;
-  border:1px solid transparent;
-}
-.badge-homo   { background:rgba(123,92,250,.12); color:var(--p2); border-color:rgba(123,92,250,.25) }
-.badge-bi     { background:rgba(255,79,123,.1);  color:var(--p3); border-color:rgba(255,79,123,.22) }
-.badge-hetero { background:rgba(255,255,255,.05); color:var(--muted2); border-color:var(--bord2) }
-.badge-role   { background:rgba(0,229,192,.08); color:var(--acc); border-color:rgba(0,229,192,.2) }
-.badge-trans  { background:rgba(0,229,192,.06); color:var(--acc); border-color:rgba(0,229,192,.15); font-size:.7rem }
-.badge-cross  { background:rgba(255,185,0,.07); color:#f5a623; border-color:rgba(255,185,0,.18); font-size:.7rem }
-
-.card-bio {
-  font-size:.83rem; color:var(--muted2); line-height:1.55;
-  margin-bottom:.85rem;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-}
-
-.card-footer { display:flex; align-items:center; justify-content:space-between; gap:.7rem }
-.card-time { font-size:.7rem; color:var(--muted) }
-.btn-chat {
-  display:flex; align-items:center; gap:.45rem;
-  padding:.52rem 1.1rem; border-radius:10px; border:none;
-  background:var(--acc); color:var(--bg);
-  font-family:'DM Sans',sans-serif; font-size:.85rem; font-weight:700;
-  cursor:pointer; transition:all .2s; flex-shrink:0;
-}
-.btn-chat:active { transform:scale(.96); opacity:.9 }
-
-/* Location Modal (erweitert) */
-.location-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-  z-index: 1000; display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
-}
-.location-modal {
-  background: var(--card2); border: 1px solid var(--bord2);
-  border-radius: 24px; padding: 1.5rem; width: 90%; max-width: 400px;
-  transition: background 0.2s;
-}
-.location-modal.inside {
-  background: rgba(30, 204, 104, 0.08);
-  border-color: var(--green);
-}
-.location-modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1rem;
-}
-.location-modal-title {
-  font-family: 'Syne', sans-serif; font-weight: 700; color: var(--acc);
-}
-.location-modal-close {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,.1); border: none;
-  color: var(--text); font-size: 1.2rem; cursor: pointer;
-}
-#location-map-small { height: 200px; border-radius: 12px; margin-bottom: 1rem; }
-.location-distance {
-  text-align: center;
-  font-weight: 600;
-  padding: 0.5rem;
-  border-radius: 12px;
-  margin-bottom: 0.8rem;
-}
-.location-distance.inside {
-  background: rgba(30, 204, 104, 0.15);
-  color: var(--green);
-}
-.checkin-btn {
-  width: 100%;
-  padding: 0.8rem;
-  border: none;
-  border-radius: 12px;
-  background: var(--acc);
-  color: var(--bg);
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
-}
-.checkin-btn:active { transform: scale(0.97); }
-
-.state-box {
-  text-align:center; padding:3rem 1.5rem; color:var(--muted);
-}
-.state-ico { font-size:2.8rem; margin-bottom:.85rem; opacity:.35 }
-.state-txt { font-size:.95rem; margin-bottom:.4rem }
-.state-hint { font-size:.8rem; opacity:.7 }
-
-.loading-row {
-  display:flex; align-items:center; justify-content:center;
-  gap:.6rem; color:var(--muted2); font-size:.85rem; padding:2rem 0;
-}
-.spinner {
-  width:18px; height:18px; border:2px solid var(--bord2);
-  border-top-color:var(--acc); border-radius:50%;
-  animation:sp .7s linear infinite; flex-shrink:0;
-}
-@keyframes sp { to{transform:rotate(360deg)} }
-
-.toast {
-  position:fixed; bottom:2.5rem; left:50%;
-  transform:translateX(-50%) translateY(80px);
-  background:var(--card2); border:1px solid var(--bord2);
-  border-radius:100px; padding:.55rem 1.25rem;
-  font-size:.83rem; font-weight:500; z-index:9999;
-  transition:all .3s cubic-bezier(.175,.885,.32,1.275);
-  opacity:0; white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.5);
-}
-.toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
-</style>
+    .toast {
+      position: fixed; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+      background: var(--card2); border: 1px solid var(--bord2);
+      border-radius: 100px; padding: 0.6rem 1.5rem; font-size: 0.85rem;
+      z-index: 9999; transition: all 0.3s; opacity: 0; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+  </style>
 </head>
 <body>
 
-<nav class="topnav">
-  <div class="topnav-inner">
-    <a class="back-link" href="index.html" title="Zurück zum Chat">‹</a>
-    <div class="nav-title">Spot<b>Me</b> <span style="color:var(--muted2);font-family:'DM Sans',sans-serif;font-weight:300;font-size:.9rem">Community v2.1</span></div>
-    <button class="refresh-btn" id="refresh-btn" onclick="loadCommunity()" title="Aktualisieren">↺</button>
-  </div>
-</nav>
+<!-- Header -->
+<header class="app-header">
+  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.9rem;">RADAR</span></div>
+  <div class="status-badge" id="status-indicator">● DISCOVERY</div>
+</header>
 
-<div class="page">
-  <div class="my-section">
-    <div class="section-label"><span>Mein Profil</span></div>
-    <div class="no-profile-hint" id="no-profile-hint" style="display:none">
-      <span>⚠️</span>
-      <div>Noch kein Profil erstellt.<br><a href="profil.html">Profil anlegen →</a> um in der Community sichtbar zu sein.</div>
-    </div>
-    <div class="my-card" id="my-card" style="display:none">
-      <div class="my-card-header">
-        <div class="my-avatar" id="my-avatar">🧑</div>
-        <div class="my-info">
-          <div class="my-name" id="my-name">—</div>
-          <div class="my-meta" id="my-meta">—</div>
-          <div class="my-code" id="my-code">—</div>
-        </div>
-      </div>
-      <div class="publish-row">
-        <div>
-          <div class="publish-label">In Community anzeigen</div>
-          <div class="publish-hint" id="publish-hint">Dein Profil ist nicht sichtbar</div>
-        </div>
-        <div class="toggle" id="publish-toggle" onclick="togglePublish()"></div>
-      </div>
-      <div class="location-row">
-        <div>
-          <div class="location-label">📍 An diesem Ort anzutreffen</div>
-          <div class="location-hint" id="location-hint">Standort teilen</div>
-        </div>
-        <div class="toggle" id="location-toggle" onclick="toggleLocationSharing()"></div>
-      </div>
-    </div>
+<!-- Kompakte Profil-Info (wird dynamisch gefüllt) -->
+<div class="profile-bar" id="profile-bar" style="display:none;">
+  <div class="profile-avatar" id="my-avatar-small">🧑</div>
+  <div class="profile-info">
+    <div class="profile-name" id="my-name-small">—</div>
+    <div class="profile-meta" id="my-meta-small">—</div>
   </div>
-
-  <div class="section-label" style="margin-top:.25rem"><span>Community durchsuchen</span></div>
-  <div class="filter-bar">
-    <div class="filter-title">Filter</div>
-    <div class="filter-grid">
-      <select class="fsel" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
-      <select class="fsel" id="f-age" onchange="applyFilters()">
-        <option value="">Alle Altersgruppen</option>
-        <option value="18-29">18–29</option>
-        <option value="30-39">30–39</option>
-        <option value="40-49">40–49</option>
-        <option value="50+">50+</option>
-      </select>
-    </div>
-    <div class="filter-chips" id="filter-chips">
-      <button class="chip" data-filter="homo"      onclick="toggleChip(this)">🏳️‍🌈 Homo</button>
-      <button class="chip" data-filter="bi"        onclick="toggleChip(this)">Bi</button>
-      <button class="chip" data-filter="hetero"    onclick="toggleChip(this)">Hetero</button>
-      <button class="chip" data-filter="bottom"    onclick="toggleChip(this)">Bottom</button>
-      <button class="chip" data-filter="top"       onclick="toggleChip(this)">Top</button>
-      <button class="chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</button>
-      <button class="chip" data-filter="trans"     onclick="toggleChip(this)">Trans</button>
-    </div>
-    <button class="filter-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
-  </div>
-
-  <div class="community-header">
-    <div class="section-label" style="margin-bottom:0"><span>Profile</span></div>
-    <div class="community-count" id="community-count"></div>
-  </div>
-
-  <div id="community-list">
-    <div class="loading-row"><div class="spinner"></div>Lade Community...</div>
+  <div class="profile-actions">
+    <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+    <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html'" title="Profil bearbeiten">✎</button>
   </div>
 </div>
 
+<!-- Radar -->
+<div class="radar-viewport">
+  <div class="radar-canvas" id="radar-field">
+    <div class="radar-bg"></div>
+    <div class="ring" style="inset: 0;"></div><span class="ring-label" style="top:2%;">5 km</span>
+    <div class="ring" style="inset: 20%;"></div><span class="ring-label" style="top:22%;">1 km</span>
+    <div class="ring" style="inset: 45%;"></div><span class="ring-label" style="top:47%;">500 m</span>
+    <div class="ring" style="inset: 75%;"></div><span class="ring-label" style="top:77%;">100 m</span>
+    <div class="radar-sweep"></div>
+    <div class="center-dot"></div>
+    <!-- Nodes werden per JS eingefügt -->
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="filter-drawer">
+  <div class="filter-title">Community Filter</div>
+  <div class="filter-select-row">
+    <select class="filter-select" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
+    <select class="filter-select" id="f-age" onchange="applyFilters()">
+      <option value="">Alle Altersgruppen</option>
+      <option value="18-29">18–29</option>
+      <option value="30-39">30–39</option>
+      <option value="40-49">40–49</option>
+      <option value="50+">50+</option>
+    </select>
+  </div>
+  <div class="filter-row" id="filter-chips">
+    <div class="filter-chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</div>
+    <div class="filter-chip" data-filter="bi" onclick="toggleChip(this)">Bi</div>
+    <div class="filter-chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</div>
+    <div class="filter-chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</div>
+    <div class="filter-chip" data-filter="top" onclick="toggleChip(this)">Top</div>
+    <div class="filter-chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</div>
+    <div class="filter-chip" data-filter="trans" onclick="toggleChip(this)">Trans</div>
+  </div>
+  <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+</div>
+
+<!-- Navigation -->
+<nav>
+  <button class="nav-btn active">RADAR</button>
+  <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
+  <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
+</nav>
+
+<!-- Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
   <div class="location-modal" id="location-modal-content" onclick="event.stopPropagation()">
     <div class="location-modal-header">
@@ -464,12 +334,14 @@ html, body {
 <script>
 'use strict';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// API & Globals (identisch zu spot.html)
+// ─────────────────────────────────────────────────────────────────────────────
 const API = 'https://spotme-chat.onrender.com/api';
-const CHAT_PAGE = 'index.html';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
-const DEFAULT_RADIUS = 500; // Meter
+const DEFAULT_RADIUS = 500;
 
 let myProfile = null;
 let myCode = localStorage.getItem('sm_code') || '';
@@ -480,13 +352,14 @@ let filtered = [];
 let keepaliveTimer = null;
 let locationTimer = null;
 let locationWatchId = null;
+let userPosition = null;           // eigene Position {lat, lng}
 
-// Für Check‑In Modal
+// Modal & Map
 let currentTargetCode = null;
 let currentTargetLat = null, currentTargetLng = null;
 let currentMap = null, userMarker = null, targetMarker = null;
-let userPosition = null;
 
+// Regionen für Filter
 const REGIONS = [
   'Andalusien','Aragón','Asturien','Balearen','Baskenland',
   'Extremadura','Galicien','Kanaren','Kantabrien',
@@ -494,84 +367,118 @@ const REGIONS = [
   'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
 ];
 
+// Cache für Positionen anderer Nutzer
+const locationCache = new Map();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialisierung
+// ─────────────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
   await loadCommunity();
   if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
+  
+  // Standort-Freigabe aus localStorage wiederherstellen
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
-  if (isSharingLocation) startLocationSharing();
+  if (isSharingLocation) {
+    startLocationSharing().then(() => {
+      // Nachdem eigene Position da ist, Radar neu zeichnen
+      renderRadar();
+    });
+  }
+  
+  // Initial Radar rendern (auch ohne eigene Position werden Nodes angezeigt)
+  renderRadar();
 });
-
-function startKeepalive() {
-  if (keepaliveTimer) clearInterval(keepaliveTimer);
-  keepaliveTimer = setInterval(async () => {
-    if (isPublished && myProfile) {
-      try { await publishProfile(true); } catch(e) {}
-    }
-    await loadCommunity();
-  }, KEEPALIVE_INTERVAL);
-}
-
-async function verifyAndRepublish() {
-  try {
-    const res = await fetch(API + '/profile/' + myCode);
-    if (res.status === 404) {
-      await publishProfile(true);
-      await loadCommunity();
-    }
-  } catch(e) {}
-}
 
 function buildRegionFilter() {
   const sel = document.getElementById('f-region');
   REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Profil laden & UI
+// ─────────────────────────────────────────────────────────────────────────────
 function loadMyProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) {
-    document.getElementById('no-profile-hint').style.display = 'flex';
-    document.getElementById('my-card').style.display = 'none';
+    document.getElementById('profile-bar').style.display = 'none';
     return;
   }
   try { myProfile = JSON.parse(raw); } catch { return; }
-  document.getElementById('no-profile-hint').style.display = 'none';
-  document.getElementById('my-card').style.display = 'block';
-
-  const av = document.getElementById('my-avatar');
+  document.getElementById('profile-bar').style.display = 'flex';
+  
+  const av = document.getElementById('my-avatar-small');
   if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
   else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
-  document.getElementById('my-name').textContent = myProfile.name || '—';
-
+  
+  document.getElementById('my-name-small').textContent = myProfile.name || '—';
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
   const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
   const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
-  document.getElementById('my-meta').textContent = meta || 'Kein Ort angegeben';
-  document.getElementById('my-code').textContent = myCode ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6) : '';
-
+  document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
+  
   isPublished = localStorage.getItem('sm_spot_published') === '1';
   updatePublishUI();
 }
 
 function updatePublishUI() {
-  const toggle = document.getElementById('publish-toggle');
-  const hint = document.getElementById('publish-hint');
-  toggle.classList.toggle('on', isPublished);
-  hint.textContent = isPublished ? '✓ Dein Profil ist in der Community sichtbar' : 'Dein Profil ist nicht sichtbar';
-  hint.style.color = isPublished ? 'var(--green)' : '';
+  const btn = document.getElementById('publish-toggle-small');
+  btn.classList.toggle('active', isPublished);
+  btn.title = isPublished ? 'In Community sichtbar' : 'Nicht sichtbar';
 }
 
 function updateLocationUI() {
-  const toggle = document.getElementById('location-toggle');
-  const hint = document.getElementById('location-hint');
-  toggle.classList.toggle('on', isSharingLocation);
-  hint.textContent = isSharingLocation ? '✓ Dein Standort wird geteilt' : 'Standort teilen';
-  hint.style.color = isSharingLocation ? 'var(--green)' : '';
+  const btn = document.getElementById('location-toggle-small');
+  btn.classList.toggle('active', isSharingLocation);
+  btn.title = isSharingLocation ? 'Standort wird geteilt' : 'Standort teilen';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Publish / Unpublish
+// ─────────────────────────────────────────────────────────────────────────────
+async function togglePublish() {
+  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
+  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
+  const btn = document.getElementById('publish-toggle-small');
+  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
+  try {
+    if (isPublished) {
+      await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
+      isPublished = false;
+      localStorage.setItem('sm_spot_published', '0');
+      toast('○ Profil aus Community entfernt');
+    } else {
+      const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+      const payload = {
+        code: myCode, name: myProfile.name, age,
+        region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+        orientation: myProfile.orientation || null, role: myProfile.role || null,
+        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
+      };
+      const res = await fetch(API + '/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      isPublished = true;
+      localStorage.setItem('sm_spot_published', '1');
+      toast('✅ Profil veröffentlicht');
+    }
+    updatePublishUI();
+    await loadCommunity();
+    renderRadar();
+  } catch(e) { toast('⚠️ Fehler: ' + e.message); }
+  finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Standort teilen
+// ─────────────────────────────────────────────────────────────────────────────
 async function toggleLocationSharing() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
   if (isSharingLocation) {
@@ -580,6 +487,8 @@ async function toggleLocationSharing() {
     localStorage.setItem('sm_spot_location', '0');
     updateLocationUI();
     toast('📍 Standortfreigabe beendet');
+    userPosition = null;
+    renderRadar();
   } else {
     const success = await startLocationSharing();
     if (success) {
@@ -587,6 +496,7 @@ async function toggleLocationSharing() {
       localStorage.setItem('sm_spot_location', '1');
       updateLocationUI();
       toast('📍 Standort wird geteilt');
+      renderRadar();
     }
   }
 }
@@ -595,17 +505,28 @@ async function startLocationSharing() {
   if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); return false; }
   try {
     const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
-    await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
+    userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    await sendLocationToServer(userPosition.lat, userPosition.lng);
+    
     if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = navigator.geolocation.watchPosition(
-      async (pos) => { await sendLocationToServer(pos.coords.latitude, pos.coords.longitude); },
+      async (pos) => {
+        userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        await sendLocationToServer(userPosition.lat, userPosition.lng);
+        renderRadar();
+      },
       (err) => console.warn('Location watch error:', err),
       { enableHighAccuracy: true, maximumAge: 30000 }
     );
+    
     if (locationTimer) clearInterval(locationTimer);
     locationTimer = setInterval(async () => {
       const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true })).catch(() => null);
-      if (pos) await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
+      if (pos) {
+        userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        await sendLocationToServer(userPosition.lat, userPosition.lng);
+        renderRadar();
+      }
     }, LOCATION_UPDATE_INTERVAL);
     return true;
   } catch (e) { toast('⚠️ Standort nicht verfügbar'); return false; }
@@ -626,79 +547,49 @@ async function sendLocationToServer(lat, lng) {
   } catch(e) {}
 }
 
-async function togglePublish() {
-  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
-  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
-  const btn = document.getElementById('publish-toggle');
-  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
-  try {
-    if (isPublished) { await unpublishProfile(); }
-    else { await publishProfile(false); }
-    updatePublishUI();
-    await loadCommunity();
-  } catch(e) { toast('⚠️ Fehler: ' + (e.message || 'unbekannt')); }
-  finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
-}
-
-async function publishProfile(silent = false) {
-  if (!myProfile || !myCode) throw new Error('Kein Profil');
-  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-  const payload = {
-    code: myCode, name: myProfile.name, age,
-    region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-    orientation: myProfile.orientation || null, role: myProfile.role || null,
-    trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
-  };
-  const res = await fetch(API + '/profile', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  isPublished = true;
-  localStorage.setItem('sm_spot_published', '1');
-  if (!silent) toast('✅ Profil veröffentlicht');
-}
-
-async function unpublishProfile() {
-  const res = await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error('HTTP ' + res.status);
-  isPublished = false;
-  localStorage.setItem('sm_spot_published', '0');
-  toast('○ Profil aus Community entfernt');
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Community laden
+// ─────────────────────────────────────────────────────────────────────────────
 async function loadCommunity() {
-  const btn = document.getElementById('refresh-btn');
-  btn.classList.add('spinning');
   try {
     const res = await fetch(API + '/profiles');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     allProfiles = await res.json();
-    for (const p of allProfiles) { if (p.code !== myCode) fetchLocationForProfile(p.code); }
+    // Für alle Profile den Standort abrufen (parallel)
+    await Promise.all(allProfiles.map(p => fetchLocationForProfile(p.code)));
     applyFilters();
   } catch(e) {
-    document.getElementById('community-list').innerHTML = `<div class="state-box"><div class="state-ico">⚠️</div><div class="state-txt">Server nicht erreichbar</div><div class="state-hint">${e.message}</div></div>`;
-    document.getElementById('community-count').textContent = '';
-  } finally { btn.classList.remove('spinning'); }
+    console.warn('Community load error', e);
+  }
 }
 
-const locationCache = new Map();
 async function fetchLocationForProfile(code) {
   if (locationCache.has(code)) return locationCache.get(code);
   try {
     const res = await fetch(API + '/location/' + code);
-    if (res.ok) { const data = await res.json(); locationCache.set(code, data); renderCommunity(); return data; }
+    if (res.ok) {
+      const data = await res.json();
+      locationCache.set(code, data);
+      return data;
+    }
   } catch(e) {}
   locationCache.set(code, null);
   return null;
 }
 
-function toggleChip(btn) { btn.classList.toggle('on'); applyFilters(); }
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter & Rendering (Radar)
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleChip(el) {
+  el.classList.toggle('active');
+  applyFilters();
+}
+
 function applyFilters() {
   const region = document.getElementById('f-region').value;
   const ageRange = document.getElementById('f-age').value;
-  const chips = [...document.querySelectorAll('.chip.on')].map(c => c.dataset.filter);
+  const chips = [...document.querySelectorAll('.filter-chip.active')].map(c => c.dataset.filter);
+  
   filtered = allProfiles.filter(p => {
     if (myCode && p.code === myCode) return false;
     if (region && p.region !== region) return false;
@@ -713,68 +604,67 @@ function applyFilters() {
     if (chips.includes('trans') && !p.trans) return false;
     return true;
   });
-  renderCommunity();
+  renderRadar();
 }
+
 function resetFilters() {
   document.getElementById('f-region').value = '';
   document.getElementById('f-age').value = '';
-  document.querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
+  document.querySelectorAll('.filter-chip.active').forEach(c => c.classList.remove('active'));
   applyFilters();
 }
 
-function renderCommunity() {
-  const list = document.getElementById('community-list');
-  const count = document.getElementById('community-count');
-  const n = filtered.length;
-  count.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
-  if (!n) {
-    list.innerHTML = `<div class="state-box"><div class="state-ico">🔍</div><div class="state-txt">Keine Profile gefunden</div><div class="state-hint">Filter anpassen oder Profile veröffentlichen</div></div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(p => profileCard(p)).join('');
+// ─────────────────────────────────────────────────────────────────────────────
+// Radar Visualisierung
+// ─────────────────────────────────────────────────────────────────────────────
+function renderRadar() {
+  const field = document.getElementById('radar-field');
+  // Alte Nodes entfernen
+  field.querySelectorAll('.peer-node').forEach(n => n.remove());
+  
+  const maxDist = 5000; // 5 km entspricht äußerem Ring
+  
+  filtered.forEach(profile => {
+    const loc = locationCache.get(profile.code);
+    if (!loc) return; // nur Profile mit Standort anzeigen
+    
+    // Distanz berechnen (falls eigene Position bekannt)
+    let distance = null;
+    if (userPosition) {
+      distance = getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng);
+    } else {
+      // Fallback: zufällige Distanz, aber konsistent (Hash aus Code)
+      const hash = profile.code.split('').reduce((a,b) => a + b.charCodeAt(0), 0);
+      distance = (hash % 4000) + 500; // 500–4500 m
+    }
+    
+    // Position auf Radar berechnen
+    const normalized = Math.min(distance, maxDist) / maxDist; // 0 (Mitte) bis 1 (Rand)
+    const radiusPercent = (1 - normalized) * 50; // 50% = Mitte, 0% = Rand
+    
+    // Winkel stabil aus Code ableiten
+    const angle = (profile.code.split('').reduce((a,b) => a + b.charCodeAt(0), 0) % 360) * (Math.PI / 180);
+    
+    const x = 50 + (Math.cos(angle) * (normalized * 50));
+    const y = 50 + (Math.sin(angle) * (normalized * 50));
+    
+    const node = document.createElement('div');
+    node.className = 'peer-node';
+    node.style.left = x + '%';
+    node.style.top = y + '%';
+    node.setAttribute('data-label', `${profile.name || '?'} (${formatDistance(distance)})`);
+    node.onclick = () => showLocationOnMap(profile.code, profile.name, loc.lat, loc.lng);
+    field.appendChild(node);
+  });
+  
+  // Status aktualisieren
+  const status = document.getElementById('status-indicator');
+  status.textContent = `● ${filtered.length} PROFILES`;
 }
 
-function profileCard(p) {
-  const initial = p.name ? p.name[0].toUpperCase() : '?';
-  const age = p.age ? `${p.age} J.` : '? J.';
-  const loc = [p.city, p.region].filter(Boolean).join(', ');
-  const ago = timeAgo(p.ts);
-  const isOwn = p.code === myCode;
-
-  let badges = '';
-  if (p.orientation) {
-    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
-    badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
-  }
-  if (p.role) {
-    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
-    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
-  }
-  if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
-  if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
-  if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
-
-  const locData = locationCache.get(p.code);
-  let locationBadge = '';
-  if (locData && !isOwn) {
-    locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${formatDistanceToUser(locData)}</span>`;
-  }
-
-  const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
-  const cardClass = p.orientation ? ` ${p.orientation}` : '';
-  const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
-
-  return `<div class="profile-card${cardClass}">
-    <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" title="Online in den letzten 24h"></div></div>
-    ${badges ? `<div class="card-badges">${badges}</div>` : ''}
-    ${bio}
-    <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// CHECK‑IN FUNKTIONEN
-// ═══════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// Modal & Check‑In (identisch zu spot.html)
+// ─────────────────────────────────────────────────────────────────────────────
 function showLocationOnMap(code, name, lat, lng) {
   currentTargetCode = code;
   currentTargetLat = lat;
@@ -784,8 +674,6 @@ function showLocationOnMap(code, name, lat, lng) {
   const modalContent = document.getElementById('location-modal-content');
   document.getElementById('location-modal-name').textContent = name;
   modal.style.display = 'flex';
-  
-  // Reset Modal-Styles
   modalContent.classList.remove('inside');
   document.getElementById('location-distance').classList.remove('inside');
   
@@ -796,17 +684,12 @@ function showLocationOnMap(code, name, lat, lng) {
     } else {
       currentMap.setView([lat, lng], 14);
     }
-    
-    // Ziel-Marker
     if (targetMarker) currentMap.removeLayer(targetMarker);
     targetMarker = L.marker([lat, lng], {
       icon: L.divIcon({ html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
     }).addTo(currentMap).bindPopup(name).openPopup();
     
-    // Prüfen, ob bereits eine eigene Position bekannt ist
     updateModalDistance();
-    
-    // Falls keine Position, dezenten Hinweis
     if (!userPosition) {
       document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
     }
@@ -831,11 +714,9 @@ async function performCheckIn() {
     );
     userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     
-    // Eigene Position an Server senden (für andere sichtbar machen)
     if (myCode) {
       await sendLocationToServer(userPosition.lat, userPosition.lng);
       if (!isSharingLocation) {
-        // Automatisch "teilen" aktivieren, wenn noch nicht geschehen
         isSharingLocation = true;
         localStorage.setItem('sm_spot_location', '1');
         updateLocationUI();
@@ -843,7 +724,6 @@ async function performCheckIn() {
       }
     }
     
-    // Marker aktualisieren
     if (userMarker) currentMap.removeLayer(userMarker);
     userMarker = L.marker([userPosition.lat, userPosition.lng], {
       icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
@@ -851,6 +731,7 @@ async function performCheckIn() {
     
     updateModalDistance();
     toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
+    renderRadar(); // Radar mit neuer eigener Position aktualisieren
   } catch (e) {
     toast('❌ Standort konnte nicht ermittelt werden');
   } finally {
@@ -861,13 +742,10 @@ async function performCheckIn() {
 
 function updateModalDistance() {
   if (!userPosition || !currentTargetLat || !currentTargetLng) return;
-  
   const dist = getDistance(userPosition.lat, userPosition.lng, currentTargetLat, currentTargetLng);
   const inside = dist <= DEFAULT_RADIUS;
-  
   const distEl = document.getElementById('location-distance');
   distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
-  
   const modalContent = document.getElementById('location-modal-content');
   if (inside) {
     distEl.classList.add('inside');
@@ -881,14 +759,11 @@ function updateModalDistance() {
 function closeLocationModal(e) {
   if (e && e.target !== document.getElementById('location-modal')) return;
   document.getElementById('location-modal').style.display = 'none';
-  // Nicht alles löschen, damit bei erneutem Öffnen die Karte erhalten bleibt
 }
 
-function formatDistanceToUser(locData) {
-  if (!userPosition) return '';
-  return formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng));
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Hilfsfunktionen
+// ─────────────────────────────────────────────────────────────────────────────
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
   const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
@@ -897,30 +772,49 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 function formatDistance(m) {
-  return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km';
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m/1000).toFixed(1) + ' km';
 }
 
-function startChat(code, name) {
-  if (!code) return;
-  sessionStorage.setItem('sm_connect_to', code);
-  sessionStorage.setItem('sm_connect_name', name);
-  window.location.href = CHAT_PAGE;
+function startKeepalive() {
+  if (keepaliveTimer) clearInterval(keepaliveTimer);
+  keepaliveTimer = setInterval(async () => {
+    if (isPublished && myProfile) {
+      try { 
+        const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+        await fetch(API + '/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: myCode, name: myProfile.name, age,
+            region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
+          })
+        });
+      } catch(e) {}
+    }
+    await loadCommunity();
+  }, KEEPALIVE_INTERVAL);
 }
 
-function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-function timeAgo(ts) {
-  if (!ts) return ''; const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 2) return 'gerade aktiv'; if (min < 60) return `vor ${min} Min`;
-  const h = Math.floor(min / 60); if (h < 24) return `vor ${h} Std`;
-  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+async function verifyAndRepublish() {
+  try {
+    const res = await fetch(API + '/profile/' + myCode);
+    if (res.status === 404) {
+      await togglePublish(); // neu veröffentlichen
+    }
+  } catch(e) {}
 }
-let tTimer = null;
+
 function toast(msg, ms = 2800) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('show');
-  clearTimeout(tTimer);
-  tTimer = setTimeout(() => el.classList.remove('show'), ms);
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 </script>
 </body>
 </html>
