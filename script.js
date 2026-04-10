@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
-const API_MISSED = 'https://spotme-chat.onrender.com/api/missed-call'; // NEU
+const API_MISSED = 'https://spotme-chat.onrender.com/api/missed-call';
 function newCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 let peer = null, conn = null, pendingConn = null;
@@ -42,7 +42,7 @@ localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PENDING MESSAGES (unverändert)
+// PENDING MESSAGES
 // ══════════════════════════════════════════════════════════════════════════════
 function getPendingStorageKey() { return chatId ? 'sm_pending_' + chatId : 'sm_pending_temp'; }
 function loadPendingMessages() { const key = getPendingStorageKey(); const stored = localStorage.getItem(key); try { pendingMessages = stored ? JSON.parse(stored) : []; } catch(e){ pendingMessages = []; } updatePendingBadge(); }
@@ -54,7 +54,7 @@ function flushPendingMessages() { if(!conn || !conn.open) return; if(pendingMess
 function migratePendingMessages(newChatId) { const oldKey = 'sm_pending_temp'; const stored = localStorage.getItem(oldKey); if(stored){ try{ const tempMsgs = JSON.parse(stored); if(tempMsgs.length > 0){ pendingMessages = tempMsgs; savePendingMessages(); localStorage.removeItem(oldKey); updatePendingBadge(); } } catch(e){} } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AUDIO & HAPTIK (unverändert)
+// AUDIO & HAPTIK
 // ══════════════════════════════════════════════════════════════════════════════
 const CACHE_NAME = 'spotme-sounds';
 const TONE_URL = '/sounds/ringing.wav';
@@ -71,7 +71,7 @@ function playNotificationSound() { try{ const ctx = new (window.AudioContext || 
 function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERPASSTE ANRUFE (erweitert um Server-Sync)
+// VERPASSTE ANRUFE
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
@@ -82,8 +82,6 @@ async function addMissed(code, name) {
   if (recent >= 0) arr[recent] = entry; else arr.unshift(entry);
   saveMissed(arr.slice(0,30));
   renderMissed();
-
-  // An Server senden (NEU)
   try {
     await fetch(API_MISSED, {
       method: 'POST',
@@ -92,11 +90,41 @@ async function addMissed(code, name) {
     });
   } catch (e) { console.warn('Server missed call sync failed', e); }
 }
-function renderMissed() { const arr = getMissed(); const sec = document.getElementById('missed-sec'); const lst = document.getElementById('missed-list'); if(!arr.length){ sec.style.display = 'none'; return; } sec.style.display = 'block'; lst.innerHTML = arr.map(m => { const d = new Date(m.ts); const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE') ? 'Heute ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}); return `<div class="missed-item" onclick="callBack('${m.code}')"><div class="missed-av">📵</div><div class="missed-info"><div class="missed-name">${esc(m.name)}</div><div class="missed-time">${formatCode(m.code)} · ${t}</div></div><div class="missed-call-icon" title="Zurückrufen">📞</div></div>`; }).join(''); }
+function renderMissed() {
+  const arr = getMissed();
+  const sec = document.getElementById('missed-sec');
+  const lst = document.getElementById('missed-list');
+  if (!arr.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  lst.innerHTML = arr.map(m => {
+    const d = new Date(m.ts);
+    const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return `<div class="chat-card missed-card">
+      <div class="card-row">
+        <div class="card-avatar">📵</div>
+        <div class="card-details">
+          <div class="card-name">${esc(m.name)}</div>
+          <div class="card-preview">${formatCode(m.code)} · ${time}</div>
+        </div>
+      </div>
+      <button class="call-back-btn" onclick="callBack('${m.code}')">📞 Zurückrufen</button>
+    </div>`;
+  }).join('');
+}
 function clearMissed() { saveMissed([]); renderMissed(); }
-function callBack(code) { const inps = document.querySelectorAll('.dinp'); code.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value = ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled = false; connectToPeer(); setTimeout(()=>{ inps.forEach(d=>{ d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; },200); }
+function callBack(code) {
+  const inps = document.querySelectorAll('.dinp-new');
+  code.split('').forEach((ch, i) => {
+    if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); }
+  });
+  document.getElementById('cbtn').disabled = false;
+  connectToPeer();
+  setTimeout(() => {
+    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
+    document.getElementById('cbtn').disabled = true;
+  }, 200);
+}
 
-// Remote verpasste Anrufe abrufen (NEU)
 async function fetchRemoteMissedCalls() {
   try {
     const res = await fetch(`https://spotme-chat.onrender.com/api/missed-calls/${myCode}`);
@@ -106,7 +134,7 @@ async function fetchRemoteMissedCalls() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KONTAKTE & NAMEN (unverändert)
+// KONTAKTE & NAMEN
 // ══════════════════════════════════════════════════════════════════════════════
 function getContacts() { return JSON.parse(localStorage.getItem('sm_contacts') || '{}'); }
 function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)); }
@@ -116,7 +144,7 @@ function setAlias(code, name) { const c = getContacts(); if(name) c[code] = name
 function refreshStatusText() { const statusEl = document.getElementById('pstatus'); if(!statusEl) return; if(partnerTypingTimer !== null){ statusEl.textContent = '✍️ schreibt...'; statusEl.className = 'pstatus'; return; } if(conn && conn.open){ statusEl.textContent = '● Verbunden'; statusEl.className = 'pstatus'; } else { if(document.getElementById('s-chat').classList.contains('active')){ statusEl.textContent = '○ Verbinde...'; statusEl.className = 'pstatus dim'; } else { statusEl.textContent = '○ Verbindung getrennt'; statusEl.className = 'pstatus dim'; } } }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INDEXEDDB – VERSION 3 (Alben & Fotos) – unverändert
+// INDEXEDDB – VERSION 3 (Alben & Fotos)
 // ══════════════════════════════════════════════════════════════════════════════
 let db = null;
 const DB_NAME = 'SpotMeDB';
@@ -154,9 +182,7 @@ async function getAllAlbums() {
       if (cursor) {
         albums.push({ id: cursor.key, ...cursor.value });
         cursor.continue();
-      } else {
-        resolve(albums);
-      }
+      } else { resolve(albums); }
     };
     cursorReq.onerror = () => reject(cursorReq.error);
   });
@@ -176,9 +202,7 @@ async function getPhotosByAlbum(albumId) {
       if (cursor) {
         photos.push({ id: cursor.key, ...cursor.value });
         cursor.continue();
-      } else {
-        resolve(photos);
-      }
+      } else { resolve(photos); }
     };
     cursorReq.onerror = () => reject(cursorReq.error);
   });
@@ -244,7 +268,7 @@ async function deletePhotosByAlbum(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ALBUM-MENÜ & PARTNER-INTERAKTION (unverändert)
+// ALBUM-MENÜ & PARTNER-INTERAKTION
 // ══════════════════════════════════════════════════════════════════════════════
 function showAlbumMenu() {
   if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
@@ -310,7 +334,7 @@ function showImageOverlayLoader() {
   document.body.appendChild(overlay);
 }
 
-// ⭐⭐⭐ GALERIE-STEUERUNG (unverändert)
+// ⭐ GALERIE-STEUERUNG
 let currentGalleryImages = [];
 let currentGalleryIndex = 0;
 function buildGallery(images) {
@@ -355,7 +379,7 @@ function buildGallery(images) {
   updateImage();
 }
 
-// ⭐ Chunking für Album-Bilder (byte-genau) – unverändert
+// Chunking für Album-Bilder
 let pendingAlbumChunks = new Map();
 let pendingAlbumMeta = new Map();
 function handleAlbumImageChunk(d) {
@@ -386,7 +410,7 @@ function handleAlbumImagesEnd(albumId) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPRACHNACHRICHTEN (unverändert)
+// SPRACHNACHRICHTEN
 // ══════════════════════════════════════════════════════════════════════════════
 let mediaRecorder = null;
 let audioChunks = [];
@@ -452,7 +476,7 @@ async function toggleVoiceRecording() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// LOCATION FUNKTIONEN (NEU) – unverändert
+// LOCATION FUNKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 function openLocationScreen() {
   if (!conn || !conn.open) { toast('⚠️ Keine aktive Verbindung'); return; }
@@ -565,7 +589,7 @@ function formatDistance(m) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG (unverändert)
+// PEERJS & VERBINDUNG
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -574,7 +598,7 @@ function initPeer() {
   peer = null;
   setSpill('connecting', 'Verbinde mit Server...');
   peer = new Peer(myCode, { host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } });
-  peer.on('open', () => { peerRetries = 0; setSpill('online', '● Online · Code aktiv'); isOffline = false; showCodeCard(true); });
+  peer.on('open', () => { peerRetries = 0; setSpill('online', '● ONLINE'); isOffline = false; showCodeCard(true); });
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
     if(err.type === 'unavailable-id') {
@@ -634,7 +658,7 @@ function connectToPeer() {
     addMissed(partnerCode, partnerName);
     if (conn) { try{ conn.close(); } catch(e){} conn = null; }
     showLeaveMessageSheet(partnerCode, partnerName);
-    setSpill('online', '● Online · Code aktiv');
+    setSpill('online', '● ONLINE');
   }, 30000);
 }
 
@@ -649,7 +673,7 @@ function closeLeaveMessageSheet() {
   document.getElementById('leave-message-ovl').classList.remove('open');
   document.getElementById('leave-message-sheet').classList.remove('open');
   showScreen('s-home');
-  setSpill('online', '● Online · Code aktiv');
+  setSpill('online', '● ONLINE');
 }
 function submitLeaveMessage() {
   const input = document.getElementById('leave-message-input');
@@ -663,7 +687,7 @@ function submitLeaveMessage() {
   chatId = oldChatId;
   closeLeaveMessageSheet();
   showScreen('s-home');
-  setSpill('online', '● Online · Code aktiv');
+  setSpill('online', '● ONLINE');
 }
 
 function tryReconnect() { if(!partnerCode || !peer || !peer.open) return; document.getElementById('rcbar').classList.remove('show'); toast('↺ Verbinde erneut...'); openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } })); }
@@ -688,7 +712,7 @@ function openChat(c) {
     updateIdx('');
     toast('✓ Verbunden');
     flushPendingMessages();
-    setSpill('online', '● Online · Code aktiv');
+    setSpill('online', '● ONLINE');
   };
   if(conn.open) onOpen();
   else conn.on('open', onOpen);
@@ -729,7 +753,7 @@ function prepChat() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NACHRICHTEN & DATEIEN (unverändert)
+// NACHRICHTEN & DATEIEN
 // ══════════════════════════════════════════════════════════════════════════════
 function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
 
@@ -841,7 +865,7 @@ function handleData(d) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHAT-VERLAUF & UI-HILFEN (unverändert)
+// CHAT-VERLAUF & UI-HILFEN
 // ══════════════════════════════════════════════════════════════════════════════
 function appendMsg(m) {
   const list = document.getElementById('messages');
@@ -922,7 +946,30 @@ function loadHistory() { if(!chatId) return; lastDate = null; const h = document
 function updateIdx(preview) { if(!chatId) return; const k = 'sm_idx'; const arr = JSON.parse(localStorage.getItem(k) || '[]'); const i = arr.findIndex(x => x.id === chatId); const e = { id:chatId, partner:partnerName, code:partnerCode, ts:Date.now(), preview }; if(i >= 0) arr[i] = e; else arr.unshift(e); localStorage.setItem(k, JSON.stringify(arr.slice(0,15))); renderPrev(); }
 function applyPartnerName() { const alias = getContacts()[partnerCode]; const display = alias || partnerName; const lbl = document.getElementById('pname'); if(!lbl) return; if(alias && partnerName && alias !== partnerName){ lbl.innerHTML = esc(alias) + `<span class="alias-badge" title="Netzwerkname: ${esc(partnerName)}">✏️</span>`; } else { lbl.textContent = display; } }
 function renamePartner() { closeSheet(); const current = getContacts()[partnerCode] || ''; const input = prompt(`Spitzname für diesen Kontakt:\n(leer lassen zum Zurücksetzen)`, current); if(input === null) return; const trimmed = input.trim(); setAlias(partnerCode, trimmed); if(trimmed) partnerName = trimmed; applyPartnerName(); updateIdx(''); renderPrev(); toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt'); }
-function renderPrev() { const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]'); const sec = document.getElementById('psec'); const lst = document.getElementById('plist'); if(!arr.length){ sec.style.display = 'none'; return; } sec.style.display = 'block'; lst.innerHTML = arr.map(c => { const d = new Date(c.ts); const t = d.toLocaleDateString('de-DE') === new Date().toLocaleDateString('de-DE') ? d.toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit'}); const alias = getContacts()[c.code]; const display = alias || c.partner; const badge = alias ? `<span style="font-size:.7rem;color:var(--muted);font-weight:400;"> (${esc(c.partner)})</span>` : ''; return `<div style="display:flex;align-items:center;gap:.5rem"><div class="prev-item" style="flex:1" onclick="reconnectTo('${c.code}','${esc2(display)}','${c.id}')"><div class="prev-av">🧑</div><div class="prev-info"><div class="prev-name">${esc(display)}${badge}</div><div class="prev-msg">${esc(c.preview || '—')}</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:.72rem;color:var(--muted2)">${t}</div><div class="prev-code">${formatCode(c.code)}</div></div></div><button class="rename-btn" title="Umbenennen" onclick="renameContact('${c.code}','${esc2(c.partner)}')">✏️</button></div>`; }).join(''); }
+function renderPrev() {
+  const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  const sec = document.getElementById('psec');
+  const lst = document.getElementById('plist');
+  if (!arr.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  lst.innerHTML = arr.map(c => {
+    const alias = getContacts()[c.code] || c.partner;
+    const preview = c.preview || '—';
+    return `<div class="chat-card" onclick="reconnectTo('${c.code}','${esc2(alias)}','${c.id}')">
+      <div class="card-row">
+        <div class="card-avatar">🧑</div>
+        <div class="card-details">
+          <div class="card-name">${esc(alias)}</div>
+          <div class="card-preview">${esc(preview)}</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <span class="card-time">${timeAgo(c.ts)}</span>
+        <span class="card-code">${formatCode(c.code)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
 function renameContact(code, networkName) { const current = getContacts()[code] || ''; const input = prompt(`Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`, current); if(input === null) return; const trimmed = input.trim(); setAlias(code, trimmed); renderPrev(); toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt'); }
 function reconnectTo(code, name, cid) { if(!peer || !peer.open){ toast('⚠️ Warte auf Server...'); return; } partnerCode = code; partnerName = name; chatId = cid; loadPendingMessages(); migratePendingMessages(chatId); openChat(peer.connect(code, { reliable:true, metadata:{ name: myName } })); }
 function exportChat() { closeSheet(); if(!chatId){ toast('⚠️ Kein aktiver Chat'); return; } const msgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]'); const blob = new Blob([JSON.stringify({ partner:partnerName, code:partnerCode, chatId, messages:msgs }, null, 2)], { type:'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `SpotMe_${partnerName}_${new Date().toISOString().slice(0,10)}.json`; a.click(); toast('💾 Backup exportiert'); }
@@ -934,13 +981,64 @@ function pushNotif(from, text) { if(Notification.permission !== 'granted') retur
 let inTimer = null;
 function inAppNotif(from, text) { document.getElementById('in-from').textContent = '💬 ' + from; document.getElementById('in-msg').textContent = text.length > 60 ? text.slice(0,60)+'…' : text; const el = document.getElementById('in-notif'); el.classList.add('show'); clearTimeout(inTimer); inTimer = setTimeout(() => el.classList.remove('show'), 5000); }
 function switchToChat() { document.getElementById('in-notif').classList.remove('show'); showScreen('s-chat'); }
-function initDigits() { const inps = document.querySelectorAll('.dinp'); inps.forEach((p,i)=>{ p.addEventListener('input',()=>{ const v = p.value.replace(/\D/g,''); p.value = v ? v.slice(-1) : ''; p.classList.toggle('filled', !!p.value); if(p.value && i<5) inps[i+1].focus(); document.getElementById('cbtn').disabled = getDigits().length !== 6; }); p.addEventListener('keydown',e=>{ if(e.key === 'Backspace' && !p.value && i>0){ inps[i-1].value = ''; inps[i-1].classList.remove('filled'); inps[i-1].focus(); document.getElementById('cbtn').disabled = true; } }); p.addEventListener('paste',e=>{ e.preventDefault(); const txt = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6); txt.split('').forEach((ch,j)=>{ if(inps[i+j]){ inps[i+j].value = ch; inps[i+j].classList.add('filled'); } }); inps[Math.min(i+txt.length,5)].focus(); document.getElementById('cbtn').disabled = getDigits().length !== 6; }); }); }
-function getDigits() { return [...document.querySelectorAll('.dinp')].map(x=>x.value).join(''); }
+function initDigits() {
+  const inps = document.querySelectorAll('.dinp-new');
+  inps.forEach((p, i) => {
+    p.addEventListener('input', () => {
+      const v = p.value.replace(/\D/g, '');
+      p.value = v ? v.slice(-1) : '';
+      p.classList.toggle('filled', !!p.value);
+      if (p.value && i < 5) inps[i + 1].focus();
+      document.getElementById('cbtn').disabled = getDigits().length !== 6;
+    });
+    p.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !p.value && i > 0) {
+        inps[i - 1].value = '';
+        inps[i - 1].classList.remove('filled');
+        inps[i - 1].focus();
+        document.getElementById('cbtn').disabled = true;
+      }
+    });
+    p.addEventListener('paste', e => {
+      e.preventDefault();
+      const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+      txt.split('').forEach((ch, j) => {
+        if (inps[i + j]) {
+          inps[i + j].value = ch;
+          inps[i + j].classList.add('filled');
+        }
+      });
+      inps[Math.min(i + txt.length, 5)].focus();
+      document.getElementById('cbtn').disabled = getDigits().length !== 6;
+    });
+  });
+}
+function getDigits() { return [...document.querySelectorAll('.dinp-new')].map(x => x.value).join(''); }
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('in-notif').classList.remove('show'); }
-function setSpill(type, text) { const el = document.getElementById('spill'); el.className = 'spill ' + type; document.getElementById('spill-txt').textContent = text; }
+function setSpill(type, text) {
+  const badge = document.getElementById('header-status');
+  if (!badge) return;
+  badge.textContent = text;
+  badge.className = 'status-badge';
+  if (type === 'offline') badge.classList.add('offline');
+}
 function openSheet() { document.getElementById('sovl').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
-function goHome() { stopRingingTone(); if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; } if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(partnerTypingTimer){ clearTimeout(partnerTypingTimer); partnerTypingTimer = null; } if(typingStarted){ typingStarted = false; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); } pendingConn = null; lastDate = null; document.querySelectorAll('.dinp').forEach(d=>{ d.value=''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; closeSheet(); showScreen('s-home'); renderPrev(); setSpill('online', '● Online · Code aktiv'); }
+function goHome() {
+  stopRingingTone();
+  if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+  if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+  if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
+  if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
+  pendingConn = null;
+  lastDate = null;
+  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  document.getElementById('cbtn').disabled = true;
+  closeSheet();
+  showScreen('s-home');
+  renderPrev();
+  setSpill('online', '● ONLINE');
+}
 function hkey(e) { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } }
 function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
@@ -951,11 +1049,28 @@ function shareCode() { if(navigator.share) navigator.share({ title:'SpotMe', tex
 function escapeHtml(s) { return esc(s); }
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
-function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', 'Offline'); showScreen('s-home'); }
-function showCodeCard(show) { document.getElementById('code-card').style.display = show ? '' : 'none'; document.getElementById('offline-banner').style.display = show ? 'none' : ''; }
+function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', '○ OFFLINE'); showScreen('s-home'); }
+function showCodeCard(show) {
+  const card = document.querySelector('.code-card-new');
+  if (card) card.style.display = show ? '' : 'none';
+  if (!show) {
+    setSpill('offline', '○ OFFLINE');
+  } else {
+    setSpill('online', '● ONLINE');
+  }
+}
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2) return 'gerade';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `vor ${h} Std`;
+  return `vor ${Math.floor(h / 24)} Tag${Math.floor(h / 24) > 1 ? 'en' : ''}`;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
-// VERSCHLÜSSELTES BACKUP (unverändert)
+// VERSCHLÜSSELTES BACKUP
 // ══════════════════════════════════════════════════════════════════════════════
 function showBackupPasswordModal() {
   closeHomeMenu();
@@ -1153,7 +1268,7 @@ let tTimer = null;
 function toast(msg, ms=2400) { const ex = document.querySelector('.toast'); if(ex) ex.remove(); const t = document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add('show'))); clearTimeout(tTimer); tTimer = setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, ms); }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// INIT (erweitert um Remote Missed Calls)
+// INIT
 // ══════════════════════════════════════════════════════════════════════════════
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
@@ -1164,15 +1279,14 @@ window.addEventListener('load', () => {
   else { icon.textContent = '🔇'; desc.textContent = 'Deaktiviert · Button ausgeblendet'; }
   if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   window.addEventListener('online', () => { if(!peer || peer.destroyed) initPeer(); });
-  window.addEventListener('offline', () => setSpill('offline', 'Kein Netzwerk'));
+  window.addEventListener('offline', () => setSpill('offline', '○ OFFLINE'));
   document.addEventListener('click', e => { if(!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu(); });
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
   const textarea = document.getElementById('minp');
   if(textarea) textarea.addEventListener('input', () => { if(!conn||!conn.open) return; if(typingDebounceTimer) clearTimeout(typingDebounceTimer); if(!typingStarted){ conn.send({t:'typing',state:'start'}); typingStarted=true; } typingDebounceTimer = setTimeout(()=>{ if(conn&&conn.open&&typingStarted){ conn.send({t:'typing',state:'end'}); typingStarted=false; } typingDebounceTimer=null; },2000); });
   const autoConnect = sessionStorage.getItem('sm_connect_to');
-  if(autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(()=>{ const inps=document.querySelectorAll('.dinp'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); },1500); }
+  if(autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(()=>{ const inps=document.querySelectorAll('.dinp-new'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); },1500); }
 
-  // Remote verpasste Anrufe abrufen (NEU)
   setTimeout(async () => {
     const remoteMissed = await fetchRemoteMissedCalls();
     const localMissed = getMissed();
