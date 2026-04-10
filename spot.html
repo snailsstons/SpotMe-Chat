@@ -15,7 +15,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 /* ═══════════════════════════════
-   DESIGN TOKENS — identisch mit SpotMe
+   DESIGN TOKENS — unverändert
 ═══════════════════════════════ */
 :root {
   --bg:      #060a0f;
@@ -33,425 +33,97 @@
   --muted2:  #7a8fa8;
   --green:   #1ecc68;
 }
-
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
-html, body {
-  min-height:100%; background:var(--bg); color:var(--text);
-  font-family:'DM Sans', sans-serif; font-size:17px; line-height:1.5;
-  overscroll-behavior-y:contain;
-}
-
+html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans', sans-serif; font-size:17px; line-height:1.5; overscroll-behavior-y:contain; }
 .page { max-width:480px; margin:0 auto; padding:0 1.25rem 6rem; }
-
-/* ═══════════════════════════════
-   STICKY NAV
-═══════════════════════════════ */
-.topnav {
-  position:sticky; top:0; z-index:100;
-  background:rgba(6,10,15,.96); backdrop-filter:blur(24px) saturate(1.6);
-  border-bottom:1px solid var(--bord);
-  padding:.7rem 1.25rem;
-}
-.topnav-inner {
-  max-width:480px; margin:0 auto;
-  display:flex; align-items:center; gap:.7rem;
-}
-.back-link {
-  width:40px; height:40px; border-radius:11px;
-  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
-  color:var(--muted2); font-size:1.3rem; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  text-decoration:none; flex-shrink:0; transition:all .2s;
-}
-.back-link:active { background:rgba(255,255,255,.09); color:var(--text) }
-.nav-title {
-  flex:1; font-family:'Syne',sans-serif; font-weight:800;
-  font-size:1.15rem; color:var(--acc); letter-spacing:-.02em;
-}
-.nav-title b { color:var(--text) }
-.refresh-btn {
-  width:40px; height:40px; border-radius:11px;
-  border:1px solid var(--bord2); background:rgba(255,255,255,.04);
-  color:var(--muted2); font-size:1.1rem; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  transition:all .2s; flex-shrink:0;
-}
-.refresh-btn:active { background:rgba(255,255,255,.09); color:var(--acc) }
-.refresh-btn.spinning { animation:spin .6s linear infinite }
+.topnav { position:sticky; top:0; z-index:100; background:rgba(6,10,15,.96); backdrop-filter:blur(24px); border-bottom:1px solid var(--bord); padding:.7rem 1.25rem; }
+.topnav-inner { max-width:480px; margin:0 auto; display:flex; align-items:center; gap:.7rem; }
+.back-link { width:40px; height:40px; border-radius:11px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); font-size:1.3rem; display:flex; align-items:center; justify-content:center; text-decoration:none; flex-shrink:0; }
+.nav-title { flex:1; font-family:'Syne',sans-serif; font-weight:800; font-size:1.15rem; color:var(--acc); }
+.refresh-btn { width:40px; height:40px; border-radius:11px; border:1px solid var(--bord2); background:rgba(255,255,255,.04); color:var(--muted2); font-size:1.1rem; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.refresh-btn.spinning { animation:spin .6s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-
-/* ═══════════════════════════════
-   EIGENES PROFIL — MY CARD
-═══════════════════════════════ */
 .my-section { padding:1.4rem 0 0 }
-.section-label {
-  font-size:.72rem; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--muted); margin-bottom:.9rem;
-  display:flex; align-items:center; gap:.5rem;
-}
-.section-label span { flex:1 }
-
-.my-card {
-  background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%);
-  border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem;
-  margin-bottom:1.25rem; position:relative; overflow:hidden;
-}
-.my-card::before {
-  content:''; position:absolute; inset:0;
-  background:radial-gradient(circle at 80% 0%, rgba(0,229,192,.04), transparent 60%);
-  pointer-events:none;
-}
-
+.section-label { font-size:.72rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.9rem; }
+.my-card { background:linear-gradient(135deg, rgba(0,229,192,.06) 0%, rgba(123,92,250,.06) 100%); border:1px solid rgba(0,229,192,.2); border-radius:20px; padding:1.25rem; margin-bottom:1.25rem; }
 .my-card-header { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem }
-.my-avatar {
-  width:56px; height:56px; border-radius:50%; flex-shrink:0;
-  background:linear-gradient(135deg,var(--p2),var(--p3));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.5rem; border:2px solid var(--bord2); overflow:hidden;
-}
-.my-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50% }
-.my-info { flex:1; min-width:0 }
+.my-avatar { width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.5rem; border:2px solid var(--bord2); overflow:hidden; }
+.my-avatar img { width:100%; height:100%; object-fit:cover; }
 .my-name { font-family:'Syne',sans-serif; font-weight:700; font-size:1.05rem }
-.my-meta { font-size:.82rem; color:var(--muted2); margin-top:.2rem }
-.my-code { font-size:.75rem; color:var(--acc); opacity:.8; margin-top:.15rem; font-family:'Syne',sans-serif; font-weight:700 }
-
-.publish-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.7rem .9rem; border-radius:12px;
-  background:rgba(255,255,255,.04); border:1px solid var(--bord);
-  margin-bottom: 0.5rem;
-}
-.publish-label { font-size:.88rem }
-.publish-hint  { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
-.toggle {
-  width:46px; height:26px; border-radius:13px;
-  background:var(--sur); border:1.5px solid var(--bord2);
-  position:relative; cursor:pointer; transition:background .2s, border-color .2s;
-  flex-shrink:0;
-}
-.toggle.on { background:var(--acc); border-color:var(--acc) }
-.toggle::after {
-  content:''; position:absolute; width:18px; height:18px;
-  border-radius:50%; background:#fff; top:2px; left:2px;
-  transition:transform .2s; box-shadow:0 1px 4px rgba(0,0,0,.4);
-}
-.toggle.on::after { transform:translateX(20px) }
-
-.location-row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.7rem .9rem; border-radius:12px;
-  background:rgba(255,255,255,.04); border:1px solid var(--bord);
-}
-.location-label { font-size:.88rem }
-.location-hint  { font-size:.75rem; color:var(--muted2); margin-top:.1rem }
-
-.no-profile-hint {
-  background:rgba(255,185,0,.06); border:1px solid rgba(255,185,0,.18);
-  border-radius:14px; padding:1rem 1.1rem; margin-bottom:1.25rem;
-  font-size:.88rem; color:#f5a623; line-height:1.55;
-  display:flex; align-items:flex-start; gap:.7rem;
-}
-.no-profile-hint a {
-  color:var(--acc); text-decoration:none; font-weight:500;
-}
-
-/* ═══════════════════════════════
-   FILTER BAR
-═══════════════════════════════ */
-.filter-bar {
-  background:var(--card); border:1px solid var(--bord);
-  border-radius:16px; padding:1rem; margin-bottom:1.25rem;
-}
-.filter-title { font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.85rem }
+.my-meta { font-size:.82rem; color:var(--muted2); }
+.my-code { font-size:.75rem; color:var(--acc); opacity:.8; }
+.publish-row, .location-row { display:flex; align-items:center; justify-content:space-between; padding:.7rem .9rem; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid var(--bord); margin-bottom:0.5rem; }
+.toggle { width:46px; height:26px; border-radius:13px; background:var(--sur); border:1.5px solid var(--bord2); position:relative; cursor:pointer; }
+.toggle.on { background:var(--acc); border-color:var(--acc); }
+.toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:2px; left:2px; transition:transform .2s; }
+.toggle.on::after { transform:translateX(20px); }
+.filter-bar { background:var(--card); border:1px solid var(--bord); border-radius:16px; padding:1rem; margin-bottom:1.25rem; }
 .filter-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem }
-.fsel {
-  width:100%; padding:.58rem .85rem;
-  background:var(--sur); border:1.5px solid var(--bord2);
-  border-radius:11px; color:var(--text);
-  font-family:'DM Sans',sans-serif; font-size:.85rem;
-  outline:none; cursor:pointer; -webkit-appearance:none;
-  transition:border-color .2s;
-}
-.fsel:focus { border-color:rgba(0,229,192,.4) }
-.fsel option { background:var(--card); color:var(--text) }
+.fsel { width:100%; padding:.58rem; background:var(--sur); border:1.5px solid var(--bord2); border-radius:11px; color:var(--text); }
 .filter-chips { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem }
-.chip {
-  padding:.32rem .8rem; border-radius:100px;
-  border:1.5px solid var(--bord2); background:transparent;
-  color:var(--muted2); font-size:.78rem; cursor:pointer;
-  font-family:'DM Sans',sans-serif; transition:all .2s; user-select:none;
-}
-.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc) }
-.chip:active { opacity:.8 }
-.filter-reset {
-  display:inline-flex; align-items:center; gap:.3rem;
-  font-size:.77rem; color:var(--muted2); background:none; border:none;
-  cursor:pointer; font-family:'DM Sans',sans-serif;
-  padding:.25rem .5rem; border-radius:6px; margin-top:.5rem;
-  transition:color .2s;
-}
-.filter-reset:active { color:var(--acc) }
-
-/* ═══════════════════════════════
-   COMMUNITY LIST
-═══════════════════════════════ */
-.community-header {
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:.85rem;
-}
-.community-count { font-size:.8rem; color:var(--muted2) }
-.community-count b { color:var(--text); font-weight:600 }
-
-.profile-card {
-  background:var(--card2); border:1px solid var(--bord);
-  border-radius:18px; padding:1.1rem; margin-bottom:.9rem;
-  transition:border-color .2s;
-  position:relative; overflow:hidden;
-}
-.profile-card:active { border-color:var(--bord2) }
-.profile-card::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  border-radius:2px 2px 0 0; opacity:0; transition:opacity .3s;
-}
-.profile-card.homo::before   { background:linear-gradient(90deg,var(--p2),var(--acc)); opacity:1 }
-.profile-card.bi::before     { background:linear-gradient(90deg,var(--p3),var(--p2)); opacity:1 }
-.profile-card.hetero::before { background:linear-gradient(90deg,var(--muted),var(--muted2)); opacity:.4 }
-
+.chip { padding:.32rem .8rem; border-radius:100px; border:1.5px solid var(--bord2); background:transparent; color:var(--muted2); font-size:.78rem; cursor:pointer; }
+.chip.on { background:var(--acc-dim); border-color:var(--acc); color:var(--acc); }
+.profile-card { background:var(--card2); border:1px solid var(--bord); border-radius:18px; padding:1.1rem; margin-bottom:.9rem; }
 .card-top { display:flex; align-items:flex-start; gap:.85rem; margin-bottom:.8rem }
-.card-av {
-  width:50px; height:50px; border-radius:50%; flex-shrink:0;
-  background:linear-gradient(135deg,var(--p2),var(--p3));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.35rem; border:2px solid var(--bord2);
-}
-.card-info { flex:1; min-width:0 }
-.card-name {
-  font-family:'Syne',sans-serif; font-weight:700; font-size:1rem;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.card-age-loc { font-size:.8rem; color:var(--muted2); margin-top:.2rem }
-.card-age-loc b { color:var(--muted); font-weight:500 }
-.online-dot {
-  width:9px; height:9px; border-radius:50%;
-  background:var(--green); box-shadow:0 0 8px var(--green);
-  flex-shrink:0; margin-top:6px; animation:blink 2s ease infinite;
-}
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-.location-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0,229,192,.1);
-  border: 1px solid rgba(0,229,192,.3);
-  border-radius: 100px;
-  padding: 2px 8px;
-  font-size: 0.65rem;
-  color: var(--acc);
-  margin-left: 8px;
-  cursor: pointer;
-}
-.location-badge:active { background: rgba(0,229,192,.2); }
-
-.card-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.75rem }
-.badge {
-  padding:.22rem .65rem; border-radius:100px; font-size:.73rem; font-weight:500;
-  border:1px solid transparent;
-}
-.badge-homo   { background:rgba(123,92,250,.12); color:var(--p2); border-color:rgba(123,92,250,.25) }
-.badge-bi     { background:rgba(255,79,123,.1);  color:var(--p3); border-color:rgba(255,79,123,.22) }
-.badge-hetero { background:rgba(255,255,255,.05); color:var(--muted2); border-color:var(--bord2) }
-.badge-role   { background:rgba(0,229,192,.08); color:var(--acc); border-color:rgba(0,229,192,.2) }
-.badge-trans  { background:rgba(0,229,192,.06); color:var(--acc); border-color:rgba(0,229,192,.15); font-size:.7rem }
-.badge-cross  { background:rgba(255,185,0,.07); color:#f5a623; border-color:rgba(255,185,0,.18); font-size:.7rem }
-
-.card-bio {
-  font-size:.83rem; color:var(--muted2); line-height:1.55;
-  margin-bottom:.85rem;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
-}
-
-.card-footer { display:flex; align-items:center; justify-content:space-between; gap:.7rem }
-.card-time { font-size:.7rem; color:var(--muted) }
-.btn-chat {
-  display:flex; align-items:center; gap:.45rem;
-  padding:.52rem 1.1rem; border-radius:10px; border:none;
-  background:var(--acc); color:var(--bg);
-  font-family:'DM Sans',sans-serif; font-size:.85rem; font-weight:700;
-  cursor:pointer; transition:all .2s; flex-shrink:0;
-}
-.btn-chat:active { transform:scale(.96); opacity:.9 }
-
-.location-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-  z-index: 1000; display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
-}
-.location-modal {
-  background: var(--card2); border: 1px solid var(--bord2);
-  border-radius: 24px; padding: 1.5rem; width: 90%; max-width: 400px;
-}
-.location-modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1rem;
-}
-.location-modal-title {
-  font-family: 'Syne', sans-serif; font-weight: 700; color: var(--acc);
-}
-.location-modal-close {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: rgba(255,255,255,.1); border: none;
-  color: var(--text); font-size: 1.2rem; cursor: pointer;
-}
-#location-map-small { height: 200px; border-radius: 12px; margin-bottom: 1rem; }
-.location-distance { text-align: center; font-weight: 600; }
-
-.state-box {
-  text-align:center; padding:3rem 1.5rem; color:var(--muted);
-}
-.state-ico { font-size:2.8rem; margin-bottom:.85rem; opacity:.35 }
-.state-txt { font-size:.95rem; margin-bottom:.4rem }
-.state-hint { font-size:.8rem; opacity:.7 }
-
-.loading-row {
-  display:flex; align-items:center; justify-content:center;
-  gap:.6rem; color:var(--muted2); font-size:.85rem; padding:2rem 0;
-}
-.spinner {
-  width:18px; height:18px; border:2px solid var(--bord2);
-  border-top-color:var(--acc); border-radius:50%;
-  animation:sp .7s linear infinite; flex-shrink:0;
-}
-@keyframes sp { to{transform:rotate(360deg)} }
-
-.toast {
-  position:fixed; bottom:2.5rem; left:50%;
-  transform:translateX(-50%) translateY(80px);
-  background:var(--card2); border:1px solid var(--bord2);
-  border-radius:100px; padding:.55rem 1.25rem;
-  font-size:.83rem; font-weight:500; z-index:9999;
-  transition:all .3s cubic-bezier(.175,.885,.32,1.275);
-  opacity:0; white-space:nowrap; box-shadow:0 8px 28px rgba(0,0,0,.5);
-}
-.toast.show { transform:translateX(-50%) translateY(0); opacity:1 }
+.card-av { width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.35rem; }
+.card-name { font-family:'Syne',sans-serif; font-weight:700; }
+.location-badge { display:inline-flex; align-items:center; gap:4px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); border-radius:100px; padding:2px 8px; font-size:0.65rem; color:var(--acc); margin-left:8px; cursor:pointer; }
+.btn-chat { padding:.52rem 1.1rem; border-radius:10px; background:var(--acc); color:var(--bg); font-weight:700; border:none; cursor:pointer; }
+.toast { position:fixed; bottom:2.5rem; left:50%; transform:translateX(-50%); background:var(--card2); border:1px solid var(--bord2); border-radius:100px; padding:.55rem 1.25rem; font-size:.83rem; z-index:9999; opacity:0; transition:opacity .3s; }
+.toast.show { opacity:1; }
+.location-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(4px); z-index:1000; display:none; align-items:center; justify-content:center; }
+.location-modal { background:var(--card2); border-radius:24px; padding:1.5rem; width:90%; max-width:400px; }
+#location-map-small { height:200px; border-radius:12px; }
 </style>
 </head>
 <body>
-
-<nav class="topnav">
-  <div class="topnav-inner">
-    <a class="back-link" href="index.html" title="Zurück zum Chat">‹</a>
-    <div class="nav-title">Spot<b>Me</b> <span style="color:var(--muted2);font-family:'DM Sans',sans-serif;font-weight:300;font-size:.9rem">Community</span></div>
-    <button class="refresh-btn" id="refresh-btn" onclick="loadCommunity()" title="Aktualisieren">↺</button>
-  </div>
-</nav>
-
+<nav class="topnav"><div class="topnav-inner"><a class="back-link" href="index.html">‹</a><div class="nav-title">Spot<b>Me</b></div><button class="refresh-btn" id="refresh-btn" onclick="loadCommunity()">↺</button></div></nav>
 <div class="page">
   <div class="my-section">
     <div class="section-label"><span>Mein Profil</span></div>
-    <div class="no-profile-hint" id="no-profile-hint" style="display:none">
-      <span>⚠️</span>
-      <div>Noch kein Profil erstellt.<br><a href="profil.html">Profil anlegen →</a> um in der Community sichtbar zu sein.</div>
-    </div>
+    <div class="no-profile-hint" id="no-profile-hint" style="display:none"><span>⚠️</span><div>Noch kein Profil erstellt.<br><a href="profil.html">Profil anlegen →</a></div></div>
     <div class="my-card" id="my-card" style="display:none">
-      <div class="my-card-header">
-        <div class="my-avatar" id="my-avatar">🧑</div>
-        <div class="my-info">
-          <div class="my-name" id="my-name">—</div>
-          <div class="my-meta" id="my-meta">—</div>
-          <div class="my-code" id="my-code">—</div>
-        </div>
-      </div>
-      <div class="publish-row">
-        <div>
-          <div class="publish-label">In Community anzeigen</div>
-          <div class="publish-hint" id="publish-hint">Dein Profil ist nicht sichtbar</div>
-        </div>
-        <div class="toggle" id="publish-toggle" onclick="togglePublish()"></div>
-      </div>
-      <div class="location-row">
-        <div>
-          <div class="location-label">📍 An diesem Ort anzutreffen</div>
-          <div class="location-hint" id="location-hint">Standort teilen</div>
-        </div>
-        <div class="toggle" id="location-toggle" onclick="toggleLocationSharing()"></div>
-      </div>
+      <div class="my-card-header"><div class="my-avatar" id="my-avatar">🧑</div><div class="my-info"><div class="my-name" id="my-name">—</div><div class="my-meta" id="my-meta">—</div><div class="my-code" id="my-code">—</div></div></div>
+      <div class="publish-row"><div><div class="publish-label">In Community anzeigen</div><div class="publish-hint" id="publish-hint"></div></div><div class="toggle" id="publish-toggle" onclick="togglePublish()"></div></div>
+      <div class="location-row"><div><div class="location-label">📍 An diesem Ort anzutreffen</div><div class="location-hint" id="location-hint"></div></div><div class="toggle" id="location-toggle" onclick="toggleLocationSharing()"></div></div>
     </div>
   </div>
-
-  <div class="section-label" style="margin-top:.25rem"><span>Community durchsuchen</span></div>
+  <div class="section-label"><span>Community durchsuchen</span></div>
   <div class="filter-bar">
     <div class="filter-title">Filter</div>
     <div class="filter-grid">
       <select class="fsel" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
-      <select class="fsel" id="f-age" onchange="applyFilters()">
-        <option value="">Alle Altersgruppen</option>
-        <option value="18-29">18–29</option>
-        <option value="30-39">30–39</option>
-        <option value="40-49">40–49</option>
-        <option value="50+">50+</option>
-      </select>
+      <select class="fsel" id="f-age" onchange="applyFilters()"><option value="">Alle Altersgruppen</option><option value="18-29">18–29</option><option value="30-39">30–39</option><option value="40-49">40–49</option><option value="50+">50+</option></select>
     </div>
     <div class="filter-chips" id="filter-chips">
-      <button class="chip" data-filter="homo"      onclick="toggleChip(this)">🏳️‍🌈 Homo</button>
-      <button class="chip" data-filter="bi"        onclick="toggleChip(this)">Bi</button>
-      <button class="chip" data-filter="hetero"    onclick="toggleChip(this)">Hetero</button>
-      <button class="chip" data-filter="bottom"    onclick="toggleChip(this)">Bottom</button>
-      <button class="chip" data-filter="top"       onclick="toggleChip(this)">Top</button>
+      <button class="chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</button>
+      <button class="chip" data-filter="bi" onclick="toggleChip(this)">Bi</button>
+      <button class="chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</button>
+      <button class="chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</button>
+      <button class="chip" data-filter="top" onclick="toggleChip(this)">Top</button>
       <button class="chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</button>
-      <button class="chip" data-filter="trans"     onclick="toggleChip(this)">Trans</button>
+      <button class="chip" data-filter="trans" onclick="toggleChip(this)">Trans</button>
     </div>
     <button class="filter-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
   </div>
-
-  <div class="community-header">
-    <div class="section-label" style="margin-bottom:0"><span>Profile</span></div>
-    <div class="community-count" id="community-count"></div>
-  </div>
-
-  <div id="community-list">
-    <div class="loading-row"><div class="spinner"></div>Lade Community...</div>
-  </div>
+  <div class="community-header"><div class="section-label"><span>Profile</span></div><div class="community-count" id="community-count"></div></div>
+  <div id="community-list"><div class="loading-row"><div class="spinner"></div>Lade Community...</div></div>
 </div>
-
-<div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
-  <div class="location-modal" onclick="event.stopPropagation()">
-    <div class="location-modal-header">
-      <div class="location-modal-title" id="location-modal-name">Standort</div>
-      <button class="location-modal-close" onclick="closeLocationModal()">✕</button>
-    </div>
-    <div id="location-map-small"></div>
-    <div class="location-distance" id="location-distance"></div>
-  </div>
-</div>
-
+<div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)"><div class="location-modal" onclick="event.stopPropagation()"><div class="location-modal-header"><div class="location-modal-title" id="location-modal-name"></div><button class="location-modal-close" onclick="closeLocationModal()">✕</button></div><div id="location-map-small"></div><div class="location-distance" id="location-distance"></div></div></div>
 <div class="toast" id="toast"></div>
-
 <script>
 'use strict';
-
 const API = 'https://spotme-chat.onrender.com/api';
 const CHAT_PAGE = 'index.html';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
+const LOCATION_REFRESH_INTERVAL = 10000; // Alle 10s Locations neu laden
 
-let myProfile = null;
-let myCode = localStorage.getItem('sm_code') || '';
-let isPublished = false;
-let isSharingLocation = false;
-let allProfiles = [];
-let filtered = [];
-let keepaliveTimer = null;
-let locationTimer = null;
-let locationWatchId = null;
-
-const REGIONS = [
-  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
-  'Extremadura','Galicien','Kanaren','Kantabrien',
-  'Kastilien-La Mancha','Kastilien-León','Katalonien',
-  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
-];
+let myProfile = null, myCode = localStorage.getItem('sm_code') || '', isPublished = false, isSharingLocation = false;
+let allProfiles = [], filtered = [];
+let keepaliveTimer = null, locationTimer = null, locationWatchId = null, locationRefreshTimer = null;
+const REGIONS = ['Andalusien','Aragón','Asturien','Balearen','Baskenland','Extremadura','Galicien','Kanaren','Kantabrien','Kastilien-La Mancha','Kastilien-León','Katalonien','La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'];
 
 window.addEventListener('load', async () => {
   buildRegionFilter();
@@ -462,26 +134,26 @@ window.addEventListener('load', async () => {
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
   if (isSharingLocation) startLocationSharing();
+  startLocationRefresh();
 });
 
 function startKeepalive() {
   if (keepaliveTimer) clearInterval(keepaliveTimer);
   keepaliveTimer = setInterval(async () => {
-    if (isPublished && myProfile) {
-      try { await publishProfile(true); } catch(e) {}
-    }
+    if (isPublished && myProfile) { try { await publishProfile(true); } catch(e) {} }
     await loadCommunity();
   }, KEEPALIVE_INTERVAL);
 }
 
+function startLocationRefresh() {
+  if (locationRefreshTimer) clearInterval(locationRefreshTimer);
+  locationRefreshTimer = setInterval(async () => {
+    for (const p of allProfiles) { if (p.code !== myCode) fetchLocationForProfile(p.code); }
+  }, LOCATION_REFRESH_INTERVAL);
+}
+
 async function verifyAndRepublish() {
-  try {
-    const res = await fetch(API + '/profile/' + myCode);
-    if (res.status === 404) {
-      await publishProfile(true);
-      await loadCommunity();
-    }
-  } catch(e) {}
+  try { const res = await fetch(API + '/profile/' + myCode); if (res.status === 404) { await publishProfile(true); await loadCommunity(); } } catch(e) {}
 }
 
 function buildRegionFilter() {
@@ -491,44 +163,32 @@ function buildRegionFilter() {
 
 function loadMyProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
-  if (!raw) {
-    document.getElementById('no-profile-hint').style.display = 'flex';
-    document.getElementById('my-card').style.display = 'none';
-    return;
-  }
+  if (!raw) { document.getElementById('no-profile-hint').style.display = 'flex'; document.getElementById('my-card').style.display = 'none'; return; }
   try { myProfile = JSON.parse(raw); } catch { return; }
   document.getElementById('no-profile-hint').style.display = 'none';
   document.getElementById('my-card').style.display = 'block';
-
   const av = document.getElementById('my-avatar');
-  if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}">`;
   else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
   document.getElementById('my-name').textContent = myProfile.name || '—';
-
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
   const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
-  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
-  document.getElementById('my-meta').textContent = meta || 'Kein Ort angegeben';
+  document.getElementById('my-meta').textContent = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ') || 'Kein Ort';
   document.getElementById('my-code').textContent = myCode ? 'Code: ' + myCode.slice(0,3) + ' · ' + myCode.slice(3,6) : '';
-
   isPublished = localStorage.getItem('sm_spot_published') === '1';
   updatePublishUI();
 }
 
 function updatePublishUI() {
-  const toggle = document.getElementById('publish-toggle');
-  const hint = document.getElementById('publish-hint');
-  toggle.classList.toggle('on', isPublished);
-  hint.textContent = isPublished ? '✓ Dein Profil ist in der Community sichtbar' : 'Dein Profil ist nicht sichtbar';
-  hint.style.color = isPublished ? 'var(--green)' : '';
+  const t = document.getElementById('publish-toggle'), h = document.getElementById('publish-hint');
+  t.classList.toggle('on', isPublished);
+  h.textContent = isPublished ? '✓ Dein Profil ist sichtbar' : 'Nicht sichtbar';
 }
 
 function updateLocationUI() {
-  const toggle = document.getElementById('location-toggle');
-  const hint = document.getElementById('location-hint');
-  toggle.classList.toggle('on', isSharingLocation);
-  hint.textContent = isSharingLocation ? '✓ Dein Standort wird geteilt' : 'Standort teilen';
-  hint.style.color = isSharingLocation ? 'var(--green)' : '';
+  const t = document.getElementById('location-toggle'), h = document.getElementById('location-hint');
+  t.classList.toggle('on', isSharingLocation);
+  h.textContent = isSharingLocation ? '✓ Standort wird geteilt' : 'Standort teilen';
 }
 
 async function toggleLocationSharing() {
@@ -540,8 +200,8 @@ async function toggleLocationSharing() {
     updateLocationUI();
     toast('📍 Standortfreigabe beendet');
   } else {
-    const success = await startLocationSharing();
-    if (success) {
+    const ok = await startLocationSharing();
+    if (ok) {
       isSharingLocation = true;
       localStorage.setItem('sm_spot_location', '1');
       updateLocationUI();
@@ -557,17 +217,19 @@ async function startLocationSharing() {
     await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
     if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = navigator.geolocation.watchPosition(
-      async (pos) => { await sendLocationToServer(pos.coords.latitude, pos.coords.longitude); },
-      (err) => console.warn('Location watch error:', err),
+      async p => { await sendLocationToServer(p.coords.latitude, p.coords.longitude); },
+      e => console.warn('watch err', e),
       { enableHighAccuracy: true, maximumAge: 30000 }
     );
     if (locationTimer) clearInterval(locationTimer);
     locationTimer = setInterval(async () => {
-      const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true })).catch(() => null);
-      if (pos) await sendLocationToServer(pos.coords.latitude, pos.coords.longitude);
+      try {
+        const p = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
+        await sendLocationToServer(p.coords.latitude, p.coords.longitude);
+      } catch {}
     }, LOCATION_UPDATE_INTERVAL);
     return true;
-  } catch (e) { toast('⚠️ Standort nicht verfügbar'); return false; }
+  } catch { toast('⚠️ Standort nicht verfügbar'); return false; }
 }
 
 function stopLocationSharing() {
@@ -576,55 +238,37 @@ function stopLocationSharing() {
 }
 
 async function sendLocationToServer(lat, lng) {
-  try {
-    await fetch(API + '/location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: myCode, lat, lng })
-    });
-  } catch(e) {}
+  try { await fetch(API + '/location', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:myCode, lat, lng }) }); } catch {}
 }
 
 async function togglePublish() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
-  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
+  if (!myProfile.name || !myProfile.region) { toast('⚠️ Name und Region sind Pflicht'); return; }
   const btn = document.getElementById('publish-toggle');
-  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
+  btn.style.pointerEvents = 'none';
   try {
-    if (isPublished) { await unpublishProfile(); }
-    else { await publishProfile(false); }
+    if (isPublished) { await unpublishProfile(); } else { await publishProfile(false); }
     updatePublishUI();
     await loadCommunity();
-  } catch(e) { toast('⚠️ Fehler: ' + (e.message || 'unbekannt')); }
-  finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+  } catch(e) { toast('⚠️ Fehler: ' + e.message); }
+  finally { btn.style.pointerEvents = ''; }
 }
 
-async function publishProfile(silent = false) {
-  if (!myProfile || !myCode) throw new Error('Kein Profil');
+async function publishProfile(silent=false) {
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-  const payload = {
-    code: myCode, name: myProfile.name, age,
-    region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-    orientation: myProfile.orientation || null, role: myProfile.role || null,
-    trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
-  };
-  const res = await fetch(API + '/profile', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const payload = { code:myCode, name:myProfile.name, age, region:myProfile.region, province:myProfile.province||null, city:myProfile.city||null, orientation:myProfile.orientation||null, role:myProfile.role||null, trans:!!myProfile.trans, cross:!!myProfile.cross, bio:myProfile.bio||null };
+  const res = await fetch(API + '/profile', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  if (!res.ok) throw new Error('HTTP '+res.status);
   isPublished = true;
   localStorage.setItem('sm_spot_published', '1');
   if (!silent) toast('✅ Profil veröffentlicht');
 }
 
 async function unpublishProfile() {
-  const res = await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
-  if (!res.ok && res.status !== 404) throw new Error('HTTP ' + res.status);
+  await fetch(API + '/profile/' + myCode, { method:'DELETE' });
   isPublished = false;
   localStorage.setItem('sm_spot_published', '0');
-  toast('○ Profil aus Community entfernt');
+  toast('○ Profil entfernt');
 }
 
 async function loadCommunity() {
@@ -632,25 +276,27 @@ async function loadCommunity() {
   btn.classList.add('spinning');
   try {
     const res = await fetch(API + '/profiles');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) throw new Error('HTTP '+res.status);
     allProfiles = await res.json();
     for (const p of allProfiles) { if (p.code !== myCode) fetchLocationForProfile(p.code); }
     applyFilters();
   } catch(e) {
-    document.getElementById('community-list').innerHTML = `<div class="state-box"><div class="state-ico">⚠️</div><div class="state-txt">Server nicht erreichbar</div><div class="state-hint">${e.message}</div></div>`;
-    document.getElementById('community-count').textContent = '';
+    document.getElementById('community-list').innerHTML = `<div class="state-box">Server nicht erreichbar</div>`;
   } finally { btn.classList.remove('spinning'); }
 }
 
 const locationCache = new Map();
 async function fetchLocationForProfile(code) {
-  if (locationCache.has(code)) return locationCache.get(code);
   try {
     const res = await fetch(API + '/location/' + code);
-    if (res.ok) { const data = await res.json(); locationCache.set(code, data); renderCommunity(); return data; }
-  } catch(e) {}
-  locationCache.set(code, null);
-  return null;
+    if (res.ok) {
+      const data = await res.json();
+      locationCache.set(code, data);
+    } else {
+      locationCache.delete(code);
+    }
+  } catch { locationCache.delete(code); }
+  renderCommunity();
 }
 
 function toggleChip(btn) { btn.classList.toggle('on'); applyFilters(); }
@@ -665,10 +311,10 @@ function applyFilters() {
       const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
       if (p.age < lo || p.age > hi) return false;
     }
-    const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
-    if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
-    const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
-    if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
+    const o = chips.filter(f => ['homo','bi','hetero'].includes(f));
+    if (o.length && (!p.orientation || !o.includes(p.orientation))) return false;
+    const r = chips.filter(f => ['bottom','top','versatile'].includes(f));
+    if (r.length && (!p.role || !r.includes(p.role))) return false;
     if (chips.includes('trans') && !p.trans) return false;
     return true;
   });
@@ -683,105 +329,54 @@ function resetFilters() {
 
 function renderCommunity() {
   const list = document.getElementById('community-list');
-  const count = document.getElementById('community-count');
   const n = filtered.length;
-  count.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
-  if (!n) {
-    list.innerHTML = `<div class="state-box"><div class="state-ico">🔍</div><div class="state-txt">Keine Profile gefunden</div><div class="state-hint">Filter anpassen oder Profile veröffentlichen</div></div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(p => profileCard(p)).join('');
+  document.getElementById('community-count').innerHTML = `<b>${n}</b> ${n===1?'Profil':'Profile'} gefunden`;
+  if (!n) { list.innerHTML = '<div class="state-box">Keine Profile</div>'; return; }
+  list.innerHTML = filtered.map(p => {
+    const initial = p.name?.[0]?.toUpperCase() || '?';
+    const age = p.age ? `${p.age} J.` : '? J.';
+    const loc = [p.city, p.region].filter(Boolean).join(', ');
+    const isOwn = p.code === myCode;
+    const locData = locationCache.get(p.code);
+    const locationBadge = (locData && !isOwn) ? `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${formatDistanceToUser(locData)}</span>` : '';
+    const chatBtn = isOwn ? '<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>' : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat</button>`;
+    return `<div class="profile-card"><div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div>${esc(age)} · ${esc(loc)}</div></div></div><div class="card-footer">${chatBtn}</div></div>`;
+  }).join('');
 }
 
-function profileCard(p) {
-  const initial = p.name ? p.name[0].toUpperCase() : '?';
-  const age = p.age ? `${p.age} J.` : '? J.';
-  const loc = [p.city, p.region].filter(Boolean).join(', ');
-  const ago = timeAgo(p.ts);
-  const isOwn = p.code === myCode;
-
-  let badges = '';
-  if (p.orientation) {
-    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
-    badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
-  }
-  if (p.role) {
-    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
-    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
-  }
-  if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
-  if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
-  if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
-
-  const locData = locationCache.get(p.code);
-  let locationBadge = '';
-  if (locData && !isOwn) {
-    locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${formatDistanceToUser(locData)}</span>`;
-  }
-
-  const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
-  const cardClass = p.orientation ? ` ${p.orientation}` : '';
-  const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
-
-  return `<div class="profile-card${cardClass}">
-    <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" title="Online in den letzten 24h"></div></div>
-    ${badges ? `<div class="card-badges">${badges}</div>` : ''}
-    ${bio}
-    <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
-  </div>`;
-}
-
-let currentLocationMap = null, userMarker = null, targetMarker = null, userPosition = null;
+let currentMap = null, userMarker = null, targetMarker = null, userPos = null;
 function showLocationOnMap(code, name, lat, lng) {
-  const modal = document.getElementById('location-modal');
   document.getElementById('location-modal-name').textContent = name;
-  modal.style.display = 'flex';
+  document.getElementById('location-modal').style.display = 'flex';
   setTimeout(() => {
-    if (!currentLocationMap) {
-      currentLocationMap = L.map('location-map-small').setView([lat, lng], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentLocationMap);
-    } else { currentLocationMap.setView([lat, lng], 14); }
-    if (targetMarker) currentLocationMap.removeLayer(targetMarker);
-    targetMarker = L.marker([lat, lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup(name).openPopup();
-    if (userPosition) {
-      if (userMarker) currentLocationMap.removeLayer(userMarker);
-      userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
+    if (!currentMap) {
+      currentMap = L.map('location-map-small').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(currentMap);
+    } else currentMap.setView([lat, lng], 14);
+    if (targetMarker) currentMap.removeLayer(targetMarker);
+    targetMarker = L.marker([lat, lng], { icon: L.divIcon({ html:'<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize:[22,22] }) }).addTo(currentMap).bindPopup(name).openPopup();
+    if (userPos) {
+      if (userMarker) currentMap.removeLayer(userMarker);
+      userMarker = L.marker([userPos.lat, userPos.lng], { icon: L.divIcon({ html:'<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize:[22,22] }) }).addTo(currentMap).bindPopup('Du');
     }
-    if (userPosition) {
-      document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
-    } else {
-      document.getElementById('location-distance').textContent = '';
-    }
+    document.getElementById('location-distance').textContent = userPos ? `Entfernung: ${formatDistance(getDistance(userPos.lat, userPos.lng, lat, lng))}` : '';
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if (userMarker) currentLocationMap.removeLayer(userMarker);
-        userMarker = L.marker([userPosition.lat, userPosition.lng], { icon: L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] }) }).addTo(currentLocationMap).bindPopup('Du');
-        document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPosition.lat, userPosition.lng, lat, lng))}`;
+      navigator.geolocation.getCurrentPosition(p => {
+        userPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+        if (userMarker) currentMap.removeLayer(userMarker);
+        userMarker = L.marker([userPos.lat, userPos.lng], { icon: L.divIcon({ html:'<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize:[22,22] }) }).addTo(currentMap).bindPopup('Du');
+        document.getElementById('location-distance').textContent = `Entfernung: ${formatDistance(getDistance(userPos.lat, userPos.lng, lat, lng))}`;
       }, () => {});
     }
   }, 100);
 }
 function closeLocationModal(e) { if (e && e.target !== document.getElementById('location-modal')) return; document.getElementById('location-modal').style.display = 'none'; }
-function formatDistanceToUser(locData) { if (!userPosition) return ''; return formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng)); }
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180, Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
-  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-function formatDistance(m) { return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km'; }
-
-function startChat(code, name) { if (!code) return; sessionStorage.setItem('sm_connect_to', code); sessionStorage.setItem('sm_connect_name', name); window.location.href = CHAT_PAGE; }
-
-function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-function timeAgo(ts) {
-  if (!ts) return ''; const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 2) return 'gerade aktiv'; if (min < 60) return `vor ${min} Min`;
-  const h = Math.floor(min / 60); if (h < 24) return `vor ${h} Std`;
-  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
-}
-let tTimer = null;
-function toast(msg, ms = 2800) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(tTimer); tTimer = setTimeout(() => el.classList.remove('show'), ms); }
+function getDistance(lat1, lon1, lat2, lon2) { const R=6371e3, φ1=lat1*Math.PI/180, φ2=lat2*Math.PI/180, Δφ=(lat2-lat1)*Math.PI/180, Δλ=(lon2-lon1)*Math.PI/180; const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2; return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+function formatDistance(m) { return m<1000 ? Math.round(m)+' m' : (m/1000).toFixed(1)+' km'; }
+function formatDistanceToUser(locData) { if (!userPos) return ''; return formatDistance(getDistance(userPos.lat, userPos.lng, locData.lat, locData.lng)); }
+function startChat(code, name) { sessionStorage.setItem('sm_connect_to', code); window.location.href = CHAT_PAGE; }
+function esc(s) { if (!s) return ''; const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+function toast(msg, ms=2800) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), ms); }
 </script>
 </body>
 </html>
