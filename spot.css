@@ -1,4 +1,19 @@
 /* ═══════════════════════════════════════════════════════════════════
+   SPOT ME RADAR – DESIGN TOKENS & STYLES (mit Scroll-Unterstützung)
+═══════════════════════════════════════════════════════════════════ */
+
+/* ... (alle :root-Variablen und Grundstile bleiben gleich) ... */
+
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 17px; line-height: 1.5;
+  min-height: 100vh;           /* statt height:100vh */
+  overflow-y: auto;            /* Scrollen erlauben */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    SPOT ME RADAR – DESIGN TOKENS & STYLES
 ═══════════════════════════════════════════════════════════════════ */
 
