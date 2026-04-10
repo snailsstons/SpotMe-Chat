@@ -14,24 +14,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="SpotMe">
 
-  <!-- Externe Bibliotheken -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-  <!-- Eigene Styles -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- SCREEN 1 – HOME (neu gestaltet) -->
+<!-- SCREEN 1 – HOME -->
 <div id="s-home" class="screen active">
-  <!-- Header im Spot-Stil -->
   <header class="app-header">
-    <div class="header-left">
-      <!-- Platzhalter für Symmetrie, kein Zurück-Pfeil auf Home -->
-    </div>
+    <div class="header-left"></div>
     <div class="logo">SPOT<b>ME</b></div>
     <div class="header-right">
       <div class="status-badge" id="header-status">● ONLINE</div>
@@ -47,9 +42,7 @@
     </div>
   </header>
 
-  <!-- Hauptinhalt (scrollbar) -->
   <div class="home-content">
-    <!-- Code-Karte im neuen Stil -->
     <div class="code-card-new">
       <div class="code-label">Dein persönlicher Code</div>
       <div class="code-value" id="mycode">--- ---</div>
@@ -59,7 +52,6 @@
       </div>
     </div>
 
-    <!-- Verbindungsbox -->
     <div class="conn-box-new">
       <div class="conn-label">Partner verbinden</div>
       <div class="drow-new">
@@ -73,7 +65,6 @@
       <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
     </div>
 
-    <!-- Letzte Chats (horizontal) -->
     <div id="psec" style="display:none;">
       <div class="section-header">
         <span class="section-label">Letzte Chats</span>
@@ -81,7 +72,6 @@
       <div id="plist" class="horizontal-scroll"></div>
     </div>
 
-    <!-- Verpasste Anrufe (horizontal) -->
     <div id="missed-sec" style="display:none;">
       <div class="section-header">
         <span class="section-label missed-label-text">Verpasste Anrufe</span>
@@ -92,10 +82,10 @@
   </div>
 </div>
 
-<!-- SCREEN 2 – INCOMING CALL (unverändert) -->
+<!-- SCREEN 2 – INCOMING CALL -->
 <div id="s-in" class="screen"><div class="call-wrap"><div class="caller-ring">🧑</div><div class="caller-name" id="in-name">...</div><div class="caller-code" id="in-code">Code: ---</div><div class="caller-hint">möchte mit dir chatten</div><div class="call-btns"><button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button><button class="call-btn btn-accept"  onclick="acceptCall()">✓ Annehmen</button></div></div></div>
 
-<!-- SCREEN 3 – CHAT (unverändert) -->
+<!-- SCREEN 3 – CHAT -->
 <div id="s-chat" class="screen">
   <div class="chat-bar"><button class="back-btn" onclick="goHome()">‹</button><div class="peer-wrap"><div class="pav offline" id="pav">🧑</div><div class="pinfo"><div class="pname" id="pname">...</div><div class="pstatus dim" id="pstatus">○ Verbinde...</div></div></div>
     <button class="album-btn" onclick="showAlbumMenu()" title="Alben">🖼️</button>
@@ -113,7 +103,7 @@
   </div></div>
 </div>
 
-<!-- SCREEN 6 – LOCATION (unverändert) -->
+<!-- SCREEN 6 – LOCATION -->
 <div id="s-location" class="screen">
   <div class="chat-bar">
     <button class="back-btn" onclick="closeLocationScreen()">‹</button>
@@ -134,11 +124,10 @@
   </div>
 </div>
 
-<!-- Veraltete Screens -->
 <div id="s-vault" class="screen"></div>
 <div id="s-partner-vault" class="screen"></div>
 
-<!-- BOTTOM SHEETS (unverändert) -->
+<!-- Sheets & Modals (unverändert) -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
@@ -163,7 +152,7 @@
   </div>
 </div>
 
-<!-- Album-Menü Sheet -->
+<!-- Album Menü -->
 <div class="sheet-ovl" id="album-menu-ovl" onclick="closeAlbumMenu()"></div>
 <div class="sheet" id="album-menu-sheet">
   <div class="sheet-handle"></div>
@@ -171,7 +160,7 @@
   <div class="sheet-body" id="album-menu-body"></div>
 </div>
 
-<!-- Partner-Alben Auswahl Sheet -->
+<!-- Partner Alben -->
 <div class="sheet-ovl" id="partner-albums-ovl" onclick="closePartnerAlbumsSheet()"></div>
 <div class="sheet" id="partner-albums-sheet">
   <div class="sheet-handle"></div>
@@ -179,7 +168,7 @@
   <div class="sheet-body" id="partner-albums-body"></div>
 </div>
 
-<!-- Nachricht hinterlassen Modal -->
+<!-- Nachricht hinterlassen -->
 <div class="sheet-ovl" id="leave-message-ovl" onclick="closeLeaveMessageSheet()"></div>
 <div class="sheet" id="leave-message-sheet">
   <div class="sheet-handle"></div>
@@ -193,7 +182,7 @@
   </div>
 </div>
 
-<!-- Backup-Passwort Modal -->
+<!-- Backup Passwort -->
 <div class="sheet-ovl" id="backup-password-ovl" onclick="closeBackupPasswordModal()"></div>
 <div class="sheet" id="backup-password-sheet">
   <div class="sheet-handle"></div>
@@ -208,7 +197,7 @@
   </div>
 </div>
 
-<!-- Import-Passwort Modal -->
+<!-- Import Passwort -->
 <div class="sheet-ovl" id="import-password-ovl" onclick="closeImportPasswordModal()"></div>
 <div class="sheet" id="import-password-sheet">
   <div class="sheet-handle"></div>
