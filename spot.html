@@ -103,14 +103,17 @@
 
     /* ─── Radar Viewport ─── */
     .radar-viewport {
-      flex: 1; position: relative;
-      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 0.5rem;
+      background: var(--bg);
+      flex-shrink: 0;
     }
     .radar-canvas {
-      position: relative; width: 100%; height: 100%;
-      max-width: min(80vw, 80vh); max-height: min(80vw, 80vh);
-      aspect-ratio: 1/1;
+      position: relative; width: 100%; height: auto;
+      max-width: min(70vw, 70vh); aspect-ratio: 1/1;
     }
     .radar-bg {
       position: absolute; inset: 0; border-radius: 50%;
@@ -157,6 +160,91 @@
       pointer-events: none; opacity: 0; transition: opacity 0.15s;
     }
     .peer-node:hover::after { opacity: 1; }
+
+    /* ─── Listenbereich ─── */
+    .community-list-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 1.25rem 1rem;
+      background: var(--bg);
+    }
+    .section-label {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted);
+    }
+    .community-count { font-size: 0.8rem; color: var(--muted2); }
+    .community-count b { color: var(--text); font-weight: 600; }
+
+    .profile-card {
+      background: var(--card2); border: 1px solid var(--bord);
+      border-radius: 18px; padding: 1rem; margin-bottom: 0.8rem;
+      transition: border-color 0.2s; position: relative; overflow: hidden;
+    }
+    .profile-card:active { border-color: var(--bord2); }
+    .profile-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      border-radius: 2px 2px 0 0; opacity: 0; transition: opacity 0.3s;
+    }
+    .profile-card.homo::before   { background: linear-gradient(90deg,var(--p2),var(--acc)); opacity: 1; }
+    .profile-card.bi::before     { background: linear-gradient(90deg,var(--p3),var(--p2)); opacity: 1; }
+    .profile-card.hetero::before { background: linear-gradient(90deg,var(--muted),var(--muted2)); opacity: 0.4; }
+
+    .card-top { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 0.8rem; }
+    .card-av {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg,var(--p2),var(--p3));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; border: 2px solid var(--bord2);
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name {
+      font-family: 'Syne',sans-serif; font-weight: 700; font-size: 1rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .card-age-loc { font-size: 0.8rem; color: var(--muted2); margin-top: 0.2rem; }
+    .card-age-loc b { color: var(--muted); font-weight: 500; }
+    .online-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      flex-shrink: 0; margin-top: 6px; animation: blink 2s ease infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .location-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(0,229,192,.1); border: 1px solid rgba(0,229,192,.3);
+      border-radius: 100px; padding: 2px 8px; font-size: 0.65rem;
+      color: var(--acc); margin-left: 8px; cursor: pointer;
+    }
+    .location-badge:active { background: rgba(0,229,192,.2); }
+
+    .card-badges { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+    .badge {
+      padding: 0.22rem 0.65rem; border-radius: 100px; font-size: 0.73rem; font-weight: 500;
+      border: 1px solid transparent;
+    }
+    .badge-homo   { background: rgba(123,92,250,.12); color: var(--p2); border-color: rgba(123,92,250,.25); }
+    .badge-bi     { background: rgba(255,79,123,.1);  color: var(--p3); border-color: rgba(255,79,123,.22); }
+    .badge-hetero { background: rgba(255,255,255,.05); color: var(--muted2); border-color: var(--bord2); }
+    .badge-role   { background: rgba(0,229,192,.08); color: var(--acc); border-color: rgba(0,229,192,.2); }
+    .badge-trans  { background: rgba(0,229,192,.06); color: var(--acc); border-color: rgba(0,229,192,.15); font-size: 0.7rem; }
+    .badge-cross  { background: rgba(255,185,0,.07); color: #f5a623; border-color: rgba(255,185,0,.18); font-size: 0.7rem; }
+
+    .card-bio {
+      font-size: 0.83rem; color: var(--muted2); line-height: 1.55;
+      margin-bottom: 0.85rem;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
+    .card-time { font-size: 0.7rem; color: var(--muted); }
+    .btn-chat {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.52rem 1.1rem; border-radius: 10px; border: none;
+      background: var(--acc); color: var(--bg);
+      font-family: 'DM Sans',sans-serif; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+    }
+    .btn-chat:active { transform: scale(0.96); opacity: 0.9; }
 
     /* ─── Filter Drawer ─── */
     .filter-drawer {
@@ -205,7 +293,7 @@
     }
     .nav-btn.active { opacity: 1; color: var(--acc); background: var(--acc-dim); }
 
-    /* ─── Modal (wie in spot.html) ─── */
+    /* Modal */
     .location-modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.8);
       z-index: 1000; display: none; align-items: center; justify-content: center;
@@ -250,13 +338,11 @@
 </head>
 <body>
 
-<!-- Header -->
 <header class="app-header">
   <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.9rem;">RADAR</span></div>
   <div class="status-badge" id="status-indicator">● DISCOVERY</div>
 </header>
 
-<!-- Kompakte Profil-Info (wird dynamisch gefüllt) -->
 <div class="profile-bar" id="profile-bar" style="display:none;">
   <div class="profile-avatar" id="my-avatar-small">🧑</div>
   <div class="profile-info">
@@ -270,7 +356,6 @@
   </div>
 </div>
 
-<!-- Radar -->
 <div class="radar-viewport">
   <div class="radar-canvas" id="radar-field">
     <div class="radar-bg"></div>
@@ -280,11 +365,17 @@
     <div class="ring" style="inset: 75%;"></div><span class="ring-label" style="top:77%;">100 m</span>
     <div class="radar-sweep"></div>
     <div class="center-dot"></div>
-    <!-- Nodes werden per JS eingefügt -->
   </div>
 </div>
 
-<!-- Filter -->
+<div class="community-list-section">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+    <div class="section-label">Community Profile</div>
+    <div class="community-count" id="community-count"></div>
+  </div>
+  <div id="community-list"></div>
+</div>
+
 <div class="filter-drawer">
   <div class="filter-title">Community Filter</div>
   <div class="filter-select-row">
@@ -309,14 +400,12 @@
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
 </div>
 
-<!-- Navigation -->
 <nav>
   <button class="nav-btn active">RADAR</button>
   <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
   <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
 </nav>
 
-<!-- Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
   <div class="location-modal" id="location-modal-content" onclick="event.stopPropagation()">
     <div class="location-modal-header">
@@ -334,9 +423,6 @@
 <script>
 'use strict';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// API & Globals (identisch zu spot.html)
-// ─────────────────────────────────────────────────────────────────────────────
 const API = 'https://spotme-chat.onrender.com/api';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
@@ -352,14 +438,14 @@ let filtered = [];
 let keepaliveTimer = null;
 let locationTimer = null;
 let locationWatchId = null;
-let userPosition = null;           // eigene Position {lat, lng}
+let userPosition = null;
 
-// Modal & Map
 let currentTargetCode = null;
 let currentTargetLat = null, currentTargetLng = null;
 let currentMap = null, userMarker = null, targetMarker = null;
 
-// Regionen für Filter
+const locationCache = new Map();
+
 const REGIONS = [
   'Andalusien','Aragón','Asturien','Balearen','Baskenland',
   'Extremadura','Galicien','Kanaren','Kantabrien',
@@ -367,31 +453,16 @@ const REGIONS = [
   'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
 ];
 
-// Cache für Positionen anderer Nutzer
-const locationCache = new Map();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Initialisierung
-// ─────────────────────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
   await loadCommunity();
   if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
-  
-  // Standort-Freigabe aus localStorage wiederherstellen
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
-  if (isSharingLocation) {
-    startLocationSharing().then(() => {
-      // Nachdem eigene Position da ist, Radar neu zeichnen
-      renderRadar();
-    });
-  }
-  
-  // Initial Radar rendern (auch ohne eigene Position werden Nodes angezeigt)
-  renderRadar();
+  if (isSharingLocation) await startLocationSharing();
+  renderAll();
 });
 
 function buildRegionFilter() {
@@ -399,28 +470,19 @@ function buildRegionFilter() {
   REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Profil laden & UI
-// ─────────────────────────────────────────────────────────────────────────────
 function loadMyProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
-  if (!raw) {
-    document.getElementById('profile-bar').style.display = 'none';
-    return;
-  }
+  if (!raw) { document.getElementById('profile-bar').style.display = 'none'; return; }
   try { myProfile = JSON.parse(raw); } catch { return; }
   document.getElementById('profile-bar').style.display = 'flex';
-  
   const av = document.getElementById('my-avatar-small');
   if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
   else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
-  
   document.getElementById('my-name-small').textContent = myProfile.name || '—';
   const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
   const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
   const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
   document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
-  
   isPublished = localStorage.getItem('sm_spot_published') === '1';
   updatePublishUI();
 }
@@ -437,9 +499,6 @@ function updateLocationUI() {
   btn.title = isSharingLocation ? 'Standort wird geteilt' : 'Standort teilen';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Publish / Unpublish
-// ─────────────────────────────────────────────────────────────────────────────
 async function togglePublish() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
   if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
@@ -471,14 +530,11 @@ async function togglePublish() {
     }
     updatePublishUI();
     await loadCommunity();
-    renderRadar();
+    renderAll();
   } catch(e) { toast('⚠️ Fehler: ' + e.message); }
   finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Standort teilen
-// ─────────────────────────────────────────────────────────────────────────────
 async function toggleLocationSharing() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
   if (isSharingLocation) {
@@ -488,7 +544,7 @@ async function toggleLocationSharing() {
     updateLocationUI();
     toast('📍 Standortfreigabe beendet');
     userPosition = null;
-    renderRadar();
+    renderAll();
   } else {
     const success = await startLocationSharing();
     if (success) {
@@ -496,7 +552,7 @@ async function toggleLocationSharing() {
       localStorage.setItem('sm_spot_location', '1');
       updateLocationUI();
       toast('📍 Standort wird geteilt');
-      renderRadar();
+      renderAll();
     }
   }
 }
@@ -507,25 +563,23 @@ async function startLocationSharing() {
     const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
     userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     await sendLocationToServer(userPosition.lat, userPosition.lng);
-    
     if (locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = navigator.geolocation.watchPosition(
       async (pos) => {
         userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         await sendLocationToServer(userPosition.lat, userPosition.lng);
-        renderRadar();
+        renderAll();
       },
       (err) => console.warn('Location watch error:', err),
       { enableHighAccuracy: true, maximumAge: 30000 }
     );
-    
     if (locationTimer) clearInterval(locationTimer);
     locationTimer = setInterval(async () => {
       const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true })).catch(() => null);
       if (pos) {
         userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         await sendLocationToServer(userPosition.lat, userPosition.lng);
-        renderRadar();
+        renderAll();
       }
     }, LOCATION_UPDATE_INTERVAL);
     return true;
@@ -547,20 +601,14 @@ async function sendLocationToServer(lat, lng) {
   } catch(e) {}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Community laden
-// ─────────────────────────────────────────────────────────────────────────────
 async function loadCommunity() {
   try {
     const res = await fetch(API + '/profiles');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     allProfiles = await res.json();
-    // Für alle Profile den Standort abrufen (parallel)
     await Promise.all(allProfiles.map(p => fetchLocationForProfile(p.code)));
     applyFilters();
-  } catch(e) {
-    console.warn('Community load error', e);
-  }
+  } catch(e) { console.warn('Community load error', e); }
 }
 
 async function fetchLocationForProfile(code) {
@@ -577,9 +625,6 @@ async function fetchLocationForProfile(code) {
   return null;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Filter & Rendering (Radar)
-// ─────────────────────────────────────────────────────────────────────────────
 function toggleChip(el) {
   el.classList.toggle('active');
   applyFilters();
@@ -604,7 +649,7 @@ function applyFilters() {
     if (chips.includes('trans') && !p.trans) return false;
     return true;
   });
-  renderRadar();
+  renderAll();
 }
 
 function resetFilters() {
@@ -614,37 +659,28 @@ function resetFilters() {
   applyFilters();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Radar Visualisierung
-// ─────────────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderRadar();
+  renderList();
+}
+
 function renderRadar() {
   const field = document.getElementById('radar-field');
-  // Alte Nodes entfernen
   field.querySelectorAll('.peer-node').forEach(n => n.remove());
+  const maxDist = 5000;
+  const profilesWithLocation = filtered.filter(p => locationCache.get(p.code) != null);
   
-  const maxDist = 5000; // 5 km entspricht äußerem Ring
-  
-  filtered.forEach(profile => {
+  profilesWithLocation.forEach(profile => {
     const loc = locationCache.get(profile.code);
-    if (!loc) return; // nur Profile mit Standort anzeigen
-    
-    // Distanz berechnen (falls eigene Position bekannt)
     let distance = null;
     if (userPosition) {
       distance = getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng);
     } else {
-      // Fallback: zufällige Distanz, aber konsistent (Hash aus Code)
       const hash = profile.code.split('').reduce((a,b) => a + b.charCodeAt(0), 0);
-      distance = (hash % 4000) + 500; // 500–4500 m
+      distance = (hash % 4000) + 500;
     }
-    
-    // Position auf Radar berechnen
-    const normalized = Math.min(distance, maxDist) / maxDist; // 0 (Mitte) bis 1 (Rand)
-    const radiusPercent = (1 - normalized) * 50; // 50% = Mitte, 0% = Rand
-    
-    // Winkel stabil aus Code ableiten
+    const normalized = Math.min(distance, maxDist) / maxDist;
     const angle = (profile.code.split('').reduce((a,b) => a + b.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-    
     const x = 50 + (Math.cos(angle) * (normalized * 50));
     const y = 50 + (Math.sin(angle) * (normalized * 50));
     
@@ -657,42 +693,81 @@ function renderRadar() {
     field.appendChild(node);
   });
   
-  // Status aktualisieren
-  const status = document.getElementById('status-indicator');
-  status.textContent = `● ${filtered.length} PROFILES`;
+  document.getElementById('status-indicator').textContent = `● ${profilesWithLocation.length} RADAR`;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Modal & Check‑In (identisch zu spot.html)
-// ─────────────────────────────────────────────────────────────────────────────
+function renderList() {
+  const listEl = document.getElementById('community-list');
+  const countEl = document.getElementById('community-count');
+  const n = filtered.length;
+  countEl.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
+  
+  if (!n) {
+    listEl.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--muted);">Keine Profile gefunden</div>`;
+    return;
+  }
+  
+  listEl.innerHTML = filtered.map(p => {
+    const initial = p.name ? p.name[0].toUpperCase() : '?';
+    const age = p.age ? `${p.age} J.` : '? J.';
+    const loc = [p.city, p.region].filter(Boolean).join(', ');
+    const ago = timeAgo(p.ts);
+    const isOwn = p.code === myCode;
+    
+    let badges = '';
+    if (p.orientation) {
+      const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
+      badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
+    }
+    if (p.role) {
+      const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
+      badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+    }
+    if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+    if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+    if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
+    
+    const locData = locationCache.get(p.code);
+    let locationBadge = '';
+    if (locData && !isOwn) {
+      const distStr = userPosition ? formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng)) : '';
+      locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
+    }
+    
+    const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+    const cardClass = p.orientation ? ` ${p.orientation}` : '';
+    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat starten</button>`;
+    
+    return `<div class="profile-card${cardClass}">
+      <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" title="Online in den letzten 24h"></div></div>
+      ${badges ? `<div class="card-badges">${badges}</div>` : ''}
+      ${bio}
+      <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
+    </div>`;
+  }).join('');
+}
+
 function showLocationOnMap(code, name, lat, lng) {
   currentTargetCode = code;
   currentTargetLat = lat;
   currentTargetLng = lng;
-  
   const modal = document.getElementById('location-modal');
   const modalContent = document.getElementById('location-modal-content');
   document.getElementById('location-modal-name').textContent = name;
   modal.style.display = 'flex';
   modalContent.classList.remove('inside');
   document.getElementById('location-distance').classList.remove('inside');
-  
   setTimeout(() => {
     if (!currentMap) {
       currentMap = L.map('location-map-small').setView([lat, lng], 14);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
-    } else {
-      currentMap.setView([lat, lng], 14);
-    }
+    } else { currentMap.setView([lat, lng], 14); }
     if (targetMarker) currentMap.removeLayer(targetMarker);
     targetMarker = L.marker([lat, lng], {
       icon: L.divIcon({ html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
     }).addTo(currentMap).bindPopup(name).openPopup();
-    
     updateModalDistance();
-    if (!userPosition) {
-      document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
-    }
+    if (!userPosition) document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
   }, 100);
 }
 
@@ -700,20 +775,10 @@ async function performCheckIn() {
   const btn = document.getElementById('checkin-btn');
   btn.textContent = '⏳ Position wird ermittelt...';
   btn.disabled = true;
-  
-  if (!navigator.geolocation) {
-    toast('❌ Geolocation nicht unterstützt');
-    btn.textContent = '📍 Hier einchecken';
-    btn.disabled = false;
-    return;
-  }
-  
+  if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); btn.textContent = '📍 Hier einchecken'; btn.disabled = false; return; }
   try {
-    const pos = await new Promise((res, rej) => 
-      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 })
-    );
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
     userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    
     if (myCode) {
       await sendLocationToServer(userPosition.lat, userPosition.lng);
       if (!isSharingLocation) {
@@ -723,21 +788,15 @@ async function performCheckIn() {
         startLocationSharing();
       }
     }
-    
     if (userMarker) currentMap.removeLayer(userMarker);
     userMarker = L.marker([userPosition.lat, userPosition.lng], {
       icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
     }).addTo(currentMap).bindPopup('Du').openPopup();
-    
     updateModalDistance();
     toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
-    renderRadar(); // Radar mit neuer eigener Position aktualisieren
-  } catch (e) {
-    toast('❌ Standort konnte nicht ermittelt werden');
-  } finally {
-    btn.textContent = '📍 Hier einchecken';
-    btn.disabled = false;
-  }
+    renderAll();
+  } catch (e) { toast('❌ Standort konnte nicht ermittelt werden'); }
+  finally { btn.textContent = '📍 Hier einchecken'; btn.disabled = false; }
 }
 
 function updateModalDistance() {
@@ -747,13 +806,8 @@ function updateModalDistance() {
   const distEl = document.getElementById('location-distance');
   distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
   const modalContent = document.getElementById('location-modal-content');
-  if (inside) {
-    distEl.classList.add('inside');
-    modalContent.classList.add('inside');
-  } else {
-    distEl.classList.remove('inside');
-    modalContent.classList.remove('inside');
-  }
+  if (inside) { distEl.classList.add('inside'); modalContent.classList.add('inside'); }
+  else { distEl.classList.remove('inside'); modalContent.classList.remove('inside'); }
 }
 
 function closeLocationModal(e) {
@@ -761,9 +815,6 @@ function closeLocationModal(e) {
   document.getElementById('location-modal').style.display = 'none';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hilfsfunktionen
-// ─────────────────────────────────────────────────────────────────────────────
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
   const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
@@ -801,11 +852,27 @@ function startKeepalive() {
 async function verifyAndRepublish() {
   try {
     const res = await fetch(API + '/profile/' + myCode);
-    if (res.status === 404) {
-      await togglePublish(); // neu veröffentlichen
-    }
+    if (res.status === 404) await togglePublish();
   } catch(e) {}
 }
+
+function startChat(code, name) {
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = 'index.html';
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2) return 'gerade aktiv';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `vor ${h} Std`;
+  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 
 function toast(msg, ms = 2800) {
   const el = document.getElementById('toast');
@@ -813,8 +880,6 @@ function toast(msg, ms = 2800) {
   clearTimeout(window.toastTimer);
   window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
-
-function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
 </script>
 </body>
 </html>
