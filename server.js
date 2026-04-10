@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { ExpressPeerServer } = require('peer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 
@@ -16,23 +18,49 @@ const peerServer = ExpressPeerServer(server, {
 });
 app.use('/peerjs', peerServer);
 
+// ---------- Dateipfad für verpasste Anrufe ----------
+const DATA_DIR = '/data';
+const MISSED_CALLS_FILE = path.join(DATA_DIR, 'missed_calls.json');
+
+// Verzeichnis anlegen, falls nicht vorhanden
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// ---------- Verpasste Anrufe laden ----------
+let missedCalls = [];
+try {
+  if (fs.existsSync(MISSED_CALLS_FILE)) {
+    const raw = fs.readFileSync(MISSED_CALLS_FILE, 'utf8');
+    missedCalls = JSON.parse(raw);
+    console.log(`📞 ${missedCalls.length} verpasste Anrufe geladen`);
+  }
+} catch (e) {
+  console.error('Fehler beim Laden der missed_calls.json:', e);
+}
+
+// ---------- Speichern ----------
+function saveMissedCalls() {
+  try {
+    fs.writeFileSync(MISSED_CALLS_FILE, JSON.stringify(missedCalls, null, 2));
+  } catch (e) {
+    console.error('Fehler beim Speichern der missed_calls.json:', e);
+  }
+}
+
 // ---------- In-Memory Speicher ----------
-const profiles = new Map();           // code -> Profil
-const locationCache = new Map();      // code -> { lat, lng, ts }
-const missedCalls = [];               // Array von { recipient, callerId, callerName, timestamp }
+const profiles = new Map();
+const locationCache = new Map();
 
 // ---------- Alte Einträge löschen ----------
 setInterval(() => {
   const now = Date.now();
-  // Locations nach 2 Minuten löschen
   for (const [code, data] of locationCache.entries()) {
     if (now - data.ts > 120000) locationCache.delete(code);
   }
   // Verpasste Anrufe nach 7 Tagen löschen
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-  while (missedCalls.length && new Date(missedCalls[0].timestamp).getTime() < sevenDaysAgo) {
-    missedCalls.shift();
-  }
+  const oldLength = missedCalls.length;
+  missedCalls = missedCalls.filter(call => new Date(call.timestamp).getTime() >= sevenDaysAgo);
+  if (missedCalls.length !== oldLength) saveMissedCalls();
 }, 120000);
 
 // ---------- Community Profile ----------
@@ -88,21 +116,16 @@ app.get('/api/location/:code', (req, res) => {
   res.json({ lat: data.lat, lng: data.lng });
 });
 
-// ---------- Verpasste Anrufe (NEU) ----------
+// ---------- Verpasste Anrufe (persistent) ----------
 app.post('/api/missed-call', (req, res) => {
   const { recipient, callerId, callerName } = req.body;
   if (!recipient || !callerId || !callerName) {
     return res.status(400).json({ error: 'Fehlende Felder' });
   }
-  const entry = {
-    recipient,
-    callerId,
-    callerName,
-    timestamp: new Date().toISOString()
-  };
+  const entry = { recipient, callerId, callerName, timestamp: new Date().toISOString() };
   missedCalls.push(entry);
-  // Maximal 500 Einträge behalten
   if (missedCalls.length > 500) missedCalls.shift();
+  saveMissedCalls(); // ⭐ Persistieren
   res.json({ success: true });
 });
 
@@ -111,7 +134,7 @@ app.get('/api/missed-calls/:code', (req, res) => {
   const userCalls = missedCalls
     .filter(call => call.recipient === code)
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, 50); // max. 50 Einträge zurückgeben
+    .slice(0, 50);
   res.json(userCalls);
 });
 
