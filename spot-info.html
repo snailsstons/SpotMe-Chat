@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpotMe · RADAR – Finde Menschen in deiner Nähe</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#080c10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #080c10;
+  --sur:   #0f1520;
+  --card:  #111827;
+  --bord:  rgba(255,255,255,.08);
+  --acc:   #00e5c0;
+  --p2:    #7b5cfa;
+  --p3:    #ff4f7b;
+  --text:  #e8edf5;
+  --muted: #6b7a96;
+  --green: #22d46e;
+  --warn:  #f5a623;
+}
+* { margin:0; padding:0; box-sizing:border-box }
+html { scroll-behavior:smooth }
+body {
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg); color:var(--text);
+  font-size:18px; line-height:1.6;
+  overflow-x:hidden;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9999; opacity:.4;
+}
+
+/* ══ NAV ══ */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 2rem; height:68px;
+  background:rgba(8,12,16,.85); backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--bord);
+}
+.nav-brand { display:flex; align-items:center; gap:.5rem; text-decoration:none }
+.nav-dot { width:9px; height:9px; border-radius:50%; background:var(--acc); box-shadow:0 0 14px var(--acc); animation:blink 2s ease infinite }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.nav-name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--acc); letter-spacing:-.02em }
+.nav-name b { color:var(--text) }
+.nav-sub { font-size:.75rem; color:var(--muted); font-weight:400; margin-left:.25rem; letter-spacing:.08em; text-transform:uppercase }
+.nav-links { display:flex; align-items:center; gap:2rem; list-style:none }
+.nav-links a { color:var(--muted); text-decoration:none; font-size:1rem; font-weight:500; transition:color .2s }
+.nav-links a:hover { color:var(--text) }
+.nav-cta {
+  background:var(--acc); color:var(--bg);
+  padding:.55rem 1.4rem; border-radius:10px;
+  font-weight:700; font-size:1rem; text-decoration:none;
+  transition:all .2s; white-space:nowrap;
+}
+.nav-cta:hover { box-shadow:0 0 24px rgba(0,229,192,.4); color:var(--bg) }
+
+/* ══ HERO ══ */
+.hero {
+  min-height:100vh;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center; padding:8rem 1.5rem 5rem;
+  position:relative; overflow:hidden;
+}
+.hero::after {
+  content:'';
+  position:absolute; top:30%; left:50%;
+  transform:translate(-50%,-50%);
+  width:700px; height:500px;
+  background:radial-gradient(ellipse, rgba(0,229,192,.07) 0%, rgba(123,92,250,.04) 40%, transparent 70%);
+  pointer-events:none;
+}
+.hero-badge {
+  display:inline-flex; align-items:center; gap:.5rem;
+  background:rgba(0,229,192,.08); border:1px solid rgba(0,229,192,.2);
+  border-radius:100px; padding:.4rem 1.1rem;
+  font-size:.9rem; font-weight:500; color:var(--acc);
+  margin-bottom:2rem; animation:fadeUp .6s ease both;
+}
+.badge-dot { width:7px; height:7px; border-radius:50%; background:var(--acc); animation:blink 1.5s ease infinite }
+.hero h1 {
+  font-family:'Syne',sans-serif; font-weight:800;
+  font-size:clamp(2.8rem, 6vw, 5.5rem);
+  letter-spacing:-.04em; line-height:1.0;
+  margin-bottom:1.5rem;
+  animation:fadeUp .6s ease .1s both;
+}
+.hero h1 .acc  { color:var(--acc) }
+.hero h1 .acc2 { color:var(--p2) }
+.hero-sub {
+  font-size:clamp(1rem, 2vw, 1.3rem); color:var(--muted);
+  font-weight:300; max-width:600px; margin:0 auto 3rem;
+  line-height:1.7; animation:fadeUp .6s ease .2s both;
+}
+.hero-actions {
+  display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;
+  animation:fadeUp .6s ease .3s both;
+}
+.btn-hero {
+  display:inline-flex; align-items:center; gap:.6rem;
+  padding:.9rem 2rem; border-radius:14px; font-family:'DM Sans',sans-serif;
+  font-size:1.05rem; font-weight:600; text-decoration:none; transition:all .2s;
+}
+.btn-primary { background:var(--acc); color:var(--bg) }
+.btn-primary:hover { box-shadow:0 0 32px rgba(0,229,192,.4); transform:translateY(-1px) }
+.btn-ghost { background:transparent; color:var(--text); border:1px solid var(--bord) }
+.btn-ghost:hover { border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.04) }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:none} }
+
+/* ── Radar Mockup ── */
+.radar-mockup-wrap {
+  width:100%; max-width:320px; margin:3.5rem auto 0;
+  animation:fadeUp .6s ease .35s both;
+}
+.radar-mockup {
+  background:var(--card); border:1px solid var(--bord);
+  border-radius:24px; overflow:hidden;
+  box-shadow:0 40px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(0,229,192,.06);
+  padding:1.25rem;
+}
+.radar-mockup-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:1rem;
+}
+.radar-mockup-title { font-family:'Syne',sans-serif; font-weight:700; font-size:.9rem; color:var(--acc) }
+.radar-mockup-badge {
+  font-size:.65rem; font-weight:600; letter-spacing:1px;
+  color:var(--acc); background:rgba(0,229,192,.1);
+  padding:.2rem .6rem; border-radius:100px;
+  border:1px solid rgba(0,229,192,.2);
+}
+.radar-field {
+  position:relative; width:100%; aspect-ratio:1/1;
+  border-radius:50%; background:radial-gradient(circle, rgba(0,229,192,.04) 0%, transparent 70%);
+  border:1px solid rgba(0,229,192,.15);
+  margin-bottom:1rem;
+}
+.radar-ring {
+  position:absolute; border:1px solid rgba(0,229,192,.08); border-radius:50%;
+}
+.radar-sweep-line {
+  position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, transparent 0%, rgba(0,229,192,.1) 100%);
+  animation:sweep 4s linear infinite;
+}
+@keyframes sweep { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.radar-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:10px; height:10px; background:#fff; border-radius:50%; box-shadow:0 0 16px var(--acc); border:2px solid var(--bg) }
+.radar-node {
+  position:absolute; width:12px; height:12px; margin-left:-6px; margin-top:-6px;
+  background:var(--acc); border-radius:50%;
+  box-shadow:0 0 10px var(--acc); border:2px solid var(--bg);
+  animation:nodePulse 2s ease infinite;
+}
+.radar-node:nth-child(3) { animation-delay:.4s }
+.radar-node:nth-child(4) { animation-delay:.9s }
+.radar-node:nth-child(5) { animation-delay:1.3s }
+.radar-node.purple { background:var(--p2); box-shadow:0 0 10px var(--p2) }
+.radar-node.pink   { background:var(--p3); box-shadow:0 0 10px var(--p3) }
+@keyframes nodePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.2)} }
+.radar-profiles {
+  display:flex; gap:.5rem;
+}
+.radar-prof-pill {
+  flex:1; background:var(--sur); border:1px solid var(--bord);
+  border-radius:12px; padding:.6rem .75rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.rp-av { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; flex-shrink:0 }
+.rp-av.c { background:linear-gradient(135deg,var(--p2),var(--p3)) }
+.rp-av.p { background:linear-gradient(135deg,var(--acc),var(--p2)) }
+.rp-name { font-size:.75rem; font-weight:600 }
+.rp-dist { font-size:.65rem; color:var(--acc) }
+.rp-dot { width:7px; height:7px; border-radius:50%; background:var(--green); margin-left:auto; flex-shrink:0 }
+
+/* ── Hero Stats ── */
+.hero-stats {
+  display:flex; gap:3rem; justify-content:center;
+  margin-top:4rem; padding-top:3rem;
+  border-top:1px solid var(--bord);
+  animation:fadeUp .6s ease .45s both;
+  flex-wrap:wrap;
+}
+.stat-num { font-family:'Syne',sans-serif; font-weight:800; font-size:2.2rem; color:var(--text); letter-spacing:-.02em }
+.stat-num span { color:var(--acc) }
+.stat-label { font-size:.9rem; color:var(--muted); margin-top:.2rem }
+
+/* ══ SECTIONS ══ */
+section { padding:6rem 1.5rem }
+.container { max-width:1080px; margin:0 auto }
+.section-tag { font-size:.8rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--acc); margin-bottom:1rem }
+.section-title { font-family:'Syne',sans-serif; font-weight:800; font-size:clamp(2rem, 4vw, 3rem); letter-spacing:-.03em; line-height:1.1; margin-bottom:1.25rem }
+.section-sub { font-size:1.1rem; color:var(--muted); max-width:560px; font-weight:300; line-height:1.7 }
+
+/* ── Steps ── */
+.steps-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; margin-top:3.5rem }
+.step-card {
+  background:var(--card); border:1px solid var(--bord);
+  border-radius:20px; padding:2rem; position:relative;
+  transition:border-color .3s, transform .3s;
+}
+.step-card:hover { border-color:rgba(0,229,192,.2); transform:translateY(-3px) }
+.step-num { font-family:'Syne',sans-serif; font-weight:800; font-size:3.5rem; color:rgba(0,229,192,.1); position:absolute; top:1.2rem; right:1.5rem; line-height:1 }
+.step-icon { font-size:2rem; margin-bottom:1rem }
+.step-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:.5rem }
+.step-desc { font-size:.95rem; color:var(--muted); line-height:1.6 }
+
+/* ══ FEATURES ══ */
+.features-section { background:var(--sur); border-top:1px solid var(--bord); border-bottom:1px solid var(--bord) }
+.features-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-top:3.5rem }
+.feat-card {
+  background:var(--card); border:1px solid var(--bord);
+  border-radius:20px; padding:2rem;
+  position:relative; overflow:hidden;
+  transition:all .3s;
+}
+.feat-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  border-radius:2px 2px 0 0; opacity:0; transition:opacity .3s;
+}
+.feat-card:hover { transform:translateY(-3px) }
+.feat-card:hover::before { opacity:1 }
+.fc-cyan::before  { background:linear-gradient(90deg,var(--acc),var(--p2)) }
+.fc-purple::before{ background:linear-gradient(90deg,var(--p2),var(--p3)) }
+.fc-pink::before  { background:linear-gradient(90deg,var(--p3),var(--acc)) }
+.feat-icon {
+  width:52px; height:52px; border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.5rem; margin-bottom:1.25rem;
+}
+.fc-cyan   .feat-icon { background:rgba(0,229,192,.1) }
+.fc-purple .feat-icon { background:rgba(123,92,250,.1) }
+.fc-pink   .feat-icon { background:rgba(255,79,123,.1) }
+.feat-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1.15rem; margin-bottom:.6rem }
+.feat-desc { font-size:.95rem; color:var(--muted); line-height:1.65 }
+.feat-badge {
+  display:inline-block; margin-top:1rem;
+  font-size:.78rem; font-weight:600; padding:.28rem .7rem;
+  border-radius:100px; background:rgba(255,255,255,.05); color:var(--muted);
+  border:1px solid var(--bord);
+}
+
+/* ══ TIPS SECTION ══ */
+.tips-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:1.25rem; margin-top:3rem }
+.tip-card {
+  background:var(--card); border:1px solid var(--bord); border-radius:18px;
+  padding:1.5rem; display:flex; gap:1rem; align-items:flex-start;
+  transition:border-color .25s;
+}
+.tip-card:hover { border-color:rgba(0,229,192,.18) }
+.tip-num {
+  font-family:'Syne',sans-serif; font-weight:800; font-size:1.6rem;
+  color:rgba(0,229,192,.2); flex-shrink:0; line-height:1; margin-top:.1rem;
+}
+.tip-body {}
+.tip-title { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; margin-bottom:.35rem }
+.tip-desc { font-size:.9rem; color:var(--muted); line-height:1.55 }
+
+/* ══ SAFETY SECTION ══ */
+.safety-section { background:var(--sur); border-top:1px solid var(--bord); border-bottom:1px solid var(--bord) }
+.safety-grid { display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:start; margin-top:3rem }
+.safety-item { display:flex; align-items:flex-start; gap:1rem; margin-bottom:1.75rem }
+.safety-icon {
+  width:36px; height:36px; border-radius:10px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+}
+.si-green { background:rgba(34,212,110,.1); border:1px solid rgba(34,212,110,.2) }
+.si-warn  { background:rgba(245,166,35,.1);  border:1px solid rgba(245,166,35,.2) }
+.si-red   { background:rgba(255,79,123,.1);  border:1px solid rgba(255,79,123,.2) }
+.safety-text b { font-size:1rem; font-weight:600; display:block; margin-bottom:.2rem }
+.safety-text p { font-size:.9rem; color:var(--muted) }
+
+/* Transparency box */
+.transparency-box {
+  background:var(--card); border:1px solid var(--bord);
+  border-radius:20px; padding:2rem;
+}
+.transparency-box h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:1.1rem; margin-bottom:1.25rem }
+.trans-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.85rem 1rem; border-radius:12px; background:rgba(255,255,255,.03);
+  border:1px solid var(--bord); margin-bottom:.7rem; font-size:.92rem;
+}
+.trans-label { color:var(--muted) }
+.trans-val { font-weight:600; display:flex; align-items:center; gap:.4rem }
+.tv-green { color:var(--green) }
+.tv-warn  { color:var(--warn) }
+.tv-dot   { width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0 }
+.trans-note { font-size:.82rem; color:var(--muted); margin-top:1rem; line-height:1.5 }
+
+/* ══ 18+ BANNER ══ */
+.age-banner {
+  background:rgba(255,79,123,.06); border:1px solid rgba(255,79,123,.2);
+  border-radius:20px; padding:2rem; text-align:center; margin-top:3rem;
+}
+.age-banner .age-icon { font-size:2.5rem; margin-bottom:.75rem }
+.age-banner h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:1.2rem; margin-bottom:.5rem; color:var(--p3) }
+.age-banner p { font-size:.95rem; color:var(--muted); max-width:480px; margin:0 auto }
+
+/* ══ CTA ══ */
+.cta-section {
+  text-align:center; padding:8rem 1.5rem;
+  position:relative; overflow:hidden;
+}
+.cta-section::before {
+  content:''; position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:600px; height:400px;
+  background:radial-gradient(ellipse, rgba(0,229,192,.07) 0%, transparent 70%);
+  pointer-events:none;
+}
+.cta-section h2 { font-family:'Syne',sans-serif; font-weight:800; font-size:clamp(2.2rem,4vw,3.5rem); letter-spacing:-.03em; line-height:1.1; margin-bottom:1.25rem }
+.cta-section p  { font-size:1.1rem; color:var(--muted); max-width:480px; margin:0 auto 2.5rem; font-weight:300 }
+
+/* ══ FOOTER ══ */
+footer {
+  padding:3rem 2rem 4rem; border-top:1px solid var(--bord);
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:1.5rem; max-width:1080px; margin:0 auto;
+}
+.foot-brand { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; color:var(--acc) }
+.foot-brand b { color:var(--text) }
+.foot-links { display:flex; gap:2rem; list-style:none }
+.foot-links a { color:var(--muted); text-decoration:none; font-size:.9rem; transition:color .2s }
+.foot-links a:hover { color:var(--text) }
+.foot-legal { font-size:.85rem; color:var(--muted) }
+
+/* ══ RESPONSIVE ══ */
+@media(max-width:768px){
+  nav { padding:0 1rem }
+  .nav-links { display:none }
+  .safety-grid { grid-template-columns:1fr }
+  .hero-stats { gap:2rem }
+  footer { flex-direction:column; text-align:center }
+  .foot-links { justify-content:center }
+}
+
+.divider { height:1px; background:var(--bord); margin:0 }
+.reveal { opacity:0; transform:translateY(24px); transition:all .6s ease }
+.reveal.visible { opacity:1; transform:none }
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <a href="spotme-landing.html" class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-name">Spot<b>Me</b></span>
+    <span class="nav-sub">Radar</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Was bietet Spot?</a></li>
+    <li><a href="#tips">Tipps</a></li>
+    <li><a href="#safety">Sicherheit</a></li>
+  </ul>
+  <a href="spot.html" class="nav-cta">Radar öffnen →</a>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-badge">
+    <div class="badge-dot"></div>
+    Community · Standort · Verifizierung
+  </div>
+
+  <h1>
+    Menschen in<br>
+    <span class="acc">deiner Nähe.</span><br>
+    <span class="acc2">Diskret.</span>
+  </h1>
+
+  <p class="hero-sub">
+    SpotMe Radar zeigt dir wer gerade in deiner Region online ist — ohne deinen echten Namen, ohne Pflichtfoto, ohne Account. Einfach anonym verbinden.
+  </p>
+
+  <div class="hero-actions">
+    <a href="spot.html" class="btn-hero btn-primary">📡 Radar öffnen</a>
+    <a href="#features" class="btn-hero btn-ghost">Was bietet Spot?</a>
+  </div>
+
+  <!-- Radar Mockup -->
+  <div class="radar-mockup-wrap">
+    <div class="radar-mockup">
+      <div class="radar-mockup-bar">
+        <div class="radar-mockup-title">SPOT<b style="color:var(--text)">ME</b> RADAR</div>
+        <div class="radar-mockup-badge">● 4 RADAR</div>
+      </div>
+      <div class="radar-field">
+        <!-- Ringe -->
+        <div class="radar-ring" style="inset:0"></div>
+        <div class="radar-ring" style="inset:20%"></div>
+        <div class="radar-ring" style="inset:45%"></div>
+        <div class="radar-ring" style="inset:73%"></div>
+        <div class="radar-sweep-line"></div>
+        <div class="radar-center"></div>
+        <!-- Nodes -->
+        <div class="radar-node" style="left:68%;top:25%"></div>
+        <div class="radar-node purple" style="left:22%;top:38%"></div>
+        <div class="radar-node pink" style="left:55%;top:72%"></div>
+        <div class="radar-node" style="left:78%;top:60%"></div>
+      </div>
+      <div class="radar-profiles">
+        <div class="radar-prof-pill">
+          <div class="rp-av c">🧑</div>
+          <div>
+            <div class="rp-name">Shadow_X</div>
+            <div class="rp-dist">📍 280 m</div>
+          </div>
+          <div class="rp-dot"></div>
+        </div>
+        <div class="radar-prof-pill">
+          <div class="rp-av p">🧔</div>
+          <div>
+            <div class="rp-name">Wolf_99</div>
+            <div class="rp-dist">📍 1.2 km</div>
+          </div>
+          <div class="rp-dot"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-stats">
+    <div>
+      <div class="stat-num">0<span>€</span></div>
+      <div class="stat-label">Kostenlos für immer</div>
+    </div>
+    <div>
+      <div class="stat-num">18<span>+</span></div>
+      <div class="stat-label">Nur für Erwachsene</div>
+    </div>
+    <div>
+      <div class="stat-num">100<span>%</span></div>
+      <div class="stat-label">Freiwilliger Standort</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ SO FUNKTIONIERT'S ══ -->
+<section id="how">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">So einfach geht's</div>
+      <h2 class="section-title">In 3 Schritten sichtbar</h2>
+      <p class="section-sub">Kein Account, kein Pflichtfoto. Du entscheidest was du zeigst — und wann.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-num">1</div>
+        <div class="step-icon">👤</div>
+        <div class="step-title">Profil anlegen</div>
+        <div class="step-desc">Gib deinen Nicknamen, Alter und Region an. Profilbild ist optional. Alle Daten bleiben lokal auf deinem Gerät — bis du sie selbst veröffentlichst.</div>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">2</div>
+        <div class="step-icon">👁️</div>
+        <div class="step-title">Sichtbar schalten</div>
+        <div class="step-desc">Drücke den Sichtbarkeits-Button im Radar. Erst dann erscheinst du in der Community. Du kannst dich jederzeit wieder ausblenden — mit einem Tipp.</div>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">3</div>
+        <div class="step-icon">💬</div>
+        <div class="step-title">Verbinden & chatten</div>
+        <div class="step-desc">Siehst du ein interessantes Profil? Ein Klick auf den Chat-Button öffnet direkt SpotMe Chat — verschlüsselt, anonym, peer-to-peer.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ FEATURES ══ -->
+<section id="features" class="features-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Was Spot bietet</div>
+      <h2 class="section-title">Mehr als eine Liste.<br>Eine Community.</h2>
+    </div>
+    <div class="features-grid">
+
+      <div class="feat-card fc-cyan reveal">
+        <div class="feat-icon">📡</div>
+        <div class="feat-title">Radar-Ansicht</div>
+        <div class="feat-desc">Profile in deiner Nähe erscheinen als leuchtende Punkte auf dem Radar — mit Entfernungsangabe. Wie nah jemand ist, siehst du auf einen Blick.</div>
+        <div class="feat-badge">Live · GPS optional</div>
+      </div>
+
+      <div class="feat-card fc-purple reveal">
+        <div class="feat-icon">🏳️‍🌈</div>
+        <div class="feat-title">Smarte Filter</div>
+        <div class="feat-desc">Filtere nach Region, Alter, Orientierung und Rolle. Du siehst nur was dich interessiert — alle anderen sehen nur was du zeigen möchtest.</div>
+        <div class="feat-badge">Orientierung · Rolle · Alter</div>
+      </div>
+
+      <div class="feat-card fc-pink reveal">
+        <div class="feat-icon">📍</div>
+        <div class="feat-title">Freiwilliger Standort</div>
+        <div class="feat-desc">Dein GPS-Standort ist komplett optional. Aktivierst du ihn, können andere auf der Karte sehen wie weit du entfernt bist — du kannst ihn jederzeit abschalten.</div>
+        <div class="feat-badge">Jederzeit abschaltbar</div>
+      </div>
+
+      <div class="feat-card fc-cyan reveal">
+        <div class="feat-icon">✅</div>
+        <div class="feat-title">Verifikations-System</div>
+        <div class="feat-desc">Habt ihr euch persönlich getroffen oder per Chat verifiziert? Ein grüner Haken im Profil zeigt das an — ohne persönliche Daten zu teilen.</div>
+        <div class="feat-badge">Persönlich · Chat-verifiziert</div>
+      </div>
+
+      <div class="feat-card fc-purple reveal">
+        <div class="feat-icon">🗺️</div>
+        <div class="feat-title">Mini-Karte & Check-in</div>
+        <div class="feat-desc">Klicke auf den Standort-Badge eines Profils und sieh eine Karte mit der genauen Entfernung. Ein Check-in bestätigt deinen eigenen Standort ohne ihn dauerhaft zu speichern.</div>
+        <div class="feat-badge">OpenStreetMap</div>
+      </div>
+
+      <div class="feat-card fc-pink reveal">
+        <div class="feat-icon">🔐</div>
+        <div class="feat-title">Kein echter Name nötig</div>
+        <div class="feat-desc">Nickname, keine E-Mail, keine Telefonnummer. Dein Profil gehört dir — du kannst es jederzeit pausieren, ändern oder dauerhaft entfernen.</div>
+        <div class="feat-badge">Anonym & DSGVO-konform</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ TIPPS ══ -->
+<section id="tips">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Tipps für Spot</div>
+      <h2 class="section-title">So holst du das<br>Meiste heraus.</h2>
+      <p class="section-sub">Kleine Einstellungen, große Wirkung — hier sind die wichtigsten Dinge die du wissen solltest.</p>
+    </div>
+
+    <div class="tips-grid">
+      <div class="tip-card reveal">
+        <div class="tip-num">01</div>
+        <div class="tip-body">
+          <div class="tip-title">Profil vollständig ausfüllen</div>
+          <div class="tip-desc">Ein ausgefülltes Profil mit Alter, Region und optionaler Beschreibung wird deutlich öfter angeklickt. Du musst nicht alles angeben — aber mehr Infos schaffen Vertrauen.</div>
+        </div>
+      </div>
+      <div class="tip-card reveal">
+        <div class="tip-num">02</div>
+        <div class="tip-body">
+          <div class="tip-title">Filter gezielt nutzen</div>
+          <div class="tip-desc">Stelle Region und Altersgruppe ein — dann siehst du nur Profile die wirklich zu dir passen. Die Chips (Homo, Bottom, Trans …) sind kumulativ filterbar.</div>
+        </div>
+      </div>
+      <div class="tip-card reveal">
+        <div class="tip-num">03</div>
+        <div class="tip-body">
+          <div class="tip-title">Standort nur bei Bedarf</div>
+          <div class="tip-desc">Du musst deinen GPS-Standort nicht dauerhaft teilen. Schalte ihn ein wenn du gerade aktiv triffst — und wieder aus wenn du fertig bist. Er wird automatisch nach 2 Minuten Inaktivität gelöscht.</div>
+        </div>
+      </div>
+      <div class="tip-card reveal">
+        <div class="tip-num">04</div>
+        <div class="tip-body">
+          <div class="tip-title">Leute verifizieren</div>
+          <div class="tip-desc">Wenn du jemanden getroffen hast: verifiziere ihn persönlich per QR-Code oder per Chat. Das hilft anderen zu sehen dass ein Profil echt ist — und baut Vertrauen in der Community auf.</div>
+        </div>
+      </div>
+      <div class="tip-card reveal">
+        <div class="tip-num">05</div>
+        <div class="tip-body">
+          <div class="tip-title">Sichtbarkeit pausieren</div>
+          <div class="tip-desc">Du kannst dich jederzeit mit einem Klick aus der Community ausblenden — ohne dein Profil zu löschen. Ideal wenn du gerade keine Kontakte suchst aber später wiederkommst.</div>
+        </div>
+      </div>
+      <div class="tip-card reveal">
+        <div class="tip-num">06</div>
+        <div class="tip-body">
+          <div class="tip-title">Beschreibung mit Bedacht</div>
+          <div class="tip-desc">Max. 512 Zeichen für deine Bio. Schreib was du wirklich suchst — das spart euch beiden Zeit. Keine Links, keine E-Mail-Adressen (Antispam-Schutz ist aktiv).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ SAFETY ══ -->
+<section id="safety" class="safety-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-tag">Sicherheit & Datenschutz</div>
+      <h2 class="section-title">Deine Daten.<br>Deine Kontrolle.</h2>
+      <p class="section-sub">Spot ist transparent über was gespeichert wird — und was nicht. Hier findest du alles was du wissen musst.</p>
+    </div>
+
+    <div class="safety-grid">
+      <div class="reveal">
+
+        <div class="safety-item">
+          <div class="safety-icon si-green">✓</div>
+          <div class="safety-text">
+            <b>Kein Pflicht-Standort</b>
+            <p>GPS-Sharing ist komplett optional. Ohne Aktivierung sieht niemand wo du bist — nur deine Region (z.B. "Madrid") ist für andere sichtbar wenn du sie angibst.</p>
+          </div>
+        </div>
+
+        <div class="safety-item">
+          <div class="safety-icon si-green">✓</div>
+          <div class="safety-text">
+            <b>Standort automatisch gelöscht</b>
+            <p>Dein geteilter GPS-Standort verschwindet nach 2 Minuten Inaktivität automatisch vom Server. Keine dauerhafte Standortspeicherung.</p>
+          </div>
+        </div>
+
+        <div class="safety-item">
+          <div class="safety-icon si-green">✓</div>
+          <div class="safety-text">
+            <b>Profil jederzeit löschbar</b>
+            <p>Drücke den Sichtbarkeits-Button um dich sofort aus der Community zu entfernen. Dein Profil verschwindet innerhalb von Sekunden.</p>
+          </div>
+        </div>
+
+        <div class="safety-item">
+          <div class="safety-icon si-green">✓</div>
+          <div class="safety-text">
+            <b>Chat bleibt P2P-verschlüsselt</b>
+            <p>Sobald du aus Spot heraus einen Chat startest, läuft alles über SpotMe Chat — verschlüsselt, direkt von Gerät zu Gerät, ohne Mittelmann.</p>
+          </div>
+        </div>
+
+        <div class="safety-item">
+          <div class="safety-icon si-warn">!</div>
+          <div class="safety-text">
+            <b>Community-Profile auf Server</b>
+            <p>Name, Alter und Region werden auf unserem Server gespeichert solange dein Profil sichtbar ist. Kein Echtname nötig — wir empfehlen einen Nicknamen.</p>
+          </div>
+        </div>
+
+        <div class="safety-item">
+          <div class="safety-icon si-warn">!</div>
+          <div class="safety-text">
+            <b>Inaktive Profile werden gelöscht</b>
+            <p>Profile ohne Aktivität für mehr als 30 Tage werden automatisch vom Server entfernt. Du wirst niemals dauerhaft gespeichert ohne es selbst zu wollen.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="reveal">
+        <div class="transparency-box">
+          <h3>Transparenz-Übersicht</h3>
+          <div class="trans-row">
+            <span class="trans-label">GPS-Standort</span>
+            <span class="trans-val tv-green"><span class="tv-dot"></span>Freiwillig · 2 Min TTL</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Profilname</span>
+            <span class="trans-val tv-warn"><span class="tv-dot"></span>Nickname (kein Klarname)</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Alter</span>
+            <span class="trans-val tv-warn"><span class="tv-dot"></span>Nur Geburtsjahr</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Chatinhalt</span>
+            <span class="trans-val tv-green"><span class="tv-dot"></span>Nicht auf Server</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Orientierung/Rolle</span>
+            <span class="trans-val tv-warn"><span class="tv-dot"></span>Optional · von dir gesetzt</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Profilfoto</span>
+            <span class="trans-val tv-green"><span class="tv-dot"></span>Lokal — nicht hochgeladen</span>
+          </div>
+          <div class="trans-row">
+            <span class="trans-label">Inaktive Profile</span>
+            <span class="trans-val tv-green"><span class="tv-dot"></span>Auto-Delete nach 30 Tagen</span>
+          </div>
+          <p class="trans-note">Gelb markierte Punkte sind bewusste und transparente Kompromisse. Wir sammeln nur was nötig ist um die Community-Funktion zu ermöglichen.</p>
+        </div>
+
+        <div class="age-banner reveal">
+          <div class="age-icon">🔞</div>
+          <h3>Nur für Erwachsene (18+)</h3>
+          <p>SpotMe Radar ist ausschließlich für Personen ab 18 Jahren. Mit dem Anlegen eines Profils bestätigst du dein Alter. Minderjährige dürfen den Spot nicht nutzen.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ CTA ══ -->
+<section class="cta-section">
+  <div class="reveal">
+    <h2>Bereit für den Radar?<br>Einfach loslegen.</h2>
+    <p>Kein Account, kein Download. Profil anlegen, sichtbar schalten, verbinden.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <a href="spot.html" class="btn-hero btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem">
+        📡 Radar öffnen
+      </a>
+      <a href="profil.html" class="btn-hero btn-ghost" style="font-size:1.1rem;padding:1rem 2.5rem">
+        👤 Profil erstellen
+      </a>
+    </div>
+    <p style="margin-top:1.5rem;font-size:.9rem;color:var(--muted)">
+      Läuft auf Chrome, Firefox, Safari · iOS & Android · Desktop
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div>
+    <div class="foot-brand">Spot<b>Me</b></div>
+    <div style="font-size:.85rem;color:var(--muted);margin-top:.3rem">Privater Chat ohne Kompromisse</div>
+  </div>
+  <ul class="foot-links">
+    <li><a href="spotme-landing.html">Home</a></li>
+    <li><a href="#">GitHub</a></li>
+    <li><a href="#">Datenschutz</a></li>
+    <li><a href="#">Impressum</a></li>
+  </ul>
+  <div class="foot-legal">© 2025 SpotMe · MIT Lizenz · Open Source</div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
