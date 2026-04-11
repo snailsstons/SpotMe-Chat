@@ -15,6 +15,8 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  
   <link rel="stylesheet" href="spot.css">
   <script src="spot.js" defer></script>
 </head>
@@ -113,6 +115,19 @@
   <div class="modal-content profile-detail-card" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeProfileDetail()">✕</button>
     <div id="profile-detail-content"></div>
+  </div>
+</div>
+
+<!-- QR-Code Modal für persönliche Verifikation -->
+<div class="modal-overlay" id="qr-verify-modal" onclick="closeQrVerifyModal()">
+  <div class="modal-content" style="max-width:320px;" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeQrVerifyModal()">✕</button>
+    <h3 style="font-family:'Syne'; margin-bottom:1rem; color:var(--acc);">Persönlich verifizieren</h3>
+    <p style="font-size:0.9rem; margin-bottom:1rem;">Scanne diesen QR‑Code mit der Kamera des anderen Nutzers oder lass ihn scannen.</p>
+    <div id="qr-code-container" style="display:flex; justify-content:center; margin-bottom:1rem;"></div>
+    <p style="font-size:0.8rem; color:var(--muted2);">Alternativ Code eingeben:</p>
+    <input type="text" id="verify-code-input" class="minp" placeholder="6‑stelligen Code" maxlength="6" inputmode="numeric" style="margin-bottom:0.5rem;">
+    <button class="detail-btn btn-primary" onclick="verifyByCode()">Verifizieren</button>
   </div>
 </div>
 
