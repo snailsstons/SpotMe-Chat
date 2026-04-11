@@ -75,7 +75,7 @@ function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
-async function addMissed(code, name) {
+async function addMissed(code, name, outgoing = false) {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
   const entry = { code, name, ts: Date.now() };
@@ -83,10 +83,17 @@ async function addMissed(code, name) {
   saveMissed(arr.slice(0,30));
   renderMissed();
   try {
+    // outgoing=true: Ich habe angerufen, niemand hat abgenommen
+    //   -> recipient ist der Angerufene (code), damit er sieht dass ich angerufen habe
+    // outgoing=false: Jemand hat mich angerufen, ich habe nicht abgenommen
+    //   -> recipient bin ich (myCode)
+    const payload = outgoing
+      ? { recipient: code,   callerId: myCode, callerName: myName }
+      : { recipient: myCode, callerId: code,   callerName: name   };
     await fetch(API_MISSED, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient: myCode, callerId: code, callerName: name })
+      body: JSON.stringify(payload)
     });
   } catch (e) { console.warn('Server missed call sync failed', e); }
 }
@@ -614,7 +621,7 @@ function initPeer() {
     if(err.type === 'peer-unavailable') {
       if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
       toast('⚠️ Partner nicht erreichbar');
-      addMissed(partnerCode, partnerName);
+      addMissed(partnerCode, partnerName, true);
       if (conn) { try{ conn.close(); } catch(e){} conn = null; }
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
@@ -662,7 +669,7 @@ outgoingCallTimer = setTimeout(() => {
   // Nur als verpasst werten, wenn keine aktive Verbindung besteht
   if (!conn || !conn.open) {
     toast('⏰ Keine Antwort');
-    addMissed(partnerCode, partnerName);
+    addMissed(partnerCode, partnerName, true);
     if (conn) {
       try { conn.close(); } catch (e) {}
       conn = null;
