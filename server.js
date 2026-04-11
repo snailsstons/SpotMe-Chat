@@ -6,7 +6,6 @@ const path = require('path');
 
 const app = express();
 
-// ⭐ JEDE Anfrage loggen
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
   next();
@@ -24,35 +23,46 @@ const peerServer = ExpressPeerServer(server, {
 });
 app.use('/peerjs', peerServer);
 
-// ---------- Dateipfad für verpasste Anrufe ----------
+// ---------- Dateipfade ----------
 const DATA_DIR = './data';
 const MISSED_CALLS_FILE = path.join(DATA_DIR, 'missed_calls.json');
+const PROFILES_FILE = path.join(DATA_DIR, 'profiles.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// ---------- Verpasste Anrufe laden ----------
+// ---------- Verpasste Anrufe ----------
 let missedCalls = [];
 try {
   if (fs.existsSync(MISSED_CALLS_FILE)) {
-    const raw = fs.readFileSync(MISSED_CALLS_FILE, 'utf8');
-    missedCalls = JSON.parse(raw);
-    console.log(`📞 ${missedCalls.length} verpasste Anrufe geladen`);
+    missedCalls = JSON.parse(fs.readFileSync(MISSED_CALLS_FILE, 'utf8'));
   }
-} catch (e) {
-  console.error('Fehler beim Laden der missed_calls.json:', e);
-}
+} catch (e) { console.error('Fehler beim Laden der missed_calls.json:', e); }
 
 function saveMissedCalls() {
   try {
     fs.writeFileSync(MISSED_CALLS_FILE, JSON.stringify(missedCalls, null, 2));
-    console.log(`💾 missed_calls.json gespeichert (${missedCalls.length} Einträge)`);
-  } catch (e) {
-    console.error('Fehler beim Speichern der missed_calls.json:', e);
-  }
+  } catch (e) { console.error('Fehler beim Speichern der missed_calls.json:', e); }
 }
 
-// ---------- In-Memory Speicher ----------
-const profiles = new Map();
+// ---------- Profile (mit Verifikationen & lastSeen) ----------
+let profiles = new Map();
+
+// Aus Datei laden, falls vorhanden
+try {
+  if (fs.existsSync(PROFILES_FILE)) {
+    const data = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
+    profiles = new Map(Object.entries(data));
+    console.log(`📁 ${profiles.size} Profile aus Datei geladen`);
+  }
+} catch (e) { console.error('Fehler beim Laden der profiles.json:', e); }
+
+function saveProfiles() {
+  try {
+    const obj = Object.fromEntries(profiles);
+    fs.writeFileSync(PROFILES_FILE, JSON.stringify(obj, null, 2));
+  } catch (e) { console.error('Fehler beim Speichern der profiles.json:', e); }
+}
+
 const locationCache = new Map();
 
 setInterval(() => {
@@ -61,9 +71,8 @@ setInterval(() => {
     if (now - data.ts > 120000) locationCache.delete(code);
   }
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-  const oldLength = missedCalls.length;
   missedCalls = missedCalls.filter(call => new Date(call.timestamp).getTime() >= sevenDaysAgo);
-  if (missedCalls.length !== oldLength) saveMissedCalls();
+  saveMissedCalls();
 }, 120000);
 
 // ---------- Community Profile ----------
@@ -80,7 +89,15 @@ app.post('/api/profile', (req, res) => {
   if (!code || !name || !region) {
     return res.status(400).json({ error: 'Pflichtfelder: code, name, region' });
   }
-  profiles.set(code, { name, age, region, province, city, orientation, role, trans: !!trans, cross: !!cross, bio, updated: Date.now() });
+  const existing = profiles.get(code) || {};
+  profiles.set(code, {
+    ...existing,
+    name, age, region, province, city, orientation, role,
+    trans: !!trans, cross: !!cross, bio,
+    updated: Date.now(),
+    verifications: existing.verifications || []
+  });
+  saveProfiles();
   res.json({ success: true });
 });
 
@@ -88,6 +105,7 @@ app.delete('/api/profile/:code', (req, res) => {
   const { code } = req.params;
   profiles.delete(code);
   locationCache.delete(code);
+  saveProfiles();
   res.json({ success: true });
 });
 
@@ -119,12 +137,61 @@ app.get('/api/location/:code', (req, res) => {
   res.json({ lat: data.lat, lng: data.lng });
 });
 
-// ---------- Verpasste Anrufe (persistent) ----------
+// ---------- Heartbeat & Online-Status ----------
+app.post('/api/heartbeat', (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Code fehlt' });
+  const profile = profiles.get(code);
+  if (profile) {
+    profile.lastSeen = Date.now();
+    profiles.set(code, profile);
+    saveProfiles();
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/online/:code', (req, res) => {
+  const { code } = req.params;
+  const profile = profiles.get(code);
+  if (!profile || !profile.lastSeen) {
+    return res.json({ online: false });
+  }
+  const online = (Date.now() - profile.lastSeen) < 120000; // 2 Minuten
+  res.json({ online, lastSeen: profile.lastSeen });
+});
+
+// ---------- Verifikationen ----------
+app.post('/api/verify', (req, res) => {
+  const { fromCode, toCode, type } = req.body; // type: 'chat' oder 'personal'
+  if (!fromCode || !toCode || !type) {
+    return res.status(400).json({ error: 'Felder fehlen' });
+  }
+  if (!profiles.has(fromCode) || !profiles.has(toCode)) {
+    return res.status(404).json({ error: 'Profil nicht gefunden' });
+  }
+  const targetProfile = profiles.get(toCode);
+  if (!targetProfile.verifications) targetProfile.verifications = [];
+  // Doppelte Verifikation verhindern
+  const exists = targetProfile.verifications.some(v => v.from === fromCode && v.type === type);
+  if (!exists) {
+    targetProfile.verifications.push({ from: fromCode, type, ts: Date.now() });
+    profiles.set(toCode, targetProfile);
+    saveProfiles();
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/verifications/:code', (req, res) => {
+  const { code } = req.params;
+  const profile = profiles.get(code);
+  if (!profile) return res.status(404).json({ error: 'Nicht gefunden' });
+  res.json(profile.verifications || []);
+});
+
+// ---------- Verpasste Anrufe ----------
 app.post('/api/missed-call', (req, res) => {
-  console.log('📞 POST /api/missed-call body:', req.body);
   const { recipient, callerId, callerName } = req.body;
   if (!recipient || !callerId || !callerName) {
-    console.warn('⚠️ Fehlende Felder bei missed-call:', { recipient, callerId, callerName });
     return res.status(400).json({ error: 'Fehlende Felder' });
   }
   const entry = { recipient, callerId, callerName, timestamp: new Date().toISOString() };
@@ -143,7 +210,6 @@ app.get('/api/missed-calls/:code', (req, res) => {
   res.json(userCalls);
 });
 
-// ---------- Health Check ----------
 app.get('/', (req, res) => res.send('SpotMe Community + PeerJS Server läuft'));
 
 const PORT = process.env.PORT || 3000;
