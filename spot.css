@@ -347,6 +347,61 @@ nav {
   gap: 0.4rem; transition: all 0.2s;
 }
 
+/* Profil-Detail-Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+  z-index: 1000; display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-content {
+  background: var(--card2); border: 1px solid var(--bord2);
+  border-radius: 24px; padding: 1.5rem; width: 90%; max-width: 400px;
+  max-height: 80vh; overflow-y: auto;
+  position: relative;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,.1); border: none; color: var(--text);
+  font-size: 1.2rem; cursor: pointer; z-index: 10;
+}
+.profile-detail-card .detail-avatar {
+  width: 70px; height: 70px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--p2), var(--p3));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; margin: 0 auto 1rem;
+}
+.profile-detail-card .detail-name {
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.5rem;
+  text-align: center; margin-bottom: 0.25rem;
+}
+.profile-detail-card .detail-location {
+  text-align: center; color: var(--muted2); font-size: 0.9rem; margin-bottom: 1rem;
+}
+.profile-detail-card .detail-badges {
+  display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center;
+  margin-bottom: 1rem;
+}
+.profile-detail-card .detail-bio {
+  background: var(--card); border-radius: 16px; padding: 1rem;
+  margin-bottom: 1.5rem; color: var(--text); font-size: 0.95rem;
+  line-height: 1.5; white-space: pre-wrap;
+}
+.profile-detail-card .detail-footer {
+  display: flex; gap: 0.8rem;
+}
+.profile-detail-card .detail-btn {
+  flex: 1; padding: 0.8rem; border-radius: 14px; border: none;
+  font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  text-align: center; transition: all 0.15s;
+}
+.profile-detail-card .btn-primary {
+  background: var(--acc); color: var(--bg);
+}
+.profile-detail-card .btn-secondary {
+  background: var(--sur); color: var(--text); border: 1px solid var(--bord2);
+}
+
 .toast {
   position: fixed; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
   background: var(--card2); border: 1px solid var(--bord2);

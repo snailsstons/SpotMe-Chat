@@ -497,6 +497,65 @@ function toast(msg, ms = 2800) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Profil-Detail-Modal
+// ═══════════════════════════════════════════════════════════════════
+function showProfileDetail(profile) {
+  const modal = document.getElementById('profile-detail-modal');
+  const content = document.getElementById('profile-detail-content');
+  
+  const initial = profile.name ? profile.name[0].toUpperCase() : '?';
+  const age = profile.age ? `${profile.age} J.` : '? J.';
+  const loc = [profile.city, profile.region].filter(Boolean).join(', ');
+  const isOwn = profile.code === myCode;
+  
+  let badges = '';
+  if (profile.orientation) {
+    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[profile.orientation] || profile.orientation;
+    badges += `<span class="badge badge-${profile.orientation}">${esc(lbl)}</span>`;
+  }
+  if (profile.role) {
+    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[profile.role] || profile.role;
+    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+  }
+  if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+  if (profile.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+  
+  const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
+  
+  const locData = locationCache.get(profile.code);
+  const locationBtn = (locData && !isOwn) 
+    ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(profile.name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` 
+    : '';
+  
+  const chatBtn = isOwn 
+    ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` 
+    : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(profile.name)}')">💬 Chat</button>`;
+  
+  content.innerHTML = `
+    <div class="detail-avatar">${esc(initial)}</div>
+    <div class="detail-name">${esc(profile.name)}</div>
+    <div class="detail-location">${esc(age)} · ${esc(loc)}</div>
+    ${badges ? `<div class="detail-badges">${badges}</div>` : ''}
+    ${bio}
+    <div class="detail-footer">
+      ${locationBtn}
+      ${chatBtn}
+    </div>
+  `;
+  
+  modal.style.display = 'flex';
+}
+
+function closeProfileDetail() {
+  document.getElementById('profile-detail-modal').style.display = 'none';
+}
+
+// Hilfsfunktion: Aus dem Profil-Objekt die Details anzeigen
+function getProfileByCode(code) {
+  return allProfiles.find(p => p.code === code) || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Akustisches Ping bei Standort-Updates (Radar-Feedback)
 // ═══════════════════════════════════════════════════════════════════
 function playRadarPing() {

@@ -15,7 +15,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
-  <!-- Externes CSS & JS für SpotMe Radar -->
   <link rel="stylesheet" href="spot.css">
   <script src="spot.js" defer></script>
 </head>
@@ -84,8 +83,8 @@
     <div class="filter-chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</div>
     <div class="filter-chip" data-filter="top" onclick="toggleChip(this)">Top</div>
     <div class="filter-chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</div>
-    <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
     <div class="filter-chip" data-filter="trans" onclick="toggleChip(this)">Trans</div>
+    <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
   </div>
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
 </div>
@@ -96,6 +95,7 @@
   <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
 </nav>
 
+<!-- Standort-Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
   <div class="location-modal" id="location-modal-content" onclick="event.stopPropagation()">
     <div class="location-modal-header">
@@ -105,6 +105,14 @@
     <div id="location-map-small"></div>
     <div class="location-distance" id="location-distance"></div>
     <button class="checkin-btn" id="checkin-btn" onclick="performCheckIn()">📍 Hier einchecken</button>
+  </div>
+</div>
+
+<!-- NEU: Profil-Detail-Modal -->
+<div class="modal-overlay" id="profile-detail-modal" onclick="closeProfileDetail()">
+  <div class="modal-content profile-detail-card" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeProfileDetail()">✕</button>
+    <div id="profile-detail-content"></div>
   </div>
 </div>
 
