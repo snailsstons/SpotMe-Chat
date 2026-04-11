@@ -1,7 +1,7 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT ME RADAR – JAVASCRIPT (mit Online-Status & Verifikation)
+// SPOT ME RADAR – JAVASCRIPT (mit Online-Status & Verifikation, robuste Fallbacks)
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API = 'https://spotme-chat.onrender.com/api';
@@ -373,9 +373,13 @@ function renderList() {
   }
   
   listEl.innerHTML = filtered.map(p => {
-    const initial = p.name ? p.name[0].toUpperCase() : '?';
+    // Sichere Fallbacks für alle Felder
+    const name = p.name || '?';
+    const initial = name[0].toUpperCase();
     const age = p.age ? `${p.age} J.` : '? J.';
-    const loc = [p.city, p.region].filter(Boolean).join(', ');
+    const city = p.city || '';
+    const region = p.region || '';
+    const loc = [city, region].filter(Boolean).join(', ') || 'unbekannt';
     const ago = timeAgo(p.ts);
     const isOwn = p.code === myCode;
     const onlineStatus = onlineStatusCache.get(p.code);
@@ -406,15 +410,15 @@ function renderList() {
     let locationBadge = '';
     if (locData && !isOwn) {
       const distStr = userPosition ? formatDistance(getDistance(userPosition.lat, userPosition.lng, locData.lat, locData.lng)) : '';
-      locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(p.name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
+      locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
     }
     
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
-    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(p.name)}')">💬 Chat</button>`;
+    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>`;
     
     return `<div class="profile-card${cardClass}" data-code="${p.code}">
-      <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(p.name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" style="background:${isOnline ? 'var(--green)' : 'var(--muted)'}; box-shadow:0 0 8px ${isOnline ? 'var(--green)' : 'transparent'};" title="${isOnline ? 'Online' : 'Offline'}"></div></div>
+      <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" style="background:${isOnline ? 'var(--green)' : 'var(--muted)'}; box-shadow:0 0 8px ${isOnline ? 'var(--green)' : 'transparent'};" title="${isOnline ? 'Online' : 'Offline'}"></div></div>
       ${badges ? `<div class="card-badges">${badges}</div>` : ''}
       ${bio}
       <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
@@ -434,7 +438,7 @@ function renderList() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Profil-Detail-Modal (mit Verifikations-Buttons)
+// Profil-Detail-Modal (mit robusten Fallbacks)
 // ═══════════════════════════════════════════════════════════════════
 function showProfileDetail(profile) {
   if (!profile) return;
@@ -442,9 +446,12 @@ function showProfileDetail(profile) {
   const modal = document.getElementById('profile-detail-modal');
   const content = document.getElementById('profile-detail-content');
   
-  const initial = profile.name ? profile.name[0].toUpperCase() : '?';
+  const name = profile.name || '?';
+  const initial = name[0].toUpperCase();
   const age = profile.age ? `${profile.age} J.` : '? J.';
-  const loc = [profile.city, profile.region].filter(Boolean).join(', ');
+  const city = profile.city || '';
+  const region = profile.region || '';
+  const loc = [city, region].filter(Boolean).join(', ') || 'unbekannt';
   const isOwn = profile.code === myCode;
   const onlineStatus = onlineStatusCache.get(profile.code);
   const isOnline = onlineStatus && onlineStatus.online;
@@ -466,12 +473,12 @@ function showProfileDetail(profile) {
   
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) 
-    ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(profile.name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` 
+    ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` 
     : '';
   
   const chatBtn = isOwn 
     ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` 
-    : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(profile.name)}')">💬 Chat</button>`;
+    : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
   
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
   
@@ -483,7 +490,7 @@ function showProfileDetail(profile) {
   
   content.innerHTML = `
     <div class="detail-avatar">${esc(initial)}</div>
-    <div class="detail-name">${esc(profile.name)} ${isOnline ? '<span style="color:var(--green); font-size:0.8rem;">● Online</span>' : ''}</div>
+    <div class="detail-name">${esc(name)} ${isOnline ? '<span style="color:var(--green); font-size:0.8rem;">● Online</span>' : ''}</div>
     <div class="detail-location">${esc(age)} · ${esc(loc)}</div>
     ${badges ? `<div class="detail-badges">${badges}</div>` : ''}
     ${verifyText}
