@@ -9,7 +9,7 @@ const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
 const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
-const HEARTBEAT_INTERVAL = 30000; // alle 30 Sekunden
+const HEARTBEAT_INTERVAL = 30000;
 const DEFAULT_RADIUS = 500;
 
 let myProfile = null;
@@ -421,8 +421,9 @@ function renderList() {
     </div>`;
   }).join('');
   
-  document.querySelectorAll('.profile-card').forEach((card, index) => {
-    const profile = filtered[index];
+  document.querySelectorAll('.profile-card').forEach((card) => {
+    const code = card.dataset.code;
+    const profile = filtered.find(p => p.code === code);
     if (profile) {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.btn-chat') || e.target.closest('.location-badge')) return;
@@ -436,6 +437,8 @@ function renderList() {
 // Profil-Detail-Modal (mit Verifikations-Buttons)
 // ═══════════════════════════════════════════════════════════════════
 function showProfileDetail(profile) {
+  if (!profile) return;
+  
   const modal = document.getElementById('profile-detail-modal');
   const content = document.getElementById('profile-detail-content');
   
@@ -509,7 +512,6 @@ function showVerifyOptions(code) {
   const modal = document.getElementById('qr-verify-modal');
   document.getElementById('verify-code-input').value = '';
   
-  // QR-Code mit eigenem Code generieren (für persönliches Treffen)
   const container = document.getElementById('qr-code-container');
   container.innerHTML = '';
   new QRCode(container, {
@@ -538,17 +540,6 @@ async function verifyByCode() {
   }
   await submitVerification(pendingVerifyCode, 'chat');
   closeQrVerifyModal();
-}
-
-// Wird beim Scannen eines QR-Codes aufgerufen (über URL-Schema)
-function handleVerifyFromQR(scannedCode) {
-  if (!scannedCode.startsWith('spotme:verify:')) return false;
-  const targetCode = scannedCode.split(':')[2];
-  if (targetCode) {
-    submitVerification(targetCode, 'personal');
-    return true;
-  }
-  return false;
 }
 
 async function submitVerification(targetCode, type) {

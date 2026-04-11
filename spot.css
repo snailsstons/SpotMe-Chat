@@ -401,6 +401,7 @@ nav {
 .profile-detail-card .btn-secondary {
   background: var(--sur); color: var(--text); border: 1px solid var(--bord2);
 }
+
 /* QR-Modal */
 #qr-code-container canvas, #qr-code-container img {
   border-radius: 16px;
