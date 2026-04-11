@@ -1,7 +1,7 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT ME RADAR – JAVASCRIPT (vollständig, mit Fallbacks)
+// SPOT ME RADAR – JAVASCRIPT (vollständig, mit QR-Scan)
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API = 'https://spotme-chat.onrender.com/api';
@@ -60,7 +60,22 @@ window.addEventListener('load', async () => {
       applyFilters();
     }
   }
+
+  // QR-Code Deep Link Listener
+  window.addEventListener('hashchange', checkDeepLink);
+  checkDeepLink(); // beim ersten Laden prüfen
 });
+
+function checkDeepLink() {
+  const hash = window.location.hash;
+  if (hash.startsWith('#spotme:verify:')) {
+    const targetCode = hash.replace('#spotme:verify:', '');
+    if (targetCode.length === 6) {
+      submitVerification(targetCode, 'personal');
+      window.location.hash = ''; // Hash entfernen
+    }
+  }
+}
 
 function goHome() { window.location.href = 'index.html'; }
 
@@ -521,7 +536,7 @@ function showVerifyOptions(code) {
   const container = document.getElementById('qr-code-container');
   container.innerHTML = '';
   new QRCode(container, {
-    text: `spotme:verify:${myCode}`,
+    text: `https://snailstons.github.io/SpotMe-Chat/spot.html#spotme:verify:${myCode}`,
     width: 180,
     height: 180,
     colorDark: '#00e5c0',
