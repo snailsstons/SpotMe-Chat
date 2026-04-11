@@ -6,8 +6,9 @@
 
 const API = 'https://spotme-chat.onrender.com/api';
 const PROFILE_KEY = 'sm_profile';
-const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
-const LOCATION_UPDATE_INTERVAL = 30000;
+const KEEPALIVE_INTERVAL = 8 * 60 * 1000;      // 8 Minuten (Profil-Refresh)
+const LOCATION_UPDATE_INTERVAL = 30000;        // 30 Sekunden
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;   // 5 Minuten
 const DEFAULT_RADIUS = 500;
 
 let myProfile = null;
@@ -20,6 +21,7 @@ let keepaliveTimer = null;
 let locationTimer = null;
 let locationWatchId = null;
 let userPosition = null;
+let autoRefreshTimer = null;
 
 let currentTargetCode = null;
 let currentTargetLat = null, currentTargetLng = null;
@@ -40,10 +42,20 @@ window.addEventListener('load', async () => {
   await loadCommunity();
   if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
+  startAutoRefresh();
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
   if (isSharingLocation) await startLocationSharing();
   renderAll();
+  
+  // Eigene Region im Filter vorauswählen, falls vorhanden
+  if (myProfile && myProfile.region) {
+    const regionSelect = document.getElementById('f-region');
+    if (regionSelect) {
+      regionSelect.value = myProfile.region;
+      applyFilters(); // Filter sofort anwenden
+    }
+  }
 });
 
 function goHome() { window.location.href = 'index.html'; }
@@ -60,6 +72,13 @@ async function refreshSpot() {
   } finally {
     btn.classList.remove('spinning');
   }
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    loadCommunity().then(() => renderAll()).catch(e => console.warn('Auto-refresh fehlgeschlagen', e));
+  }, AUTO_REFRESH_INTERVAL);
 }
 
 function buildRegionFilter() {
@@ -474,4 +493,24 @@ function toast(msg, ms = 2800) {
   el.textContent = msg; el.classList.add('show');
   clearTimeout(window.toastTimer);
   window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Akustisches Ping bei Standort-Updates (Radar-Feedback)
+// ═══════════════════════════════════════════════════════════════════
+function playRadarPing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    gain.gain.value = 0.08;
+    osc.type = 'sine';
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.15);
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch(e) {}
 }
