@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>SpotMe · General Radar Community</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  
+  <link rel="stylesheet" href="spot.css">
+  <script src="spot-general.js" defer></script>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-left">
+    <button class="back-btn" onclick="goHome()" title="Zurück zum Chat">‹</button>
+  </div>
+  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">GENERAL</span></div>
+  <div class="header-right">
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
+    <div class="status-badge" id="status-indicator">● DISCOVERY</div>
+  </div>
+</header>
+
+<div class="profile-bar" id="profile-bar" style="display:none;">
+  <div class="profile-avatar" id="my-avatar-small">🧑</div>
+  <div class="profile-info">
+    <div class="profile-name" id="my-name-small">—</div>
+    <div class="profile-meta" id="my-meta-small">—</div>
+  </div>
+  <div class="profile-actions">
+    <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+    <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html'" title="Profil bearbeiten">✎</button>
+  </div>
+</div>
+
+<div class="radar-viewport">
+  <div class="radar-canvas" id="radar-field">
+    <div class="radar-bg"></div>
+    <div class="ring" style="inset: 0;"></div><span class="ring-label" style="top:2%;">5 km</span>
+    <div class="ring" style="inset: 20%;"></div><span class="ring-label" style="top:22%;">1 km</span>
+    <div class="ring" style="inset: 45%;"></div><span class="ring-label" style="top:47%;">500 m</span>
+    <div class="ring" style="inset: 75%;"></div><span class="ring-label" style="top:77%;">100 m</span>
+    <div class="radar-sweep"></div>
+    <div class="center-dot"></div>
+  </div>
+</div>
+
+<div class="community-list-section">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; margin-bottom:0.25rem;">
+    <div class="section-label">Community Profile</div>
+    <div class="community-count" id="community-count"></div>
+  </div>
+  <div id="community-list" class="horizontal-scroll"></div>
+</div>
+
+<div class="filter-drawer">
+  <div class="filter-title">Community Filter</div>
+  <div class="filter-select-row">
+    <select class="filter-select" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
+    <select class="filter-select" id="f-age" onchange="applyFilters()">
+      <option value="">Alle Altersgruppen</option>
+      <option value="18-29">18–29</option>
+      <option value="30-39">30–39</option>
+      <option value="40-49">40–49</option>
+      <option value="50+">50+</option>
+    </select>
+  </div>
+  <div class="filter-row" id="filter-chips">
+    <div class="filter-chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</div>
+    <div class="filter-chip" data-filter="bi" onclick="toggleChip(this)">Bi</div>
+    <div class="filter-chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</div>
+    <div class="filter-chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</div>
+    <div class="filter-chip" data-filter="top" onclick="toggleChip(this)">Top</div>
+    <div class="filter-chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</div>
+    <div class="filter-chip" data-filter="trans" onclick="toggleChip(this)">Trans</div>
+    <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
+  </div>
+  <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+</div>
+
+<nav>
+  <button class="nav-btn active">RADAR</button>
+  <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
+  <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
+</nav>
+
+<!-- Standort-Modal -->
+<div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
+  <div class="location-modal" id="location-modal-content" onclick="event.stopPropagation()">
+    <div class="location-modal-header">
+      <div class="location-modal-title" id="location-modal-name">Standort</div>
+      <button class="location-modal-close" onclick="closeLocationModal()">✕</button>
+    </div>
+    <div id="location-map-small"></div>
+    <div class="location-distance" id="location-distance"></div>
+    <button class="checkin-btn" id="checkin-btn" onclick="performCheckIn()">📍 Hier einchecken</button>
+  </div>
+</div>
+
+<!-- Profil-Detail-Modal -->
+<div class="modal-overlay" id="profile-detail-modal" onclick="closeProfileDetail()">
+  <div class="modal-content profile-detail-card" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeProfileDetail()">✕</button>
+    <div id="profile-detail-content"></div>
+  </div>
+</div>
+
+<!-- QR-Code Modal für persönliche Verifikation -->
+<div class="modal-overlay" id="qr-verify-modal" onclick="closeQrVerifyModal()">
+  <div class="modal-content" style="max-width:320px;" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeQrVerifyModal()">✕</button>
+    <h3 style="font-family:'Syne'; margin-bottom:1rem; color:var(--acc);">Persönlich verifizieren</h3>
+    <p style="font-size:0.9rem; margin-bottom:1rem;">Scanne diesen QR‑Code mit der Kamera des anderen Nutzers oder lass ihn scannen.</p>
+    <div id="qr-code-container" style="display:flex; justify-content:center; margin-bottom:1rem;"></div>
+    <p style="font-size:0.8rem; color:var(--muted2);">Alternativ Code eingeben:</p>
+    <input type="text" id="verify-code-input" class="minp" placeholder="6‑stelligen Code" maxlength="6" inputmode="numeric" style="margin-bottom:0.5rem;">
+    <button class="detail-btn btn-primary" onclick="verifyByCode()">Verifizieren</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+</body>
+</html>
