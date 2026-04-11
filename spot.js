@@ -261,6 +261,7 @@ function applyFilters() {
     const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
     if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
     if (chips.includes('trans') && !p.trans) return false;
+    if (chips.includes('cross') && !p.cross) return false;   // ← Crossdresser-Filter
     return true;
   });
   renderAll();
