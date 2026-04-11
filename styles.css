@@ -111,7 +111,7 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   text-transform: uppercase; color: var(--muted2); margin-bottom: 0.5rem;
 }
 .code-value {
-  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2.4rem;
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.8rem;
   letter-spacing: 0.1em; color: var(--acc);
   text-shadow: 0 0 30px rgba(0,229,192,.2);
   margin-bottom: 1rem;
