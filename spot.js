@@ -536,7 +536,7 @@ function showVerifyOptions(code) {
   const container = document.getElementById('qr-code-container');
   container.innerHTML = '';
   new QRCode(container, {
-    text: `https://snailstons.github.io/SpotMe-Chat/spot.html#spotme:verify:${myCode}`,
+    text: `spotme:verify:${myCode}`,   // ← KEINE GitHub-URL, sondern reines Schema
     width: 180,
     height: 180,
     colorDark: '#00e5c0',
