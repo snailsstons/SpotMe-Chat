@@ -1,7 +1,7 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT ME RADAR – JAVASCRIPT (vollständig, mit QR-Scan)
+// SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API = 'https://spotme-chat.onrender.com/api';
@@ -61,9 +61,8 @@ window.addEventListener('load', async () => {
     }
   }
 
-  // QR-Code Deep Link Listener
   window.addEventListener('hashchange', checkDeepLink);
-  checkDeepLink(); // beim ersten Laden prüfen
+  checkDeepLink();
 });
 
 function checkDeepLink() {
@@ -72,7 +71,7 @@ function checkDeepLink() {
     const targetCode = hash.replace('#spotme:verify:', '');
     if (targetCode.length === 6) {
       submitVerification(targetCode, 'personal');
-      window.location.hash = ''; // Hash entfernen
+      window.location.hash = '';
     }
   }
 }
@@ -451,15 +450,10 @@ function renderList() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Profil-Detail-Modal
-// ═══════════════════════════════════════════════════════════════════
 function showProfileDetail(profile) {
   if (!profile) return;
-  
   const modal = document.getElementById('profile-detail-modal');
   const content = document.getElementById('profile-detail-content');
-  
   const name = profile.name || '?';
   const initial = name[0].toUpperCase();
   const age = profile.age ? `${profile.age} J.` : '? J.';
@@ -484,18 +478,10 @@ function showProfileDetail(profile) {
   if (profile.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
   
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
-  
   const locData = locationCache.get(profile.code);
-  const locationBtn = (locData && !isOwn) 
-    ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` 
-    : '';
-  
-  const chatBtn = isOwn 
-    ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` 
-    : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
-  
+  const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
+  const chatBtn = isOwn ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
-  
   const personalCount = verifications.filter(v => v.type === 'personal').length;
   const chatCount = verifications.filter(v => v.type === 'chat').length;
   let verifyText = '';
@@ -515,7 +501,6 @@ function showProfileDetail(profile) {
       ${verifyBtn}
     </div>
   `;
-  
   modal.style.display = 'flex';
 }
 
@@ -523,27 +508,22 @@ function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Verifikation (QR-Code & Code-Eingabe)
-// ═══════════════════════════════════════════════════════════════════
 let pendingVerifyCode = null;
 
 function showVerifyOptions(code) {
   pendingVerifyCode = code;
   const modal = document.getElementById('qr-verify-modal');
   document.getElementById('verify-code-input').value = '';
-  
   const container = document.getElementById('qr-code-container');
   container.innerHTML = '';
   new QRCode(container, {
-    text: `spotme:verify:${myCode}`,   // ← KEINE GitHub-URL, sondern reines Schema
+    text: `spotme:verify:${myCode}`,
     width: 180,
     height: 180,
     colorDark: '#00e5c0',
     colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.H
   });
-  
   modal.style.display = 'flex';
 }
 
@@ -579,9 +559,6 @@ async function submitVerification(targetCode, type) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Standort- & Check-in-Funktionen
-// ═══════════════════════════════════════════════════════════════════
 function showLocationOnMap(code, name, lat, lng) {
   currentTargetCode = code;
   currentTargetLat = lat;
@@ -650,9 +627,6 @@ function closeLocationModal(e) {
   document.getElementById('location-modal').style.display = 'none';
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Hilfsfunktionen
-// ═══════════════════════════════════════════════════════════════════
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
   const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
