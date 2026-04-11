@@ -656,14 +656,22 @@ function connectToPeer() {
   const newConn = peer.connect(code, { reliable:true, metadata:{ name: myName } });
   openChat(newConn);
   setSpill('online', `📞 Rufe ${partnerName} an...`);
-  outgoingCallTimer = setTimeout(() => {
-    outgoingCallTimer = null;
+
+outgoingCallTimer = setTimeout(() => {
+  outgoingCallTimer = null;
+  // Nur als verpasst werten, wenn keine aktive Verbindung besteht
+  if (!conn || !conn.open) {
     toast('⏰ Keine Antwort');
     addMissed(partnerCode, partnerName);
-    if (conn) { try{ conn.close(); } catch(e){} conn = null; }
+    if (conn) {
+      try { conn.close(); } catch (e) {}
+      conn = null;
+    }
     showLeaveMessageSheet(partnerCode, partnerName);
-    setSpill('online', '● ONLINE');
-  }, 30000);
+  }
+  setSpill('online', '● ONLINE');
+}, 30000);
+
 }
 
 function showLeaveMessageSheet(code, name) {
