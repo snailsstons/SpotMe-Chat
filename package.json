@@ -2,10 +2,10 @@
   "name": "spotme-peer-server",
   "version": "2.0.0",
   "description": "SpotMe PeerJS Signaling Server",
-  "main": "server-pg.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node server-pg.js",
-    "dev":   "node --watch server-pg.js"
+    "start": "node server.js",
+    "dev":   "node --watch server.js"
   },
   "engines": {
     "node": ">=18.0.0"
