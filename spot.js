@@ -4,8 +4,10 @@
 // SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API = 'https://spotme-chat.onrender.com/api';
+const API  = 'https://spotme-chat.onrender.com/api';
+const SPOT = 'gay'; // Spot-Namespace für diesen Radar
 const PROFILE_KEY = 'sm_profile';
+const TOKEN_KEY   = 'sm_token';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
 const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
@@ -13,7 +15,8 @@ const HEARTBEAT_INTERVAL = 30000;
 const DEFAULT_RADIUS = 500;
 
 let myProfile = null;
-let myCode = localStorage.getItem('sm_code') || '';
+let myCode  = localStorage.getItem('sm_code')  || '';
+let myToken = localStorage.getItem(TOKEN_KEY)  || '';
 let isPublished = false;
 let isSharingLocation = false;
 let allProfiles = [];
@@ -48,6 +51,7 @@ window.addEventListener('load', async () => {
   startKeepalive();
   startAutoRefresh();
   startHeartbeat();
+  if (myToken) fetchAndRenderOfflineMsgs();
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
   if (isSharingLocation) await startLocationSharing();
@@ -106,7 +110,7 @@ function startHeartbeat() {
     fetch(API + '/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: myCode })
+      body: JSON.stringify({ code: myCode, spot: SPOT })
     }).catch(() => {});
   };
   sendHeartbeat();
@@ -154,7 +158,11 @@ async function togglePublish() {
   btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
   try {
     if (isPublished) {
-      await fetch(API + '/profile/' + myCode, { method: 'DELETE' });
+      await fetch(API + '/profile/' + myCode, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: myToken, spot: SPOT })
+      });
       isPublished = false;
       localStorage.setItem('sm_spot_published', '0');
       toast('○ Profil aus Community entfernt');
@@ -164,7 +172,8 @@ async function togglePublish() {
         code: myCode, name: myProfile.name, age,
         region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
         orientation: myProfile.orientation || null, role: myProfile.role || null,
-        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
+        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+        token: myToken || undefined, spot: SPOT
       };
       const res = await fetch(API + '/profile', {
         method: 'POST',
@@ -172,6 +181,11 @@ async function togglePublish() {
         body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.token) {
+        myToken = data.token;
+        localStorage.setItem(TOKEN_KEY, myToken);
+      }
       isPublished = true;
       localStorage.setItem('sm_spot_published', '1');
       toast('✅ Profil veröffentlicht');
@@ -244,13 +258,16 @@ async function sendLocationToServer(lat, lng) {
     await fetch(API + '/location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: myCode, lat, lng })
+      body: JSON.stringify({ code: myCode, lat, lng, spot: SPOT })
     });
   } catch(e) {}
 }
 
 async function loadCommunity() {
-  const res = await fetch(API + '/profiles');
+  locationCache.clear();
+  onlineStatusCache.clear();
+  verificationCache.clear();
+  const res = await fetch(API + '/profiles?spot=' + SPOT);
   if (!res.ok) throw new Error('HTTP ' + res.status);
   allProfiles = await res.json();
   await Promise.all(allProfiles.map(p => Promise.all([
@@ -639,6 +656,103 @@ function formatDistance(m) {
   return (m/1000).toFixed(1) + ' km';
 }
 
+// ── Offline-Nachrichten ──
+async function fetchAndRenderOfflineMsgs() {
+  if (!myToken || !myCode) return;
+  try {
+    const res = await fetch(`${API}/offline-messages/${myCode}?token=${encodeURIComponent(myToken)}&spot=${SPOT}`);
+    if (!res.ok) return;
+    const msgs = await res.json();
+    renderOfflineMsgBadge(msgs.filter(m => !m.read));
+  } catch (e) {}
+}
+
+function renderOfflineMsgBadge(unread) {
+  // Badge auf dem Profil-Bar
+  let badge = document.getElementById('offmsg-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.id = 'offmsg-badge';
+    badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:var(--p3);color:#fff;'
+      + 'font-size:.65rem;font-weight:700;width:16px;height:16px;border-radius:50%;'
+      + 'display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    const btn = document.getElementById('publish-toggle-small');
+    if (btn) { btn.style.position = 'relative'; btn.appendChild(badge); }
+  }
+  if (!unread.length) { badge.style.display = 'none'; return; }
+  badge.textContent = unread.length > 9 ? '9+' : unread.length;
+  badge.style.display = 'flex';
+  showOfflineMsgPanel(unread);
+}
+
+function showOfflineMsgPanel(msgs) {
+  let panel = document.getElementById('offmsg-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'offmsg-panel';
+    panel.style.cssText = 'margin:0.5rem 1.25rem;background:var(--card2);border:1px solid rgba(255,79,123,.3);'
+      + 'border-radius:16px;padding:1rem;flex-shrink:0;';
+    // Nach profile-bar einfügen
+    const bar = document.getElementById('profile-bar');
+    if (bar && bar.parentNode) bar.parentNode.insertBefore(panel, bar.nextSibling);
+  }
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--p3);">✉️ Neue Nachrichten (${msgs.length})</div>
+      <button onclick="dismissAllOfflineMsgs()" style="background:none;border:none;color:var(--muted2);font-size:0.8rem;cursor:pointer;">✓ Alle gelesen</button>
+    </div>
+    ${msgs.map(m => {
+      const d = new Date(m.timestamp);
+      const time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})
+                 + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+      return `<div id="spot-offmsg-${m.id}" style="background:var(--sur);border:1px solid var(--bord);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">
+          <span style="font-weight:600;font-size:0.85rem;">${esc(m.senderName)}</span>
+          <span style="font-size:0.7rem;color:var(--muted2);">${time}</span>
+        </div>
+        <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.5rem;">${esc(m.message)}</div>
+        <div style="display:flex;gap:0.5rem;">
+          <button onclick="startChat('${m.senderCode}','${esc(m.senderName)}')" style="flex:1;padding:0.4rem;background:var(--acc);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">💬 Chat</button>
+          <button onclick="dismissSpotOfflineMsg(${m.id})" style="padding:0.4rem 0.75rem;background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid var(--bord);border-radius:8px;font-size:0.8rem;cursor:pointer;">✓</button>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+  panel.style.display = 'block';
+}
+
+async function dismissSpotOfflineMsg(id) {
+  try {
+    await fetch(`${API}/offline-message/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
+    });
+  } catch (e) {}
+  const el = document.getElementById('spot-offmsg-' + id);
+  if (el) el.remove();
+  const panel = document.getElementById('offmsg-panel');
+  if (panel && !panel.querySelector('[id^=spot-offmsg-]')) {
+    panel.style.display = 'none';
+    const badge = document.getElementById('offmsg-badge');
+    if (badge) badge.style.display = 'none';
+  }
+}
+
+async function dismissAllOfflineMsgs() {
+  try {
+    await fetch(`${API}/offline-messages/${myCode}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
+    });
+  } catch (e) {}
+  const panel = document.getElementById('offmsg-panel');
+  if (panel) panel.style.display = 'none';
+  const badge = document.getElementById('offmsg-badge');
+  if (badge) badge.style.display = 'none';
+}
+
 function startKeepalive() {
   if (keepaliveTimer) clearInterval(keepaliveTimer);
   keepaliveTimer = setInterval(async () => {
@@ -652,7 +766,8 @@ function startKeepalive() {
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
             orientation: myProfile.orientation || null, role: myProfile.role || null,
-            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            token: myToken, spot: SPOT
           })
         });
       } catch(e) {}
