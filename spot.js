@@ -4,7 +4,7 @@
 // SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API = 'https://spotme-chat.onrender.com/api';
+const API = 'https://spotme-pg-test.onrender.com/api';
 const PROFILE_KEY = 'sm_profile';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
