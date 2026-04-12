@@ -52,6 +52,8 @@ window.addEventListener('load', async () => {
   startAutoRefresh();
   startHeartbeat();
   if (myToken) fetchAndRenderOfflineMsgs();
+  // Polling alle 60s — Empfänger bekommt neue Nachrichten ohne Reload
+  setInterval(() => { if (myToken) fetchAndRenderOfflineMsgsSilent(); }, 60000);
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
   if (isSharingLocation) await startLocationSharing();
@@ -657,6 +659,25 @@ function formatDistance(m) {
 }
 
 // ── Offline-Nachrichten ──
+// Beim Polling: nur benachrichtigen wenn sich etwas geändert hat
+let _lastUnreadCount = 0;
+async function fetchAndRenderOfflineMsgsSilent() {
+  if (!myToken || !myCode) return;
+  try {
+    const res = await fetch(`${API}/offline-messages/${myCode}?token=${encodeURIComponent(myToken)}&spot=${SPOT}`);
+    if (!res.ok) return;
+    const msgs = await res.json();
+    const unread = msgs.filter(m => !m.read);
+    if (unread.length > _lastUnreadCount) {
+      // Neue Nachricht(en) seit letztem Check
+      toast(`✉️ ${unread.length} neue Nachricht${unread.length > 1 ? 'en' : ''}`);
+      playRadarPing();
+      renderOfflineMsgBadge(unread);
+    }
+    _lastUnreadCount = unread.length;
+  } catch (e) {}
+}
+
 async function fetchAndRenderOfflineMsgs() {
   if (!myToken || !myCode) return;
   try {

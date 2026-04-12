@@ -27,7 +27,7 @@
 <div id="s-home" class="screen active">
   <header class="app-header">
     <div class="header-left"></div>
-    <div class="logo">SPOT<b>ME V49</b></div>
+    <div class="logo">SPOT<b>ME</b></div>
     <div class="header-right">
       <div class="status-badge" id="header-status">● ONLINE</div>
       <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
@@ -184,10 +184,17 @@
   <div class="sheet-body">
     <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" maxlength="280" oninput="document.getElementById('lm-chars').textContent=280-this.value.length" style="width:100%; margin-bottom:0.4rem;"></textarea>
     <div id="lm-chars" style="font-size:0.75rem;color:var(--text-dim);text-align:right;margin-bottom:0.75rem;">280</div>
-    <div style="display:flex; gap:0.8rem;">
-      <button class="btn" onclick="closeLeaveMessageSheet()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="submitLeaveMessage()">Senden</button>
-    </div>
+    <button id="leave-msg-send-btn" onclick="submitLeaveMessage()"
+      style="width:100%;padding:1rem;background:var(--acc);color:var(--bg);
+             border:none;border-radius:14px;font-size:1.05rem;font-weight:700;
+             cursor:pointer;margin-bottom:0.75rem;">
+      📨 Nachricht senden
+    </button>
+    <button onclick="closeLeaveMessageSheet()"
+      style="width:100%;padding:0.8rem;background:transparent;color:var(--text-dim);
+             border:1px solid var(--bord);border-radius:14px;font-size:0.95rem;cursor:pointer;">
+      Überspringen
+    </button>
   </div>
 </div>
 
