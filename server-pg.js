@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER – PostgreSQL Version 1
+// SPOTME SERVER – PostgreSQL Version 2
 //
 // Neu in dieser Version:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
