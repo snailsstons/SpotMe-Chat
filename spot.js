@@ -4,7 +4,7 @@
 // SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API  = 'https://spotme-chat.onrender.com/api';
+const API  = 'https://spotme-pg-test.onrender.com/api';
 const SPOT = 'gay'; // Spot-Namespace für diesen Radar
 const PROFILE_KEY = 'sm_profile';
 const TOKEN_KEY   = 'sm_token';
