@@ -4,7 +4,7 @@
 // SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API  = 'https://spotme-pg-test.onrender.com/api';
+const API  = 'https://spotme-pg.test.onrender.com/api';
 const SPOT = 'gay'; // Spot-Namespace für diesen Radar
 const PROFILE_KEY = 'sm_profile';
 const TOKEN_KEY   = 'sm_token';
@@ -172,7 +172,7 @@ async function togglePublish() {
         code: myCode, name: myProfile.name, age,
         region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
         orientation: myProfile.orientation || null, role: myProfile.role || null,
-        trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
+        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
         token: myToken || undefined, spot: SPOT
       };
       const res = await fetch(API + '/profile', {
@@ -342,7 +342,7 @@ function applyFilters() {
     const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
     if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
     if (chips.includes('trans') && !p.trans) return false;
-    if (chips.includes('crossdresser') && !p.crossdresser) return false;
+    if (chips.includes('cross') && !p.cross) return false;
     return true;
   });
   renderAll();
@@ -425,7 +425,7 @@ function renderList() {
       badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
     }
     if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
-    if (p.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+    if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
     if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
     
     const verifications = verificationCache.get(p.code) || [];
@@ -492,7 +492,7 @@ function showProfileDetail(profile) {
     badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
   }
   if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
-  if (profile.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+  if (profile.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
   
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
@@ -766,7 +766,7 @@ function startKeepalive() {
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
             orientation: myProfile.orientation || null, role: myProfile.role || null,
-            trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
             token: myToken, spot: SPOT
           })
         });
