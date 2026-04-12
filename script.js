@@ -5,8 +5,10 @@
 // ══════════════════════════════════════════════════════════════════════════════
 const SERVER_HOST = 'spotme-pg-test.onrender.com';
 const SERVER_PATH = '/peerjs';
-const API_MISSED = 'https://spotme-pg-test.onrender.com/api/missed-call';
+const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
 const API_BASE    = 'https://spotme-pg-test.onrender.com/api';
+const TOKEN_KEY   = 'sm_token';
+let   myToken     = localStorage.getItem(TOKEN_KEY) || '';
 function newCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 let peer = null, conn = null, pendingConn = null;
@@ -76,7 +78,7 @@ function triggerHaptic() { if(navigator.vibrate) navigator.vibrate(200); }
 // ══════════════════════════════════════════════════════════════════════════════
 function getMissed() { return JSON.parse(localStorage.getItem('sm_missed') || '[]'); }
 function saveMissed(a) { localStorage.setItem('sm_missed', JSON.stringify(a)); }
-async function addMissed(code, name) {
+async function addMissed(code, name, outgoing = false) {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
   const entry = { code, name, ts: Date.now() };
@@ -84,10 +86,17 @@ async function addMissed(code, name) {
   saveMissed(arr.slice(0,30));
   renderMissed();
   try {
+    // outgoing=true: Ich habe angerufen, niemand hat abgenommen
+    //   -> recipient ist der Angerufene (code), damit er sieht dass ich angerufen habe
+    // outgoing=false: Jemand hat mich angerufen, ich habe nicht abgenommen
+    //   -> recipient bin ich (myCode)
+    const payload = outgoing
+      ? { recipient: code,   callerId: myCode, callerName: myName }
+      : { recipient: myCode, callerId: code,   callerName: name   };
     await fetch(API_MISSED, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient: myCode, callerId: code, callerName: name })
+      body: JSON.stringify(payload)
     });
   } catch (e) { console.warn('Server missed call sync failed', e); }
 }
@@ -128,6 +137,77 @@ function callBack(code) {
     inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
     document.getElementById('cbtn').disabled = true;
   }, 200);
+}
+
+// ── Offline-Nachrichten vom Server holen ──
+async function fetchOfflineMessages() {
+  if (!myToken) return [];
+  try {
+    const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) { return []; }
+}
+
+async function markOfflineMsgRead(id) {
+  if (!myToken) return;
+  try {
+    await fetch(`${API_BASE}/offline-message/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, token: myToken })
+    });
+  } catch (e) {}
+}
+
+async function markAllOfflineMsgsRead() {
+  if (!myToken) return;
+  try {
+    await fetch(`${API_BASE}/offline-messages/${myCode}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, token: myToken })
+    });
+  } catch (e) {}
+}
+
+function renderOfflineMessages(msgs) {
+  const sec = document.getElementById('offline-msg-sec');
+  const lst = document.getElementById('offline-msg-list');
+  if (!sec || !lst) return;
+  const unread = msgs.filter(m => !m.read);
+  if (!unread.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  lst.innerHTML = unread.map(m => {
+    const d = new Date(m.timestamp);
+    const time = d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' })
+              + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+    const displayName = getContacts()[m.senderCode] || m.senderName || ('Nutzer_' + m.senderCode.slice(0,4));
+    return `<div class="chat-card missed-card" id="offmsg-${m.id}">
+      <div class="card-row">
+        <div class="card-avatar">✉️</div>
+        <div class="card-details">
+          <div class="card-name">${esc(displayName)}</div>
+          <div class="card-preview" style="color:var(--text-main);margin-top:3px;">${esc(m.message)}</div>
+          <div class="card-preview">${formatCode(m.senderCode)} · ${time}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+        <button class="call-back-btn" onclick="callBack('${m.senderCode}')">📞 Zurückrufen</button>
+        <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissOfflineMsg(${m.id})">✓ Gelesen</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function dismissOfflineMsg(id) {
+  await markOfflineMsgRead(id);
+  const el = document.getElementById('offmsg-' + id);
+  if (el) el.remove();
+  const lst = document.getElementById('offline-msg-list');
+  if (lst && !lst.children.length) {
+    document.getElementById('offline-msg-sec').style.display = 'none';
+  }
 }
 
 async function fetchRemoteMissedCalls() {
@@ -615,7 +695,7 @@ function initPeer() {
     if(err.type === 'peer-unavailable') {
       if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
       toast('⚠️ Partner nicht erreichbar');
-      addMissed(partnerCode, partnerName);
+      addMissed(partnerCode, partnerName, true);
       if (conn) { try{ conn.close(); } catch(e){} conn = null; }
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
@@ -658,21 +738,16 @@ function connectToPeer() {
   openChat(newConn);
   setSpill('online', `📞 Rufe ${partnerName} an...`);
 
-outgoingCallTimer = setTimeout(() => {
-  outgoingCallTimer = null;
-  // Nur als verpasst werten, wenn keine aktive Verbindung besteht
-  if (!conn || !conn.open) {
-    toast('⏰ Keine Antwort');
-    addMissed(partnerCode, partnerName);
-    if (conn) {
-      try { conn.close(); } catch (e) {}
-      conn = null;
+  outgoingCallTimer = setTimeout(() => {
+    outgoingCallTimer = null;
+    if (!conn || !conn.open) {
+      toast('⏰ Keine Antwort');
+      addMissed(partnerCode, partnerName, true);
+      if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+      showLeaveMessageSheet(partnerCode, partnerName);
     }
-    showLeaveMessageSheet(partnerCode, partnerName);
-  }
-  setSpill('online', '● ONLINE');
-}, 30000);
-
+    setSpill('online', '● ONLINE');
+  }, 30000);
 }
 
 function showLeaveMessageSheet(code, name) {
@@ -688,16 +763,36 @@ function closeLeaveMessageSheet() {
   showScreen('s-home');
   setSpill('online', '● ONLINE');
 }
-function submitLeaveMessage() {
+async function submitLeaveMessage() {
   const input = document.getElementById('leave-message-input');
   const text = input.value.trim();
   if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
-  const cid = buildCID(myCode, partnerCode);
-  const oldChatId = chatId;
-  chatId = cid;
-  addPendingMessage(text);
-  toast(`📨 Nachricht für ${partnerName} hinterlegt`);
-  chatId = oldChatId;
+  const btn = document.getElementById('leave-msg-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
+  try {
+    const res = await fetch(API_BASE + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: partnerCode,
+        senderCode: myCode,
+        senderName: myName,
+        message: text
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(`📨 Nachricht an ${partnerName} gesendet`);
+    } else if (res.status === 429) {
+      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
+    } else {
+      toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
+    }
+  } catch (e) {
+    toast('⚠️ Keine Verbindung zum Server');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
+  }
   closeLeaveMessageSheet();
   showScreen('s-home');
   setSpill('online', '● ONLINE');
@@ -1039,6 +1134,8 @@ function openSheet() { document.getElementById('sovl').classList.add('open'); do
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
   stopRingingTone();
+  // War ein ausgehender Anruf aktiv? → Sheet anbieten
+  const wasCallingOut = outgoingCallTimer !== null && partnerCode;
   if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
   if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
@@ -1048,9 +1145,15 @@ function goHome() {
   document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
   document.getElementById('cbtn').disabled = true;
   closeSheet();
-  showScreen('s-home');
   renderPrev();
   setSpill('online', '● ONLINE');
+  if (wasCallingOut) {
+    // Anruf abgebrochen → Nachricht anbieten
+    addMissed(partnerCode, partnerName, true);
+    showLeaveMessageSheet(partnerCode, partnerName);
+  } else {
+    showScreen('s-home');
+  }
 }
 function hkey(e) { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } }
 function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
@@ -1301,6 +1404,11 @@ window.addEventListener('load', () => {
   if(autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(()=>{ const inps=document.querySelectorAll('.dinp-new'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); },1500); }
 
   setTimeout(async () => {
+    // Offline-Nachrichten laden
+    if (myToken) {
+      const offlineMsgs = await fetchOfflineMessages();
+      if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
+    }
     const remoteMissed = await fetchRemoteMissedCalls();
     const localMissed = getMissed();
     for (const call of remoteMissed) {
