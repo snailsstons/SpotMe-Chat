@@ -67,7 +67,7 @@ async function initDB() {
       orientation   TEXT,
       role          TEXT,
       trans         BOOLEAN DEFAULT FALSE,
-      cross         BOOLEAN DEFAULT FALSE,
+      crossdresser         BOOLEAN DEFAULT FALSE,
       category      TEXT,
       bio           TEXT,
       token         TEXT NOT NULL,
@@ -180,7 +180,7 @@ app.get('/api/profiles', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
-              orientation, role, trans, cross, category, bio,
+              orientation, role, trans, crossdresser, category, bio,
               last_seen, updated_at AS ts, visible_until,
               (COALESCE(last_seen, 0) > $2) AS is_online
        FROM profiles
@@ -199,7 +199,7 @@ app.get('/api/profiles', async (req, res) => {
 app.post('/api/profile', async (req, res) => {
   const {
     code, name, age, region, province, city,
-    orientation, role, trans, cross, category, bio,
+    orientation, role, trans, crossdresser, category, bio,
     token, spot = 'gay'
   } = req.body;
 
@@ -226,12 +226,12 @@ app.post('/api/profile', async (req, res) => {
       await pool.query(
         `UPDATE profiles SET
           name=$1, age=$2, region=$3, province=$4, city=$5,
-          orientation=$6, role=$7, trans=$8, cross=$9,
+          orientation=$6, role=$7, trans=$8, crossdresser=$9,
           category=$10, bio=$11, updated_at=$12, visible_until=$13
          WHERE code=$14 AND spot=$15`,
         [
           name, age || null, region, province || null, city || null,
-          orientation || null, role || null, !!trans, !!cross,
+          orientation || null, role || null, !!trans, !!crossdresser,
           category || null, bio || null, now, visibleUntil, code, spot
         ]
       );
@@ -240,13 +240,13 @@ app.post('/api/profile', async (req, res) => {
       await pool.query(
         `INSERT INTO profiles
           (code, spot, name, age, region, province, city,
-           orientation, role, trans, cross, category, bio,
+           orientation, role, trans, crossdresser, category, bio,
            token, updated_at, visible_until)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
         [
           code, spot, name, age || null, region,
           province || null, city || null,
-          orientation || null, role || null, !!trans, !!cross,
+          orientation || null, role || null, !!trans, !!crossdresser,
           category || null, bio || null,
           profileToken, now, visibleUntil
         ]
@@ -294,7 +294,7 @@ app.get('/api/profile/:code', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
-              orientation, role, trans, cross, category, bio,
+              orientation, role, trans, crossdresser, category, bio,
               updated_at AS ts, visible_until
        FROM profiles WHERE code = $1 AND spot = $2`,
       [code, spot]
