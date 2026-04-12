@@ -4,7 +4,7 @@
 // SPOT ME GENERAL RADAR – JAVASCRIPT
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API = 'https://spotme-chat.onrender.com/api';
+const API = 'https://spotme-pg-test.onrender.com/api';
 const SPOT = 'general'; // Namespace für diesen Spot
 const PROFILE_KEY = 'sm_profile';
 const TOKEN_KEY   = 'sm_token';
