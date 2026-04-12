@@ -41,7 +41,7 @@ app.use('/peerjs', peerServer);
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('render.com')
+  ssl: process.env.postgresql://spotme_db_test_user:5ugsROxDC0QczuYM8AF7aPUCwP4i3Fas@dpg-d7dptrpj2pic73fp55u0-a/spotme_db_test.includes('render.com')
     ? { rejectUnauthorized: false }
     : false
 });
