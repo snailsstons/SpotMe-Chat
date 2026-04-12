@@ -3,9 +3,9 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // KONFIGURATION & GLOBALE VARIABLEN
 // ══════════════════════════════════════════════════════════════════════════════
-const SERVER_HOST = 'spotme-pg-test.onrender.com';
+const SERVER_HOST = 'spotme-chat.onrender.com';
 const SERVER_PATH = '/peerjs';
-const API_MISSED = 'https://spotme-pg-test.onrender.com/api/missed-call';
+const API_MISSED = 'https://spotme-chat.onrender.com/api/missed-call';
 function newCode() { return Math.floor(100000 + Math.random() * 900000).toString(); }
 
 let peer = null, conn = null, pendingConn = null;
