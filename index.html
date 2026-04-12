@@ -36,9 +36,7 @@
         <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
         <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
-        <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community Cruising</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
-        <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot-general.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community General</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
- 
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
       </div>
     </div>
@@ -72,6 +70,14 @@
         <span class="section-label">Letzte Chats</span>
       </div>
       <div id="plist" class="horizontal-scroll"></div>
+    </div>
+
+    <div id="offline-msg-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
+        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
+      </div>
+      <div id="offline-msg-list" class="horizontal-scroll"></div>
     </div>
 
     <div id="missed-sec" style="display:none;">
@@ -176,7 +182,8 @@
   <div class="sheet-handle"></div>
   <div class="sheet-title">Nachricht hinterlassen</div>
   <div class="sheet-body">
-    <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" style="width:100%; margin-bottom:1rem;"></textarea>
+    <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" maxlength="280" oninput="document.getElementById('lm-chars').textContent=280-this.value.length" style="width:100%; margin-bottom:0.4rem;"></textarea>
+    <div id="lm-chars" style="font-size:0.75rem;color:var(--text-dim);text-align:right;margin-bottom:0.75rem;">280</div>
     <div style="display:flex; gap:0.8rem;">
       <button class="btn" onclick="closeLeaveMessageSheet()">Abbrechen</button>
       <button class="btn btn-primary" onclick="submitLeaveMessage()">Senden</button>
