@@ -764,35 +764,88 @@ function showOfflineMsgPanel(msgs) {
   if (!panel) {
     panel = document.createElement('div');
     panel.id = 'offmsg-panel';
-    panel.style.cssText = 'margin:0.5rem 1.25rem;background:var(--card2);border:1px solid rgba(255,79,123,.3);'
-      + 'border-radius:16px;padding:1rem;flex-shrink:0;';
-    // Nach profile-bar einfügen
+    panel.style.cssText = 'margin:0.5rem 0;background:var(--card2);border-top:1px solid rgba(255,79,123,.25);'
+      + 'border-bottom:1px solid rgba(255,79,123,.25);padding:0.75rem 0;flex-shrink:0;';
     const bar = document.getElementById('profile-bar');
     if (bar && bar.parentNode) bar.parentNode.insertBefore(panel, bar.nextSibling);
   }
+
+  // Nachrichten nach Absender gruppieren
+  const grouped = {};
+  msgs.forEach(m => {
+    if (!grouped[m.senderCode]) grouped[m.senderCode] = { name: m.senderName, code: m.senderCode, msgs: [] };
+    grouped[m.senderCode].msgs.push(m);
+  });
+
+  const senders = Object.values(grouped);
+
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--p3);">✉️ Neue Nachrichten (${msgs.length})</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 1rem;margin-bottom:0.6rem;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;color:var(--p3);">
+        ✉️ Nachrichten · ${senders.length} ${senders.length === 1 ? 'Absender' : 'Absender'}
+      </div>
       <button onclick="dismissAllOfflineMsgs()" style="background:none;border:none;color:var(--muted2);font-size:0.8rem;cursor:pointer;">✓ Alle gelesen</button>
     </div>
-    ${msgs.map(m => {
-      const d = new Date(m.timestamp);
-      const time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})
-                 + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-      return `<div id="spot-offmsg-${m.id}" style="background:var(--sur);border:1px solid var(--bord);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">
-          <span style="font-weight:600;font-size:0.85rem;">${esc(m.senderName)}</span>
-          <span style="font-size:0.7rem;color:var(--muted2);">${time}</span>
-        </div>
-        <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.5rem;">${esc(m.message)}</div>
-        <div style="display:flex;gap:0.5rem;">
-          <button onclick="startChat('${m.senderCode}','${esc(m.senderName)}')" style="flex:1;padding:0.4rem;background:var(--acc);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">💬 Chat</button>
-          <button onclick="dismissSpotOfflineMsg(${m.id})" style="padding:0.4rem 0.75rem;background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid var(--bord);border-radius:8px;font-size:0.8rem;cursor:pointer;">✓</button>
-        </div>
-      </div>`;
-    }).join('')}
+    <div style="display:flex;gap:0.75rem;overflow-x:auto;padding:0 1rem 0.5rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+      ${senders.map(s => {
+        const lastMsg = s.msgs[s.msgs.length - 1];
+        const allIds = s.msgs.map(m => m.id);
+        const d = new Date(lastMsg.timestamp);
+        const time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})
+                   + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+        const initial = s.name ? s.name[0].toUpperCase() : '?';
+        const msgList = s.msgs.map(m => `
+          <div style="background:var(--bg);border-radius:10px;padding:0.5rem 0.65rem;margin-bottom:0.4rem;font-size:0.85rem;color:var(--text);line-height:1.4;">
+            ${esc(m.message)}
+          </div>`).join('');
+        return `<div style="flex:0 0 260px;background:var(--sur);border:1px solid rgba(255,79,123,.2);
+                            border-radius:14px;padding:0.85rem;display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--p2),var(--p3));
+                        display:flex;align-items:center;justify-content:center;font-size:0.9rem;
+                        font-weight:700;flex-shrink:0;">${esc(initial)}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
+              <div style="font-size:0.7rem;color:var(--muted2);">${time}</div>
+            </div>
+            <button onclick="dismissSenderOfflineMsgs('${s.code}',[${allIds.join(',')}])"
+              style="background:none;border:none;color:var(--muted2);font-size:1rem;cursor:pointer;padding:0 0.2rem;" title="Als gelesen markieren">✓</button>
+          </div>
+          <div style="flex:1;max-height:140px;overflow-y:auto;scrollbar-width:none;margin-bottom:0.6rem;">
+            ${msgList}
+          </div>
+          <div style="display:flex;gap:0.4rem;margin-top:auto;">
+            <button onclick="startChat('${s.code}','${esc(s.name)}')"
+              style="flex:1;padding:0.45rem;background:var(--acc);color:var(--bg);border:none;
+                     border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">💬 Chat</button>
+            <button onclick="showKurznachrichtModal('${s.code}','${esc(s.name)}')"
+              style="flex:1;padding:0.45rem;background:rgba(123,92,250,.15);color:var(--p2);
+                     border:1px solid rgba(123,92,250,.3);border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">↩️ Antworten</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
   `;
   panel.style.display = 'block';
+}
+
+// Alle Nachrichten eines Absenders als gelesen markieren
+async function dismissSenderOfflineMsgs(senderCode, ids) {
+  for (const id of ids) {
+    try {
+      await fetch(`${API}/offline-message/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
+      });
+    } catch (e) {}
+  }
+  // Panel neu rendern ohne diesen Absender
+  const panel = document.getElementById('offmsg-panel');
+  if (!panel) return;
+  const cards = panel.querySelectorAll('[data-sender]');
+  // Einfachster Weg: neu fetchen
+  fetchAndRenderOfflineMsgs();
 }
 
 async function dismissSpotOfflineMsg(id) {
@@ -803,14 +856,7 @@ async function dismissSpotOfflineMsg(id) {
       body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
     });
   } catch (e) {}
-  const el = document.getElementById('spot-offmsg-' + id);
-  if (el) el.remove();
-  const panel = document.getElementById('offmsg-panel');
-  if (panel && !panel.querySelector('[id^=spot-offmsg-]')) {
-    panel.style.display = 'none';
-    const badge = document.getElementById('offmsg-badge');
-    if (badge) badge.style.display = 'none';
-  }
+  fetchAndRenderOfflineMsgs();
 }
 
 async function dismissAllOfflineMsgs() {
