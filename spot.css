@@ -416,3 +416,48 @@ nav {
   z-index: 9999; transition: all 0.3s; opacity: 0; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+/* ═══════════ SPOTS-GRID (index.html Home) ═══════════ */
+.spots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  padding: 0 0 0.5rem;
+}
+.spot-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.85rem 0.5rem;
+  background: var(--card2);
+  border: 1px solid var(--bord);
+  border-radius: 16px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.spot-tile::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--tile-acc);
+  opacity: 0.8;
+}
+.spot-tile:active { transform: scale(0.97); }
+.spot-tile-icon { font-size: 1.6rem; line-height: 1; }
+.spot-tile-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--tile-acc);
+}
+.spot-tile-desc {
+  font-size: 0.68rem;
+  color: var(--muted2);
+  text-align: center;
+  line-height: 1.3;
+}
