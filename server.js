@@ -219,10 +219,15 @@ app.post('/api/profile', async (req, res) => {
     let profileToken;
 
     if (existing.rows.length > 0) {
-      if (!token || existing.rows[0].token !== token) {
+      const storedToken = existing.rows[0].token;
+      // Altprofil ohne Token: neuen Token vergeben statt 403
+      if (!storedToken) {
+        profileToken = crypto.randomBytes(32).toString('hex');
+      } else if (!token || storedToken !== token) {
         return res.status(403).json({ error: 'Ungültiger Token' });
+      } else {
+        profileToken = token;
       }
-      profileToken = token;
       await pool.query(
         `UPDATE profiles SET
           name=$1, age=$2, region=$3, province=$4, city=$5,
@@ -273,7 +278,9 @@ app.delete('/api/profile/:code', async (req, res) => {
       [code, spot]
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (!token || existing.rows[0].token !== token) return res.status(403).json({ error: 'Ungültiger Token' });
+    const storedTok = existing.rows[0].token;
+    // Altprofil ohne Token: DELETE erlauben
+    if (storedTok && (!token || storedTok !== token)) return res.status(403).json({ error: 'Ungültiger Token' });
 
     await pool.query(
       'UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2',
