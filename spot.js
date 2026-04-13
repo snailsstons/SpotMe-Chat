@@ -12,7 +12,7 @@ const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
 const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL = 30000;
-const DEFAULT_RADIUS = 5000;
+const DEFAULT_RADIUS = 500;
 
 let myProfile = null;
 let myCode  = localStorage.getItem('sm_code')  || '';
@@ -108,7 +108,7 @@ function startAutoRefresh() {
 function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   const sendHeartbeat = () => {
-    if (!myCode) return;
+    if (!myCode || !isPublished) return; // Kein Heartbeat wenn unsichtbar
     fetch(API + '/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -343,7 +343,7 @@ app.post('/api/heartbeat', async (req, res) => {
     await pool.query(
       `UPDATE profiles
        SET last_seen = $1,
-           visible_until = GREATEST(visible_until, $2)
+           visible_until = CASE WHEN visible_until > 0 THEN GREATEST(visible_until, $2) ELSE 0 END
        WHERE code = $3 AND spot = $4`,
       [now, visibleUntil, code, spot]
     );
@@ -495,7 +495,7 @@ app.post('/api/offline-message', async (req, res) => {
     const rateCheck = await pool.query(
       `SELECT id FROM offline_messages
        WHERE sender_code = $1 AND recipient = $2
-         AND created_at > NOW() - INTERVAL '1 minute'
+         AND created_at > NOW() - INTERVAL '1 hour'
        LIMIT 1`,
       [senderCode, recipient]
     );
