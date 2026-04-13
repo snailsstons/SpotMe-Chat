@@ -501,6 +501,7 @@ function showProfileDetail(profile) {
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
   const chatBtn = isOwn ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
+  const msgBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Kurznachricht</button>` : '';
   const personalCount = verifications.filter(v => v.type === 'personal').length;
   const chatCount = verifications.filter(v => v.type === 'chat').length;
   let verifyText = '';
@@ -518,9 +519,96 @@ function showProfileDetail(profile) {
       ${locationBtn}
       ${chatBtn}
       ${verifyBtn}
+      ${msgBtn}
     </div>
   `;
   modal.style.display = 'flex';
+}
+
+// ── Kurznachricht an Profil ──
+let _kurznachrichtTarget = null;
+
+function showKurznachrichtModal(code, name) {
+  _kurznachrichtTarget = { code, name };
+  let modal = document.getElementById('kurznachricht-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'kurznachricht-modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = (e) => { if (e.target === modal) closeKurznachrichtModal(); };
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:340px;" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeKurznachrichtModal()">✕</button>
+        <div style="font-size:1.5rem;text-align:center;margin-bottom:0.5rem;">✉️</div>
+        <h3 style="font-family:'Syne';text-align:center;margin-bottom:0.25rem;color:var(--acc);" id="kurznachr-name"></h3>
+        <p style="font-size:0.85rem;color:var(--muted2);text-align:center;margin-bottom:1rem;">Kurznachricht hinterlassen</p>
+        <textarea id="kurznachr-input" class="minp"
+          placeholder="Deine Nachricht..."
+          rows="4" maxlength="280"
+          oninput="document.getElementById('kurznachr-chars').textContent=280-this.value.length"
+          style="width:100%;margin-bottom:0.4rem;"></textarea>
+        <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+          <span style="font-size:0.75rem;color:var(--muted2);">Max. 280 Zeichen</span>
+          <span id="kurznachr-chars" style="font-size:0.75rem;color:var(--acc);font-weight:700;">280</span>
+        </div>
+        <button onclick="submitKurznachricht()"
+          style="width:100%;padding:0.9rem;background:var(--acc);color:var(--bg);
+                 border:none;border-radius:14px;font-size:1rem;font-weight:700;
+                 cursor:pointer;margin-bottom:0.6rem;" id="kurznachr-btn">
+          📨 Senden
+        </button>
+        <button onclick="closeKurznachrichtModal()"
+          style="width:100%;padding:0.75rem;background:transparent;color:var(--muted2);
+                 border:1px solid var(--bord);border-radius:14px;font-size:0.9rem;cursor:pointer;">
+          Abbrechen
+        </button>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('kurznachr-name').textContent = name;
+  document.getElementById('kurznachr-input').value = '';
+  document.getElementById('kurznachr-chars').textContent = '280';
+  modal.style.display = 'flex';
+  setTimeout(() => document.getElementById('kurznachr-input').focus(), 100);
+}
+
+function closeKurznachrichtModal() {
+  const modal = document.getElementById('kurznachricht-modal');
+  if (modal) modal.style.display = 'none';
+  _kurznachrichtTarget = null;
+}
+
+async function submitKurznachricht() {
+  if (!_kurznachrichtTarget) return;
+  const text = document.getElementById('kurznachr-input').value.trim();
+  if (!text) { toast('⚠️ Bitte eine Nachricht eingeben'); return; }
+  const btn = document.getElementById('kurznachr-btn');
+  btn.disabled = true; btn.textContent = '⏳ Senden...';
+  try {
+    const res = await fetch(API + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: _kurznachrichtTarget.code,
+        senderCode: myCode,
+        senderName: myProfile?.name || myCode,
+        message: text
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(`📨 Nachricht an ${_kurznachrichtTarget.name} gesendet`);
+      closeKurznachrichtModal();
+    } else if (res.status === 429) {
+      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
+    } else {
+      toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
+    }
+  } catch (e) {
+    toast('⚠️ Keine Verbindung zum Server');
+  } finally {
+    btn.disabled = false; btn.textContent = '📨 Senden';
+  }
 }
 
 function closeProfileDetail() {
