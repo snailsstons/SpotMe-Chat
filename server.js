@@ -495,7 +495,7 @@ app.post('/api/offline-message', async (req, res) => {
     const rateCheck = await pool.query(
       `SELECT id FROM offline_messages
        WHERE sender_code = $1 AND recipient = $2
-         AND created_at > NOW() - INTERVAL '1 hour'
+         AND created_at > NOW() - INTERVAL '1 minute'
        LIMIT 1`,
       [senderCode, recipient]
     );
