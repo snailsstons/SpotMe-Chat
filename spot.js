@@ -185,7 +185,7 @@ async function togglePublish() {
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
             orientation: myProfile.orientation || null, role: myProfile.role || null,
-            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
             spot: SPOT
           })
         });
@@ -206,14 +206,26 @@ async function togglePublish() {
         code: myCode, name: myProfile.name, age,
         region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
         orientation: myProfile.orientation || null, role: myProfile.role || null,
-        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+        trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
         token: myToken || undefined, spot: SPOT
       };
-      const res = await fetch(API + '/profile', {
+      let res = await fetch(API + '/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      // 403 = Token ungültig (z.B. nach Browser-Wechsel oder Cache-Clear)
+      // → Token löschen und als neues Profil nochmal versuchen
+      if (res.status === 403) {
+        myToken = '';
+        localStorage.removeItem(TOKEN_KEY);
+        payload.token = undefined;
+        res = await fetch(API + '/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       if (data.token) {
@@ -918,7 +930,7 @@ function startKeepalive() {
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
             orientation: myProfile.orientation || null, role: myProfile.role || null,
-            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
             token: myToken, spot: SPOT
           })
         });
