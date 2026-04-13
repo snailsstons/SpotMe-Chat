@@ -160,11 +160,28 @@ async function togglePublish() {
   btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
   try {
     if (isPublished) {
-      await fetch(API + '/profile/' + myCode, {
+      // Kein Token? Erst neu publishen um Token zu holen, dann löschen
+      if (!myToken) {
+        const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+        const r = await fetch(API + '/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: myCode, name: myProfile.name, age,
+            region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            spot: SPOT
+          })
+        });
+        if (r.ok) { const d = await r.json(); if (d.token) { myToken = d.token; localStorage.setItem(TOKEN_KEY, myToken); } }
+      }
+      const delRes = await fetch(API + '/profile/' + myCode, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: myToken, spot: SPOT })
       });
+      if (!delRes.ok) throw new Error('HTTP ' + delRes.status);
       isPublished = false;
       localStorage.setItem('sm_spot_published', '0');
       toast('○ Profil aus Community entfernt');
