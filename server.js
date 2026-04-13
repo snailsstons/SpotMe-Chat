@@ -219,15 +219,17 @@ app.post('/api/profile', async (req, res) => {
     let profileToken;
 
     if (existing.rows.length > 0) {
-      const storedToken = existing.rows[0].token;
-      // Altprofil ohne Token: neuen Token vergeben statt 403
-      if (!storedToken) {
-        profileToken = crypto.randomBytes(32).toString('hex');
-      } else if (!token || storedToken !== token) {
+      if (!token) {
+        // Kein Token → altes Profil löschen, neu anlegen (z.B. nach Cache-Clear)
+        await pool.query('DELETE FROM profiles WHERE code = $1 AND spot = $2', [code, spot]);
+        existing.rows = [];
+      } else if (existing.rows[0].token !== token) {
         return res.status(403).json({ error: 'Ungültiger Token' });
       } else {
         profileToken = token;
       }
+    }
+    if (existing.rows.length > 0) {
       await pool.query(
         `UPDATE profiles SET
           name=$1, age=$2, region=$3, province=$4, city=$5,
@@ -278,9 +280,7 @@ app.delete('/api/profile/:code', async (req, res) => {
       [code, spot]
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    const storedTok = existing.rows[0].token;
-    // Altprofil ohne Token: DELETE erlauben
-    if (storedTok && (!token || storedTok !== token)) return res.status(403).json({ error: 'Ungültiger Token' });
+    if (!token || existing.rows[0].token !== token) return res.status(403).json({ error: 'Ungültiger Token' });
 
     await pool.query(
       'UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2',
@@ -350,7 +350,7 @@ app.post('/api/heartbeat', async (req, res) => {
     await pool.query(
       `UPDATE profiles
        SET last_seen = $1,
-           visible_until = CASE WHEN visible_until > 0 THEN GREATEST(visible_until, $2) ELSE 0 END
+           visible_until = GREATEST(visible_until, $2)
        WHERE code = $3 AND spot = $4`,
       [now, visibleUntil, code, spot]
     );
