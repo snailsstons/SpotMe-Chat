@@ -24,6 +24,29 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .screen.active { display:flex; animation:sIn .22s ease }
 @keyframes sIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:none} }
 
+/* Code-Karte – hellster Ton (wie bisher) */
+.code-card-new {
+  background: var(--card2);
+  /* ... bestehende Styles ... */
+}
+
+/* Verbindungsbox – mittlerer Ton */
+.conn-box-new {
+  background: var(--card);
+  /* ... bestehende Styles ... */
+}
+
+/* Container für Listen (Letzte Chats, Offline-Nachrichten, Verpasste Anrufe) – dunkelster Ton */
+#psec, #offline-msg-sec, #missed-sec {
+  background: var(--sur);
+  border: 1px solid var(--bord);
+  border-radius: 18px;
+  padding: 1rem 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Spots-Grid – bereits durch Kacheln optisch getrennt, kein zusätzlicher Hintergrund nötig */
+
 /* ═══════════════════════════════════════════════════════════════════
    NEUER HOME-STIL (SPOT-ARTIG)
 ═══════════════════════════════════════════════════════════════════ */
