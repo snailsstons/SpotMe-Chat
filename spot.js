@@ -124,6 +124,21 @@ function buildRegionFilter() {
   REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
 }
 
+async function resetToken() {
+  // Token zurücksetzen — nötig wenn localStorage-Token nicht mit DB übereinstimmt
+  myToken = '';
+  localStorage.removeItem(TOKEN_KEY);
+  // Profil neu veröffentlichen → Server vergibt neuen Token
+  if (isPublished && myProfile) {
+    isPublished = false;
+    localStorage.setItem('sm_spot_published', '0');
+    await togglePublish();
+    toast('🔑 Token erneuert — bitte Sichtbarkeit nochmal schalten');
+  } else {
+    toast('🔑 Token gelöscht — beim nächsten Veröffentlichen wird ein neuer vergeben');
+  }
+}
+
 function loadMyProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) { document.getElementById('profile-bar').style.display = 'none'; return; }

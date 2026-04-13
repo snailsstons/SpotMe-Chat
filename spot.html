@@ -42,7 +42,7 @@
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
-    <button class="icon-btn" onclick="window.location.href='profil.html'" title="Profil bearbeiten">✎</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html'" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
   </div>
 </div>
 
@@ -95,7 +95,7 @@
 <nav>
   <button class="nav-btn active">RADAR</button>
   <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
-  <button class="nav-btn" onclick="location.href='spot-info.html'">INFO</button>
+  <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
 </nav>
 
 <!-- Standort-Modal -->
@@ -163,6 +163,20 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<script>
+// Versteckter Token-Reset: 1.5s langer Druck auf Stift-Button
+(function(){
+  let t;
+  const btn = document.getElementById ? null : null;
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('edit-btn');
+    if (!b) return;
+    b.addEventListener('touchstart', () => { t = setTimeout(() => resetToken(), 1500); }, { passive: true });
+    b.addEventListener('touchend', () => clearTimeout(t));
+    b.addEventListener('touchmove', () => clearTimeout(t));
+  });
+})();
+</script>
 
 </body>
 </html>
