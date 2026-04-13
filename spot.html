@@ -46,18 +46,6 @@
   </div>
 </div>
 
-<div class="radar-viewport">
-  <div class="radar-canvas" id="radar-field">
-    <div class="radar-bg"></div>
-    <div class="ring" style="inset: 0;"></div><span class="ring-label" style="top:2%;">5 km</span>
-    <div class="ring" style="inset: 20%;"></div><span class="ring-label" style="top:22%;">1 km</span>
-    <div class="ring" style="inset: 45%;"></div><span class="ring-label" style="top:47%;">500 m</span>
-    <div class="ring" style="inset: 75%;"></div><span class="ring-label" style="top:77%;">100 m</span>
-    <div class="radar-sweep"></div>
-    <div class="center-dot"></div>
-  </div>
-</div>
-
 <div class="community-list-section">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; margin-bottom:0.25rem;">
     <div class="section-label">Community Profile</div>
@@ -89,6 +77,19 @@
     <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
   </div>
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+</div>
+
+<div class="radar-viewport">
+  <div style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0.75rem 1.25rem 0;">Radar</div>
+  <div class="radar-canvas" id="radar-field">
+    <div class="radar-bg"></div>
+    <div class="ring" style="inset: 0;"></div><span class="ring-label" style="top:2%;">5 km</span>
+    <div class="ring" style="inset: 20%;"></div><span class="ring-label" style="top:22%;">1 km</span>
+    <div class="ring" style="inset: 45%;"></div><span class="ring-label" style="top:47%;">500 m</span>
+    <div class="ring" style="inset: 75%;"></div><span class="ring-label" style="top:77%;">100 m</span>
+    <div class="radar-sweep"></div>
+    <div class="center-dot"></div>
+  </div>
 </div>
 
 <nav>
