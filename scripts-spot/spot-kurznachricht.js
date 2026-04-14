@@ -2,7 +2,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KURZNACHRICHT (spot-kurznachricht.js)
 // + Local‑First: Offline‑Nachrichten werden gespeichert und später gesendet
-// + Debug‑Logs für Fehlersuche
+// + Usage‑Zähler für Achtsamkeits‑Seite
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _kurznachrichtTarget = null;
@@ -53,6 +53,10 @@ async function flushPendingKurznachrichten() {
 
   if (successCount > 0) {
     toast(`📨 ${successCount} gespeicherte Kurznachricht(en) gesendet`);
+    // 📊 Zähler für gesendete Nachrichten (falls Usage verfügbar)
+    if (typeof Usage !== 'undefined') {
+      for (let i = 0; i < successCount; i++) Usage.incrementMessagesSent();
+    }
   }
   savePendingMessages([]);
 }
@@ -97,24 +101,25 @@ async function submitKurznachricht() {
       senderCode: myCode,
       senderName: senderName,
       message: text,
-      spot: SPOT            // optional, aber hilfreich
+      spot: SPOT
     };
-    console.log('Sending offline-message payload:', payload);
     const res = await fetch(API + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    console.log('Server response:', res.status, data);
     if (res.ok) {
       toast(`📨 Nachricht an ${_kurznachrichtTarget.name} gesendet`);
       closeKurznachrichtModal();
+      // 📊 Zähler erhöhen
+      if (typeof Usage !== 'undefined') {
+        Usage.incrementMessagesSent();
+      }
     } else {
       toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
     }
   } catch (e) {
-    console.warn('Fetch error:', e);
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
     toast(`📦 Nachricht gespeichert (wird später gesendet)`);
     closeKurznachrichtModal();
