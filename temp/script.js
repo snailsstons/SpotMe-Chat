@@ -41,8 +41,48 @@ let currentRadius = 500;
 // Backup-Zwischenspeicher für Passwort-Import
 let pendingRestoreFile = null;
 
+// Local‑First Heartbeat Timer
+let heartbeatInterval = null;
+
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STATUS & LOCAL‑FIRST UI
+// ══════════════════════════════════════════════════════════════════════════════
+function updateConnectionStatus() {
+  const online = peer && peer.open && !isOffline;
+  const badge = document.getElementById('header-status');
+  const banner = document.getElementById('local-mode-banner');
+  
+  if (!badge) return;
+  
+  if (online) {
+    badge.innerHTML = '● ONLINE';
+    badge.className = 'status-badge online';
+  } else {
+    badge.innerHTML = '○ LOCAL';
+    badge.className = 'status-badge local';
+  }
+  
+  if (banner) {
+    banner.style.display = (!online && document.getElementById('s-home').classList.contains('active')) ? 'flex' : 'none';
+  }
+}
+
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(async () => {
+    if (!myCode || !peer?.open) return;
+    try {
+      await fetch(`${API_BASE}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: myCode })
+      });
+    } catch (e) { /* stiller Fehler */ }
+  }, 600000); // alle 10 Minuten
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PENDING MESSAGES
@@ -86,10 +126,6 @@ async function addMissed(code, name, outgoing = false) {
   saveMissed(arr.slice(0,30));
   renderMissed();
   try {
-    // outgoing=true: Ich habe angerufen, niemand hat abgenommen
-    //   -> recipient ist der Angerufene (code), damit er sieht dass ich angerufen habe
-    // outgoing=false: Jemand hat mich angerufen, ich habe nicht abgenommen
-    //   -> recipient bin ich (myCode)
     const payload = outgoing
       ? { recipient: code,   callerId: myCode, callerName: myName }
       : { recipient: myCode, callerId: code,   callerName: name   };
@@ -108,7 +144,6 @@ function renderMissed() {
   if (!arr.length) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
   lst.innerHTML = arr.map(m => {
-    // Display-Name: erst Alias aus Kontakten, dann gespeicherter Name, dann Fallback
     const displayName = getContacts()[m.code] || m.name || formatCode(m.code);
     const d = new Date(m.ts);
     const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
@@ -226,7 +261,27 @@ function saveContacts(c) { localStorage.setItem('sm_contacts', JSON.stringify(c)
 function localName(code, fallback) { return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0,4)); }
 function setAlias(code, name) { const c = getContacts(); if(name) c[code] = name; else delete c[code]; saveContacts(c); }
 
-function refreshStatusText() { const statusEl = document.getElementById('pstatus'); if(!statusEl) return; if(partnerTypingTimer !== null){ statusEl.textContent = '✍️ schreibt...'; statusEl.className = 'pstatus'; return; } if(conn && conn.open){ statusEl.textContent = '● Verbunden'; statusEl.className = 'pstatus'; } else { if(document.getElementById('s-chat').classList.contains('active')){ statusEl.textContent = '○ Verbinde...'; statusEl.className = 'pstatus dim'; } else { statusEl.textContent = '○ Verbindung getrennt'; statusEl.className = 'pstatus dim'; } } }
+function refreshStatusText() {
+  const statusEl = document.getElementById('pstatus');
+  if(!statusEl) return;
+  if(partnerTypingTimer !== null){
+    statusEl.textContent = '✍️ schreibt...';
+    statusEl.className = 'pstatus';
+    return;
+  }
+  if(conn && conn.open){
+    statusEl.textContent = '● Verbunden';
+    statusEl.className = 'pstatus';
+  } else {
+    if(document.getElementById('s-chat').classList.contains('active')){
+      statusEl.textContent = '○ Verbinde...';
+      statusEl.className = 'pstatus dim';
+    } else {
+      statusEl.textContent = '○ Verbindung getrennt';
+      statusEl.className = 'pstatus dim';
+    }
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INDEXEDDB – VERSION 3 (Alben & Fotos)
@@ -674,7 +729,7 @@ function formatDistance(m) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PEERJS & VERBINDUNG
+// PEERJS & VERBINDUNG – erweitert für Local‑First
 // ══════════════════════════════════════════════════════════════════════════════
 let peerRetries = 0;
 function initPeer() {
@@ -683,7 +738,14 @@ function initPeer() {
   peer = null;
   setSpill('connecting', 'Verbinde mit Server...');
   peer = new Peer(myCode, { host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } });
-  peer.on('open', () => { peerRetries = 0; setSpill('online', '● ONLINE'); isOffline = false; showCodeCard(true); });
+  peer.on('open', () => {
+    peerRetries = 0;
+    setSpill('online', '● ONLINE');
+    isOffline = false;
+    showCodeCard(true);
+    updateConnectionStatus();
+    startHeartbeat();
+  });
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
     if(err.type === 'unavailable-id') {
@@ -702,9 +764,16 @@ function initPeer() {
     }
     peerRetries++; const delay = Math.min(4000*peerRetries,20000);
     setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay/1000}s`);
+    isOffline = true;
+    updateConnectionStatus();
     setTimeout(() => { peer = null; initPeer(); }, delay);
   });
-  peer.on('disconnected', () => { setSpill('connecting', 'Unterbrochen · verbinde erneut...'); setTimeout(() => { peer = null; initPeer(); }, 2500); });
+  peer.on('disconnected', () => {
+    setSpill('connecting', 'Unterbrochen · verbinde erneut...');
+    isOffline = true;
+    updateConnectionStatus();
+    setTimeout(() => { peer = null; initPeer(); }, 2500);
+  });
   peer.on('connection', incoming => {
     if(conn && conn.open) { incoming.close(); return; }
     pendingConn = incoming;
@@ -727,7 +796,14 @@ function declineCall() { stopRingingTone(); if(pendingConn){ const c = pendingCo
 function connectToPeer() {
   const code = getDigits();
   if(code.length !== 6 || code === myCode) return;
-  if(!peer || !peer.open){ toast('⚠️ Noch nicht verbunden'); return; }
+  if(!peer || !peer.open){
+    toast('⚠️ Im Local‑Modus – Verbindung wird hergestellt, sobald Server erreichbar');
+    partnerCode = code;
+    partnerName = localName(code);
+    chatId = buildCID(myCode, code);
+    loadPendingMessages();
+    migratePendingMessages(chatId);
+  }
   if(outgoingCallTimer) clearTimeout(outgoingCallTimer);
   partnerCode = code;
   partnerName = localName(code);
@@ -798,7 +874,15 @@ async function submitLeaveMessage() {
   setSpill('online', '● ONLINE');
 }
 
-function tryReconnect() { if(!partnerCode || !peer || !peer.open) return; document.getElementById('rcbar').classList.remove('show'); toast('↺ Verbinde erneut...'); openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } })); }
+function tryReconnect() {
+  if(!partnerCode || !peer || !peer.open) {
+    toast('↺ Warte auf Serververbindung...');
+    return;
+  }
+  document.getElementById('rcbar').classList.remove('show');
+  toast('↺ Verbinde erneut...');
+  openChat(peer.connect(partnerCode, { reliable:true, metadata:{ name: myName } }));
+}
 
 function openChat(c) {
   if(conn && conn !== c) { try{ conn.close(); } catch(e){} }
@@ -821,6 +905,7 @@ function openChat(c) {
     toast('✓ Verbunden');
     flushPendingMessages();
     setSpill('online', '● ONLINE');
+    updateConnectionStatus();
   };
   if(conn.open) onOpen();
   else conn.on('open', onOpen);
@@ -837,11 +922,13 @@ function openChat(c) {
       document.getElementById('rcbar').classList.add('show');
       toast('○ Partner hat den Chat verlassen');
     }
+    updateConnectionStatus();
   });
   conn.on('error', err => {
     console.warn('[conn]', err);
     if(outgoingCallTimer){ clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     document.getElementById('rcbar').classList.add('show');
+    updateConnectionStatus();
   });
 }
 
@@ -863,7 +950,33 @@ function prepChat() {
 // ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHTEN & DATEIEN
 // ══════════════════════════════════════════════════════════════════════════════
-function sendMsg() { const inp = document.getElementById('minp'); const text = inp.value.trim(); if(!text) return; if(!conn || !conn.open){ if(!chatId){ toast('⚠️ Bitte zuerst eine Verbindung aufbauen'); return; } addPendingMessage(text); toast(`📦 Nachricht in Warteschlange (${pendingMessages.length})`); inp.value = ''; inp.style.height = 'auto'; return; } if(typingStarted){ conn.send({ t:'typing', state:'end' }); if(typingDebounceTimer) clearTimeout(typingDebounceTimer); typingStarted = false; } const m = { t:'text', text, ts:Date.now() }; conn.send(m); appendMsg({ ...m, own:true }); persistMsg({ ...m, own:true }); inp.value = ''; inp.style.height = 'auto'; }
+function sendMsg() {
+  const inp = document.getElementById('minp');
+  const text = inp.value.trim();
+  if(!text) return;
+  if(!conn || !conn.open){
+    if(!chatId){
+      toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
+      return;
+    }
+    addPendingMessage(text);
+    toast(`📦 Nachricht gespeichert (${pendingMessages.length} in Warteschlange)`);
+    inp.value = '';
+    inp.style.height = 'auto';
+    return;
+  }
+  if(typingStarted){
+    conn.send({ t:'typing', state:'end' });
+    if(typingDebounceTimer) clearTimeout(typingDebounceTimer);
+    typingStarted = false;
+  }
+  const m = { t:'text', text, ts:Date.now() };
+  conn.send(m);
+  appendMsg({ ...m, own:true });
+  persistMsg({ ...m, own:true });
+  inp.value = '';
+  inp.style.height = 'auto';
+}
 
 async function sendFile(inp) {
   const f = inp.files[0]; inp.value = '';
@@ -1134,7 +1247,6 @@ function openSheet() { document.getElementById('sovl').classList.add('open'); do
 function closeSheet() { document.getElementById('sovl').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
 function goHome() {
   stopRingingTone();
-  // War ein ausgehender Anruf aktiv? → Sheet anbieten
   const wasCallingOut = outgoingCallTimer !== null && partnerCode;
   if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
@@ -1148,12 +1260,12 @@ function goHome() {
   renderPrev();
   setSpill('online', '● ONLINE');
   if (wasCallingOut) {
-    // Anruf abgebrochen → Nachricht anbieten
     addMissed(partnerCode, partnerName, true);
     showLeaveMessageSheet(partnerCode, partnerName);
   } else {
     showScreen('s-home');
   }
+  updateConnectionStatus();
 }
 function hkey(e) { if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } }
 function autoH(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
@@ -1165,7 +1277,7 @@ function shareCode() { if(navigator.share) navigator.share({ title:'SpotMe', tex
 function escapeHtml(s) { return esc(s); }
 function toggleHomeMenu(e) { e.stopPropagation(); document.getElementById('home-drop').classList.toggle('open'); }
 function closeHomeMenu() { document.getElementById('home-drop').classList.remove('open'); }
-function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', '○ OFFLINE'); showScreen('s-home'); }
+function goOffline() { if(!confirm('Verbindung zum Server trennen?')) return; if(conn){ try{ conn.close(); } catch(e){} conn = null; } if(peer){ try{ peer.destroy(); } catch(e){} peer = null; } isOffline = true; showCodeCard(false); setSpill('offline', '○ OFFLINE'); showScreen('s-home'); updateConnectionStatus(); }
 function showCodeCard(show) {
   const card = document.querySelector('.code-card-new');
   if (card) card.style.display = show ? '' : 'none';
@@ -1174,6 +1286,7 @@ function showCodeCard(show) {
   } else {
     setSpill('online', '● ONLINE');
   }
+  updateConnectionStatus();
 }
 function timeAgo(ts) {
   if (!ts) return '';
@@ -1394,8 +1507,8 @@ window.addEventListener('load', () => {
   if (voiceEnabled) { icon.textContent = '🎤'; desc.textContent = 'Aktiviert · Button in Chatleiste'; }
   else { icon.textContent = '🔇'; desc.textContent = 'Deaktiviert · Button ausgeblendet'; }
   if('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-  window.addEventListener('online', () => { if(!peer || peer.destroyed) initPeer(); });
-  window.addEventListener('offline', () => setSpill('offline', '○ OFFLINE'));
+  window.addEventListener('online', () => { if(!peer || peer.destroyed) initPeer(); updateConnectionStatus(); });
+  window.addEventListener('offline', () => { isOffline = true; updateConnectionStatus(); setSpill('offline', '○ LOCAL'); });
   document.addEventListener('click', e => { if(!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) closeHomeMenu(); });
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
   const textarea = document.getElementById('minp');
@@ -1404,7 +1517,6 @@ window.addEventListener('load', () => {
   if(autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(()=>{ const inps=document.querySelectorAll('.dinp-new'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); },1500); }
 
   setTimeout(async () => {
-    // Offline-Nachrichten laden
     if (myToken) {
       const offlineMsgs = await fetchOfflineMessages();
       if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
@@ -1421,4 +1533,6 @@ window.addEventListener('load', () => {
       }
     }
   }, 2000);
+  
+  updateConnectionStatus();
 });
