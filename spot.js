@@ -2,10 +2,13 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
+// + LOCAL‑FIRST CACHE (Profile offline verfügbar)
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API  = 'https://spotme-pg-test.onrender.com/api';
 const SPOT = 'gay'; // Spot-Namespace für diesen Radar
+const CACHE_KEY = `spot_cache_${SPOT}`; // 🆕 Lokaler Cache-Key
+
 const PROFILE_KEY = 'sm_profile';
 const TOKEN_KEY   = 'sm_token';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
@@ -46,7 +49,19 @@ const REGIONS = [
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
+
+  // 🆕 1. Zuerst lokalen Cache laden (falls vorhanden)
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try {
+      allProfiles = JSON.parse(cached);
+      applyFilters(); // zeigt sofort gespeicherte Profile an
+    } catch (e) {}
+  }
+
+  // 2. Live-Daten vom Server holen (überschreibt Cache, falls online)
   await loadCommunity();
+
   if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
   startAutoRefresh();
@@ -309,19 +324,39 @@ async function sendLocationToServer(lat, lng) {
   } catch(e) {}
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 loadCommunity() mit Local‑First‑Cache
 async function loadCommunity() {
   locationCache.clear();
   onlineStatusCache.clear();
   verificationCache.clear();
-  const res = await fetch(API + '/profiles?spot=' + SPOT);
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  allProfiles = await res.json();
-  await Promise.all(allProfiles.map(p => Promise.all([
-    fetchLocationForProfile(p.code),
-    fetchOnlineStatus(p.code),
-    fetchVerifications(p.code)
-  ])));
-  applyFilters();
+
+  try {
+    const res = await fetch(API + '/profiles?spot=' + SPOT);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    // Erfolgreich geladen → Cache speichern
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    allProfiles = data;
+
+    await Promise.all(allProfiles.map(p => Promise.all([
+      fetchLocationForProfile(p.code),
+      fetchOnlineStatus(p.code),
+      fetchVerifications(p.code)
+    ])));
+
+    applyFilters();
+  } catch (e) {
+    console.warn('Server nicht erreichbar, nutze Cache:', e);
+    // Falls kein Cache vorhanden ist, leeres Array setzen
+    if (allProfiles.length === 0) {
+      allProfiles = [];
+      applyFilters();
+    }
+    // Ansonsten bleibt der bereits geladene Cache erhalten
+    toast('📴 Offline – zeige gespeicherte Profile');
+  }
 }
 
 async function fetchLocationForProfile(code) {
@@ -756,7 +791,6 @@ function formatDistance(m) {
 }
 
 // ── Offline-Nachrichten ──
-// Beim Polling: nur benachrichtigen wenn sich etwas geändert hat
 let _lastUnreadCount = 0;
 async function fetchAndRenderOfflineMsgsSilent() {
   if (!myToken || !myCode) return;
@@ -766,7 +800,6 @@ async function fetchAndRenderOfflineMsgsSilent() {
     const msgs = await res.json();
     const unread = msgs.filter(m => !m.read);
     if (unread.length > _lastUnreadCount) {
-      // Neue Nachricht(en) seit letztem Check
       toast(`✉️ ${unread.length} neue Nachricht${unread.length > 1 ? 'en' : ''}`);
       playRadarPing();
       renderOfflineMsgBadge(unread);
@@ -786,7 +819,6 @@ async function fetchAndRenderOfflineMsgs() {
 }
 
 function renderOfflineMsgBadge(unread) {
-  // Badge auf dem Profil-Bar
   let badge = document.getElementById('offmsg-badge');
   if (!badge) {
     badge = document.createElement('span');
@@ -814,7 +846,6 @@ function showOfflineMsgPanel(msgs) {
     if (bar && bar.parentNode) bar.parentNode.insertBefore(panel, bar.nextSibling);
   }
 
-  // Nachrichten nach Absender gruppieren
   const grouped = {};
   msgs.forEach(m => {
     if (!grouped[m.senderCode]) grouped[m.senderCode] = { name: m.senderName, code: m.senderCode, msgs: [] };
@@ -873,7 +904,6 @@ function showOfflineMsgPanel(msgs) {
   panel.style.display = 'block';
 }
 
-// Alle Nachrichten eines Absenders als gelesen markieren
 async function dismissSenderOfflineMsgs(senderCode, ids) {
   for (const id of ids) {
     try {
@@ -884,11 +914,6 @@ async function dismissSenderOfflineMsgs(senderCode, ids) {
       });
     } catch (e) {}
   }
-  // Panel neu rendern ohne diesen Absender
-  const panel = document.getElementById('offmsg-panel');
-  if (!panel) return;
-  const cards = panel.querySelectorAll('[data-sender]');
-  // Einfachster Weg: neu fetchen
   fetchAndRenderOfflineMsgs();
 }
 
@@ -920,7 +945,7 @@ async function dismissAllOfflineMsgs() {
 function startKeepalive() {
   if (keepaliveTimer) clearInterval(keepaliveTimer);
   keepaliveTimer = setInterval(async () => {
-    if (!isPublished || !myProfile) return; // sofort stoppen wenn unsichtbar
+    if (!isPublished || !myProfile) return;
     if (isPublished && myProfile) {
       try { 
         const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
