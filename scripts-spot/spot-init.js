@@ -1,6 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – INITIALISIERUNG (spot-init.js)
+// + Flush von Offline-Kurznachrichten nach erfolgreichem Community-Load
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', async () => {
@@ -16,6 +17,11 @@ window.addEventListener('load', async () => {
   }
 
   await loadCommunity();
+
+  // 🆕 Offline-Kurznachrichten senden, sobald wir online sind
+  if (typeof flushPendingKurznachrichten === 'function') {
+    flushPendingKurznachrichten();
+  }
 
   if (isPublished && myProfile) await verifyAndRepublish();
   startKeepalive();
@@ -53,6 +59,10 @@ async function refreshSpot() {
   btn.classList.add('spinning');
   try {
     await loadCommunity();
+    // Auch beim manuellen Refresh flushen
+    if (typeof flushPendingKurznachrichten === 'function') {
+      flushPendingKurznachrichten();
+    }
     renderAll();
     toast('🔄 Community aktualisiert');
   } catch (e) {
