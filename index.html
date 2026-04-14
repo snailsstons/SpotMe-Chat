@@ -19,19 +19,27 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="styles.css">
-<!-- Zusätzlich spot.css für die Spots-Grid laden -->
-<link rel="stylesheet" href="spot.css">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="spot.css">
 </head>
 <body>
+
+<!-- LOCAL‑MODE BANNER (nur sichtbar im Offline‑Zustand) -->
+<div id="local-mode-banner" class="local-banner" style="display: none;">
+  <span>📴</span>
+  <span>Lokaler Modus – Nachrichten werden gespeichert und später gesendet</span>
+</div>
 
 <!-- SCREEN 1 – HOME -->
 <div id="s-home" class="screen active">
   <header class="app-header">
     <div class="header-left"></div>
-    <div class="logo">SPOT<b>ME v48</b></div>
+    <div class="logo">SPOT<b>ME v49</b></div>
     <div class="header-right">
-      <div class="status-badge" id="header-status">● ONLINE</div>
+      <div class="status-badge" id="header-status">
+        <span id="status-icon">●</span>
+        <span id="status-text">ONLINE</span>
+      </div>
       <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
       <div class="home-drop" id="home-drop">
         <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
@@ -114,14 +122,6 @@
         <div class="spot-tile-desc">Alle Interessen</div>
       </a>
 
-      <!-- Weitere Spots hier ergänzen:
-      <a href="spot-club.html" class="spot-tile" style="--tile-acc:#ff9a00;">
-        <div class="spot-tile-icon">🎵</div>
-        <div class="spot-tile-name">Club</div>
-        <div class="spot-tile-desc">Musik · Feiern</div>
-      </a>
-      -->
-
     </div>
   </div>
 </div>
@@ -171,7 +171,7 @@
 <div id="s-vault" class="screen"></div>
 <div id="s-partner-vault" class="screen"></div>
 
-<!-- Sheets & Modals (unverändert) -->
+<!-- Sheets & Modals -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
