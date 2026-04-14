@@ -266,6 +266,25 @@
 <input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
 <div class="in-notif" id="in-notif" onclick="switchToChat()"><div class="in-ico">💬</div><div style="flex:1;min-width:0"><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div></div>
 
-<script src="script.js"></script>
+<!-- ══════════════════════════════════════════════════════════════════════════════
+     SPOTME SCRIPTS – MODULAR (Reihenfolge ist wichtig!)
+     ══════════════════════════════════════════════════════════════════════════ -->
+<script src="scripts/config.js"></script>
+<script src="scripts/utils.js"></script>
+<script src="scripts/storage.js"></script>
+<script src="scripts/ui-core.js"></script>
+<script src="scripts/audio.js"></script>
+<script src="scripts/p2p-core.js"></script>
+<script src="scripts/p2p-call.js"></script>
+<script src="scripts/p2p-message.js"></script>
+<script src="scripts/p2p-file.js"></script>
+<script src="scripts/p2p-location.js"></script>
+<script src="scripts/albums.js"></script>
+<script src="scripts/backup.js"></script>
+<script src="scripts/voice.js"></script>
+<script src="scripts/ui-home.js"></script>
+<script src="scripts/ui-chat.js"></script>
+<script src="scripts/main.js"></script>
+
 </body>
 </html>
