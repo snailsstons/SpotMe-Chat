@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – UI CORE (ui-core.js)
-// Screen-Management, Sheets, Status-Badge, Menüs
+// Screen-Management, Sheets, Status-Badge, Menüs + Info-Modal
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,7 +12,6 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   document.getElementById('in-notif').classList.remove('show');
   
-  // Local-Mode-Banner aktualisieren
   const banner = document.getElementById('local-mode-banner');
   if (banner) {
     banner.style.display = (!peer?.open && id === 's-home') ? 'flex' : 'none';
@@ -32,8 +31,8 @@ function setSpill(type, text) {
 }
 
 function updateConnectionStatus() {
-const online = !!(peer && peer.open && !isOffline);
-const badge = document.getElementById('header-status');
+  const online = peer && peer.open && !isOffline;
+  const badge = document.getElementById('header-status');
   const banner = document.getElementById('local-mode-banner');
   
   if (!badge) return;
@@ -141,3 +140,34 @@ function goOffline() {
   showScreen('s-home');
   updateConnectionStatus();
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NEU: Info-Modal (OK bestätigen)
+function showInfoModal(title, message, buttonText = 'OK') {
+  let modal = document.getElementById('info-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'info-modal';
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:320px; text-align:center;">
+        <h3 id="info-modal-title" style="margin-bottom:12px;"></h3>
+        <p id="info-modal-message" style="margin:16px 0; color:var(--text-dim);"></p>
+        <button id="info-modal-ok" class="btn-primary" style="width:100%;">OK</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#info-modal-ok').addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.style.display = 'none';
+    });
+  }
+  document.getElementById('info-modal-title').textContent = title;
+  document.getElementById('info-modal-message').textContent = message;
+  const okBtn = document.getElementById('info-modal-ok');
+  okBtn.textContent = buttonText;
+  modal.style.display = 'flex';
+        }
