@@ -1,0 +1,63 @@
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOT – INITIALISIERUNG (spot-init.js)
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.addEventListener('load', async () => {
+  buildRegionFilter();
+  loadMyProfile();
+
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) {
+    try {
+      allProfiles = JSON.parse(cached);
+      applyFilters();
+    } catch (e) {}
+  }
+
+  await loadCommunity();
+
+  if (isPublished && myProfile) await verifyAndRepublish();
+  startKeepalive();
+  startAutoRefresh();
+  startHeartbeat();
+  if (myToken) fetchAndRenderOfflineMsgs();
+  setInterval(() => { if (myToken) fetchAndRenderOfflineMsgsSilent(); }, 60000);
+  isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
+  updateLocationUI();
+  if (isSharingLocation) await startLocationSharing();
+  renderAll();
+  
+  if (myProfile && myProfile.region) {
+    const regionSelect = document.getElementById('f-region');
+    if (regionSelect) {
+      regionSelect.value = myProfile.region;
+      applyFilters();
+    }
+  }
+
+  window.addEventListener('hashchange', checkDeepLink);
+  checkDeepLink();
+});
+
+function startChat(code, name) {
+  sessionStorage.setItem('sm_connect_to', code);
+  sessionStorage.setItem('sm_connect_name', name);
+  window.location.href = 'index.html';
+}
+
+function goHome() { window.location.href = 'index.html'; }
+
+async function refreshSpot() {
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+  try {
+    await loadCommunity();
+    renderAll();
+    toast('🔄 Community aktualisiert');
+  } catch (e) {
+    toast('⚠️ Aktualisierung fehlgeschlagen');
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
