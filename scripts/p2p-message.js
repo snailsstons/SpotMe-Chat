@@ -3,16 +3,14 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – NACHRICHTEN & DATA-HANDLER (p2p-message.js)
 // Textnachrichten senden/empfangen, Typing-Indikator, Pending-Queue
+// + Traffic‑Messung
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Textnachricht senden
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
 
-  // Wenn keine Verbindung besteht → in Pending-Queue speichern
   if (!conn || !conn.open) {
     if (!chatId) {
       toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
@@ -25,7 +23,6 @@ function sendMsg() {
     return;
   }
 
-  // Verbindung aktiv → Typing beenden und senden
   if (typingStarted) {
     conn.send({ t: 'typing', state: 'end' });
     if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
@@ -33,6 +30,8 @@ function sendMsg() {
   }
 
   const m = { t: 'text', text, ts: Date.now() };
+  const payload = JSON.stringify(m);
+  Traffic.recordP2PSent(new Blob([payload]).size);
   conn.send(m);
   appendMsg({ ...m, own: true });
   persistMsg({ ...m, own: true });
@@ -40,10 +39,10 @@ function sendMsg() {
   inp.style.height = 'auto';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Zentrale Data‑Handler (empfangene Nachrichten)
 function handleData(d) {
-  // Text
+  // Grundgröße des empfangenen Objekts schätzen
+  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
+
   if (d.t === 'text') {
     const m = { ...d, own: false };
     appendMsg(m);
@@ -51,10 +50,7 @@ function handleData(d) {
     notify(d.text);
     playNotificationSound();
     triggerHaptic();
-  }
-
-  // Typing-Indikator
-  else if (d.t === 'typing') {
+  } else if (d.t === 'typing') {
     if (d.state === 'start') {
       if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
       partnerTypingTimer = setTimeout(() => {
@@ -67,36 +63,24 @@ function handleData(d) {
       partnerTypingTimer = null;
       refreshStatusText();
     }
-  }
-
-  // Datei (Chunking)
-  else if (d.t === 'f-start') {
+  } else if (d.t === 'f-start') {
     handleFileStart(d);
   } else if (d.t === 'f-chunk') {
     handleFileChunk(d);
   } else if (d.t === 'f-end') {
     handleFileEnd(d);
-  }
-
-  // Audio (Sprachnachricht)
-  else if (d.t === 'audio-start') {
+  } else if (d.t === 'audio-start') {
     handleAudioStart(d);
   } else if (d.t === 'audio-chunk') {
     handleAudioChunk(d);
   } else if (d.t === 'audio-end') {
     handleAudioEnd(d);
-  }
-
-  // Standort-Update
-  else if (d.t === 'location_update') {
+  } else if (d.t === 'location_update') {
     partnerPosition = { lat: d.lat, lng: d.lng, accuracy: d.accuracy };
     updatePartnerMarker(d.lat, d.lng);
     document.getElementById('location-status-text').textContent = '📍 Partner online';
     updateDistanceDisplay();
-  }
-
-  // Album-Anfragen (Partner)
-  else if (d.t === 'album_list_request') {
+  } else if (d.t === 'album_list_request') {
     getAllAlbums().then(async albums => {
       const list = [];
       for (const album of albums) {
@@ -105,15 +89,11 @@ function handleData(d) {
       }
       if (conn && conn.open) conn.send({ t: 'album_list_response', list });
     }).catch(e => console.warn(e));
-  }
-
-  else if (d.t === 'album_list_response') {
+  } else if (d.t === 'album_list_response') {
     const albums = d.list || [];
     if (albums.length) showPartnerAlbumsSheet(albums);
     else toast('ℹ️ Partner hat keine Alben');
-  }
-
-  else if (d.t === 'album_images_request') {
+  } else if (d.t === 'album_images_request') {
     const albumId = d.albumId;
     getPhotosByAlbum(albumId).then(photos => {
       conn.send({ t: 'album_images_meta', albumId, total: photos.length });
@@ -135,9 +115,7 @@ function handleData(d) {
       }
       conn.send({ t: 'album_images_end', albumId });
     }).catch(e => console.warn(e));
-  }
-
-  else if (d.t === 'album_images_meta') {
+  } else if (d.t === 'album_images_meta') {
     let meta = pendingAlbumMeta.get(d.albumId);
     if (!meta) {
       meta = { expectedCount: d.total, receivedCount: 0, images: [], timeout: null };
@@ -154,19 +132,13 @@ function handleData(d) {
       }
       pendingAlbumMeta.delete(d.albumId);
     }, 20000);
-  }
-
-  else if (d.t === 'album_image_chunk') {
+  } else if (d.t === 'album_image_chunk') {
     handleAlbumImageChunk(d);
-  }
-
-  else if (d.t === 'album_images_end') {
+  } else if (d.t === 'album_images_end') {
     handleAlbumImagesEnd(d.albumId);
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Benachrichtigungen (In-App + Push)
 function notify(text) {
   const onChat = document.getElementById('s-chat').classList.contains('active');
   if (!onChat || document.hidden) {
@@ -205,4 +177,4 @@ function inAppNotif(from, text) {
 function switchToChat() {
   document.getElementById('in-notif').classList.remove('show');
   showScreen('s-chat');
-}
+      }
