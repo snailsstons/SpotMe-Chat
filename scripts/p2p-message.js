@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – NACHRICHTEN & DATA-HANDLER (p2p-message.js)
 // Textnachrichten senden/empfangen, Typing-Indikator, Pending-Queue
-// + Traffic‑Messung
+// + Traffic‑Messung (mit Fallback)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function sendMsg() {
@@ -31,7 +31,10 @@ function sendMsg() {
 
   const m = { t: 'text', text, ts: Date.now() };
   const payload = JSON.stringify(m);
-  Traffic.recordP2PSent(new Blob([payload]).size);
+  // Traffic messen (wenn verfügbar)
+  if (typeof Traffic !== 'undefined' && Traffic) {
+    Traffic.recordP2PSent(new Blob([payload]).size);
+  }
   conn.send(m);
   appendMsg({ ...m, own: true });
   persistMsg({ ...m, own: true });
@@ -41,7 +44,9 @@ function sendMsg() {
 
 function handleData(d) {
   // Grundgröße des empfangenen Objekts schätzen
-  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
+  if (typeof Traffic !== 'undefined' && Traffic) {
+    Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
+  }
 
   if (d.t === 'text') {
     const m = { ...d, own: false };
@@ -177,4 +182,4 @@ function inAppNotif(from, text) {
 function switchToChat() {
   document.getElementById('in-notif').classList.remove('show');
   showScreen('s-chat');
-      }
+             }
