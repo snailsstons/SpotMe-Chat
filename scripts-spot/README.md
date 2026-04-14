@@ -46,3 +46,17 @@ Die Module müssen in der angegebenen Reihenfolge geladen werden.
 <script src="scripts-spot/spot-keepalive.js"></script>
 <script src="scripts-spot/spot-init.js"></script>
 <script src="scripts-spot/spot-gay.js"></script>
+
+SPOT               string   Wird in Spot‑Datei gesetzt ('gay', 'dates', 'general')
+CACHE_KEY          string   localStorage‑Key für Profil‑Cache
+API                string   REST‑API Endpunkt
+myCode             string   Eigener 6‑stelliger Code (aus localStorage)
+myToken            string   Authentifizierungs‑Token
+isPublished        boolean  Profil in Community sichtbar?
+isSharingLocation  boolean  Standort wird geteilt?
+allProfiles        array    Alle geladenen Profile
+filtered           array    Gefilterte Profile (Anzeige)
+userPosition       object   Eigene GPS‑Position { lat, lng }
+locationCache      Map      Zwischenspeicher für Standorte
+onlineStatusCache  Map      Online‑Status der Profile
+verificationCache  Map      Verifikationen der Profile
