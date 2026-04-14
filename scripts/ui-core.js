@@ -5,8 +5,6 @@
 // Screen-Management, Sheets, Status-Badge, Menüs + Info-Modal
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen wechseln
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -18,8 +16,6 @@ function showScreen(id) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status-Badge (Header)
 function setSpill(type, text) {
   const badge = document.getElementById('header-status');
   if (!badge) return;
@@ -56,8 +52,6 @@ function showCodeCard(show) {
   updateConnectionStatus();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sheets (Bottom Sheets)
 function openSheet() {
   document.getElementById('sovl').classList.add('open');
   document.getElementById('sheet').classList.add('open');
@@ -68,8 +62,6 @@ function closeSheet() {
   document.getElementById('sheet').classList.remove('open');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Home-Menü (⋮)
 function toggleHomeMenu(e) {
   e.stopPropagation();
   document.getElementById('home-drop').classList.toggle('open');
@@ -79,8 +71,6 @@ function closeHomeMenu() {
   document.getElementById('home-drop').classList.remove('open');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Zurück zum Home-Screen (Chat beenden)
 function goHome() {
   stopRingingTone();
   
@@ -122,8 +112,6 @@ function goHome() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Offline gehen (manuell)
 function goOffline() {
   if (!confirm('Verbindung zum Server trennen?')) return;
   if (conn) {
@@ -170,4 +158,4 @@ function showInfoModal(title, message, buttonText = 'OK') {
   const okBtn = document.getElementById('info-modal-ok');
   okBtn.textContent = buttonText;
   modal.style.display = 'flex';
-        }
+      }
