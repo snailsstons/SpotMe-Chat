@@ -7,6 +7,7 @@
 
 let peerRetries = 0;
 let heartbeatInterval = null;
+let autoReconnectPending = false; // Für lokalen Start mit späterer Verbindung
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PeerJS initialisieren
@@ -39,6 +40,15 @@ function initPeer() {
     showCodeCard(true);
     updateConnectionStatus();
     startHeartbeat();
+
+    // Wenn wir bereits einen partnerCode haben, aber keine aktive Verbindung
+    // (z.B. weil wir im lokalen Modus gestartet sind), dann jetzt verbinden
+    if (autoReconnectPending && partnerCode && !conn) {
+      autoReconnectPending = false;
+      toast('🔄 Verbindung wird hergestellt...');
+      const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
+      openChat(newConn);
+    }
   });
 
   peer.on('error', err => {
@@ -148,15 +158,38 @@ function tryReconnect() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chat öffnen (nach erfolgreichem Verbindungsaufbau)
+// Chat öffnen – unterstützt jetzt auch `c = null` für lokalen Modus
 function openChat(c) {
+  // Alte Verbindung schließen
   if (conn && conn !== c) {
     try { conn.close(); } catch (e) {}
   }
   conn = c;
+
+  // UI immer vorbereiten
   prepChat();
   showScreen('s-chat');
 
+  // Lokaler Modus (c === null): Keine Data‑Handler, nur UI
+  if (!c) {
+    document.getElementById('sbtn').disabled = true;
+    document.getElementById('rcbar').classList.remove('show');
+    refreshStatusText();
+    document.getElementById('pav').className = 'pav offline';
+    const h = document.getElementById('ehint');
+    if (h) {
+      h.innerHTML = `<div class="empty-icon">📴</div>
+        <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
+        <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
+    }
+    updateIdx('');
+    setSpill('offline', '○ LOCAL');
+    updateConnectionStatus();
+    return;
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Online‑Modus: Data‑Handler registrieren
   const onOpen = () => {
     if (outgoingCallTimer) {
       clearTimeout(outgoingCallTimer);
@@ -226,4 +259,9 @@ function openChat(c) {
     document.getElementById('rcbar').classList.add('show');
     updateConnectionStatus();
   });
+}
+
+// Hilfsfunktion: Auto-Reconnect nach Server-Start merken
+function markAutoReconnect() {
+  autoReconnectPending = true;
 }
