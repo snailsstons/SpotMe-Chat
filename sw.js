@@ -8,6 +8,7 @@
 const CACHE  = 'spotme-v28';
 const ASSETS = [
   './',
+  './scripts',
   './index.html',
   './manifest.json',
   './pwa_180.png',
