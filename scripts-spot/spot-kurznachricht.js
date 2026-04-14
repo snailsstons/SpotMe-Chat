@@ -6,17 +6,21 @@
 
 let _kurznachrichtTarget = null;
 
-// Pending‑Queue für Offline‑Kurznachrichten (eigener Storage‑Key pro Spot)
-const PENDING_MSG_KEY = `spot_pending_msg_${SPOT}`;
+// Hilfsfunktion – nutzt das globale SPOT (das später gesetzt wird)
+function getPendingMsgKey() {
+  return `spot_pending_msg_${SPOT}`;
+}
 
 function loadPendingMessages() {
-  const stored = localStorage.getItem(PENDING_MSG_KEY);
+  const key = getPendingMsgKey();
+  const stored = localStorage.getItem(key);
   return stored ? JSON.parse(stored) : [];
 }
 
 function savePendingMessages(msgs) {
-  if (msgs.length === 0) localStorage.removeItem(PENDING_MSG_KEY);
-  else localStorage.setItem(PENDING_MSG_KEY, JSON.stringify(msgs));
+  const key = getPendingMsgKey();
+  if (msgs.length === 0) localStorage.removeItem(key);
+  else localStorage.setItem(key, JSON.stringify(msgs));
 }
 
 function addPendingMessage(recipient, text, senderName) {
@@ -77,7 +81,7 @@ async function submitKurznachricht() {
   const btn = document.getElementById('kurznachr-btn');
   const senderName = myProfile?.name || myCode;
 
-  // Prüfen, ob wir online sind (Herzstück: PeerReady aus der Haupt‑App oder navigator.onLine)
+  // Prüfen, ob wir online sind
   const online = (typeof peerReady !== 'undefined' && peerReady) || navigator.onLine;
 
   if (!online) {
@@ -120,4 +124,4 @@ async function submitKurznachricht() {
     btn.disabled = false;
     btn.textContent = '📨 Senden';
   }
-}
+  }
