@@ -16,7 +16,8 @@ function initPeer() {
   }
   peer = null;
   peerReady = false;
-  setSpill('connecting', 'Verbinde mit Server...');
+  // ❌ KEIN setSpill mehr – updateConnectionStatus übernimmt
+  updateConnectionStatus();
 
   peer = new Peer(myCode, {
     host: SERVER_HOST,
@@ -36,7 +37,7 @@ function initPeer() {
     peerRetries = 0;
     isOffline = false;
     peerReady = true;
-    setSpill('online', '● ONLINE');
+    // ❌ setSpill entfernt
     showCodeCard(true);
     updateConnectionStatus();
     startHeartbeat();
@@ -54,7 +55,7 @@ function initPeer() {
     if (err.type === 'unavailable-id') {
       peerRetries++;
       const delay = Math.min(3000 * peerRetries, 15000);
-      setSpill('connecting', `Code kurz belegt · Neuer Versuch in ${delay / 1000}s...`);
+      // ❌ kein setSpill
       setTimeout(() => {
         peer = null;
         initPeer();
@@ -75,13 +76,11 @@ function initPeer() {
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
     }
-    // Alle anderen Fehler → still in Local-Modus wechseln, KEINE Toast-Meldung
+    // Andere Fehler → Local-Modus
     isOffline = true;
     updateConnectionStatus();
     peerRetries++;
     const delay = Math.min(4000 * peerRetries, 20000);
-    // Status nur auf LOCAL setzen, keine Fehlermeldung
-    setSpill('offline', '○ LOCAL');
     setTimeout(() => {
       peer = null;
       initPeer();
@@ -92,7 +91,6 @@ function initPeer() {
     peerReady = false;
     isOffline = true;
     updateConnectionStatus();
-    setSpill('offline', '○ LOCAL');  // ← Statt "Unterbrochen · verbinde erneut..."
     setTimeout(() => {
       peer = null;
       initPeer();
@@ -142,14 +140,10 @@ function startHeartbeat() {
 }
 
 function tryReconnect() {
-  // Wenn offline, einfach lokal weitermachen – keine Toast-Meldung
   if (!partnerCode || !peerReady) {
-    // Leise nichts tun, Status bleibt auf LOCAL
     return;
   }
   document.getElementById('rcbar').classList.remove('show');
-  // Kurze Info, aber nicht störend
-  toast('↺ Verbinde erneut...', 1500);
   openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
 }
 
@@ -173,7 +167,7 @@ function openChat(c) {
         <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
     }
     updateIdx('');
-    setSpill('offline', '○ LOCAL');
+    // ❌ kein setSpill mehr
     updateConnectionStatus();
     return;
   }
@@ -202,7 +196,7 @@ function openChat(c) {
     updateIdx('');
     toast('✓ Verbunden');
     flushPendingMessages();
-    setSpill('online', '● ONLINE');
+    // ❌ kein setSpill
     updateConnectionStatus();
   };
 
