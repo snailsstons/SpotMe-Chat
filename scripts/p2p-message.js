@@ -148,7 +148,6 @@ function handleData(d) {
   }
 }
 
-// ... (notify, pushNotif, inAppNotif, switchToChat unverändert) ...
 function notify(text) {
   const onChat = document.getElementById('s-chat').classList.contains('active');
   if (!onChat || document.hidden) {
@@ -187,4 +186,4 @@ function inAppNotif(from, text) {
 function switchToChat() {
   document.getElementById('in-notif').classList.remove('show');
   showScreen('s-chat');
-}
+             }
