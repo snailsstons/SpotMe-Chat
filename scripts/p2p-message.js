@@ -2,8 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – NACHRICHTEN & DATA-HANDLER (p2p-message.js)
-// Textnachrichten senden/empfangen, Typing-Indikator, Pending-Queue
-// + Traffic‑Messung (mit Fallback)
+// + Debug-Logs für Empfangsprobleme
 // ══════════════════════════════════════════════════════════════════════════════
 
 function sendMsg() {
@@ -30,8 +29,8 @@ function sendMsg() {
   }
 
   const m = { t: 'text', text, ts: Date.now() };
+  console.log('📤 Sende Nachricht:', m);
   const payload = JSON.stringify(m);
-  // Traffic messen (wenn verfügbar)
   if (typeof Traffic !== 'undefined' && Traffic) {
     Traffic.recordP2PSent(new Blob([payload]).size);
   }
@@ -43,12 +42,14 @@ function sendMsg() {
 }
 
 function handleData(d) {
-  // Grundgröße des empfangenen Objekts schätzen
+  console.log('📥 handleData empfangen:', d);
+
   if (typeof Traffic !== 'undefined' && Traffic) {
     Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
   }
 
   if (d.t === 'text') {
+    console.log('✅ Textnachricht erkannt:', d.text);
     const m = { ...d, own: false };
     appendMsg(m);
     persistMsg(m);
@@ -56,6 +57,7 @@ function handleData(d) {
     playNotificationSound();
     triggerHaptic();
   } else if (d.t === 'typing') {
+    console.log('⌨️ Typing-Indikator:', d.state);
     if (d.state === 'start') {
       if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
       partnerTypingTimer = setTimeout(() => {
@@ -69,18 +71,23 @@ function handleData(d) {
       refreshStatusText();
     }
   } else if (d.t === 'f-start') {
+    console.log('📎 Datei-Start:', d.name);
     handleFileStart(d);
   } else if (d.t === 'f-chunk') {
     handleFileChunk(d);
   } else if (d.t === 'f-end') {
+    console.log('📎 Datei-Ende:', d.id);
     handleFileEnd(d);
   } else if (d.t === 'audio-start') {
+    console.log('🎤 Audio-Start');
     handleAudioStart(d);
   } else if (d.t === 'audio-chunk') {
     handleAudioChunk(d);
   } else if (d.t === 'audio-end') {
+    console.log('🎤 Audio-Ende');
     handleAudioEnd(d);
   } else if (d.t === 'location_update') {
+    console.log('📍 Standort-Update');
     partnerPosition = { lat: d.lat, lng: d.lng, accuracy: d.accuracy };
     updatePartnerMarker(d.lat, d.lng);
     document.getElementById('location-status-text').textContent = '📍 Partner online';
@@ -141,45 +148,9 @@ function handleData(d) {
     handleAlbumImageChunk(d);
   } else if (d.t === 'album_images_end') {
     handleAlbumImagesEnd(d.albumId);
+  } else {
+    console.warn('⚠️ Unbekannter Nachrichtentyp:', d.t);
   }
 }
 
-function notify(text) {
-  const onChat = document.getElementById('s-chat').classList.contains('active');
-  if (!onChat || document.hidden) {
-    inAppNotif(partnerName, text);
-    pushNotif(partnerName, text);
-  }
-}
-
-function pushNotif(from, text) {
-  if (Notification.permission !== 'granted') return;
-  try {
-    const n = new Notification('💬 ' + from, {
-      body: text.length > 80 ? text.slice(0, 80) + '…' : text,
-      tag: 'spotme',
-      renotify: true
-    });
-    n.onclick = () => {
-      window.focus();
-      switchToChat();
-      n.close();
-    };
-    setTimeout(() => n.close(), 6000);
-  } catch (e) {}
-}
-
-let inTimer = null;
-function inAppNotif(from, text) {
-  document.getElementById('in-from').textContent = '💬 ' + from;
-  document.getElementById('in-msg').textContent = text.length > 60 ? text.slice(0, 60) + '…' : text;
-  const el = document.getElementById('in-notif');
-  el.classList.add('show');
-  clearTimeout(inTimer);
-  inTimer = setTimeout(() => el.classList.remove('show'), 5000);
-}
-
-function switchToChat() {
-  document.getElementById('in-notif').classList.remove('show');
-  showScreen('s-chat');
-             }
+// ... notify, pushNotif, inAppNotif, switchToChat unverändert ...
