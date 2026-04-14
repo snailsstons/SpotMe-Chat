@@ -3,7 +3,34 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – UI CORE (ui-core.js)
 // Screen-Management, Sheets, Status-Badge, Menüs + Info-Modal
+// + Lokal‑Modus‑Timer für Usage‑Statistiken
 // ══════════════════════════════════════════════════════════════════════════════
+
+let localModeStartTime = null;
+let localModeTimer = null;
+
+function startLocalModeTimer() {
+  if (localModeTimer) return;
+  localModeStartTime = Date.now();
+  localModeTimer = setInterval(() => {
+    if (typeof Usage !== 'undefined') {
+      Usage.addLocalModeTime(10000);
+    }
+  }, 10000);
+}
+
+function stopLocalModeTimer() {
+  if (!localModeTimer) return;
+  clearInterval(localModeTimer);
+  localModeTimer = null;
+  if (localModeStartTime) {
+    const elapsed = Date.now() - localModeStartTime;
+    if (typeof Usage !== 'undefined') {
+      Usage.addLocalModeTime(elapsed);
+    }
+    localModeStartTime = null;
+  }
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -36,9 +63,11 @@ function updateConnectionStatus() {
   if (online) {
     badge.innerHTML = '● ONLINE';
     badge.className = 'status-badge online';
+    stopLocalModeTimer();
   } else {
     badge.innerHTML = '○ LOCAL';
     badge.className = 'status-badge local';
+    startLocalModeTimer();
   }
   
   if (banner) {
@@ -129,8 +158,6 @@ function goOffline() {
   updateConnectionStatus();
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// NEU: Info-Modal (OK bestätigen)
 function showInfoModal(title, message, buttonText = 'OK') {
   let modal = document.getElementById('info-modal');
   if (!modal) {
@@ -158,4 +185,4 @@ function showInfoModal(title, message, buttonText = 'OK') {
   const okBtn = document.getElementById('info-modal-ok');
   okBtn.textContent = buttonText;
   modal.style.display = 'flex';
-      }
+}
