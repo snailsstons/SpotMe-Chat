@@ -59,9 +59,7 @@
 
 <div class="stats-card">
   <h2 style="margin-top:0; margin-bottom:1rem;">📊 Deine Nutzung</h2>
-  <div id="stats-container">
-    <!-- Wird per JS gefüllt -->
-  </div>
+  <div id="stats-container"></div>
 </div>
 
 <div class="stats-card">
@@ -86,33 +84,22 @@
 
 <button onclick="window.location.href='index.html'" style="width:100%; padding:1rem; background:var(--acc); color:var(--bg); border:none; border-radius:40px; font-weight:700; margin-top:1rem;">Zurück zur App</button>
 
+<script src="scripts/usage-stats.js"></script>
 <script>
-  // Hilfsfunktionen aus utils.js (müssen hier dupliziert oder über globales Objekt verfügbar sein)
-  function getUsageStats() {
-    const raw = localStorage.getItem('sm_usage_stats');
-    return raw ? JSON.parse(raw) : { sessions: [], messagesSent: 0, localTime: 0 };
-  }
-
   function formatDuration(ms) {
-    if (ms < 60000) return 'weniger als 1 Min';
+    if (!ms || ms < 60000) return 'weniger als 1 Min';
     const mins = Math.floor(ms / 60000);
     if (mins < 60) return `${mins} Min`;
     const hours = Math.floor(mins / 60);
     return `${hours} Std ${mins % 60} Min`;
   }
 
-  function calculateScore() {
-    const stats = getUsageStats();
-    const recentSessions = stats.sessions.filter(s => Date.now() - s.start < 2 * 60 * 60 * 1000).length;
-    return Math.min(10, recentSessions * 2);
-  }
-
   function renderStats() {
-    const stats = getUsageStats();
+    const stats = Usage.getStats();
     const todaySessions = stats.sessions.filter(s => new Date(s.start).toDateString() === new Date().toDateString()).length;
     const totalMessages = stats.messagesSent || 0;
-    const localTime = stats.localTime || 0;
-    const score = calculateScore();
+    const localTime = stats.localModeTime || 0;
+    const score = Usage.calculateUsageScore();
 
     document.getElementById('stats-container').innerHTML = `
       <div class="stat-row"><span>Heutige Sitzungen</span><span class="stat-value">${todaySessions}</span></div>
@@ -129,4 +116,4 @@
   renderStats();
 </script>
 </body>
-  </html>
+</html>
