@@ -5,8 +5,8 @@
 // Verschlüsselte Profilsicherung (Code, Kontakte, Chats, Alben)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Backup-Zwischenspeicher für Passwort-Import
-let pendingRestoreFile = null;
+// ❌ KEINE Deklaration von pendingRestoreFile – kommt aus config.js
+// let pendingRestoreFile = null;   ← ENTFERNT!
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modals für Backup-Passwort
