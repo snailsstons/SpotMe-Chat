@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
+// + Info-Modal für Bestätigungen
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,6 +132,12 @@ function addPendingMessage(text) {
   pendingMessages.push({ text, ts: Date.now() });
   savePendingMessages();
   updatePendingBadge();
+  // Info-Modal statt Toast
+  showInfoModal(
+    '📦 Lokal gespeichert',
+    `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
+    'Verstanden'
+  );
 }
 
 function clearPendingMessages() {
@@ -167,12 +174,16 @@ function flushPendingMessages() {
     appendMsg({ ...m, own: true });
     persistMsg({ ...m, own: true });
   }
-  toast(`📨 ${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} gesendet`);
+  // Info-Modal statt Toast
+  showInfoModal(
+    '✅ Nachrichten gesendet',
+    `${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
+    'OK'
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 FEHLENDE FUNKTION: updatePendingBadge
-// Zeigt am Senden‑Button die Anzahl wartender Nachrichten an
+// updatePendingBadge – Badge am Senden-Button
 function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
@@ -206,4 +217,4 @@ function updatePendingBadge() {
 // Chat-Verlauf (smmsg_*) und sm_idx
 function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
-}
+        }
