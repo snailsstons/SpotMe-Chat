@@ -3,10 +3,9 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – FILE & AUDIO TRANSFER (p2p-file.js)
 // Chunking für Dateien und Sprachnachrichten, Fortschrittsbalken
+// + Traffic‑Messung
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Datei senden (ausgelöst durch File-Input)
 async function sendFile(inp) {
   const f = inp.files[0];
   inp.value = '';
@@ -26,13 +25,19 @@ async function sendFile(inp) {
   }
   const id = Math.random().toString(36).slice(2, 10);
   const total = Math.ceil(f.size / CHUNK);
-  conn.send({ t: 'f-start', id, name: f.name, type: f.type, size: f.size, total });
+  const metaMsg = { t: 'f-start', id, name: f.name, type: f.type, size: f.size, total };
+  Traffic.recordP2PSent(new Blob([JSON.stringify(metaMsg)]).size);
+  conn.send(metaMsg);
   showUP(true);
   toast(`📤 Sende "${f.name}"...`);
   const reader = new FileReader();
   let off = 0, idx = 0;
   reader.onload = async e => {
-    conn.send({ t: 'f-chunk', id, idx, data: e.target.result });
+    const chunkData = e.target.result;
+    const chunkMsg = { t: 'f-chunk', id, idx, data: chunkData };
+    // Größe des Chunks (Daten + Overhead) schätzen
+    Traffic.recordP2PSent(new Blob([JSON.stringify({ t: 'f-chunk', id, idx, data: '' })]).size + chunkData.byteLength);
+    conn.send(chunkMsg);
     off += CHUNK;
     idx++;
     document.getElementById('upb').style.width = Math.floor((idx / total) * 100) + '%';
@@ -40,7 +45,9 @@ async function sendFile(inp) {
       if (idx % 10 === 0) await new Promise(r => setTimeout(r, 20));
       reader.readAsArrayBuffer(f.slice(off, off + CHUNK));
     } else {
-      conn.send({ t: 'f-end', id });
+      const endMsg = { t: 'f-end', id };
+      Traffic.recordP2PSent(new Blob([JSON.stringify(endMsg)]).size);
+      conn.send(endMsg);
       showUP(false);
       toast(`✅ "${f.name}" gesendet!`);
       const url = await fileToB64(f);
@@ -60,7 +67,6 @@ async function sendFile(inp) {
   reader.readAsArrayBuffer(f.slice(0, CHUNK));
 }
 
-// Fortschrittsbalken ein-/ausblenden
 function showUP(v) {
   document.getElementById('upw').style.opacity = v ? '1' : '0';
   if (!v) {
@@ -70,7 +76,6 @@ function showUP(v) {
   }
 }
 
-// Datei zu Base64 (für lokale Speicherung/Anzeige)
 function fileToB64(f) {
   return new Promise(r => {
     const rd = new FileReader();
@@ -79,9 +84,8 @@ function fileToB64(f) {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Empfang von Datei-Chunks (wird von handleData in p2p-message aufgerufen)
 function handleFileStart(d) {
+  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
   fileBufs[d.id] = {
     meta: d,
     chunks: new Array(d.total).fill(null)
@@ -90,11 +94,14 @@ function handleFileStart(d) {
 }
 
 function handleFileChunk(d) {
+  // Größe des Chunks (Daten) schätzen – d.data ist ein ArrayBuffer
+  Traffic.recordP2PReceived(new Blob([JSON.stringify({ t: 'f-chunk', id: d.id, idx: d.idx })]).size + (d.data?.byteLength || 0));
   const b = fileBufs[d.id];
   if (b) b.chunks[d.idx] = d.data;
 }
 
 function handleFileEnd(d) {
+  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
   const b = fileBufs[d.id];
   if (!b) return;
   const valid = b.chunks.filter(c => c !== null);
@@ -124,9 +131,8 @@ function handleFileEnd(d) {
   rd.readAsDataURL(blob);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sprachnachrichten (Audio) – Empfang
 function handleAudioStart(d) {
+  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
   fileBufs[d.id] = {
     meta: d,
     chunks: new Array(d.total).fill(null)
@@ -135,11 +141,13 @@ function handleAudioStart(d) {
 }
 
 function handleAudioChunk(d) {
+  Traffic.recordP2PReceived(new Blob([JSON.stringify({ t: 'audio-chunk', id: d.id, idx: d.idx })]).size + (d.data?.byteLength || 0));
   const b = fileBufs[d.id];
   if (b) b.chunks[d.idx] = d.data;
 }
 
 function handleAudioEnd(d) {
+  Traffic.recordP2PReceived(new Blob([JSON.stringify(d)]).size);
   const b = fileBufs[d.id];
   if (!b) return;
   const valid = b.chunks.filter(c => c !== null);
@@ -162,4 +170,4 @@ function handleAudioEnd(d) {
   playNotificationSound();
   triggerHaptic();
   delete fileBufs[d.id];
-}
+                                  }
