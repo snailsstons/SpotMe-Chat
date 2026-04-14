@@ -15,7 +15,7 @@ function initPeer() {
     try { peer.destroy(); } catch (e) {}
   }
   peer = null;
-  peerReady = false;   // ← Zurücksetzen
+  peerReady = false;
   setSpill('connecting', 'Verbinde mit Server...');
 
   peer = new Peer(myCode, {
@@ -35,7 +35,7 @@ function initPeer() {
   peer.on('open', () => {
     peerRetries = 0;
     isOffline = false;
-    peerReady = true;   // ← Peer ist bereit
+    peerReady = true;
     setSpill('online', '● ONLINE');
     showCodeCard(true);
     updateConnectionStatus();
@@ -43,7 +43,6 @@ function initPeer() {
 
     if (autoReconnectPending && partnerCode && !conn) {
       autoReconnectPending = false;
-      toast('🔄 Verbindung wird hergestellt...');
       const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
       openChat(newConn);
     }
@@ -51,7 +50,7 @@ function initPeer() {
 
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
-    peerReady = false;   // ← Bei Fehler nicht bereit
+    peerReady = false;
     if (err.type === 'unavailable-id') {
       peerRetries++;
       const delay = Math.min(3000 * peerRetries, 15000);
@@ -76,12 +75,13 @@ function initPeer() {
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
     }
-    // Andere Fehler → Local-Modus
+    // Alle anderen Fehler → still in Local-Modus wechseln, KEINE Toast-Meldung
     isOffline = true;
     updateConnectionStatus();
     peerRetries++;
     const delay = Math.min(4000 * peerRetries, 20000);
-    setSpill('offline', `⚠️ Verbindungsfehler · Retry in ${delay / 1000}s`);
+    // Status nur auf LOCAL setzen, keine Fehlermeldung
+    setSpill('offline', '○ LOCAL');
     setTimeout(() => {
       peer = null;
       initPeer();
@@ -89,10 +89,10 @@ function initPeer() {
   });
 
   peer.on('disconnected', () => {
-    peerReady = false;   // ← Bei Disconnect nicht bereit
+    peerReady = false;
     isOffline = true;
     updateConnectionStatus();
-    setSpill('connecting', 'Unterbrochen · verbinde erneut...');
+    setSpill('offline', '○ LOCAL');  // ← Statt "Unterbrochen · verbinde erneut..."
     setTimeout(() => {
       peer = null;
       initPeer();
@@ -142,12 +142,14 @@ function startHeartbeat() {
 }
 
 function tryReconnect() {
+  // Wenn offline, einfach lokal weitermachen – keine Toast-Meldung
   if (!partnerCode || !peerReady) {
-    toast('↺ Warte auf Serververbindung...');
+    // Leise nichts tun, Status bleibt auf LOCAL
     return;
   }
   document.getElementById('rcbar').classList.remove('show');
-  toast('↺ Verbinde erneut...');
+  // Kurze Info, aber nicht störend
+  toast('↺ Verbinde erneut...', 1500);
   openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
 }
 
