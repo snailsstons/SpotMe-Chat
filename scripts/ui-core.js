@@ -32,8 +32,8 @@ function setSpill(type, text) {
 }
 
 function updateConnectionStatus() {
-  const online = peer && peer.open && !isOffline;
-  const badge = document.getElementById('header-status');
+const online = !!(peer && peer.open && !isOffline);
+const badge = document.getElementById('header-status');
   const banner = document.getElementById('local-mode-banner');
   
   if (!badge) return;

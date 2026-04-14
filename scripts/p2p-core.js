@@ -34,20 +34,15 @@ function initPeer() {
   });
 
   peer.on('open', () => {
-    peerRetries = 0;
-    isOffline = false;
-    peerReady = true;
-    // ❌ setSpill entfernt
-    showCodeCard(true);
-    updateConnectionStatus();
-    startHeartbeat();
-
-    if (autoReconnectPending && partnerCode && !conn) {
-      autoReconnectPending = false;
-      const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
-      openChat(newConn);
-    }
-  });
+  peerRetries = 0;
+  isOffline = false;
+  peerReady = true;
+  showCodeCard(true);
+  startHeartbeat();
+  // Kurz warten, bis peer.open wirklich true ist
+  setTimeout(() => updateConnectionStatus(), 20);
+  // ...
+});
 
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
