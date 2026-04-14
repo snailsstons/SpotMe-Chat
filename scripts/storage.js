@@ -6,8 +6,6 @@
 // + Info-Modal für Bestätigungen
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Kontakte (Aliase)
 function getContacts() {
   return JSON.parse(localStorage.getItem('sm_contacts') || '{}');
 }
@@ -27,8 +25,6 @@ function localName(code, fallback) {
   return getContacts()[code] || fallback || ('Nutzer_' + code.slice(0, 4));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Verpasste Anrufe
 function getMissed() {
   return JSON.parse(localStorage.getItem('sm_missed') || '[]');
 }
@@ -60,8 +56,6 @@ async function addMissed(code, name, outgoing = false) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Offline-Nachrichten (Server-API)
 async function fetchOfflineMessages() {
   if (!myToken) return [];
   try {
@@ -105,8 +99,6 @@ async function fetchRemoteMissedCalls() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pending Messages (Warteschlange für Offline-Nachrichten)
 function getPendingStorageKey() {
   return chatId ? 'sm_pending_' + chatId : 'sm_pending_temp';
 }
@@ -132,7 +124,6 @@ function addPendingMessage(text) {
   pendingMessages.push({ text, ts: Date.now() });
   savePendingMessages();
   updatePendingBadge();
-  // Info-Modal statt Toast
   showInfoModal(
     '📦 Lokal gespeichert',
     `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
@@ -174,7 +165,6 @@ function flushPendingMessages() {
     appendMsg({ ...m, own: true });
     persistMsg({ ...m, own: true });
   }
-  // Info-Modal statt Toast
   showInfoModal(
     '✅ Nachrichten gesendet',
     `${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
@@ -182,8 +172,6 @@ function flushPendingMessages() {
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// updatePendingBadge – Badge am Senden-Button
 function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
@@ -213,8 +201,6 @@ function updatePendingBadge() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Chat-Verlauf (smmsg_*) und sm_idx
 function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
-        }
+}
