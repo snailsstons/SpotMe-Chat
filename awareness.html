@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpotMe · Achtsamkeit</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .stats-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--bord);
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--bord);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-value {
+      font-weight: 700;
+      color: var(--acc);
+    }
+    .badge {
+      display: inline-block;
+      background: var(--bg2);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .philosophy {
+      font-style: italic;
+      padding: 1rem;
+      background: rgba(0,229,192,0.05);
+      border-radius: 16px;
+      margin: 1.5rem 0;
+    }
+    .back-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0 0.5rem;
+    }
+  </style>
+</head>
+<body style="padding:1rem; max-width:600px; margin:0 auto;">
+
+<header style="display:flex; align-items:center; margin-bottom:2rem;">
+  <button class="back-btn" onclick="window.location.href='index.html'">←</button>
+  <h1 style="flex:1; text-align:center; font-family:'Syne',sans-serif;">Achtsamkeit</h1>
+  <div style="width:40px;"></div>
+</header>
+
+<div class="stats-card">
+  <h2 style="margin-top:0; margin-bottom:1rem;">📊 Deine Nutzung</h2>
+  <div id="stats-container">
+    <!-- Wird per JS gefüllt -->
+  </div>
+</div>
+
+<div class="stats-card">
+  <h2 style="margin-top:0; margin-bottom:1rem;">🧘 Adaptive Benachrichtigungen</h2>
+  <p>SpotME passt sich deinem Nutzungsverhalten an – ganz lokal, ohne Tracking.</p>
+  <ul style="padding-left:1.2rem; color:var(--text-dim);">
+    <li>Wenig genutzt? Nachrichten kommen <strong>sofort</strong>.</li>
+    <li>Häufig aktiv? Wir <strong>bündeln</strong> Benachrichtigungen oder zeigen sie seltener.</li>
+  </ul>
+  <div class="philosophy">
+    💡 Ziel: Weniger Unterbrechungen, mehr bewusste Zeit. Du entscheidest, wann du erreichbar bist.
+  </div>
+  <p>Aktueller Score: <span id="score-display" class="badge" style="margin-left:0.5rem;">–</span></p>
+  <p><small>Je niedriger der Score, desto seltener bist du in der App – und desto schneller erreichst du uns.</small></p>
+</div>
+
+<div class="stats-card">
+  <h2 style="margin-top:0; margin-bottom:1rem;">📴 Lokal‑Modus Nutzen</h2>
+  <p>Im Lokal‑Modus werden Nachrichten gespeichert und erst bei Verbindung gesendet. Das spart Daten und schont deine Aufmerksamkeit.</p>
+  <div id="local-stats"></div>
+</div>
+
+<button onclick="window.location.href='index.html'" style="width:100%; padding:1rem; background:var(--acc); color:var(--bg); border:none; border-radius:40px; font-weight:700; margin-top:1rem;">Zurück zur App</button>
+
+<script>
+  // Hilfsfunktionen aus utils.js (müssen hier dupliziert oder über globales Objekt verfügbar sein)
+  function getUsageStats() {
+    const raw = localStorage.getItem('sm_usage_stats');
+    return raw ? JSON.parse(raw) : { sessions: [], messagesSent: 0, localTime: 0 };
+  }
+
+  function formatDuration(ms) {
+    if (ms < 60000) return 'weniger als 1 Min';
+    const mins = Math.floor(ms / 60000);
+    if (mins < 60) return `${mins} Min`;
+    const hours = Math.floor(mins / 60);
+    return `${hours} Std ${mins % 60} Min`;
+  }
+
+  function calculateScore() {
+    const stats = getUsageStats();
+    const recentSessions = stats.sessions.filter(s => Date.now() - s.start < 2 * 60 * 60 * 1000).length;
+    return Math.min(10, recentSessions * 2);
+  }
+
+  function renderStats() {
+    const stats = getUsageStats();
+    const todaySessions = stats.sessions.filter(s => new Date(s.start).toDateString() === new Date().toDateString()).length;
+    const totalMessages = stats.messagesSent || 0;
+    const localTime = stats.localTime || 0;
+    const score = calculateScore();
+
+    document.getElementById('stats-container').innerHTML = `
+      <div class="stat-row"><span>Heutige Sitzungen</span><span class="stat-value">${todaySessions}</span></div>
+      <div class="stat-row"><span>Gesendete Nachrichten (gesamt)</span><span class="stat-value">${totalMessages}</span></div>
+    `;
+
+    document.getElementById('local-stats').innerHTML = `
+      <div class="stat-row"><span>Zeit im Lokal‑Modus</span><span class="stat-value">${formatDuration(localTime)}</span></div>
+    `;
+
+    document.getElementById('score-display').textContent = `${score} / 10`;
+  }
+
+  renderStats();
+</script>
+</body>
+  </html>
