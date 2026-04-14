@@ -49,7 +49,7 @@ const pool = new Pool({
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
 const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
-const OFFLINE_MSG_RATE_MS = 5 * 5 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
+const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
 
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
@@ -503,11 +503,11 @@ app.post('/api/offline-message', async (req, res) => {
       `SELECT id FROM offline_messages
        WHERE sender_code = $1 AND recipient = $2
          AND created_at > NOW() - INTERVAL '1 hour'
-       LIMIT 1`,
+       LIMIT 10`,
       [senderCode, recipient]
     );
     if (rateCheck.rows.length > 0) {
-      return res.status(429).json({ error: 'Maximal 1 Nachricht pro Stunde pro Person' });
+      return res.status(429).json({ error: 'Maximal 10 Nachricht pro Stunde pro Person' });
     }
 
     // Max 50 ungelesene pro Empfänger
