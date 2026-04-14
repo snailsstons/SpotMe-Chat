@@ -93,17 +93,25 @@ function renderPrev() {
   }).join('');
 }
 
-// Zu altem Chat zurückkehren
+// Zu altem Chat zurückkehren (unterstützt jetzt lokalen Modus)
 function reconnectTo(code, name, cid) {
-  if (!peer || !peer.open) {
-    toast('⚠️ Warte auf Server...');
-    return;
-  }
   partnerCode = code;
   partnerName = name;
   chatId = cid;
   loadPendingMessages();
   migratePendingMessages(chatId);
+
+  // Wenn keine Serververbindung: lokal starten
+  if (!peer || !peer.open) {
+    toast('📴 Lokaler Modus – Nachrichten werden gespeichert');
+    openChat(null);
+    setSpill('offline', '○ LOCAL');
+    markAutoReconnect(); // merken, dass wir später verbinden wollen
+    return;
+  }
+
+  // Online: Verbindung herstellen
+  toast('↺ Verbinde...');
   openChat(peer.connect(code, { reliable: true, metadata: { name: myName } }));
 }
 
@@ -141,6 +149,7 @@ function clearMissed() {
   renderMissed();
 }
 
+// Zurückrufen (unterstützt jetzt lokalen Modus)
 function callBack(code) {
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
@@ -150,7 +159,7 @@ function callBack(code) {
     }
   });
   document.getElementById('cbtn').disabled = false;
-  connectToPeer();
+  connectToPeer(); // connectToPeer prüft selbst, ob lokal oder online
   setTimeout(() => {
     inps.forEach(d => {
       d.value = '';
