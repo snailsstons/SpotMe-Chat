@@ -35,7 +35,7 @@ Die App läuft unter:
 | Verschlüsselung | Web Crypto API (AES‑GCM für Backups) |
 
 ## 🧩 Projektstruktur
-```markdown
+
 # SpotMe · P2P Chat & Community Radar
 
 **Dezentral. Verschlüsselt. Offline-fähig.**  
