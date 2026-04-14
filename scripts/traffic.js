@@ -10,7 +10,6 @@ const Traffic = {
   serverSent: 0,
   serverReceived: 0,
 
-  // Von PeerJS‑Verbindungen aufrufen
   recordP2PSent(bytes) {
     this.p2pSent += bytes;
     this.updateUI();
@@ -19,8 +18,6 @@ const Traffic = {
     this.p2pReceived += bytes;
     this.updateUI();
   },
-
-  // Von fetch‑Instrumentierung
   recordServerSent(bytes) {
     this.serverSent += bytes;
     this.updateUI();
@@ -45,24 +42,31 @@ const Traffic = {
     if (b < 1024) return b + ' B';
     if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
     return (b / (1024 * 1024)).toFixed(2) + ' MB';
+  },
+
+  // Reset beim Start (optional)
+  reset() {
+    this.p2pSent = 0;
+    this.p2pReceived = 0;
+    this.serverSent = 0;
+    this.serverReceived = 0;
+    this.updateUI();
   }
 };
 
-// Überschreiben der globalen fetch‑Funktion, um Traffic zu messen
+// Überschreibe globales fetch für Server‑Traffic
 const originalFetch = window.fetch;
 window.fetch = async function(...args) {
   const request = new Request(...args);
   let requestBodySize = 0;
   if (request.body) {
-    // Grobe Schätzung – exakte Größe nur bei Blob/ArrayBuffer möglich
     const contentLength = request.headers.get('content-length');
     requestBodySize = contentLength ? parseInt(contentLength) : 0;
   }
   Traffic.recordServerSent(requestBodySize);
 
   const response = await originalFetch.apply(this, args);
-  
-  // Antwortgröße aus Content‑Length oder durch Klonen des Body (einfach)
+
   const contentLength = response.headers.get('content-length');
   const responseSize = contentLength ? parseInt(contentLength) : 0;
   Traffic.recordServerReceived(responseSize);
@@ -70,5 +74,4 @@ window.fetch = async function(...args) {
   return response;
 };
 
-// Exportiere Traffic global
 window.Traffic = Traffic;
