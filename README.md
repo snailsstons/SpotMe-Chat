@@ -18,7 +18,7 @@ SpotMe ist eine Progressive Web App (PWA) für direkte Peer‑to‑Peer‑Chats 
 ## 🚀 Live Demo
 
 Die App läuft unter:  
-👉 **[snailsstons.github.io](https://snailsstons.github.io/)**  
+👉 **[snailsstons.github.io](https://snailsstons.github.io/SpotME)**  
 
 *(Server‑Komponente auf Render gehostet – kann beim ersten Aufruf ca. 30 Sekunden zum Aufwachen brauchen.)*
 
@@ -35,3 +35,17 @@ Die App läuft unter:
 | Verschlüsselung | Web Crypto API (AES‑GCM für Backups) |
 
 ## 🧩 Projektstruktur
+
+## 🔒 Sicherheit & Datenschutz
+
+- **Chat‑Inhalte** werden **niemals** auf einem Server gespeichert – reine P2P‑Übertragung.
+- **Profil‑Daten** (für Community‑Radar) liegen in PostgreSQL, sind aber nach 24h Inaktivität nicht mehr sichtbar.
+- **Backups** können mit **AES‑GCM** verschlüsselt exportiert werden.
+- **Keine Werbung, kein Tracking** – Open Source & transparent.
+
+## 🛠 Lokale Entwicklung
+
+1. Repository klonen:
+   ```bash
+   git clone https://github.com/snailsstons/spotme.git
+   cd spotme
