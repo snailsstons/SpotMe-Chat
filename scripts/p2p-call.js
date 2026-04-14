@@ -6,14 +6,27 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Ausgehender Anruf (von Home-Screen)
+// Ausgehender Anruf (vom Home‑Screen)
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
+
+  // Lokaler Modus: Peer nicht bereit → trotzdem Chat öffnen
   if (!peer || !peer.open) {
-    toast('⚠️ Noch nicht verbunden');
+    toast('📴 Lokaler Modus – Nachrichten werden gespeichert und später gesendet');
+    partnerCode = code;
+    partnerName = localName(code);
+    chatId = buildCID(myCode, code);
+    loadPendingMessages();
+    migratePendingMessages(chatId);
+    // Chat‑UI ohne aktive Verbindung öffnen
+    openChat(null);
+    setSpill('offline', '○ LOCAL');
     return;
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Online‑Modus: normale Verbindung
   if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
 
   partnerCode = code;
