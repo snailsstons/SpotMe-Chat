@@ -1,6 +1,8 @@
 'use strict';
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – COMMUNITY & FILTER (spot-community.js)
+// + Stiller Fetch-Fehler bei Offline
 // ══════════════════════════════════════════════════════════════════════════════
 
 function buildRegionFilter() {
@@ -14,8 +16,8 @@ async function loadCommunity() {
   verificationCache.clear();
 
   try {
-    const res = await fetch(API + '/profiles?spot=' + SPOT);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const res = await fetch(API + '/profiles?spot=' + SPOT).catch(() => null);
+    if (!res || !res.ok) throw new Error('Server nicht erreichbar');
     const data = await res.json();
 
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
@@ -29,7 +31,7 @@ async function loadCommunity() {
 
     applyFilters();
   } catch (e) {
-    console.warn('Server nicht erreichbar, nutze Cache:', e);
+    // Keine Konsolenausgabe, nur stiller Fallback
     if (allProfiles.length === 0) {
       allProfiles = [];
       applyFilters();
@@ -41,8 +43,8 @@ async function loadCommunity() {
 async function fetchLocationForProfile(code) {
   if (locationCache.has(code)) return locationCache.get(code);
   try {
-    const res = await fetch(API + '/location/' + code);
-    if (res.ok) {
+    const res = await fetch(API + '/location/' + code).catch(() => null);
+    if (res && res.ok) {
       const data = await res.json();
       locationCache.set(code, data);
       return data;
@@ -55,8 +57,8 @@ async function fetchLocationForProfile(code) {
 async function fetchOnlineStatus(code) {
   if (onlineStatusCache.has(code)) return onlineStatusCache.get(code);
   try {
-    const res = await fetch(API + '/online/' + code);
-    if (res.ok) {
+    const res = await fetch(API + '/online/' + code).catch(() => null);
+    if (res && res.ok) {
       const data = await res.json();
       onlineStatusCache.set(code, data);
       return data;
@@ -69,8 +71,8 @@ async function fetchOnlineStatus(code) {
 async function fetchVerifications(code) {
   if (verificationCache.has(code)) return verificationCache.get(code);
   try {
-    const res = await fetch(API + '/verifications/' + code);
-    if (res.ok) {
+    const res = await fetch(API + '/verifications/' + code).catch(() => null);
+    if (res && res.ok) {
       const data = await res.json();
       verificationCache.set(code, data);
       return data;
@@ -113,4 +115,4 @@ function resetFilters() {
   document.getElementById('f-age').value = '';
   document.querySelectorAll('.filter-chip.active').forEach(c => c.classList.remove('active'));
   applyFilters();
-  }
+                                }
