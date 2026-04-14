@@ -38,9 +38,14 @@ function sendMsg() {
   appendMsg({ ...m, own: true });
   persistMsg({ ...m, own: true });
 
-  // 📊 Nachrichtenzähler erhöhen
+   // 📊 Nachrichtenzähler erhöhen – mit deutlichem Log
+  console.log('📊 [Usage] Verfügbar?', typeof Usage !== 'undefined' ? '✅ Ja' : '❌ Nein');
   if (typeof Usage !== 'undefined') {
     Usage.incrementMessagesSent();
+    const stats = Usage.getStats();
+    console.log(`📊 Nachricht gesendet! Gesamt: ${stats.messagesSent}`);
+  } else {
+    console.warn('❌ Usage-Objekt fehlt! Nachricht nicht gezählt.');
   }
 
   inp.value = '';
