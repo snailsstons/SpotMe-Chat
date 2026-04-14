@@ -2,11 +2,11 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KURZNACHRICHT (spot-kurznachricht.js)
 // + Local‑First: Offline‑Nachrichten werden gespeichert und später gesendet
+// + Debug‑Logs für Fehlersuche
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _kurznachrichtTarget = null;
 
-// Hilfsfunktion – nutzt das globale SPOT (das später gesetzt wird)
 function getPendingMsgKey() {
   return `spot_pending_msg_${SPOT}`;
 }
@@ -35,7 +35,6 @@ function addPendingMessage(recipient, text, senderName) {
   savePendingMessages(msgs);
 }
 
-// Wird aufgerufen, sobald der Server wieder erreichbar ist (aus spot-init.js)
 async function flushPendingKurznachrichten() {
   const msgs = loadPendingMessages();
   if (msgs.length === 0) return;
@@ -81,42 +80,41 @@ async function submitKurznachricht() {
   const btn = document.getElementById('kurznachr-btn');
   const senderName = myProfile?.name || myCode;
 
-  // Prüfen, ob wir online sind
   const online = (typeof peerReady !== 'undefined' && peerReady) || navigator.onLine;
 
   if (!online) {
-    // Offline → lokal speichern
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
     toast(`📦 Nachricht gespeichert (wird später gesendet)`);
     closeKurznachrichtModal();
     return;
   }
 
-  // Online → direkt senden
   btn.disabled = true;
   btn.textContent = '⏳ Senden...';
   try {
+    const payload = {
+      recipient: _kurznachrichtTarget.code,
+      senderCode: myCode,
+      senderName: senderName,
+      message: text,
+      spot: SPOT            // optional, aber hilfreich
+    };
+    console.log('Sending offline-message payload:', payload);
     const res = await fetch(API + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: _kurznachrichtTarget.code,
-        senderCode: myCode,
-        senderName: senderName,
-        message: text
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
+    console.log('Server response:', res.status, data);
     if (res.ok) {
       toast(`📨 Nachricht an ${_kurznachrichtTarget.name} gesendet`);
       closeKurznachrichtModal();
-    } else if (res.status === 429) {
-      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
     } else {
       toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
     }
   } catch (e) {
-    // Netzwerkfehler → ebenfalls lokal speichern
+    console.warn('Fetch error:', e);
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
     toast(`📦 Nachricht gespeichert (wird später gesendet)`);
     closeKurznachrichtModal();
@@ -124,4 +122,4 @@ async function submitKurznachricht() {
     btn.disabled = false;
     btn.textContent = '📨 Senden';
   }
-  }
+}
