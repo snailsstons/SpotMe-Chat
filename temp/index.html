@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>SpotMe · Chat</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SpotMe">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="spot.css">
+</head>
+<body>
+
+<!-- SCREEN 1 – HOME -->
+<div id="s-home" class="screen active">
+  <!-- LOCAL‑MODE BANNER (nur im Home‑Screen, unter dem Header) -->
+  <div id="local-mode-banner" class="local-banner" style="display: none;">
+    <span>📴</span>
+    <span>Lokaler Modus – Nachrichten werden gespeichert und später gesendet</span>
+  </div>
+
+  <header class="app-header">
+    <div class="header-left"></div>
+    <div class="logo">SPOT<b>ME v49</b></div>
+    <div class="header-right">
+      <div class="status-badge" id="header-status">
+        <span id="status-icon">●</span>
+        <span id="status-text">ONLINE</span>
+      </div>
+      <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
+      <div class="home-drop" id="home-drop">
+        <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
+        <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
+        <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='spot.html'"><div class="sico si-g">👥</div><div class="slab"><div>Spot · Community</div><div class="sdesc">Profile entdecken & chatten</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="home-content">
+    <div class="code-card-new">
+      <div class="code-label">Dein persönlicher Code</div>
+      <div class="code-value" id="mycode">--- ---</div>
+      <div class="code-actions">
+        <button class="csbtn-new" onclick="copyCode()">📋 Kopieren</button>
+        <button class="csbtn-new" onclick="shareCode()">↗️ Teilen</button>
+      </div>
+    </div>
+
+    <div class="conn-box-new">
+      <div class="conn-label">Partner verbinden</div>
+      <div class="drow-new">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
+    </div>
+
+    <div id="psec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label">Letzte Chats</span>
+      </div>
+      <div id="plist" class="horizontal-scroll"></div>
+    </div>
+
+    <div id="offline-msg-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
+        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
+      </div>
+      <div id="offline-msg-list" class="horizontal-scroll"></div>
+    </div>
+
+    <div id="missed-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label missed-label-text">Verpasste Anrufe</span>
+        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
+      </div>
+      <div id="missed-list" class="horizontal-scroll"></div>
+    </div>
+
+    <!-- ═══════════ SPOTS ═══════════ -->
+    <div class="section-header" style="margin-top:0.5rem;">
+      <span class="section-label">Spots entdecken</span>
+    </div>
+    <div class="spots-grid">
+
+      <a href="spot.html" class="spot-tile" style="--tile-acc:#00e5c0;">
+        <div class="spot-tile-icon">🏳️‍🌈</div>
+        <div class="spot-tile-name">Gay</div>
+        <div class="spot-tile-desc">Community · Cruising</div>
+      </a>
+
+      <a href="spot-dates.html" class="spot-tile" style="--tile-acc:#ff4f7b;">
+        <div class="spot-tile-icon">💕</div>
+        <div class="spot-tile-name">Dates</div>
+        <div class="spot-tile-desc">Beziehung · Casual</div>
+      </a>
+
+      <a href="spot-general.html" class="spot-tile" style="--tile-acc:#7b5cfa;">
+        <div class="spot-tile-icon">🌍</div>
+        <div class="spot-tile-name">General</div>
+        <div class="spot-tile-desc">Alle Interessen</div>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<!-- Alle anderen Screens (s-in, s-chat, s-location, Sheets) unverändert -->
+<!-- ... (wie vorher) ... -->
+
+<script src="script.js"></script>
+</body>
+</html>
