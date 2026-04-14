@@ -170,6 +170,38 @@ function flushPendingMessages() {
   toast(`📨 ${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} gesendet`);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 FEHLENDE FUNKTION: updatePendingBadge
+// Zeigt am Senden‑Button die Anzahl wartender Nachrichten an
+function updatePendingBadge() {
+  const btn = document.getElementById('sbtn');
+  if (!btn) return;
+  const count = pendingMessages.length;
+  if (count > 0) {
+    btn.style.position = 'relative';
+    let badge = document.getElementById('pending-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'pending-badge';
+      badge.style.position = 'absolute';
+      badge.style.top = '-8px';
+      badge.style.right = '-8px';
+      badge.style.backgroundColor = 'var(--p3)';
+      badge.style.color = 'white';
+      badge.style.borderRadius = '12px';
+      badge.style.padding = '2px 6px';
+      badge.style.fontSize = '11px';
+      badge.style.fontWeight = 'bold';
+      btn.appendChild(badge);
+    }
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = 'block';
+  } else {
+    const badge = document.getElementById('pending-badge');
+    if (badge) badge.style.display = 'none';
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Chat-Verlauf (smmsg_*) und sm_idx
 function buildCID(a, b) {
