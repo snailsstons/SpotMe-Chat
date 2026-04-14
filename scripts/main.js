@@ -3,9 +3,13 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // Lädt als letztes, initialisiert alle Komponenten
+// + Usage‑Statistiken
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
+  // 📊 App-Start aufzeichnen
+  if (typeof Usage !== 'undefined') Usage.recordAppOpen();
+
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   
   initDigits();
@@ -101,6 +105,20 @@ window.addEventListener('load', () => {
     }
   }, 2000);
   
-  // Traffic initial anzeigen
   Traffic.updateUI();
+});
+
+// App wird geschlossen oder Tab verlassen
+window.addEventListener('beforeunload', () => {
+  if (typeof Usage !== 'undefined') Usage.recordAppClose();
+});
+
+// Sichtbarkeitswechsel (App in Hintergrund / Vordergrund)
+document.addEventListener('visibilitychange', () => {
+  if (typeof Usage === 'undefined') return;
+  if (document.hidden) {
+    Usage.recordAppClose();
+  } else {
+    Usage.recordAppOpen();
+  }
 });
