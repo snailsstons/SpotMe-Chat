@@ -3,13 +3,13 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – ANRUFE (p2p-call.js)
 // Ausgehende & eingehende Anrufe, Klingelton, Nachricht hinterlassen
+// + Traffic‑Messung für connect und leave‑message
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
-  // Peer-Bereitschaft prüfen (peerReady statt peer.open)
   if (!peerReady) {
     toast('📴 Lokaler Modus – Nachrichten werden gespeichert und später gesendet');
     partnerCode = code;
@@ -18,12 +18,10 @@ function connectToPeer() {
     loadPendingMessages();
     migratePendingMessages(chatId);
     openChat(null);
-    setSpill('offline', '○ LOCAL');
-    markAutoReconnect();   // ← Wichtig: Auto-Reconnect merken
+    markAutoReconnect();
     return;
   }
 
-  // Online-Modus
   if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
 
   partnerCode = code;
@@ -33,8 +31,11 @@ function connectToPeer() {
   migratePendingMessages(chatId);
 
   const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
+  // Traffic für connect‑Metadaten (wird von PeerJS intern gesendet, wir schätzen grob)
+  Traffic.recordP2PSent(new Blob([JSON.stringify({ name: myName })]).size);
   openChat(newConn);
-  setSpill('online', `📞 Rufe ${partnerName} an...`);
+  toast(`📞 Rufe ${partnerName} an...`);
+  updateConnectionStatus();
 
   outgoingCallTimer = setTimeout(() => {
     outgoingCallTimer = null;
@@ -47,7 +48,7 @@ function connectToPeer() {
       }
       showLeaveMessageSheet(partnerCode, partnerName);
     }
-    setSpill('online', '● ONLINE');
+    updateConnectionStatus();
   }, 30000);
 }
 
@@ -91,7 +92,7 @@ function closeLeaveMessageSheet() {
   document.getElementById('leave-message-ovl').classList.remove('open');
   document.getElementById('leave-message-sheet').classList.remove('open');
   showScreen('s-home');
-  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
 }
 
 async function submitLeaveMessage() {
@@ -107,15 +108,16 @@ async function submitLeaveMessage() {
     btn.textContent = '⏳ Senden...';
   }
   try {
+    const payload = {
+      recipient: partnerCode,
+      senderCode: myCode,
+      senderName: myName,
+      message: text
+    };
     const res = await fetch(API_BASE + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: partnerCode,
-        senderCode: myCode,
-        senderName: myName,
-        message: text
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (res.ok) {
@@ -135,5 +137,5 @@ async function submitLeaveMessage() {
   }
   closeLeaveMessageSheet();
   showScreen('s-home');
-  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
 }
