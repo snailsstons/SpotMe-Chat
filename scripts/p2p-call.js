@@ -5,28 +5,25 @@
 // Ausgehende & eingehende Anrufe, Klingelton, Nachricht hinterlassen
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ausgehender Anruf (vom Home‑Screen)
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
-  // Lokaler Modus: Peer nicht bereit → trotzdem Chat öffnen
-  if (!peer || !peer.open) {
+  // Peer-Bereitschaft prüfen (peerReady statt peer.open)
+  if (!peerReady) {
     toast('📴 Lokaler Modus – Nachrichten werden gespeichert und später gesendet');
     partnerCode = code;
     partnerName = localName(code);
     chatId = buildCID(myCode, code);
     loadPendingMessages();
     migratePendingMessages(chatId);
-    // Chat‑UI ohne aktive Verbindung öffnen
     openChat(null);
     setSpill('offline', '○ LOCAL');
+    markAutoReconnect();   // ← Wichtig: Auto-Reconnect merken
     return;
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Online‑Modus: normale Verbindung
+  // Online-Modus
   if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
 
   partnerCode = code;
@@ -54,8 +51,6 @@ function connectToPeer() {
   }, 30000);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Eingehenden Anruf annehmen
 function acceptCall() {
   stopRingingTone();
   if (!pendingConn) {
@@ -72,7 +67,6 @@ function acceptCall() {
   openChat(c);
 }
 
-// Eingehenden Anruf ablehnen
 function declineCall() {
   stopRingingTone();
   if (pendingConn) {
@@ -84,8 +78,6 @@ function declineCall() {
   showScreen('s-home');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Nachricht hinterlassen (wenn Partner nicht erreichbar)
 function showLeaveMessageSheet(code, name) {
   partnerCode = code;
   partnerName = name;

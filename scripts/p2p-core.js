@@ -7,16 +7,15 @@
 
 let peerRetries = 0;
 let heartbeatInterval = null;
-let autoReconnectPending = false; // Für lokalen Start mit späterer Verbindung
+let autoReconnectPending = false;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PeerJS initialisieren
 function initPeer() {
   if (peer && !peer.destroyed && peer.open) return;
   if (peer && !peer.destroyed) {
     try { peer.destroy(); } catch (e) {}
   }
   peer = null;
+  peerReady = false;   // ← Zurücksetzen
   setSpill('connecting', 'Verbinde mit Server...');
 
   peer = new Peer(myCode, {
@@ -36,13 +35,12 @@ function initPeer() {
   peer.on('open', () => {
     peerRetries = 0;
     isOffline = false;
+    peerReady = true;   // ← Peer ist bereit
     setSpill('online', '● ONLINE');
     showCodeCard(true);
     updateConnectionStatus();
     startHeartbeat();
 
-    // Wenn wir bereits einen partnerCode haben, aber keine aktive Verbindung
-    // (z.B. weil wir im lokalen Modus gestartet sind), dann jetzt verbinden
     if (autoReconnectPending && partnerCode && !conn) {
       autoReconnectPending = false;
       toast('🔄 Verbindung wird hergestellt...');
@@ -53,6 +51,7 @@ function initPeer() {
 
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
+    peerReady = false;   // ← Bei Fehler nicht bereit
     if (err.type === 'unavailable-id') {
       peerRetries++;
       const delay = Math.min(3000 * peerRetries, 15000);
@@ -90,6 +89,7 @@ function initPeer() {
   });
 
   peer.on('disconnected', () => {
+    peerReady = false;   // ← Bei Disconnect nicht bereit
     isOffline = true;
     updateConnectionStatus();
     setSpill('connecting', 'Unterbrochen · verbinde erneut...');
@@ -127,8 +127,6 @@ function initPeer() {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Heartbeat – hält Server wach (Render) und verlängert Sichtbarkeit
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   heartbeatInterval = setInterval(async () => {
@@ -139,16 +137,12 @@ function startHeartbeat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: myCode })
       });
-    } catch (e) {
-      // stiller Fehler – Heartbeat ist optional
-    }
-  }, 600000); // alle 10 Minuten
+    } catch (e) {}
+  }, 600000);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Verbindung wiederherstellen (Button im Chat)
 function tryReconnect() {
-  if (!partnerCode || !peer || !peer.open) {
+  if (!partnerCode || !peerReady) {
     toast('↺ Warte auf Serververbindung...');
     return;
   }
@@ -157,20 +151,14 @@ function tryReconnect() {
   openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Chat öffnen – unterstützt jetzt auch `c = null` für lokalen Modus
 function openChat(c) {
-  // Alte Verbindung schließen
   if (conn && conn !== c) {
     try { conn.close(); } catch (e) {}
   }
   conn = c;
-
-  // UI immer vorbereiten
   prepChat();
   showScreen('s-chat');
 
-  // Lokaler Modus (c === null): Keine Data‑Handler, nur UI
   if (!c) {
     document.getElementById('sbtn').disabled = true;
     document.getElementById('rcbar').classList.remove('show');
@@ -188,8 +176,6 @@ function openChat(c) {
     return;
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Online‑Modus: Data‑Handler registrieren
   const onOpen = () => {
     if (outgoingCallTimer) {
       clearTimeout(outgoingCallTimer);
@@ -261,7 +247,6 @@ function openChat(c) {
   });
 }
 
-// Hilfsfunktion: Auto-Reconnect nach Server-Start merken
 function markAutoReconnect() {
   autoReconnectPending = true;
 }
