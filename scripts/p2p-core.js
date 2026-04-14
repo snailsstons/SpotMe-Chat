@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
 // PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
+// + Traffic‑Messung für Verbindungsaufbau
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -16,7 +17,6 @@ function initPeer() {
   }
   peer = null;
   peerReady = false;
-  // ❌ KEIN setSpill mehr – updateConnectionStatus übernimmt
   updateConnectionStatus();
 
   peer = new Peer(myCode, {
@@ -34,15 +34,19 @@ function initPeer() {
   });
 
   peer.on('open', () => {
-  peerRetries = 0;
-  isOffline = false;
-  peerReady = true;
-  showCodeCard(true);
-  startHeartbeat();
-  // Kurz warten, bis peer.open wirklich true ist
-  setTimeout(() => updateConnectionStatus(), 20);
-  // ...
-});
+    peerRetries = 0;
+    isOffline = false;
+    peerReady = true;
+    showCodeCard(true);
+    updateConnectionStatus();
+    startHeartbeat();
+
+    if (autoReconnectPending && partnerCode && !conn) {
+      autoReconnectPending = false;
+      const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
+      openChat(newConn);
+    }
+  });
 
   peer.on('error', err => {
     console.warn('[peer]', err.type, err.message);
@@ -50,7 +54,6 @@ function initPeer() {
     if (err.type === 'unavailable-id') {
       peerRetries++;
       const delay = Math.min(3000 * peerRetries, 15000);
-      // ❌ kein setSpill
       setTimeout(() => {
         peer = null;
         initPeer();
@@ -71,7 +74,6 @@ function initPeer() {
       showLeaveMessageSheet(partnerCode, partnerName);
       return;
     }
-    // Andere Fehler → Local-Modus
     isOffline = true;
     updateConnectionStatus();
     peerRetries++;
@@ -135,9 +137,7 @@ function startHeartbeat() {
 }
 
 function tryReconnect() {
-  if (!partnerCode || !peerReady) {
-    return;
-  }
+  if (!partnerCode || !peerReady) return;
   document.getElementById('rcbar').classList.remove('show');
   openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
 }
@@ -162,7 +162,6 @@ function openChat(c) {
         <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
     }
     updateIdx('');
-    // ❌ kein setSpill mehr
     updateConnectionStatus();
     return;
   }
@@ -191,7 +190,6 @@ function openChat(c) {
     updateIdx('');
     toast('✓ Verbunden');
     flushPendingMessages();
-    // ❌ kein setSpill
     updateConnectionStatus();
   };
 
