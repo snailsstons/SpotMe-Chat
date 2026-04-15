@@ -38,6 +38,11 @@ function sendMsg() {
   appendMsg({ ...m, own: true });
   persistMsg({ ...m, own: true });
 
+  // 📊 ANALYTICS: Gesendete P2P‑Nachricht zählen
+  if (typeof Analytics !== 'undefined') {
+    Analytics.increment('messagesSent');
+  }
+
    // 📊 Nachrichtenzähler erhöhen – mit deutlichem Log
   console.log('📊 [Usage] Verfügbar?', typeof Usage !== 'undefined' ? '✅ Ja' : '❌ Nein');
   if (typeof Usage !== 'undefined') {
@@ -64,6 +69,12 @@ function handleData(d) {
     notify(d.text);
     playNotificationSound();
     triggerHaptic();
+
+    // 📊 ANALYTICS: Empfangene P2P‑Nachricht zählen
+    if (typeof Analytics !== 'undefined') {
+      Analytics.increment('messagesReceived');
+    }
+  }
   } else if (d.t === 'typing') {
     if (d.state === 'start') {
       if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
