@@ -1,4 +1,3 @@
-```markdown
 # SpotMe – Die komplette Projektdokumentation
 
 **P2P‑Chat & Community‑Radar · Dezentral, verschlüsselt, offline‑fähig**
@@ -56,57 +55,6 @@ SpotMe ist eine **Progressive Web App (PWA)** für direkte Peer‑to‑Peer‑Ch
 
 ---
 
-## Projektstruktur
-
-```
-
-spotme/
-├── index.html              # Haupt‑App (Chat & Home)
-├── spot.html               # Community‑Radar (Gay)
-├── spot-dates.html         # Radar für Dates
-├── spot-general.html       # Radar für General
-├── profil.html             # Profilverwaltung
-├── portfolio.html          # Alben & Fotos
-├── styles.css              # Globale Styles
-├── spot.css                # Styles für Radar
-├── manifest.json           # PWA‑Manifest
-├── sw.js                   # Service Worker
-├── scripts/                # Kern‑Module (Chat)
-│   ├── config.js
-│   ├── utils.js
-│   ├── storage.js
-│   ├── ui-core.js
-│   ├── audio.js
-│   ├── p2p-core.js
-│   ├── p2p-call.js
-│   ├── p2p-message.js
-│   ├── p2p-file.js
-│   ├── p2p-location.js
-│   ├── albums.js
-│   ├── backup.js
-│   ├── voice.js
-│   ├── ui-home.js
-│   ├── ui-chat.js
-│   └── main.js
-├── scripts-spot/           # Module für Community‑Radar
-│   ├── spot-config.js
-│   ├── spot-state.js
-│   ├── spot-utils.js
-│   ├── spot-profile.js
-│   ├── spot-location.js
-│   ├── spot-community.js
-│   ├── spot-render.js
-│   ├── spot-messages.js
-│   ├── spot-verify.js
-│   ├── spot-kurznachricht.js
-│   ├── spot-keepalive.js
-│   ├── spot-init.js
-│   ├── spot-gay.js
-│   ├── spot-dates.js
-│   └── spot-general.js
-└── server.js               # Backend‑Server (Render)
-
-```
 
 ---
 
@@ -156,11 +104,7 @@ Die Module der Haupt‑App steuern den P2P‑Chat, die Benutzeroberfläche und d
 <script src="scripts/ui-home.js"></script>
 <script src="scripts/ui-chat.js"></script>
 <script src="scripts/main.js"></script>
-```
 
-Wichtige globale Variablen
-
-```
 SERVER_HOST    string   PeerJS‑Server (Render)
 API_BASE       string   REST‑API Endpunkt
 myCode         string   Eigener 6‑stelliger Code
@@ -176,119 +120,3 @@ chatId         string   Eindeutige ID des aktuellen Chats (sm_<code1>_<code2>)
 pendingMessages array   Nachrichten, die im lokalen Modus zwischengespeichert werden
 voiceEnabled   boolean  Mikrofon‑Button ein-/ausgeblendet
 CHUNK          number   Chunk‑Größe für Dateiübertragung (16 KB)
-```
-
----
-
-Spot‑Module (/scripts-spot)
-
-Diese Module realisieren die drei Community‑Radar‑Seiten (Gay, Dates, General) mit lokaler Cache‑Strategie.
-
-Ladereihenfolge & Beschreibung
-
-# Datei Beschreibung
-1 spot-config.js Globale Konstanten (API, Intervalle, Regionen)
-2 spot-state.js Alle globalen Variablen (Profile, Timer, Maps)
-3 spot-utils.js Hilfsfunktionen (Zeit, Escaping, Toast, Distanz)
-4 spot-profile.js Eigenes Profil laden & veröffentlichen
-5 spot-location.js Standortfreigabe, Karte, Check‑in
-6 spot-community.js Community laden, Cache, Filter
-7 spot-render.js Radar, Liste, Profil‑Detail rendern
-8 spot-messages.js Offline‑Nachrichten (Badge, Panel, Polling)
-9 spot-verify.js Verifikation (QR, Code‑Eingabe)
-10 spot-kurznachricht.js Kurznachricht‑Modal
-11 spot-keepalive.js Keepalive, Heartbeat, Auto‑Refresh
-12 spot-init.js Initialisierung & Event‑Listener
-13 spot-gay.js Spot‑Konfiguration: SPOT = 'gay'
- spot-dates.js Spot‑Konfiguration: SPOT = 'dates'
- spot-general.js Spot‑Konfiguration: SPOT = 'general'
-
-⚠️ Wichtig: Die Spot‑Konfiguration (spot-xxx.js) muss als letztes geladen werden, da sie die globalen Konstanten SPOT und CACHE_KEY definiert.
-
-Einbindung (Beispiel spot.html)
-
-```html
-<script src="scripts-spot/spot-config.js"></script>
-<script src="scripts-spot/spot-state.js"></script>
-<script src="scripts-spot/spot-utils.js"></script>
-<script src="scripts-spot/spot-profile.js"></script>
-<script src="scripts-spot/spot-location.js"></script>
-<script src="scripts-spot/spot-community.js"></script>
-<script src="scripts-spot/spot-render.js"></script>
-<script src="scripts-spot/spot-messages.js"></script>
-<script src="scripts-spot/spot-verify.js"></script>
-<script src="scripts-spot/spot-kurznachricht.js"></script>
-<script src="scripts-spot/spot-keepalive.js"></script>
-<script src="scripts-spot/spot-init.js"></script>
-<script src="scripts-spot/spot-gay.js"></script>
-```
-
-Wichtige globale Variablen (Spots)
-
-```
-SPOT               string   Wird in Spot‑Datei gesetzt ('gay', 'dates', 'general')
-CACHE_KEY          string   localStorage‑Key für Profil‑Cache
-API                string   REST‑API Endpunkt
-myCode             string   Eigener 6‑stelliger Code (aus localStorage)
-myToken            string   Authentifizierungs‑Token
-isPublished        boolean  Profil in Community sichtbar?
-isSharingLocation  boolean  Standort wird geteilt?
-allProfiles        array    Alle geladenen Profile
-filtered           array    Gefilterte Profile (Anzeige)
-userPosition       object   Eigene GPS‑Position { lat, lng }
-locationCache      Map      Zwischenspeicher für Standorte
-onlineStatusCache  Map      Online‑Status der Profile
-verificationCache  Map      Verifikationen der Profile
-```
-
----
-
-Local‑First Prinzip
-
-· Chat: Wenn peerReady === false oder der Server nicht erreichbar ist, wechselt die App in den Lokalen Modus. Der Header zeigt ○ LOCAL an. Nachrichten werden in pendingMessages gespeichert und automatisch gesendet, sobald die Verbindung wiederhergestellt wird.
-· Spots: Profile werden im localStorage unter CACHE_KEY gespeichert. Beim Laden wird zuerst der Cache angezeigt, dann im Hintergrund aktualisiert. Bei Server‑Fehlern erscheint der Hinweis „📴 Offline – zeige gespeicherte Profile“.
-
----
-
-Sicherheit & Datenschutz
-
-· Chat‑Inhalte werden niemals auf einem Server gespeichert – reine P2P‑Übertragung.
-· Profil‑Daten (für Community‑Radar) liegen in PostgreSQL, sind aber nach 24h Inaktivität nicht mehr sichtbar.
-· Backups können mit AES‑GCM verschlüsselt exportiert werden.
-· Keine Werbung, kein Tracking – Open Source & transparent.
-
----
-
-Lokale Entwicklung
-
-1. Repository klonen:
-   ```bash
-   git clone https://github.com/snailsstons/spotme.git
-   cd spotme
-   ```
-2. Einen lokalen HTTP‑Server starten (z. B. mit Python):
-   ```bash
-   python3 -m http.server 8000
-   ```
-3. Im Browser öffnen: http://localhost:8000
-
-Für die vollständige Funktion wird der PeerJS‑Server und das Backend benötigt. Diese laufen bereits unter spotme-pg-test.onrender.com. Für eigene Tests kannst du die SERVER_HOST und API_BASE in config.js anpassen.
-
----
-
-Mitwirken & Lizenz
-
-SpotMe ist ein Hobby‑Projekt – Beiträge sind herzlich willkommen!
-
-· Issues für Fehler oder Feature‑Wünsche öffnen.
-· Pull Requests mit Verbesserungen oder neuen Spots einreichen.
-· Diskussionen im GitHub‑Tab nutzen.
-
-Lizenz: MIT License – siehe LICENSE Datei.
-
----
-
-SpotMe – Chatte frei, entdecke deine Community, und das alles ohne zentrale Kontrolle.
-Made with ☕ and lots of P2P love.
-
-```
