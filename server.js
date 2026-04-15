@@ -1,9 +1,10 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME SERVER – PostgreSQL Version
 //
-// Neu in dieser Version:
+// Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
 //   • Offline-Nachrichten       → Nachricht hinterlassen wenn Nutzer offline
+//   • Dialog-Erkennung          → Sobald Antwort erfolgt, kein Stundenlimit mehr
 //
 // Setup:
 //   npm install pg
@@ -49,7 +50,7 @@ const pool = new Pool({
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
 const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
-const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
+const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde (wird für erste Nachricht genutzt)
 
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
@@ -476,7 +477,8 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 //
 // Antispam:
 //   • Max 280 Zeichen, Links/E-Mails werden gefiltert
-//   • Max 1 Nachricht pro Sender/Empfänger/Stunde
+//   • Für die erste Kontaktaufnahme: max 1 Nachricht pro Sender/Empfänger/Stunde
+//   • Sobald eine Antwort erfolgt ist (Dialog), entfällt das Limit
 //   • Max 50 ungelesene Nachrichten pro Empfänger
 //   • 7-Tage TTL (Cleanup-Intervall)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -498,16 +500,27 @@ app.post('/api/offline-message', async (req, res) => {
   }
 
   try {
-    // Rate-Limit: 1 Nachricht pro Sender+Empfänger pro Stunde
-    const rateCheck = await pool.query(
-      `SELECT id FROM offline_messages
+    // Prüfen, ob bereits ein Dialog besteht (mind. eine Nachricht vom Empfänger an den Sender)
+    const dialogCheck = await pool.query(
+      `SELECT id FROM offline_messages 
        WHERE sender_code = $1 AND recipient = $2
-         AND created_at > NOW() - INTERVAL '1 hour'
-       LIMIT 10`,
-      [senderCode, recipient]
+       LIMIT 1`,
+      [recipient, senderCode]  // umgekehrte Richtung: Empfänger hat schon mal geantwortet?
     );
-    if (rateCheck.rows.length > 0) {
-      return res.status(429).json({ error: 'Maximal 10 Nachricht pro Stunde pro Person' });
+
+    // Nur wenn KEIN Dialog besteht, das Zeitlimit anwenden
+    if (dialogCheck.rows.length === 0) {
+      const rateMinutes = Math.ceil(OFFLINE_MSG_RATE_MS / 60000);
+      const rateCheck = await pool.query(
+        `SELECT id FROM offline_messages
+         WHERE sender_code = $1 AND recipient = $2
+           AND created_at > NOW() - INTERVAL '${rateMinutes} minutes'
+         LIMIT 1`,
+        [senderCode, recipient]
+      );
+      if (rateCheck.rows.length > 0) {
+        return res.status(429).json({ error: `Maximal 1 Nachricht pro ${rateMinutes > 1 ? rateMinutes + ' Minuten' : 'Minute'} für die erste Kontaktaufnahme` });
+      }
     }
 
     // Max 50 ungelesene pro Empfänger
