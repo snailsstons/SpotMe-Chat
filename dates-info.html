@@ -1,248 +1,308 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpotMe · Focus Engine V3</title>
-<style>
-:root {
-  --bg: #060a0f;
-  --acc: #00e5c0;
-  --warn: #7b5cfa;
-  --danger: #ff4f7b;
-  --text: #e8edf5;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotMe · Focus Engine & Philosophy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #060a0f;
+            --sur: #0c121a;
+            --acc: #00e5c0;
+            --warn: #7b5cfa;
+            --danger: #ff4f7b;
+            --text: #e8edf5;
+        }
 
-body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-.header { padding: 1rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.brand { font-family: 'Syne'; font-weight: 800; font-size: 1.1rem; color: var(--acc); }
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
 
-.dashboard {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
-  padding: 1rem; max-width: 600px; margin: 0 auto; width: 100%;
-}
-.stat-card {
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
-  padding: 0.6rem; border-radius: 12px; text-align: center;
-}
-.stat-val { font-family: 'Syne'; font-size: 1.2rem; font-weight: 800; display: block; }
-.stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.05em; }
+        /* HEADER */
+        header { text-align: center; margin-bottom: 3rem; }
+        .brand { font-family: 'Syne'; font-weight: 800; font-size: 1.5rem; color: var(--acc); letter-spacing: -1px; }
+        h1 { font-family: 'Syne'; font-size: 2.5rem; margin-top: 0.5rem; line-height: 1.1; }
 
-canvas { flex: 1; width: 100%; height: 100%; }
+        /* SIMULATOR AREA */
+        .simulator-box {
+            background: var(--sur);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            overflow: hidden;
+            margin-bottom: 3rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
 
-.controls {
-  padding: 1.5rem; background: rgba(8, 12, 16, 0.95); backdrop-filter: blur(15px);
-  border-top: 1px solid rgba(255,255,255,0.1);
-  display: flex; flex-direction: column; gap: 1rem;
-}
-.slider-group { width: 100%; max-width: 450px; margin: 0 auto; }
-.slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.4rem; }
+        canvas { width: 100%; height: 350px; display: block; background: #04070a; }
 
-input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+        .dashboard {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+            background: rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat-card { background: var(--sur); padding: 1rem; text-align: center; }
+        .stat-val { font-family: 'Syne'; font-size: 1.5rem; font-weight: 800; display: block; }
+        .stat-label { font-size: 0.65rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.1em; }
 
-#feedback { text-align: center; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
-</style>
+        .controls { padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+        .slider-group { width: 100%; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.5rem; }
+        input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+
+        /* EXPLANATION AREA */
+        .content-section { margin-bottom: 4rem; }
+        h2 { font-family: 'Syne'; font-size: 1.8rem; margin-bottom: 1.5rem; color: var(--acc); }
+        .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+        .feature-card { background: rgba(255,255,255,0.03); padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .feature-card h3 { font-family: 'Syne'; margin-bottom: 0.5rem; font-size: 1.1rem; }
+        
+        .status-table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
+        .status-table th, .status-table td { text-align: left; padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .status-table th { font-size: 0.8rem; text-transform: uppercase; opacity: 0.5; }
+
+        .highlight { color: var(--acc); font-weight: 600; }
+        .footer-note { text-align: center; opacity: 0.4; font-size: 0.8rem; margin-top: 4rem; padding-bottom: 2rem; }
+
+        @media (max-width: 600px) {
+            .feature-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="brand">SPOTME · FOCUS ENGINE V3</div>
-</div>
+<div class="container">
+    <header>
+        <div class="brand">SPOTME ENGINE</div>
+        <h1>Schütze deinen Fokus.</h1>
+    </header>
 
-<div class="dashboard">
-  <div class="stat-card">
-    <span class="stat-label">Dwell Time</span>
-    <span id="val-dwell" class="stat-val" style="color: var(--acc);">0h</span>
-  </div>
-  <div class="stat-card">
-    <span class="stat-label">Lokal Gesendet</span>
-    <span id="val-sent" class="stat-val" style="color: #fbff00;">0</span>
-  </div>
-  <div class="stat-card">
-    <span class="stat-label">Traffic</span>
-    <span id="val-traffic" class="stat-val" style="color: var(--danger);">0%</span>
-  </div>
-</div>
+    <div class="simulator-box">
+        <div class="dashboard">
+            <div class="stat-card">
+                <span class="stat-label">Dwell Time</span>
+                <span id="val-dwell" class="stat-val" style="color: var(--acc);">0h</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Lokal Gesendet</span>
+                <span id="val-sent" class="stat-val" style="color: #fbff00;">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Traffic</span>
+                <span id="val-traffic" class="stat-val" style="color: var(--danger);">0%</span>
+            </div>
+        </div>
 
-<canvas id="stage"></canvas>
+        <canvas id="stage"></canvas>
 
-<div class="controls">
-  <div id="feedback">Initialisiere...</div>
-  
-  <div class="slider-group">
-    <div class="slider-label"><span>Handy-Ruhe (Dwell Time)</span><span id="lbl-dwell">4h</span></div>
-    <input type="range" id="slide-dwell" min="0" max="24" value="4">
-  </div>
-  
-  <div class="slider-group">
-    <div class="slider-label"><span>Lokal geschriebene Nachrichten</span><span id="lbl-sent">5</span></div>
-    <input type="range" id="slide-sent" min="0" max="100" value="5">
-  </div>
+        <div class="controls">
+            <div id="feedback" style="text-align: center; font-weight: 700;">Analysiere...</div>
+            
+            <div class="slider-group">
+                <div class="slider-label"><span>🕰️ Handy-Ruhe (Dwell Time)</span><span id="lbl-dwell">4h</span></div>
+                <input type="range" id="slide-dwell" min="0" max="24" value="4">
+            </div>
+            
+            <div class="slider-group">
+                <div class="slider-label"><span>✍️ Bewusste Nachrichten</span><span id="lbl-sent">5</span></div>
+                <input type="range" id="slide-sent" min="0" max="100" value="5">
+            </div>
 
-  <div class="slider-group">
-    <div class="slider-label"><span>Online Rauschen (Traffic)</span><span id="lbl-traffic">20%</span></div>
-    <input type="range" id="slide-traffic" min="0" max="100" value="20">
-  </div>
+            <div class="slider-group">
+                <div class="slider-label"><span>📡 Online Traffic</span><span id="lbl-traffic">20%</span></div>
+                <input type="range" id="slide-traffic" min="0" max="100" value="20">
+            </div>
+        </div>
+    </div>
+
+    <section class="content-section">
+        <h2>Dein Fokus-Schild: So funktioniert SpotMe</h2>
+        <p>SpotMe ist der erste Messenger, der sich <strong>deiner Aufmerksamkeit anpasst</strong> – nicht umgekehrt. Anstatt dich mit Pings zu überfluten, nutzt SpotMe einen lokalen Algorithmus, der dein digitales Wohlbefinden schützt.</p>
+        
+        
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>🛡️ Passive Rüstung</h3>
+                <p>Gemessen als <strong>Dwell Time</strong>. Je länger dein Handy unberührt bleibt, desto stärker wird dein Schutzschild.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Aktive Reparatur</h3>
+                <p>Jede im Lokal-Modus <strong>gesendete Nachricht</strong> stärkt dein Schild aktiv. Bewusste Nutzung wird belohnt.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="content-section">
+        <h2>Was passiert auf dem Schirm?</h2>
+        <p>Der Algorithmus berechnet in Echtzeit das Verhältnis zwischen deiner Ruhe und dem digitalen Druck von außen.</p>
+        
+        
+
+        <table class="status-table">
+            <thead>
+                <tr>
+                    <th>Signal</th>
+                    <th>Status</th>
+                    <th>Verhalten</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="highlight">Türkis</td>
+                    <td>Zen-Modus</td>
+                    <td>Nachrichten fließen frei und sofort.</td>
+                </tr>
+                <tr>
+                    <td style="color: var(--warn); font-weight: 600;">Lila</td>
+                    <td>Balance</td>
+                    <td>Dein Schild fängt die erste Last ab.</td>
+                </tr>
+                <tr>
+                    <td style="color: var(--danger); font-weight: 600;">Rot</td>
+                    <td>Siphon aktiv</td>
+                    <td>Nachrichten kreisen im Orbit, um dir Pausen zu gönnen.</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="content-section">
+        <h2>Das Local-First Versprechen</h2>
+        <p>Dein Fokus-Level wird zu <span class="highlight">100% lokal auf deinem Gerät</span> berechnet. Keine Statistik über dein Nutzungsverhalten verlässt jemals dein Handy. SpotMe weiß, wie es dir geht – aber wir (die Entwickler) wissen es nicht.</p>
+    </section>
+
+    <div class="footer-note">
+        SpotMe V47 · Experimental Focus Logic · 2024
+    </div>
 </div>
 
 <script>
-const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d');
-const sDwell = document.getElementById('slide-dwell');
-const sSent = document.getElementById('slide-sent');
-const sTraffic = document.getElementById('slide-traffic');
-const feedback = document.getElementById('feedback');
+    const canvas = document.getElementById('stage');
+    const ctx = canvas.getContext('2d');
+    const sDwell = document.getElementById('slide-dwell');
+    const sSent = document.getElementById('slide-sent');
+    const sTraffic = document.getElementById('slide-traffic');
+    const feedback = document.getElementById('feedback');
 
-let width, height;
-let particles = [];
+    let width, height;
+    let particles = [];
 
-function resize() {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = canvas.offsetHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+    function resize() {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-class MessagePing {
-  constructor() { this.init(); }
-  init() {
-    const side = Math.floor(Math.random() * 4);
-    if(side === 0) { this.x = Math.random() * width; this.y = -30; }
-    else if(side === 1) { this.x = width + 30; this.y = Math.random() * height; }
-    else if(side === 2) { this.x = Math.random() * width; this.y = height + 30; }
-    else { this.x = -30; this.y = Math.random() * height; }
-    
-    this.speed = 1 + Math.random() * 2;
-    this.angle = 0;
-    this.inOrbit = false;
-    this.color = '#fbff00';
-    this.orbitClockwise = Math.random() > 0.5;
-  }
-
-  update(shieldR, stress) {
-    const dx = width/2 - this.x;
-    const dy = height/2 - this.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-
-    // Schild-Kollision
-    if(!this.inOrbit && dist < shieldR && stress > 15) {
-      this.inOrbit = true;
-      this.angle = Math.atan2(this.y - height/2, this.x - width/2);
+    class MessagePing {
+        constructor() { this.init(); }
+        init() {
+            const side = Math.floor(Math.random() * 4);
+            if(side === 0) { this.x = Math.random() * width; this.y = -30; }
+            else if(side === 1) { this.x = width + 30; this.y = Math.random() * height; }
+            else if(side === 2) { this.x = Math.random() * width; this.y = height + 30; }
+            else { this.x = -30; this.y = Math.random() * height; }
+            this.speed = 1 + Math.random() * 2;
+            this.angle = 0;
+            this.inOrbit = false;
+            this.color = '#fbff00';
+            this.orbitClockwise = Math.random() > 0.5;
+        }
+        update(shieldR, stress) {
+            const dx = width/2 - this.x;
+            const dy = height/2 - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if(!this.inOrbit && dist < shieldR && stress > 15) {
+                this.inOrbit = true;
+                this.angle = Math.atan2(this.y - height/2, this.x - width/2);
+            }
+            if(this.inOrbit) {
+                this.angle += (this.orbitClockwise ? 0.015 : -0.015) * (stress/50 + 0.5);
+                this.x = width/2 + Math.cos(this.angle) * shieldR;
+                this.y = height/2 + Math.sin(this.angle) * shieldR;
+                this.color = '#ff4f7b';
+                if(stress < 10) this.inOrbit = false;
+            } else {
+                const moveX = dx / dist * this.speed;
+                const moveY = dy / dist * this.speed;
+                this.x += moveX; this.y += moveY;
+                this.color = '#fbff00';
+            }
+            if(dist < 10) this.init();
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
     }
 
-    if(this.inOrbit) {
-      // Rotieren im Orbit (Siphon-Effekt)
-      this.angle += (this.orbitClockwise ? 0.015 : -0.015) * (stress/50 + 0.5);
-      this.x = width/2 + Math.cos(this.angle) * shieldR;
-      this.y = height/2 + Math.sin(this.angle) * shieldR;
-      this.color = '#ff4f7b';
-      // Wenn Stress sinkt, bricht Ping aus dem Orbit aus
-      if(stress < 10) this.inOrbit = false;
-    } else {
-      // Direkter Flug zum User
-      const moveX = dx / dist * this.speed;
-      const moveY = dy / dist * this.speed;
-      this.x += moveX;
-      this.y += moveY;
-      this.color = '#fbff00';
+    for(let i=0; i<80; i++) particles.push(new MessagePing());
+
+    function render() {
+        const dwell = parseInt(sDwell.value);
+        const sent = parseInt(sSent.value);
+        const traffic = parseInt(sTraffic.value);
+
+        document.getElementById('val-dwell').innerText = dwell + "h";
+        document.getElementById('val-sent').innerText = sent;
+        document.getElementById('val-traffic').innerText = traffic + "%";
+        document.getElementById('lbl-dwell').innerText = dwell + "h";
+        document.getElementById('lbl-sent').innerText = sent;
+        document.getElementById('lbl-traffic').innerText = traffic + "%";
+
+        ctx.fillStyle = '#04070a';
+        ctx.fillRect(0, 0, width, height);
+
+        const shieldRadius = 50 + (dwell * 6) + (sent * 1.5);
+        const stress = traffic - (dwell * 2.5) - (sent * 2.0);
+
+        ctx.beginPath();
+        ctx.arc(width/2, height/2, shieldRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = (stress > 40) ? '#ff4f7b' : '#00e5c0';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 5]);
+        ctx.globalAlpha = 0.2 + (dwell/50);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1.0;
+
+        let orbColor = '#00e5c0';
+        if(stress > 20) orbColor = '#7b5cfa';
+        if(stress > 50) orbColor = '#ff4f7b';
+
+        ctx.beginPath();
+        ctx.arc(width/2, height/2, 18, 0, Math.PI * 2);
+        ctx.fillStyle = orbColor;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = orbColor;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if(stress < 0) { feedback.innerText = "UNZERSTÖRBAR"; feedback.style.color = "#00e5c0"; }
+        else if(stress < 40) { feedback.innerText = "BALANCED"; feedback.style.color = "#7b5cfa"; }
+        else { feedback.innerText = "SIPHON AKTIV"; feedback.style.color = "#ff4f7b"; }
+
+        const activeCount = Math.floor(traffic * 0.8);
+        for(let i=0; i < activeCount; i++) {
+            if(particles[i]) {
+                particles[i].update(shieldRadius, stress);
+                particles[i].draw();
+            }
+        }
+        requestAnimationFrame(render);
     }
-
-    if(dist < 10) this.init();
-  }
-
-  draw() {
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.shadowBlur = 5;
-    ctx.shadowColor = this.color;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
-}
-
-// Initialisiere Partikel
-for(let i=0; i<80; i++) particles.push(new MessagePing());
-
-function render() {
-  // Aktuelle Slider-Werte bei jedem Frame abgreifen
-  const dwell = parseInt(sDwell.value);
-  const sent = parseInt(sSent.value);
-  const traffic = parseInt(sTraffic.value);
-
-  // Stats Update
-  document.getElementById('val-dwell').innerText = dwell + "h";
-  document.getElementById('val-sent').innerText = sent;
-  document.getElementById('val-traffic').innerText = traffic + "%";
-  document.getElementById('lbl-dwell').innerText = dwell + "h";
-  document.getElementById('lbl-sent').innerText = sent;
-  document.getElementById('lbl-traffic').innerText = traffic + "%";
-
-  // Hintergrund
-  ctx.fillStyle = '#060a0f';
-  ctx.fillRect(0, 0, width, height);
-
-  // ALGORITHMUS V3:
-  // Dwell Time = Grundradius des Schildes
-  // Sent Messages = Schild-Härte & Reparatur (reduziert Stress massiv)
-  const shieldRadius = 50 + (dwell * 6) + (sent * 1.5);
-  const stress = traffic - (dwell * 2.5) - (sent * 2.0);
-
-  // Schutzschild zeichnen
-  ctx.beginPath();
-  ctx.arc(width/2, height/2, shieldRadius, 0, Math.PI * 2);
-  ctx.strokeStyle = (stress > 40) ? '#ff4f7b' : '#00e5c0';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([10, 5]);
-  ctx.globalAlpha = 0.2 + (dwell/50);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1.0;
-
-  // Zentraler User
-  let orbColor = '#00e5c0';
-  if(stress > 20) orbColor = '#7b5cfa';
-  if(stress > 50) orbColor = '#ff4f7b';
-
-  ctx.beginPath();
-  ctx.arc(width/2, height/2, 18, 0, Math.PI * 2);
-  ctx.fillStyle = orbColor;
-  ctx.shadowBlur = 15;
-  ctx.shadowColor = orbColor;
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  // Feedback Text
-  if(stress < 0) {
-    feedback.innerText = "UNZERSTÖRBAR: Dein Fokus ist eine Festung.";
-    feedback.style.color = "#00e5c0";
-  } else if(stress < 40) {
-    feedback.innerText = "BALANCED: Gesunder Flow.";
-    feedback.style.color = "#7b5cfa";
-  } else {
-    feedback.innerText = "STRESS: Siphon filtert Traffic!";
-    feedback.style.color = "#ff4f7b";
-  }
-
-  // Partikel-Anzahl basierend auf Traffic anpassen
-  const activeCount = Math.floor(traffic * 0.8);
-  for(let i=0; i < activeCount; i++) {
-    if(particles[i]) {
-      particles[i].update(shieldRadius, stress);
-      particles[i].draw();
-    }
-  }
-
-  requestAnimationFrame(render);
-}
-
-// Start der Endlosschleife
-render();
+    render();
 </script>
+
 </body>
 </html>
