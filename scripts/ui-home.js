@@ -4,6 +4,7 @@
 // SPOTME – HOME SCREEN (ui-home.js)
 // Code-Anzeige, Zifferneingabe, Letzte Chats, Verpasste Anrufe, Offline-Msgs
 // + Gruppierte Offline-Nachrichten (eine Karte pro Absender)
+// + Optimierte Lesbarkeit (Schriftfarbe, Button-Styles)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ function renderOfflineMessages(msgs) {
       ? esc(lastMsg.message)
       : `${s.msgs.length} Nachrichten – letzte: "${esc(lastMsg.message.substring(0, 30))}…"`;
 
-    // Alle Nachrichten dieses Absenders als Liste (für spätere Erweiterung, aktuell nur Vorschau)
+    // Alle Nachrichten dieses Absenders als Liste (einklappbar)
     const msgListHtml = s.msgs.map(m => `
       <div style="background:var(--bg);border-radius:10px;padding:0.5rem 0.65rem;margin-bottom:0.4rem;font-size:0.85rem;color:var(--text);line-height:1.4;">
         ${esc(m.message)}
@@ -213,25 +214,25 @@ function renderOfflineMessages(msgs) {
         <div class="card-avatar" style="background:linear-gradient(135deg,var(--p2),var(--p3));">${esc(initial)}</div>
         <div class="card-details">
           <div class="card-name">${esc(displayName)}</div>
-          <div class="card-preview" style="color:var(--text-main);margin-top:3px;">${msgPreview}</div>
-          <div class="card-preview">${formatCode(s.code)} · ${time}</div>
+          <div class="card-preview" style="color:var(--text);margin-top:3px;">${msgPreview}</div>
+          <div class="card-preview" style="color:var(--text-dim);">${formatCode(s.code)} · ${time}</div>
         </div>
       </div>
       <!-- Nachrichtenliste (einklappbar, zunächst ausgeblendet) -->
-      <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto;">
+      <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto; color:var(--text);">
         ${msgListHtml}
       </div>
       <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
         <button class="call-back-btn" style="background:var(--acc);" onclick="startChatDirect('${s.code}', '${esc2(displayName)}')">💬 Chat</button>
         <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${s.code}', '${esc2(displayName)}')">↩️ Antworten</button>
         <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissSenderOfflineMsgs('${s.code}', [${allIds.join(',')}])">✓ Gelesen</button>
-        ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
+        ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,0.1);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
       </div>
     </div>`;
   }).join('');
 }
 
-// 🆕 Nachrichten eines Absenders ein-/ausblenden
+// Nachrichten eines Absenders ein-/ausblenden
 function toggleSenderMessages(code) {
   const card = document.getElementById('sender-' + code);
   const detail = card?.querySelector('.offline-msg-detail');
@@ -240,12 +241,11 @@ function toggleSenderMessages(code) {
   }
 }
 
-// 🆕 Alle Nachrichten eines Absenders als gelesen markieren
+// Alle Nachrichten eines Absenders als gelesen markieren
 async function dismissSenderOfflineMsgs(senderCode, ids) {
   for (const id of ids) {
     await markOfflineMsgRead(id);
   }
-  // Karte entfernen
   const el = document.getElementById('sender-' + senderCode);
   if (el) el.remove();
   const lst = document.getElementById('offline-msg-list');
@@ -290,4 +290,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-                   }
+    }
