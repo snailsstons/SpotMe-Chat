@@ -11,6 +11,8 @@ const LOCATION_UPDATE_INTERVAL = 30000;
 const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
 const HEARTBEAT_INTERVAL = 30000;
 const DEFAULT_RADIUS = 500;
+const CACHE_VERSION = 1;
+const CACHE_KEY = `spot_cache_${SPOT}_v${CACHE_VERSION}`;
 
 const REGIONS = [
   'Andalusien','Aragón','Asturien','Balearen','Baskenland',
