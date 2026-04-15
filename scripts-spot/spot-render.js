@@ -92,6 +92,7 @@ function renderList() {
       locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
     }
     
+    // Bio mit Fallback
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
     const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>`;
@@ -143,6 +144,7 @@ function showProfileDetail(profile) {
   if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
   if (profile.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
   
+  // Bio mit Fallback
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
@@ -174,4 +176,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-                                       }
+        }
