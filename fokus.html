@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpotMe · Focus Flow Simulation</title>
+<style>
+:root {
+  --bg: #060a0f;
+  --acc: #00e5c0;
+  --warn: #ff4f7b;
+  --text: #e8edf5;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header {
+  padding: 2rem;
+  text-align: center;
+}
+
+.visual-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+#focus-svg {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+}
+
+.controls {
+  padding: 2rem;
+  background: rgba(255,255,255,0.03);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+}
+
+input[type=range] {
+  width: 100%;
+  max-width: 400px;
+  accent-color: var(--acc);
+}
+
+.status-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  min-height: 1.5em;
+  color: var(--acc);
+  transition: color 0.3s;
+}
+
+/* Animationen */
+@keyframes pulse {
+  0% { r: 20; opacity: 0.8; }
+  50% { r: 25; opacity: 1; }
+  100% { r: 20; opacity: 0.8; }
+}
+
+.user-orb {
+  animation: pulse 2s infinite ease-in-out;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2 style="font-family: 'Syne'; letter-spacing: -1px;">Focus Flow Algorithm</h2>
+  <p style="opacity: 0.6; font-size: 0.9rem;">Simulation der lokalen Benachrichtigungs-Bremse</p>
+</div>
+
+<div class="visual-container">
+  <svg id="focus-svg" viewBox="0 0 400 400">
+    <circle cx="200" cy="200" r="150" fill="none" stroke="rgba(0,229,192,0.05)" stroke-width="1" />
+    <circle cx="200" cy="200" r="100" fill="none" stroke="rgba(0,229,192,0.05)" stroke-width="1" />
+    
+    <path id="vortex-path" d="" fill="none" stroke="rgba(255,79,123,0.1)" stroke-width="2" />
+    
+    <circle id="user-orb" class="user-orb" cx="200" cy="200" r="22" fill="#00e5c0" style="filter: blur(2px);" />
+    <circle cx="200" cy="200" r="10" fill="white" opacity="0.5" />
+  </svg>
+</div>
+
+<div class="controls">
+  <div id="status" class="status-text">Fokus-Mode: Nachrichten fließen frei.</div>
+  <input type="range" id="usage-slider" min="0" max="100" value="0">
+  <div style="font-size: 0.8rem; opacity: 0.5;">Slider bewegen: Smartphone-Nutzungsintensität simulieren</div>
+</div>
+
+<script>
+const slider = document.getElementById('usage-slider');
+const status = document.getElementById('status');
+const userOrb = document.getElementById('user-orb');
+const svg = document.getElementById('focus-svg');
+
+let pings = [];
+let usage = 0;
+
+function createPing() {
+  const ping = {
+    x: Math.random() > 0.5 ? -20 : 420,
+    y: Math.random() * 400,
+    size: 4,
+    speed: 2 + Math.random() * 2,
+    angle: 0,
+    orbitRadius: 60 + Math.random() * 40,
+    inOrbit: false,
+    element: document.createElementNS("http://www.w3.org/2000/svg", "circle")
+  };
+  
+  ping.element.setAttribute("r", ping.size);
+  ping.element.setAttribute("fill", "#fbff00");
+  ping.element.style.filter = "blur(1px)";
+  svg.appendChild(ping.element);
+  return ping;
+}
+
+function update() {
+  usage = slider.value;
+  
+  // UI Update basierend auf Nutzung
+  if(usage < 30) {
+    status.innerText = "Fokus-Mode: Nachrichten fließen frei.";
+    status.style.color = "#00e5c0";
+    userOrb.setAttribute("fill", "#00e5c0");
+  } else if(usage < 70) {
+    status.innerText = "Balanced: Kleine Verzögerungen möglich.";
+    status.style.color = "#7b5cfa";
+    userOrb.setAttribute("fill", "#7b5cfa");
+  } else {
+    status.innerText = "Dopamin-Loop: Siphon aktiv. Fokus-Schutz!";
+    status.style.color = "#ff4f7b";
+    userOrb.setAttribute("fill", "#ff4f7b");
+  }
+
+  pings.forEach((p, index) => {
+    const dx = 200 - p.x;
+    const dy = 200 - p.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (usage > 70 && dist < p.orbitRadius) {
+      p.inOrbit = true;
+    }
+
+    if (p.inOrbit && usage > 60) {
+      // Kreisen im Orbit
+      p.angle += 0.02 * (usage/100);
+      p.x = 200 + Math.cos(p.angle) * p.orbitRadius;
+      p.y = 200 + Math.sin(p.angle) * p.orbitRadius;
+      p.element.setAttribute("fill", "#ff4f7b");
+    } else {
+      // Direktflug zum Ziel
+      p.x += dx / (50 - (usage/4));
+      p.y += dy / (50 - (usage/4));
+      p.element.setAttribute("fill", "#fbff00");
+      
+      if (dist < 15) {
+        svg.removeChild(p.element);
+        pings.splice(index, 1);
+      }
+    }
+    
+    p.element.setAttribute("cx", p.x);
+    p.element.setAttribute("cy", p.y);
+  });
+
+  if (Math.random() < 0.05) pings.push(createPing());
+  requestAnimationFrame(update);
+}
+
+update();
+</script>
+</body>
+  </html>
+  
