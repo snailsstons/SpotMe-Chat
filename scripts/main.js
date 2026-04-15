@@ -9,7 +9,8 @@
 window.addEventListener('load', () => {
   // 📊 App-Start aufzeichnen
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
-
+  if (typeof Analytics !== 'undefined') Analytics.recordAppStart();
+  
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   
   initDigits();
