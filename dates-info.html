@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpotMe · Focus & Shield Simulation</title>
+<title>SpotMe · Focus Engine V2</title>
 <style>
 :root {
   --bg: #060a0f;
@@ -19,183 +19,208 @@ body {
   display: flex; flex-direction: column; height: 100vh; overflow: hidden;
 }
 
-.header { padding: 1.5rem; text-align: center; }
-.brand { font-family: 'Syne'; font-weight: 800; font-size: 1.2rem; color: var(--acc); margin-bottom: 0.5rem; }
+.header { padding: 1rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.brand { font-family: 'Syne'; font-weight: 800; font-size: 1.1rem; color: var(--acc); }
 
-/* Dashboard-Werte */
+/* Dashboard */
 .dashboard {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-  padding: 0 1.5rem; max-width: 500px; margin: 0 auto; width: 100%;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+  padding: 1rem; max-width: 600px; margin: 0 auto; width: 100%;
 }
 .stat-card {
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  padding: 0.8rem; border-radius: 12px; text-align: center;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  padding: 0.6rem; border-radius: 12px; text-align: center;
 }
-.stat-val { font-family: 'Syne'; font-size: 1.4rem; font-weight: 800; display: block; }
-.stat-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.05em; }
+.stat-val { font-family: 'Syne'; font-size: 1.2rem; font-weight: 800; display: block; }
+.stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.05em; }
 
-.visual-container { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; }
-#focus-svg { width: 100%; max-width: 500px; height: auto; }
+canvas { flex: 1; cursor: crosshair; }
 
 .controls {
-  padding: 1.5rem; background: rgba(255,255,255,0.02); border-top: 1px solid rgba(255,255,255,0.08);
-  display: flex; flex-direction: column; gap: 1.2rem;
+  padding: 1rem; background: rgba(8, 12, 16, 0.9); backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex; flex-direction: column; gap: 0.8rem;
 }
-.slider-group { width: 100%; max-width: 400px; margin: 0 auto; }
-.slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.4rem; }
+.slider-group { width: 100%; max-width: 450px; margin: 0 auto; }
+.slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.2rem; }
 
 input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
 
-/* Dynamische Klassen */
-.shield { fill: none; stroke: var(--acc); stroke-width: 2; stroke-dasharray: 4 2; opacity: 0.3; transition: all 0.5s ease; }
-.user-orb { transition: fill 0.5s ease; filter: drop-shadow(0 0 10px rgba(0,229,192,0.4)); }
+#feedback { text-align: center; font-size: 0.8rem; font-weight: 500; height: 1em; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="brand">SPOTME · FOCUS ENGINE</div>
-  <p style="opacity: 0.6; font-size: 0.8rem; margin:0;">Algorithmus: Traffic vs. Dwell-Time</p>
+  <div class="brand">SPOTME · FOCUS ENGINE V2</div>
 </div>
 
 <div class="dashboard">
   <div class="stat-card">
-    <span class="stat-label">Online Traffic</span>
-    <span id="val-traffic" class="stat-val" style="color: var(--danger);">0%</span>
-  </div>
-  <div class="stat-card">
-    <span class="stat-label">Local Dwell Time</span>
+    <span class="stat-label">Dwell Time</span>
     <span id="val-dwell" class="stat-val" style="color: var(--acc);">0h</span>
   </div>
+  <div class="stat-card">
+    <span class="stat-label">Lokal Gesendet</span>
+    <span id="val-sent" class="stat-val" style="color: #fbff00;">0</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Traffic</span>
+    <span id="val-traffic" class="stat-val" style="color: var(--danger);">0%</span>
+  </div>
 </div>
 
-<div class="visual-container">
-  <svg id="focus-svg" viewBox="0 0 400 400">
-    <circle cx="200" cy="200" r="140" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1" />
-    <circle cx="200" cy="200" r="90" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1" />
-    
-    <circle id="focus-shield" class="shield" cx="200" cy="200" r="30" />
-    
-    <circle id="user-orb" class="user-orb" cx="200" cy="200" r="20" fill="#00e5c0" />
-    <circle cx="200" cy="200" r="8" fill="white" opacity="0.3" />
-  </svg>
-</div>
+<canvas id="stage"></canvas>
 
 <div class="controls">
+  <div id="feedback">Analysiere Fokus-Feld...</div>
+  
   <div class="slider-group">
-    <div class="slider-label"><span>Traffic (Datenmenge)</span><span id="lbl-traffic">0%</span></div>
+    <div class="slider-label"><span>Handy-Ruhe (Dwell Time)</span><span id="lbl-dwell">0h</span></div>
+    <input type="range" id="slide-dwell" min="0" max="24" value="4">
+  </div>
+  
+  <div class="slider-group">
+    <div class="slider-label"><span>Lokal geschriebene Nachrichten</span><span id="lbl-sent">0</span></div>
+    <input type="range" id="slide-sent" min="0" max="50" value="5">
+  </div>
+
+  <div class="slider-group">
+    <div class="slider-label"><span>Online Rauschen (Traffic)</span><span id="lbl-traffic">20%</span></div>
     <input type="range" id="slide-traffic" min="0" max="100" value="20">
   </div>
-  
-  <div class="slider-group">
-    <div class="slider-label"><span>Local Dwell Time (Fokus-Dauer)</span><span id="lbl-dwell">0h</span></div>
-    <input type="range" id="slide-dwell" min="0" max="24" value="2">
-  </div>
-  
-  <p id="feedback" style="text-align:center; font-size: 0.85rem; color: var(--acc);">System stabil.</p>
 </div>
 
 <script>
-const sTraffic = document.getElementById('slide-traffic');
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
 const sDwell = document.getElementById('slide-dwell');
-const vTraffic = document.getElementById('val-traffic');
-const vDwell = document.getElementById('val-dwell');
-const lTraffic = document.getElementById('lbl-traffic');
-const lDwell = document.getElementById('lbl-dwell');
-const shield = document.getElementById('focus-shield');
-const orb = document.getElementById('user-orb');
+const sSent = document.getElementById('slide-sent');
+const sTraffic = document.getElementById('slide-traffic');
 const feedback = document.getElementById('feedback');
-const svg = document.getElementById('focus-svg');
 
-let pings = [];
+let particles = [];
+let width, height;
 
-function createPing(intensity) {
-  if (Math.random() > (intensity / 100)) return;
-  
-  const ping = {
-    x: Math.random() * 400,
-    y: Math.random() < 0.5 ? -10 : 410,
-    r: 3 + Math.random() * 2,
-    angle: Math.random() * Math.PI * 2,
-    inOrbit: false,
-    element: document.createElementNS("http://www.w3.org/2000/svg", "circle")
-  };
-  
-  if (Math.random() > 0.5) { p.x = Math.random() < 0.5 ? -10 : 410; p.y = Math.random() * 400; }
-
-  ping.element.setAttribute("r", ping.r);
-  ping.element.setAttribute("fill", "#fbff00");
-  ping.element.style.filter = "blur(1px)";
-  svg.appendChild(ping.element);
-  pings.push(ping);
+function resize() {
+  width = canvas.width = canvas.offsetWidth;
+  height = canvas.height = canvas.offsetHeight;
 }
+window.onresize = resize;
+resize();
 
-function update() {
-  const traffic = parseInt(sTraffic.value);
-  const dwell = parseInt(sDwell.value);
-  
-  // Dashboard Updates
-  vTraffic.innerText = traffic + "%";
-  vDwell.innerText = dwell + "h";
-  lTraffic.innerText = traffic + "%";
-  lDwell.innerText = dwell + "h";
-
-  // Schild-Logik: Höhere Dwell-Time = Größeres Schild
-  const shieldSize = 30 + (dwell * 4);
-  shield.setAttribute("r", shieldSize);
-  shield.style.opacity = 0.1 + (dwell / 40);
-  shield.style.strokeWidth = 1 + (dwell / 4);
-
-  // Belastungs-Faktor berechnen
-  const stress = traffic - (dwell * 3);
-  
-  if (stress < 20) {
-    orb.setAttribute("fill", "#00e5c0");
-    feedback.innerText = "Local-Hero: Dein Fokus schützt dich.";
-    feedback.style.color = "var(--acc)";
-  } else if (stress < 60) {
-    orb.setAttribute("fill", "#7b5cfa");
-    feedback.innerText = "Balance: Mittleres Rauschen.";
-    feedback.style.color = "var(--warn)";
-  } else {
-    orb.setAttribute("fill", "#ff4f7b");
-    feedback.innerText = "Dopamin-Alarm: Traffic zu hoch!";
-    feedback.style.color = "var(--danger)";
+class Particle {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    const side = Math.floor(Math.random() * 4);
+    if(side === 0) { this.x = Math.random() * width; this.y = -20; }
+    if(side === 1) { this.x = width + 20; this.y = Math.random() * height; }
+    if(side === 2) { this.x = Math.random() * width; this.y = height + 20; }
+    if(side === 3) { this.x = -20; this.y = Math.random() * height; }
+    
+    this.vx = (width/2 - this.x) * (0.005 + Math.random() * 0.01);
+    this.vy = (height/2 - this.y) * (0.005 + Math.random() * 0.01);
+    this.inOrbit = false;
+    this.angle = Math.random() * Math.PI * 2;
+    this.color = '#fbff00';
   }
 
-  // Pings bewegen
-  pings.forEach((p, i) => {
-    const dx = 200 - p.x;
-    const dy = 200 - p.y;
+  update(shieldRadius, stress) {
+    const dx = width/2 - this.x;
+    const dy = height/2 - this.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
 
-    // Wenn Ping auf Schild trifft und Stress hoch ist -> Orbit
-    if (!p.inOrbit && dist < shieldSize && stress > 30) {
-      p.inOrbit = true;
+    if(!this.inOrbit && dist < shieldRadius && stress > 20) {
+      this.inOrbit = true;
     }
 
-    if (p.inOrbit) {
-      p.angle += 0.02;
-      p.x = 200 + Math.cos(p.angle) * shieldSize;
-      p.y = 200 + Math.sin(p.angle) * shieldSize;
-      p.element.setAttribute("fill", "var(--danger)");
+    if(this.inOrbit) {
+      this.angle += 0.02;
+      this.x = width/2 + Math.cos(this.angle) * shieldRadius;
+      this.y = height/2 + Math.sin(this.angle) * shieldRadius;
+      this.color = '#ff4f7b';
     } else {
-      p.x += dx / 40;
-      p.y += dy / 40;
-      if (dist < 10) {
-        svg.removeChild(p.element);
-        pings.splice(i, 1);
-      }
+      this.x += this.vx;
+      this.y += this.vy;
+      this.color = '#fbff00';
     }
-    p.element.setAttribute("cx", p.x);
-    p.element.setAttribute("cy", p.y);
-  });
 
-  createPing(traffic);
-  requestAnimationFrame(update);
+    if(dist < 10) this.reset();
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
 }
 
-update();
+function initParticles() {
+  particles = Array.from({length: 60}, () => new Particle());
+}
+initParticles();
+
+function draw() {
+  ctx.fillStyle = '#060a0f';
+  ctx.fillRect(0, 0, width, height);
+
+  const dwell = parseInt(sDwell.value);
+  const sent = parseInt(sSent.value);
+  const traffic = parseInt(sTraffic.value);
+
+  // Dashboard & Labels
+  document.getElementById('val-dwell').innerText = dwell + "h";
+  document.getElementById('val-sent').innerText = sent;
+  document.getElementById('val-traffic').innerText = traffic + "%";
+  document.getElementById('lbl-dwell').innerText = dwell + "h";
+  document.getElementById('lbl-sent').innerText = sent;
+  document.getElementById('lbl-traffic').innerText = traffic + "%";
+
+  // ALGORITHMUS V2:
+  // Dwell Time = Basis-Schild
+  // Sent Messages = Schild-Härte (Bonus-Radius + Glanz)
+  const shieldRadius = 40 + (dwell * 5) + (sent * 2);
+  const stress = traffic - (dwell * 2) - (sent * 1.5);
+
+  // Schild zeichnen
+  ctx.beginPath();
+  ctx.arc(width/2, height/2, shieldRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = (stress > 50) ? '#ff4f7b' : '#00e5c0';
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.3;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1.0;
+
+  // Zentraler User-Orb
+  ctx.beginPath();
+  ctx.arc(width/2, height/2, 15, 0, Math.PI * 2);
+  ctx.fillStyle = (stress > 50) ? '#ff4f7b' : (stress > 20 ? '#7b5cfa' : '#00e5c0');
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = ctx.fillStyle;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Feedback Text
+  if(stress < 0) feedback.innerText = "UNZERSTÖRBAR: Dein lokaler Fokus ist perfekt.";
+  else if(stress < 30) feedback.innerText = "STABIL: Nachrichten werden sanft gefiltert.";
+  else feedback.innerText = "REIZÜBERFLUTUNG: Siphon aktiv – Fokus wird geschützt.";
+  feedback.style.color = ctx.fillStyle;
+
+  // Partikel Updates
+  particles.forEach(p => {
+    p.update(shieldRadius, stress);
+    p.draw();
+  });
+
+  requestAnimationFrame(draw);
+}
+
+draw();
 </script>
 </body>
 </html>
