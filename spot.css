@@ -250,11 +250,17 @@ body {
 .badge-trans  { background: rgba(0,229,192,.06); color: var(--acc); border-color: rgba(0,229,192,.15); font-size: 0.65rem; }
 .badge-cross  { background: rgba(255,185,0,.07); color: #f5a623; border-color: rgba(255,185,0,.18); font-size: 0.65rem; }
 
+/* Bio in Profilkarten vollständig anzeigen */
 .card-bio {
-  font-size: 0.8rem; color: var(--muted2); line-height: 1.4;
-  margin-bottom: 0.75rem;
-  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  max-height: none !important;
+  overflow: visible !important;
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
 }
+
 .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; }
 .card-time { font-size: 0.7rem; color: var(--muted); }
 .btn-chat {
