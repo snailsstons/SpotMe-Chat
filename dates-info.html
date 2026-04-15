@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpotMe · Focus Engine V2</title>
+<title>SpotMe · Focus Engine V3</title>
 <style>
 :root {
   --bg: #060a0f;
@@ -22,7 +22,6 @@ body {
 .header { padding: 1rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .brand { font-family: 'Syne'; font-weight: 800; font-size: 1.1rem; color: var(--acc); }
 
-/* Dashboard */
 .dashboard {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
   padding: 1rem; max-width: 600px; margin: 0 auto; width: 100%;
@@ -34,25 +33,25 @@ body {
 .stat-val { font-family: 'Syne'; font-size: 1.2rem; font-weight: 800; display: block; }
 .stat-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.05em; }
 
-canvas { flex: 1; cursor: crosshair; }
+canvas { flex: 1; width: 100%; height: 100%; }
 
 .controls {
-  padding: 1rem; background: rgba(8, 12, 16, 0.9); backdrop-filter: blur(10px);
+  padding: 1.5rem; background: rgba(8, 12, 16, 0.95); backdrop-filter: blur(15px);
   border-top: 1px solid rgba(255,255,255,0.1);
-  display: flex; flex-direction: column; gap: 0.8rem;
+  display: flex; flex-direction: column; gap: 1rem;
 }
 .slider-group { width: 100%; max-width: 450px; margin: 0 auto; }
-.slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.2rem; }
+.slider-label { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.4rem; }
 
 input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
 
-#feedback { text-align: center; font-size: 0.8rem; font-weight: 500; height: 1em; }
+#feedback { text-align: center; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="brand">SPOTME · FOCUS ENGINE V2</div>
+  <div class="brand">SPOTME · FOCUS ENGINE V3</div>
 </div>
 
 <div class="dashboard">
@@ -73,16 +72,16 @@ input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
 <canvas id="stage"></canvas>
 
 <div class="controls">
-  <div id="feedback">Analysiere Fokus-Feld...</div>
+  <div id="feedback">Initialisiere...</div>
   
   <div class="slider-group">
-    <div class="slider-label"><span>Handy-Ruhe (Dwell Time)</span><span id="lbl-dwell">0h</span></div>
+    <div class="slider-label"><span>Handy-Ruhe (Dwell Time)</span><span id="lbl-dwell">4h</span></div>
     <input type="range" id="slide-dwell" min="0" max="24" value="4">
   </div>
   
   <div class="slider-group">
-    <div class="slider-label"><span>Lokal geschriebene Nachrichten</span><span id="lbl-sent">0</span></div>
-    <input type="range" id="slide-sent" min="0" max="50" value="5">
+    <div class="slider-label"><span>Lokal geschriebene Nachrichten</span><span id="lbl-sent">5</span></div>
+    <input type="range" id="slide-sent" min="0" max="100" value="5">
   </div>
 
   <div class="slider-group">
@@ -99,79 +98,84 @@ const sSent = document.getElementById('slide-sent');
 const sTraffic = document.getElementById('slide-traffic');
 const feedback = document.getElementById('feedback');
 
-let particles = [];
 let width, height;
+let particles = [];
 
 function resize() {
-  width = canvas.width = canvas.offsetWidth;
+  width = canvas.width = window.innerWidth;
   height = canvas.height = canvas.offsetHeight;
 }
-window.onresize = resize;
+window.addEventListener('resize', resize);
 resize();
 
-class Particle {
-  constructor() {
-    this.reset();
-  }
-  reset() {
+class MessagePing {
+  constructor() { this.init(); }
+  init() {
     const side = Math.floor(Math.random() * 4);
-    if(side === 0) { this.x = Math.random() * width; this.y = -20; }
-    if(side === 1) { this.x = width + 20; this.y = Math.random() * height; }
-    if(side === 2) { this.x = Math.random() * width; this.y = height + 20; }
-    if(side === 3) { this.x = -20; this.y = Math.random() * height; }
+    if(side === 0) { this.x = Math.random() * width; this.y = -30; }
+    else if(side === 1) { this.x = width + 30; this.y = Math.random() * height; }
+    else if(side === 2) { this.x = Math.random() * width; this.y = height + 30; }
+    else { this.x = -30; this.y = Math.random() * height; }
     
-    this.vx = (width/2 - this.x) * (0.005 + Math.random() * 0.01);
-    this.vy = (height/2 - this.y) * (0.005 + Math.random() * 0.01);
+    this.speed = 1 + Math.random() * 2;
+    this.angle = 0;
     this.inOrbit = false;
-    this.angle = Math.random() * Math.PI * 2;
     this.color = '#fbff00';
+    this.orbitClockwise = Math.random() > 0.5;
   }
 
-  update(shieldRadius, stress) {
+  update(shieldR, stress) {
     const dx = width/2 - this.x;
     const dy = height/2 - this.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
 
-    if(!this.inOrbit && dist < shieldRadius && stress > 20) {
+    // Schild-Kollision
+    if(!this.inOrbit && dist < shieldR && stress > 15) {
       this.inOrbit = true;
+      this.angle = Math.atan2(this.y - height/2, this.x - width/2);
     }
 
     if(this.inOrbit) {
-      this.angle += 0.02;
-      this.x = width/2 + Math.cos(this.angle) * shieldRadius;
-      this.y = height/2 + Math.sin(this.angle) * shieldRadius;
+      // Rotieren im Orbit (Siphon-Effekt)
+      this.angle += (this.orbitClockwise ? 0.015 : -0.015) * (stress/50 + 0.5);
+      this.x = width/2 + Math.cos(this.angle) * shieldR;
+      this.y = height/2 + Math.sin(this.angle) * shieldR;
       this.color = '#ff4f7b';
+      // Wenn Stress sinkt, bricht Ping aus dem Orbit aus
+      if(stress < 10) this.inOrbit = false;
     } else {
-      this.x += this.vx;
-      this.y += this.vy;
+      // Direkter Flug zum User
+      const moveX = dx / dist * this.speed;
+      const moveY = dy / dist * this.speed;
+      this.x += moveX;
+      this.y += moveY;
       this.color = '#fbff00';
     }
 
-    if(dist < 10) this.reset();
+    if(dist < 10) this.init();
   }
 
   draw() {
     ctx.beginPath();
-    ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = this.color;
     ctx.fill();
+    ctx.shadowBlur = 0;
   }
 }
 
-function initParticles() {
-  particles = Array.from({length: 60}, () => new Particle());
-}
-initParticles();
+// Initialisiere Partikel
+for(let i=0; i<80; i++) particles.push(new MessagePing());
 
-function draw() {
-  ctx.fillStyle = '#060a0f';
-  ctx.fillRect(0, 0, width, height);
-
+function render() {
+  // Aktuelle Slider-Werte bei jedem Frame abgreifen
   const dwell = parseInt(sDwell.value);
   const sent = parseInt(sSent.value);
   const traffic = parseInt(sTraffic.value);
 
-  // Dashboard & Labels
+  // Stats Update
   document.getElementById('val-dwell').innerText = dwell + "h";
   document.getElementById('val-sent').innerText = sent;
   document.getElementById('val-traffic').innerText = traffic + "%";
@@ -179,48 +183,66 @@ function draw() {
   document.getElementById('lbl-sent').innerText = sent;
   document.getElementById('lbl-traffic').innerText = traffic + "%";
 
-  // ALGORITHMUS V2:
-  // Dwell Time = Basis-Schild
-  // Sent Messages = Schild-Härte (Bonus-Radius + Glanz)
-  const shieldRadius = 40 + (dwell * 5) + (sent * 2);
-  const stress = traffic - (dwell * 2) - (sent * 1.5);
+  // Hintergrund
+  ctx.fillStyle = '#060a0f';
+  ctx.fillRect(0, 0, width, height);
 
-  // Schild zeichnen
+  // ALGORITHMUS V3:
+  // Dwell Time = Grundradius des Schildes
+  // Sent Messages = Schild-Härte & Reparatur (reduziert Stress massiv)
+  const shieldRadius = 50 + (dwell * 6) + (sent * 1.5);
+  const stress = traffic - (dwell * 2.5) - (sent * 2.0);
+
+  // Schutzschild zeichnen
   ctx.beginPath();
   ctx.arc(width/2, height/2, shieldRadius, 0, Math.PI * 2);
-  ctx.strokeStyle = (stress > 50) ? '#ff4f7b' : '#00e5c0';
-  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = (stress > 40) ? '#ff4f7b' : '#00e5c0';
   ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.3;
+  ctx.setLineDash([10, 5]);
+  ctx.globalAlpha = 0.2 + (dwell/50);
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 1.0;
 
-  // Zentraler User-Orb
+  // Zentraler User
+  let orbColor = '#00e5c0';
+  if(stress > 20) orbColor = '#7b5cfa';
+  if(stress > 50) orbColor = '#ff4f7b';
+
   ctx.beginPath();
-  ctx.arc(width/2, height/2, 15, 0, Math.PI * 2);
-  ctx.fillStyle = (stress > 50) ? '#ff4f7b' : (stress > 20 ? '#7b5cfa' : '#00e5c0');
-  ctx.shadowBlur = 20;
-  ctx.shadowColor = ctx.fillStyle;
+  ctx.arc(width/2, height/2, 18, 0, Math.PI * 2);
+  ctx.fillStyle = orbColor;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = orbColor;
   ctx.fill();
   ctx.shadowBlur = 0;
 
   // Feedback Text
-  if(stress < 0) feedback.innerText = "UNZERSTÖRBAR: Dein lokaler Fokus ist perfekt.";
-  else if(stress < 30) feedback.innerText = "STABIL: Nachrichten werden sanft gefiltert.";
-  else feedback.innerText = "REIZÜBERFLUTUNG: Siphon aktiv – Fokus wird geschützt.";
-  feedback.style.color = ctx.fillStyle;
+  if(stress < 0) {
+    feedback.innerText = "UNZERSTÖRBAR: Dein Fokus ist eine Festung.";
+    feedback.style.color = "#00e5c0";
+  } else if(stress < 40) {
+    feedback.innerText = "BALANCED: Gesunder Flow.";
+    feedback.style.color = "#7b5cfa";
+  } else {
+    feedback.innerText = "STRESS: Siphon filtert Traffic!";
+    feedback.style.color = "#ff4f7b";
+  }
 
-  // Partikel Updates
-  particles.forEach(p => {
-    p.update(shieldRadius, stress);
-    p.draw();
-  });
+  // Partikel-Anzahl basierend auf Traffic anpassen
+  const activeCount = Math.floor(traffic * 0.8);
+  for(let i=0; i < activeCount; i++) {
+    if(particles[i]) {
+      particles[i].update(shieldRadius, stress);
+      particles[i].draw();
+    }
+  }
 
-  requestAnimationFrame(draw);
+  requestAnimationFrame(render);
 }
 
-draw();
+// Start der Endlosschleife
+render();
 </script>
 </body>
 </html>
