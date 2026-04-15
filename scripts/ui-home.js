@@ -3,6 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Code-Anzeige, Zifferneingabe, Letzte Chats, Verpasste Anrufe, Offline-Msgs
+// + Erweiterte Offline-Nachrichten mit Chat & Antworten
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,7 +170,7 @@ function callBack(code) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Offline-Nachrichten (vom Server)
+// Offline-Nachrichten (vom Server) – ERWEITERT mit Chat & Antworten
 function renderOfflineMessages(msgs) {
   const sec = document.getElementById('offline-msg-sec');
   const lst = document.getElementById('offline-msg-list');
@@ -195,7 +196,8 @@ function renderOfflineMessages(msgs) {
         </div>
       </div>
       <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-        <button class="call-back-btn" onclick="callBack('${m.senderCode}')">📞 Zurückrufen</button>
+        <button class="call-back-btn" style="background:var(--acc);" onclick="startChatDirect('${m.senderCode}', '${esc2(displayName)}')">💬 Chat</button>
+        <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${m.senderCode}', '${esc2(displayName)}')">↩️ Antworten</button>
         <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissOfflineMsg(${m.id})">✓ Gelesen</button>
       </div>
     </div>`;
@@ -212,6 +214,29 @@ async function dismissOfflineMsg(id) {
   }
 }
 
+// 🆕 Direkt einen Chat starten (ohne manuelle Codeeingabe)
+function startChatDirect(code, name) {
+  // Code in Eingabefelder schreiben
+  const inps = document.querySelectorAll('.dinp-new');
+  code.split('').forEach((ch, i) => {
+    if (inps[i]) {
+      inps[i].value = ch;
+      inps[i].classList.add('filled');
+    }
+  });
+  document.getElementById('cbtn').disabled = false;
+  // Chat starten
+  connectToPeer();
+  // Felder danach leeren (wie bei callBack)
+  setTimeout(() => {
+    inps.forEach(d => {
+      d.value = '';
+      d.classList.remove('filled');
+    });
+    document.getElementById('cbtn').disabled = true;
+  }, 200);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Kontakte umbenennen (aus Home-Kontext)
 function renameContact(code, networkName) {
@@ -222,4 +247,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-}
+    }
