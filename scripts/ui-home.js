@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Code-Anzeige, Zifferneingabe, Letzte Chats, Verpasste Anrufe, Offline-Msgs
-// + Erweiterte Offline-Nachrichten mit Chat & Antworten
+// + Gruppierte Offline-Nachrichten (eine Karte pro Absender)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,15 +94,12 @@ function renderPrev() {
   }).join('');
 }
 
-// Zu altem Chat zurückkehren (unterstützt lokalen Modus)
 function reconnectTo(code, name, cid) {
   partnerCode = code;
   partnerName = name;
   chatId = cid;
   loadPendingMessages();
   migratePendingMessages(chatId);
-
-  // Peer-Bereitschaft prüfen (peerReady statt peer.open)
   if (!peerReady) {
     toast('📴 Lokaler Modus – Nachrichten werden gespeichert');
     openChat(null);
@@ -110,7 +107,6 @@ function reconnectTo(code, name, cid) {
     markAutoReconnect();
     return;
   }
-
   toast('↺ Verbinde...');
   openChat(peer.connect(code, { reliable: true, metadata: { name: myName } }));
 }
@@ -149,7 +145,6 @@ function clearMissed() {
   renderMissed();
 }
 
-// Zurückrufen (connectToPeer prüft selbst peerReady)
 function callBack(code) {
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
@@ -161,16 +156,13 @@ function callBack(code) {
   document.getElementById('cbtn').disabled = false;
   connectToPeer();
   setTimeout(() => {
-    inps.forEach(d => {
-      d.value = '';
-      d.classList.remove('filled');
-    });
+    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
     document.getElementById('cbtn').disabled = true;
   }, 200);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Offline-Nachrichten (vom Server) – ERWEITERT mit Chat & Antworten
+// Offline-Nachrichten – GRUPPIERT NACH ABSENDER
 function renderOfflineMessages(msgs) {
   const sec = document.getElementById('offline-msg-sec');
   const lst = document.getElementById('offline-msg-list');
@@ -181,27 +173,85 @@ function renderOfflineMessages(msgs) {
     return;
   }
   sec.style.display = 'block';
-  lst.innerHTML = unread.map(m => {
-    const d = new Date(m.timestamp);
+
+  // Nach Absender gruppieren
+  const grouped = {};
+  unread.forEach(m => {
+    if (!grouped[m.senderCode]) {
+      grouped[m.senderCode] = {
+        name: m.senderName,
+        code: m.senderCode,
+        msgs: []
+      };
+    }
+    grouped[m.senderCode].msgs.push(m);
+  });
+
+  const senders = Object.values(grouped);
+
+  lst.innerHTML = senders.map(s => {
+    const lastMsg = s.msgs[s.msgs.length - 1];
+    const allIds = s.msgs.map(m => m.id);
+    const d = new Date(lastMsg.timestamp);
     const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) +
                  ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    const displayName = getContacts()[m.senderCode] || m.senderName || ('Nutzer_' + m.senderCode.slice(0, 4));
-    return `<div class="chat-card missed-card" id="offmsg-${m.id}">
+    const initial = s.name ? s.name[0].toUpperCase() : '?';
+    const displayName = getContacts()[s.code] || s.name || ('Nutzer_' + s.code.slice(0, 4));
+    const msgPreview = s.msgs.length === 1
+      ? esc(lastMsg.message)
+      : `${s.msgs.length} Nachrichten – letzte: "${esc(lastMsg.message.substring(0, 30))}…"`;
+
+    // Alle Nachrichten dieses Absenders als Liste (für spätere Erweiterung, aktuell nur Vorschau)
+    const msgListHtml = s.msgs.map(m => `
+      <div style="background:var(--bg);border-radius:10px;padding:0.5rem 0.65rem;margin-bottom:0.4rem;font-size:0.85rem;color:var(--text);line-height:1.4;">
+        ${esc(m.message)}
+      </div>
+    `).join('');
+
+    return `<div class="chat-card missed-card" style="min-width:260px;" id="sender-${s.code}">
       <div class="card-row">
-        <div class="card-avatar">✉️</div>
+        <div class="card-avatar" style="background:linear-gradient(135deg,var(--p2),var(--p3));">${esc(initial)}</div>
         <div class="card-details">
           <div class="card-name">${esc(displayName)}</div>
-          <div class="card-preview" style="color:var(--text-main);margin-top:3px;">${esc(m.message)}</div>
-          <div class="card-preview">${formatCode(m.senderCode)} · ${time}</div>
+          <div class="card-preview" style="color:var(--text-main);margin-top:3px;">${msgPreview}</div>
+          <div class="card-preview">${formatCode(s.code)} · ${time}</div>
         </div>
       </div>
-      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
-        <button class="call-back-btn" style="background:var(--acc);" onclick="startChatDirect('${m.senderCode}', '${esc2(displayName)}')">💬 Chat</button>
-        <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${m.senderCode}', '${esc2(displayName)}')">↩️ Antworten</button>
-        <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissOfflineMsg(${m.id})">✓ Gelesen</button>
+      <!-- Nachrichtenliste (einklappbar, zunächst ausgeblendet) -->
+      <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto;">
+        ${msgListHtml}
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        <button class="call-back-btn" style="background:var(--acc);" onclick="startChatDirect('${s.code}', '${esc2(displayName)}')">💬 Chat</button>
+        <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${s.code}', '${esc2(displayName)}')">↩️ Antworten</button>
+        <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissSenderOfflineMsgs('${s.code}', [${allIds.join(',')}])">✓ Gelesen</button>
+        ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
       </div>
     </div>`;
   }).join('');
+}
+
+// 🆕 Nachrichten eines Absenders ein-/ausblenden
+function toggleSenderMessages(code) {
+  const card = document.getElementById('sender-' + code);
+  const detail = card?.querySelector('.offline-msg-detail');
+  if (detail) {
+    detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+// 🆕 Alle Nachrichten eines Absenders als gelesen markieren
+async function dismissSenderOfflineMsgs(senderCode, ids) {
+  for (const id of ids) {
+    await markOfflineMsgRead(id);
+  }
+  // Karte entfernen
+  const el = document.getElementById('sender-' + senderCode);
+  if (el) el.remove();
+  const lst = document.getElementById('offline-msg-list');
+  if (lst && !lst.children.length) {
+    document.getElementById('offline-msg-sec').style.display = 'none';
+  }
 }
 
 async function dismissOfflineMsg(id) {
@@ -214,9 +264,7 @@ async function dismissOfflineMsg(id) {
   }
 }
 
-// 🆕 Direkt einen Chat starten (ohne manuelle Codeeingabe)
 function startChatDirect(code, name) {
-  // Code in Eingabefelder schreiben
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
     if (inps[i]) {
@@ -225,14 +273,9 @@ function startChatDirect(code, name) {
     }
   });
   document.getElementById('cbtn').disabled = false;
-  // Chat starten
   connectToPeer();
-  // Felder danach leeren (wie bei callBack)
   setTimeout(() => {
-    inps.forEach(d => {
-      d.value = '';
-      d.classList.remove('filled');
-    });
+    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
     document.getElementById('cbtn').disabled = true;
   }, 200);
 }
@@ -247,4 +290,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-    }
+                   }
