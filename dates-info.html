@@ -11,121 +11,186 @@
             --warn: #7b5cfa; --danger: #ff4f7b; --text: #e8edf5;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        .header { padding: 1rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+
+        header { text-align: center; margin-bottom: 2rem; }
         .brand { font-family: 'Syne'; font-weight: 800; color: var(--acc); font-size: 1.2rem; }
+        h1 { font-family: 'Syne'; font-size: 2.2rem; margin-top: 0.5rem; }
 
-        .v4-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; padding: 0.8rem; background: #080c12; }
-        .stat { background: rgba(255,255,255,0.03); padding: 0.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.05); }
-        .stat-v { display: block; font-family: 'Syne'; font-size: 1rem; font-weight: 800; }
-        .stat-l { font-size: 0.55rem; text-transform: uppercase; opacity: 0.4; }
-
-        canvas { flex: 1; width: 100%; }
-
-        .controls { padding: 1.2rem; background: var(--sur); border-top: 1px solid rgba(255,255,255,0.1); display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        .group-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.8rem; color: var(--acc); opacity: 0.8; }
+        /* SIMULATOR */
+        .simulator-card { background: var(--sur); border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; margin-bottom: 3rem; }
+        canvas { width: 100%; height: 350px; background: #020406; display: block; }
         
-        .slider-group { margin-bottom: 0.8rem; }
-        .slider-label { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 0.2rem; opacity: 0.7; }
-        input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; height: 4px; }
+        .v4-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(255,255,255,0.1); }
+        .v4-stat-item { background: var(--sur); padding: 1rem; text-align: center; }
+        .v4-val { display: block; font-family: 'Syne'; font-size: 1.4rem; font-weight: 800; }
+        .v4-label { font-size: 0.6rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.1em; }
+
+        .controls { padding: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .control-group h3 { font-size: 0.8rem; text-transform: uppercase; color: var(--acc); margin-bottom: 1rem; }
+        .slider-wrap { margin-bottom: 1rem; }
+        .slider-info { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.3rem; opacity: 0.8; }
+        input[type=range] { width: 100%; accent-color: var(--acc); cursor: pointer; }
+
+        /* CONTENT */
+        .section { margin-bottom: 3rem; }
+        h2 { font-family: 'Syne'; font-size: 1.8rem; margin-bottom: 1rem; color: var(--acc); }
+        .todo-list { background: rgba(0,229,192,0.05); padding: 1.5rem; border-radius: 16px; border-left: 4px solid var(--acc); }
+        .todo-item { margin-bottom: 0.8rem; display: flex; gap: 0.8rem; font-size: 0.95rem; }
+        
+        .scenarios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+        .scenario-card { background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .scenario-card h4 { font-family: 'Syne'; margin-bottom: 0.5rem; font-size: 1rem; }
+        .scenario-card p { font-size: 0.85rem; opacity: 0.7; }
+
+        @media (max-width: 700px) { .controls, .scenarios { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-<div class="header"><div class="brand">SPOTME ENGINE V4 · RESILIEZ-DASHBOARD</div></div>
+<div class="container">
+    <header>
+        <div class="brand">SPOTME V4 · FOCUS ENGINE</div>
+        <h1>Digitales Immunsystem</h1>
+    </header>
 
-<div class="v4-grid">
-    <div class="stat"><span class="stat-l">Shield</span><span id="v-shield" class="stat-v" style="color:var(--acc)">0%</span></div>
-    <div class="stat"><span class="stat-l">Willpower</span><span id="v-will" class="stat-v" style="color:#fbff00">0</span></div>
-    <div class="stat"><span class="stat-l">Stress</span><span id="v-stress" class="stat-v" style="color:var(--danger)">0</span></div>
-    <div class="stat"><span class="stat-l">Efficiency</span><span id="v-eff" class="stat-v">1.0</span></div>
-</div>
-
-<canvas id="stage"></canvas>
-
-<div class="controls">
-    <div class="col">
-        <div class="group-title">🛡️ Armor (Immunsystem)</div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Local Mode (h)</span><span id="l-dwell">4</span></div>
-            <input type="range" id="s-dwell" min="0" max="24" value="4">
+    <div class="simulator-card">
+        <div class="v4-stats">
+            <div class="v4-stat-item"><span class="v4-label">Rüstung (Armor)</span><span id="stat-armor" class="v4-val" style="color:var(--acc)">0%</span></div>
+            <div class="v4-stat-item"><span class="v4-label">Willenskraft</span><span id="stat-will" class="v4-val" style="color:#fbff00">0</span></div>
+            <div class="v4-stat-item"><span class="v4-label">Stress-Level</span><span id="stat-stress" class="v4-val" style="color:var(--danger)">0</span></div>
+            <div class="v4-stat-item"><span class="v4-label">Effizienz</span><span id="stat-eff" class="v4-val">1.0</span></div>
         </div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Manuelles Offline</span><span id="l-off">2</span></div>
-            <input type="range" id="s-off" min="0" max="20" value="2">
-        </div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Anrufe abgelehnt</span><span id="l-decl">1</span></div>
-            <input type="range" id="s-decl" min="0" max="15" value="1">
+        <canvas id="canvas"></canvas>
+        <div class="controls">
+            <div class="control-group">
+                <h3>🛡️ Armor (Aktivitäten)</h3>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Lokal-Modus (Dauer)</span><span id="val-dwell">4h</span></div>
+                    <input type="range" id="s-dwell" min="0" max="24" value="4">
+                </div>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Manuelle Offlines</span><span id="val-off">2</span></div>
+                    <input type="range" id="s-off" min="0" max="30" value="2">
+                </div>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Abgelehnte Anrufe</span><span id="val-decl">1</span></div>
+                    <input type="range" id="s-decl" min="0" max="20" value="1">
+                </div>
+            </div>
+            <div class="control-group">
+                <h3>📡 Pressure (Reize)</h3>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Profil-Views</span><span id="val-views">10</span></div>
+                    <input type="range" id="s-views" min="0" max="200" value="10">
+                </div>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Eingeh. Nachrichten</span><span id="val-msg">20</span></div>
+                    <input type="range" id="s-msg" min="0" max="300" value="20">
+                </div>
+                <div class="slider-wrap">
+                    <div class="slider-info"><span>Server Traffic (Bytes)</span><span id="val-traf">100</span></div>
+                    <input type="range" id="s-traf" min="0" max="1000" value="100">
+                </div>
+            </div>
         </div>
     </div>
-    <div class="col">
-        <div class="group-title">⚠️ Pressure (Einschlag)</div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Profil-Views</span><span id="l-views">10</span></div>
-            <input type="range" id="s-views" min="0" max="100" value="10">
+
+    <section class="section">
+        <h2>Wie du das System verstehst</h2>
+        <p>In der Version 4 misst SpotMe nicht mehr nur, wie lange du weg bist, sondern wie <strong>souverän</strong> du mit digitalem Druck umgehst. Dein Schutzschild ist dein digitales Immunsystem.</p>
+        
+        <div class="feature-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem;">
+            <div class="feature-card" style="background:rgba(255,255,255,0.03); padding:1rem; border-radius:12px;">
+                <h4 style="color:var(--acc)">Die Rüstung (Armor)</h4>
+                <p style="font-size:0.85rem; opacity:0.7;">Wächst durch bewusste Entscheidungen. Den Lokal-Modus zu nutzen oder einen Anruf aktiv abzulehnen, stärkt deine Rüstung massiv.</p>
+            </div>
+            <div class="feature-card" style="background:rgba(255,255,255,0.03); padding:1rem; border-radius:12px;">
+                <h4 style="color:var(--danger)">Der Druck (Pressure)</h4>
+                <p style="font-size:0.85rem; opacity:0.7;">Entsteht durch passives Verhalten. Viele fremde Profile anzusehen oder hunderte Nachrichten zu empfangen, belastet deine Aufmerksamkeit.</p>
+            </div>
         </div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Server Traffic (MB)</span><span id="l-traf">5</span></div>
-            <input type="range" id="s-traf" min="0" max="50" value="5">
+    </section>
+
+    <section class="section">
+        <h2>Dein ToDo: So beeinflusst du den Flow</h2>
+        <div class="todo-list">
+            <div class="todo-item"><span>✅</span> <strong>Grenzen setzen:</strong> Lehne unnötige Anrufe aktiv ab. Das gibt dir einen sofortigen Rüstungs-Boost.</div>
+            <div class="todo-item"><span>✅</span> <strong>Sinnlose Neugier zügeln:</strong> Jedes geöffnete Profil (`profileViews`) erzeugt eine kleine Stresswelle in deinem Feld.</div>
+            <div class="todo-item"><span>✅</span> <strong>Offline gehen:</strong> Nutze den manuellen Offline-Button häufiger. Es trainiert deinen „Nein-Sager-Muskel“.</div>
+            <div class="todo-item"><span>✅</span> <strong>P2P bevorzugen:</strong> Je mehr Daten du direkt (Peer-to-Peer) sendest, desto höher ist deine Effizienz-Bewertung.</div>
         </div>
-        <div class="slider-group">
-            <div class="slider-label"><span>Eing. Nachrichten</span><span id="l-msg">20</span></div>
-            <input type="range" id="s-msg" min="0" max="200" value="20">
+    </section>
+
+    <section class="section">
+        <h2>Drei Szenerien des Fokus</h2>
+        <div class="scenarios">
+            <div class="scenario-card">
+                <h4 style="color:var(--acc)">1. Der Zen-Meister</h4>
+                <p>Wenig Traffic, hohe Lokal-Zeit und 5 abgelehnte Anrufe. Dein Schild ist riesig, leuchtet Türkis und du bist praktisch ungestört.</p>
+            </div>
+            <div class="scenario-card" style="border-color:var(--warn)">
+                <h4 style="color:var(--warn)">2. Der Sturm</h4>
+                <p>300 Nachrichten prasseln ein. Dein Schild vibriert lila. Du bleibst aber stabil, weil deine "Dwell Time" als Rüstung fungiert.</p>
+            </div>
+            <div class="scenario-card" style="border-color:var(--danger)">
+                <h4 style="color:var(--danger)">3. Der Siphon</h4>
+                <p>Zu viele Profil-Views und kaum Pausen. Dein Orb wird rot. Der Siphon fängt alle Nachrichten ab, um dich vor dem Burnout zu schützen.</p>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <div style="text-align:center; opacity:0.3; font-size:0.7rem; padding-bottom:3rem;">SpotMe V4 · Experimental Engine · Local-First Analytics</div>
 </div>
 
 <script>
-    const canvas = document.getElementById('stage');
+    const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const sliders = {
+    const s = {
         dwell: document.getElementById('s-dwell'),
         off: document.getElementById('s-off'),
         decl: document.getElementById('s-decl'),
         views: document.getElementById('s-views'),
-        traf: document.getElementById('s-traf'),
-        msg: document.getElementById('s-msg')
+        msg: document.getElementById('s-msg'),
+        traf: document.getElementById('s-traf')
     };
 
     let width, height;
     let particles = [];
 
     function resize() {
-        width = canvas.width = window.innerWidth;
+        width = canvas.width = canvas.offsetWidth;
         height = canvas.height = canvas.offsetHeight;
     }
     window.addEventListener('resize', resize);
     resize();
 
-    class IncomingData {
+    class DataPing {
         constructor() { this.init(); }
         init() {
             const side = Math.floor(Math.random() * 4);
-            if(side === 0) { this.x = Math.random() * width; this.y = -20; }
-            else if(side === 1) { this.x = width + 20; this.y = Math.random() * height; }
-            else if(side === 2) { this.x = Math.random() * width; this.y = height + 20; }
-            else { this.x = -20; this.y = Math.random() * height; }
-            this.speed = 1.5 + Math.random() * 2;
+            if(side===0) {this.x = Math.random()*width; this.y = -20;}
+            else if(side===1) {this.x = width+20; this.y = Math.random()*height;}
+            else if(side===2) {this.x = Math.random()*width; this.y = height+20;}
+            else {this.x = -20; this.y = Math.random()*height;}
+            this.speed = 1.5 + Math.random()*2;
             this.inOrbit = false;
-            this.angle = 0;
+            this.angle = Math.random()*Math.PI*2;
         }
         update(r, stress) {
             const dx = width/2 - this.x; const dy = height/2 - this.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if(!this.inOrbit && dist < r && stress > 20) {
+            if(!this.inOrbit && dist < r && stress > 15) {
                 this.inOrbit = true;
-                this.angle = Math.atan2(this.y - height/2, this.x - width/2);
             }
             if(this.inOrbit) {
                 this.angle += 0.02 * (stress/50 + 0.5);
-                this.x = width/2 + Math.cos(this.angle) * r;
-                this.y = height/2 + Math.sin(this.angle) * r;
-                if(stress < 15) this.inOrbit = false;
+                this.x = width/2 + Math.cos(this.angle)*r;
+                this.y = height/2 + Math.sin(this.angle)*r;
+                if(stress < 10) this.inOrbit = false;
             } else {
-                this.x += (dx/dist) * this.speed;
-                this.y += (dy/dist) * this.speed;
+                this.x += (dx/dist)*this.speed; this.y += (dy/dist)*this.speed;
             }
             if(dist < 10) this.init();
         }
@@ -136,59 +201,60 @@
         }
     }
 
-    for(let i=0; i<150; i++) particles.push(new IncomingData());
+    for(let i=0; i<150; i++) particles.push(new DataPing());
 
-    function render() {
-        ctx.fillStyle = '#04070a';
-        ctx.fillRect(0, 0, width, height);
-
+    function loop() {
         const v = {
-            dwell: parseInt(sliders.dwell.value),
-            off: parseInt(sliders.off.value),
-            decl: parseInt(sliders.decl.value),
-            views: parseInt(sliders.views.value),
-            traf: parseInt(sliders.traf.value),
-            msg: parseInt(sliders.msg.value)
+            dwell: parseInt(s.dwell.value),
+            off: parseInt(s.off.value),
+            decl: parseInt(s.decl.value),
+            views: parseInt(s.views.value),
+            msg: parseInt(s.msg.value),
+            traf: parseInt(s.traf.value)
         };
 
-        // UI Labels
-        Object.keys(v).forEach(k => document.getElementById('l-'+k).innerText = v[k]);
+        // UI Update
+        document.getElementById('val-dwell').innerText = v.dwell + "h";
+        document.getElementById('val-off').innerText = v.off;
+        document.getElementById('val-decl').innerText = v.decl;
+        document.getElementById('val-views').innerText = v.views;
+        document.getElementById('val-msg').innerText = v.msg;
+        document.getElementById('val-traf').innerText = v.traf + " MB";
+
+        ctx.fillStyle = '#020406'; ctx.fillRect(0,0,width,height);
 
         // ALGORITHMUS V4
-        // Armor (A) = Wille + Zeit. Wer aktiv ablehnt (off/decl), baut massiv Rüstung auf.
-        const armor = (v.dwell * 4) + (v.off * 15) + (v.decl * 10);
-        // Pressure (P) = Reize von außen. Profil-Views verbrauchen Fokus-Energie.
-        const pressure = (v.msg * 0.8) + (v.views * 2.5) + (v.traf * 3);
-        
-        const shieldRadius = 40 + (armor * 0.8);
-        const stress = pressure - (armor * 0.6);
+        const armor = (v.dwell * 5) + (v.off * 10) + (v.decl * 20);
+        const pressure = (v.msg * 0.5) + (v.views * 2) + (v.traf * 0.1);
+        const shieldR = 40 + (armor * 0.7);
+        const stress = pressure - (armor * 0.5);
 
-        // Stats Dashboard
-        document.getElementById('v-shield').innerText = Math.round(armor) + "%";
-        document.getElementById('v-will').innerText = (v.off + v.decl);
-        document.getElementById('v-stress').innerText = Math.max(0, Math.round(stress));
-        document.getElementById('v-eff').innerText = (1 + (armor/100)).toFixed(1);
+        document.getElementById('stat-armor').innerText = Math.round(armor) + "%";
+        document.getElementById('stat-will').innerText = (v.off + v.decl);
+        document.getElementById('stat-stress').innerText = Math.max(0, Math.round(stress));
+        document.getElementById('stat-eff').innerText = (1 + (v.dwell/24)).toFixed(1);
 
-        // Schild
-        ctx.beginPath(); ctx.arc(width/2, height/2, shieldRadius, 0, Math.PI*2);
+        // Draw Shield
+        ctx.beginPath(); ctx.arc(width/2, height/2, shieldR, 0, Math.PI*2);
         ctx.strokeStyle = stress > 40 ? '#ff4f7b' : '#00e5c0';
-        ctx.setLineDash([5, 10]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.setLineDash([10,5]); ctx.stroke(); ctx.setLineDash([]);
 
         // User Orb
-        ctx.beginPath(); ctx.arc(width/2, height/2, 16, 0, Math.PI*2);
-        ctx.fillStyle = stress > 50 ? '#ff4f7b' : (stress > 20 ? '#7b5cfa' : '#00e5c0');
-        ctx.shadowBlur = 20; ctx.shadowColor = ctx.fillStyle; ctx.fill(); ctx.shadowBlur = 0;
+        let color = '#00e5c0';
+        if(stress > 25) color = '#7b5cfa';
+        if(stress > 50) color = '#ff4f7b';
+        ctx.beginPath(); ctx.arc(width/2, height/2, 18, 0, Math.PI*2);
+        ctx.fillStyle = color; ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
 
-        const pCount = Math.min(150, Math.floor(v.msg * 0.7 + v.views * 0.5));
-        for(let i=0; i<pCount; i++) {
-            particles[i].update(shieldRadius, stress);
+        const count = Math.min(150, Math.floor(v.msg/2 + v.views/2));
+        for(let i=0; i<count; i++) {
+            particles[i].update(shieldR, stress);
             particles[i].draw();
         }
-
-        requestAnimationFrame(render);
+        requestAnimationFrame(loop);
     }
-    render();
+    loop();
 </script>
 </body>
-                </html>
-    
+    </html>
+            
