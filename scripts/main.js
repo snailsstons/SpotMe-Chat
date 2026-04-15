@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // Lädt als letztes, initialisiert alle Komponenten
-// + Usage‑Statistiken
+// + Usage‑Statistiken + Service Worker mit Periodic Sync
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
@@ -48,8 +48,51 @@ window.addEventListener('load', () => {
     }
   });
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Service Worker mit Periodic Sync (erweiterte Registrierung)
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').then(registration => {
+      console.log('✅ SW registriert');
+      
+      const sendToken = () => {
+        if (myToken && myCode && registration.active) {
+          registration.active.postMessage({
+            type: 'SET_TOKEN',
+            token: myToken,
+            code: myCode
+          });
+        }
+      };
+      
+      if (registration.active) {
+        sendToken();
+      } else {
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') sendToken();
+          });
+        });
+      }
+      
+      const syncEnabled = localStorage.getItem('sm_sync_enabled') !== 'false';
+      const syncInterval = localStorage.getItem('sm_sync_interval') || 'hourly';
+      const sendSettings = () => {
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'SET_SYNC_SETTINGS',
+            settings: { enabled: syncEnabled, interval: syncInterval }
+          });
+        }
+      };
+      if (registration.active) sendSettings();
+      else registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'activated') sendSettings();
+        });
+      });
+    });
   }
   
   const textarea = document.getElementById('minp');
