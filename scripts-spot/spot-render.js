@@ -1,6 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
+// + Fallback für fehlende Bio
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderAll() {
@@ -91,7 +92,7 @@ function renderList() {
       locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
     }
     
-    const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+    const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
     const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>`;
     
@@ -173,4 +174,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-                                  }
+                                       }
