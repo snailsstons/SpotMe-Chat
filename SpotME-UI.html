@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPOTME UI Redesign</title>
+    <style>
+        /* --- GRUNDLEGENDE VARIABLEN --- */
+        :root {
+            --bg-dark: #12151C;
+            --accent-cyan: #38ef7d; /* Für den leichten Neon-Touch */
+            --accent-cyan-glow: #11998e;
+            --text-main: #ffffff;
+            --text-muted: #8b92a5;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* --- APP CONTAINER (Simuliert den Handy-Bildschirm) --- */
+        .app-container {
+            width: 100%;
+            max-width: 400px; /* Smartphone-Breite */
+            padding: 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* --- HEADER --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--accent-cyan);
+        }
+
+        .logo span {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .status-pill {
+            background: rgba(56, 239, 125, 0.1);
+            color: var(--accent-cyan);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid rgba(56, 239, 125, 0.3);
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 5px var(--accent-cyan);
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* --- GLASSMORPHISMUS BASISKLASSE --- */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px); /* Der Milchglas-Effekt */
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        /* --- PERSÖNLICHER CODE --- */
+        .code-section {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Leichter Cyan-Glow im Hintergrund der Karte */
+        .code-section::before {
+            content: '';
+            position: absolute;
+            top: -50px; left: 50%;
+            transform: translateX(-50%);
+            width: 150px; height: 150px;
+            background: var(--accent-cyan-glow);
+            filter: blur(80px);
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        .code-display {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(56, 239, 125, 0.6); /* Neon-Effekt */
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- STATS LEISTE --- */
+        .stats-bar {
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-radius: 15px;
+        }
+
+        /* --- PARTNER VERBINDEN --- */
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .digit-input {
+            width: 45px;
+            height: 55px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.5rem;
+            text-align: center;
+            outline: none;
+            transition: border 0.3s ease;
+        }
+
+        .digit-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(56, 239, 125, 0.3);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            border: none;
+            padding: 15px;
+            border-radius: 12px;
+            color: #12151C;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(56, 239, 125, 0.3);
+        }
+
+        /* --- SPOTS ENTDECKEN --- */
+        .discover-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .spot-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 15px 10px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 110px;
+        }
+
+        .spot-card h3 {
+            font-size: 0.9rem;
+            margin: 8px 0 4px;
+        }
+
+        .spot-card p {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* Spezifische Farben für die unteren Karten */
+        .card-gay { border-bottom: 2px solid #00f2fe; }
+        .card-dates { border-bottom: 2px solid #ff0844; }
+        .card-general { border-bottom: 2px solid #89216b; }
+
+        .settings-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <header>
+            <div class="logo">SPOTME <span>v48</span></div>
+            <div class="status-pill"><div class="dot"></div> ONLINE</div>
+            <button class="menu-btn">⋮</button>
+        </header>
+
+        <div class="glass-card code-section">
+            <div class="section-label">Dein persönlicher Code</div>
+            <div class="code-display">405 - 867</div>
+            <div class="action-buttons">
+                <button class="btn-glass">📋 Kopieren</button>
+                <button class="btn-glass">↗️ Teilen</button>
+            </div>
+        </div>
+
+        <div class="glass-card stats-bar">
+            <span>📊 0 B</span>
+            <span>⬆️ 0 B</span>
+            <span>⬇️ 0 B</span>
+        </div>
+
+        <div class="glass-card">
+            <div class="section-label">Partner verbinden</div>
+            <div class="input-group">
+                <input type="text" class="digit-input" maxlength="1">
+                <input type="text" class="digit-input" maxlength="1">
+                <input type="text" class="digit-input" maxlength="1">
+                <input type="text" class="digit-input" maxlength="1">
+                <input type="text" class="digit-input" maxlength="1">
+                <input type="text" class="digit-input" maxlength="1">
+            </div>
+            <button class="btn-primary">💬 Chat starten</button>
+        </div>
+
+        <div>
+            <div class="section-label" style="margin-top: 10px;">Spots entdecken</div>
+            <div class="discover-grid">
+                <div class="spot-card card-gay">
+                    <div style="font-size: 1.5rem;">🏳️‍🌈</div>
+                    <h3 style="color: #00f2fe;">Gay</h3>
+                    <p>Community · Cruising</p>
+                </div>
+                <div class="spot-card card-dates">
+                    <div style="font-size: 1.5rem;">💕</div>
+                    <h3 style="color: #ff9a9e;">Dates</h3>
+                    <p>Beziehung · Casual</p>
+                </div>
+                <div class="spot-card card-general">
+                    <div style="font-size: 1.5rem;">🌍</div>
+                    <h3 style="color: #a18cd1;">General</h3>
+                    <p>Alle Interessen</p>
+                </div>
+            </div>
+        </div>
+
+        <button class="settings-btn">⚙️</button>
+
+    </div>
+
+</body>
+  </html>
+  
