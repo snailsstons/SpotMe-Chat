@@ -48,6 +48,23 @@
 <link rel="stylesheet" href="styles.css">
 <!-- Zusätzlich spot.css für die Spots-Grid laden -->
 <link rel="stylesheet" href="spot.css">
+
+<!-- Pflicht-Backup Modal (wird dynamisch von backup.js erzeugt, aber Container hier) -->
+<div id="mandatory-backup-modal" class="modal" style="display:none;"></div>
+
+<!-- Backup-Erinnerung Modal -->
+<div id="backup-reminder-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>💾 Backup empfohlen</h3>
+    <p>Deine Daten werden <strong>nur lokal</strong> auf diesem Gerät gespeichert. Ein Backup schützt dich vor Verlust.</p>
+    <p>Letztes Backup: <span id="backup-reminder-last">nie</span></p>
+    <div style="display:flex; gap:0.8rem; margin-top:1.5rem;">
+      <button class="btn-primary" onclick="performBackupWithPassword(); document.getElementById('backup-reminder-modal').style.display='none';">Jetzt sichern</button>
+      <button class="btn-secondary" onclick="document.getElementById('backup-reminder-modal').style.display='none';">Später</button>
+    </div>
+  </div>
+</div>
+
 </head>
 <body>
 
