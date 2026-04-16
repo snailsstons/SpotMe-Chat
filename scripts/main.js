@@ -3,15 +3,24 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // Lädt als letztes, initialisiert alle Komponenten
-// + Usage‑Statistiken + Service Worker mit Periodic Sync + Backup-Check
+// + Usage‑Statistiken + Service Worker + Backup-Check + Deep Link (?code=...)
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
-  // 📊 App-Start aufzeichnen
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
 
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   
+  // 🆕 Query-Parameter ?code=... auswerten (Deep Link)
+  const urlParams = new URLSearchParams(window.location.search);
+  const sharedCode = urlParams.get('code');
+  if (sharedCode && sharedCode.length === 6) {
+    sessionStorage.setItem('sm_connect_to', sharedCode);
+    const sharedName = urlParams.get('name') || '';
+    if (sharedName) sessionStorage.setItem('sm_connect_name', sharedName);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   initDigits();
   renderPrev();
   renderMissed();
@@ -48,8 +57,6 @@ window.addEventListener('load', () => {
     }
   });
   
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Service Worker mit Periodic Sync (erweiterte Registrierung)
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(registration => {
       console.log('✅ SW registriert');
@@ -150,18 +157,15 @@ window.addEventListener('load', () => {
   
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
 
-  // 🆕 Backup-Prüfung beim Start (nach kurzer Verzögerung)
   setTimeout(() => {
     if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
   }, 2500);
 });
 
-// App wird geschlossen oder Tab verlassen
 window.addEventListener('beforeunload', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppClose();
 });
 
-// Sichtbarkeitswechsel (App in Hintergrund / Vordergrund)
 document.addEventListener('visibilitychange', () => {
   if (typeof Usage === 'undefined') return;
   if (document.hidden) {
