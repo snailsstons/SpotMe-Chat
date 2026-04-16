@@ -9,6 +9,9 @@
 window.addEventListener('load', () => {
   // 📊 App-Start aufzeichnen
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
+  setTimeout(() => {
+  if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
+}, 2500);
 
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   
