@@ -186,3 +186,13 @@ function showInfoModal(title, message, buttonText = 'OK') {
   okBtn.textContent = buttonText;
   modal.style.display = 'flex';
 }
+// Backup-Check (wird von main.js aufgerufen)
+function checkBackupOnStart() {
+  if (typeof hasInitialBackup === 'function') {
+    if (!hasInitialBackup()) {
+      if (typeof showMandatoryBackupModal === 'function') showMandatoryBackupModal();
+    } else if (typeof hasChangesSinceLastBackup === 'function' && hasChangesSinceLastBackup()) {
+      if (typeof showBackupReminderModal === 'function') showBackupReminderModal();
+    }
+  }
+}
