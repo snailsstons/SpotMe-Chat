@@ -2,8 +2,157 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
+// + SPOT CHAT Integration (Chat‑Button & Funktionen)
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SPOT CHAT – Globale Variablen & Funktionen
+let currentSpotPartner = null;
+
+function openSpotChat(code, name) {
+  currentSpotPartner = { code, name };
+  document.getElementById('spot-chat-name').textContent = name;
+  document.getElementById('spot-chat-av').textContent = name[0]?.toUpperCase() || '🧑';
+  
+  loadSpotChatHistory(code);
+  
+  // Verstecke aktiven Screen (der Container mit class="screen active" existiert hier nicht – wir blenden selbst)
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s-spot-chat').classList.add('active');
+  document.getElementById('spot-chat-input').focus();
+}
+
+function closeSpotChat() {
+  document.getElementById('s-spot-chat').classList.remove('active');
+  // Zurück zum Hauptscreen (der hat id 's-home' – existiert nicht im Spot, wir blenden alles wieder ein)
+  // Stattdessen: Wir zeigen den Radar-Container an, da es keinen s-home gibt.
+  // Der Spot hat kein Screen-System wie die Hauptapp, also blenden wir das Chat-Fenster aus und der Rest bleibt sichtbar.
+  document.getElementById('s-spot-chat').style.display = 'none';
+  currentSpotPartner = null;
+  renderAll(); // Aktualisiere die Liste (optional)
+}
+
+function getSpotChatKey(partnerCode) {
+  return `sm_spot_chat_${myCode}_${partnerCode}`;
+}
+
+function loadSpotChatHistory(partnerCode) {
+  const key = getSpotChatKey(partnerCode);
+  const localMsgs = JSON.parse(localStorage.getItem(key) || '[]');
+  const container = document.getElementById('spot-chat-messages');
+  container.innerHTML = '';
+  
+  // Auch Offline‑Nachrichten vom Server holen (empfangene)
+  fetchAndMergeServerMessages(partnerCode).then(allMsgs => {
+    if (allMsgs.length === 0) {
+      container.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Noch keine Nachrichten</div></div>';
+      return;
+    }
+    allMsgs.sort((a,b) => a.ts - b.ts);
+    allMsgs.forEach(m => appendSpotChatMessage(m.text, m.own, m.ts));
+    container.scrollTop = container.scrollHeight;
+  });
+}
+
+async function fetchAndMergeServerMessages(partnerCode) {
+  const key = getSpotChatKey(partnerCode);
+  const localMsgs = JSON.parse(localStorage.getItem(key) || '[]');
+  
+  let serverMsgs = [];
+  if (myToken) {
+    try {
+      const res = await fetch(`${API}/offline-messages/${myCode}?token=${myToken}&spot=${SPOT}`);
+      if (res.ok) {
+        const all = await res.json();
+        serverMsgs = all
+          .filter(m => m.senderCode === partnerCode)
+          .map(m => ({ text: m.message, ts: new Date(m.timestamp).getTime(), own: false }));
+        // Als gelesen markieren
+        for (const m of all.filter(m => !m.read && m.senderCode === partnerCode)) {
+          await fetch(`${API}/offline-message/${m.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
+          });
+        }
+      }
+    } catch(e) {}
+  }
+  
+  const combined = [...localMsgs, ...serverMsgs];
+  localStorage.setItem(key, JSON.stringify(combined));
+  return combined;
+}
+
+function appendSpotChatMessage(text, own, ts) {
+  const container = document.getElementById('spot-chat-messages');
+  const hint = document.getElementById('spot-chat-ehint');
+  if (hint) hint.remove();
+  
+  const d = new Date(ts);
+  const timeStr = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg ' + (own ? 'msg-o' : 'msg-i');
+  wrapper.innerHTML = `
+    <div class="bubble">
+      <div class="btxt">${esc(text)}</div>
+      <div class="btime">${timeStr}${own ? ' ✓✓' : ''}</div>
+    </div>
+  `;
+  container.appendChild(wrapper);
+}
+
+async function sendSpotChatMessage() {
+  const inp = document.getElementById('spot-chat-input');
+  const text = inp.value.trim();
+  if (!text || !currentSpotPartner) return;
+  
+  const ts = Date.now();
+  const partnerCode = currentSpotPartner.code;
+  
+  appendSpotChatMessage(text, true, ts);
+  inp.value = '';
+  inp.style.height = 'auto';
+  
+  const key = getSpotChatKey(partnerCode);
+  const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+  msgs.push({ text, own: true, ts });
+  localStorage.setItem(key, JSON.stringify(msgs));
+  
+  if (myToken) {
+    try {
+      const res = await fetch(API + '/offline-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: partnerCode,
+          senderCode: myCode,
+          senderName: myProfile?.name || myCode,
+          message: text,
+          spot: SPOT
+        })
+      });
+      if (!res.ok) throw new Error('Fehler');
+    } catch(e) {
+      toast('📴 Nachricht gespeichert – wird später gesendet');
+    }
+  } else {
+    toast('⚠️ Kein Token – Nachricht nur lokal gespeichert');
+  }
+  
+  document.getElementById('spot-chat-messages').scrollTop = document.getElementById('spot-chat-messages').scrollHeight;
+}
+
+function spotChatHkey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendSpotChatMessage();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDERING (angepasst)
 function renderAll() {
   renderRadar();
   renderList();
@@ -95,7 +244,10 @@ function renderList() {
     // Bio mit Fallback
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
-    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>`;
+    // 🆕 Zwei Buttons: Chat (Spot-Chat) und ggf. P2P-Chat (lassen wir den vorhandenen startChat, der P2P startet)
+    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `
+      <button class="btn-chat" onclick="openSpotChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>
+    `;
     
     return `<div class="profile-card${cardClass}" data-code="${p.code}">
       <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" style="background:${isOnline ? 'var(--green)' : 'var(--muted)'}; box-shadow:0 0 8px ${isOnline ? 'var(--green)' : 'transparent'};" title="${isOnline ? 'Online' : 'Offline'}"></div></div>
@@ -144,11 +296,10 @@ function showProfileDetail(profile) {
   if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
   if (profile.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
   
-  // Bio mit Fallback
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
-  const chatBtn = isOwn ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); startChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
+  const chatBtn = isOwn ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); openSpotChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
   const msgBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Kurznachricht</button>` : '';
   const personalCount = verifications.filter(v => v.type === 'personal').length;
@@ -176,4 +327,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-        }
+                                                 }
