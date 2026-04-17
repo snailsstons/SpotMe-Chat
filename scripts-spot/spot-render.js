@@ -3,7 +3,7 @@
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
 // + Buttons: "Nachricht" in Liste & Detail (Kurznachricht)
-// + Radar-Highlight: Avatar & Zeitstempel der letzten Standortaktualisierung
+// + Radar-Highlight: Avatar & Zeitstempel des AUSGEWÄHLTEN Profils
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -178,17 +178,22 @@ function renderRadar() {
     node.style.left = x + '%';
     node.style.top = y + '%';
     node.setAttribute('data-label', `${profile.name || '?'} (${formatDistance(distance)})`);
-    node.onclick = () => showProfileDetail(profile);
+    // 🆕 Bei Klick auf Peer-Node Highlight aktualisieren
+    node.onclick = () => {
+      updateRadarHighlight(profile);
+      showProfileDetail(profile);
+    };
     field.appendChild(node);
   });
   
   document.getElementById('status-indicator').textContent = `● ${profilesWithLocation.length} RADAR`;
   
-  // 🆕 Radar-Highlight rendern
-  renderRadarHighlight();
+  // 🆕 Highlight leeren, wenn kein Profil ausgewählt
+  updateRadarHighlight(null);
 }
 
-function renderRadarHighlight() {
+// 🆕 Radar-Highlight für ausgewähltes Profil
+function updateRadarHighlight(profile) {
   const container = document.querySelector('.radar-viewport');
   let highlight = document.getElementById('radar-highlight');
   if (!highlight) {
@@ -208,27 +213,35 @@ function renderRadarHighlight() {
     container.appendChild(highlight);
   }
 
-  const av = myProfile?.avatar
-    ? `<img src="${myProfile.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
-    : `<div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;">${(myProfile?.name || myCode)[0]?.toUpperCase() || '🧑'}</div>`;
+  if (!profile) {
+    // Kein Profil ausgewählt → Platzhalter
+    highlight.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">👤</div>
+      <div style="flex:1; font-size:0.9rem; color:var(--text-dim);">
+        Tippe auf einen Punkt im Radar
+      </div>
+    `;
+    return;
+  }
 
-  let timeText = 'Standort nicht aktiv';
-  if (isSharingLocation && userPosition) {
-    const lastUpdate = localStorage.getItem('sm_last_location_update');
-    if (lastUpdate) {
-      const diff = Math.floor((Date.now() - parseInt(lastUpdate)) / 60000);
-      timeText = diff < 1 ? 'gerade eben' : `vor ${diff} Min`;
-    } else {
-      timeText = 'gerade eben';
-    }
-  } else if (isSharingLocation) {
-    timeText = 'wird ermittelt...';
+  const loc = locationCache.get(profile.code);
+  const av = profile.avatar
+    ? `<img src="${profile.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
+    : `<div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;">${(profile.name || profile.code)[0]?.toUpperCase() || '🧑'}</div>`;
+
+  let timeText = 'Standort nicht verfügbar';
+  if (loc) {
+    // Wir haben keine Zeitstempel für andere Profile, also zeigen wir die Entfernung an
+    const dist = userPosition 
+      ? formatDistance(getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng))
+      : 'unbekannt';
+    timeText = `📍 ${dist} entfernt`;
   }
 
   highlight.innerHTML = `
     ${av}
     <div style="flex:1; font-size:0.9rem;">
-      <div style="font-weight:600;">📍 Standort geteilt</div>
+      <div style="font-weight:600;">${esc(profile.name || formatCode(profile.code))}</div>
       <div style="color:var(--text-dim); font-size:0.8rem;">${timeText}</div>
     </div>
   `;
@@ -305,6 +318,7 @@ function renderList() {
     if (profile) {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.btn-chat') || e.target.closest('.location-badge')) return;
+        updateRadarHighlight(profile);  // 🆕 Auch bei Listenklick Highlight setzen
         showProfileDetail(profile);
       });
     }
@@ -367,4 +381,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-    }
+                                                }
