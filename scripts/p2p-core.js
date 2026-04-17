@@ -2,8 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
-// PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
-// + Alle fehlenden Funktionen wiederhergestellt
+// + Robuste Benachrichtigungen, Chatanfrage funktioniert
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -100,18 +99,32 @@ function initPeer() {
     document.getElementById('in-name').textContent = peerName;
     document.getElementById('in-code').textContent = 'Code: ' + formatCode(incoming.peer);
     showScreen('s-in');
-    pushNotif(peerName, 'möchte mit dir chatten');
-    inAppNotif(peerName, 'Eingehende Chatanfrage');
-    playRingingTone();
-    triggerHaptic();
+
+    // Benachrichtigungen (wenn verfügbar)
+    if (typeof pushNotif === 'function') {
+      pushNotif(peerName, 'möchte mit dir chatten');
+    }
+    if (typeof inAppNotif === 'function') {
+      inAppNotif(peerName, 'Eingehende Chatanfrage');
+    }
+    if (typeof playRingingTone === 'function') {
+      playRingingTone();
+    }
+    if (typeof triggerHaptic === 'function') {
+      triggerHaptic();
+    }
 
     incoming.on('close', () => {
       if (pendingConn === incoming) {
-        stopRingingTone();
-        addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
+        if (typeof stopRingingTone === 'function') stopRingingTone();
+        if (typeof addMissed === 'function') {
+          addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
+        }
         pendingConn = null;
         showScreen('s-home');
-        toast('📵 Verpasste Chatanfrage von ' + localName(incoming.peer, incoming.metadata?.name));
+        if (typeof toast === 'function') {
+          toast('📵 Verpasste Chatanfrage von ' + localName(incoming.peer, incoming.metadata?.name));
+        }
       }
     });
   });
@@ -154,7 +167,6 @@ function openChat(c) {
   }
 
   if (!c) {
-    // Lokaler Modus
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     refreshStatusText();
@@ -178,21 +190,23 @@ function openChat(c) {
     refreshStatusText();
     document.getElementById('pav').className = 'pav';
 
-    const alias = getContacts()[partnerCode];
-    const netName = conn.metadata?.name || partnerName;
-    if (!alias && netName) partnerName = netName;
-    applyPartnerName();
+    if (typeof getContacts === 'function') {
+      const alias = getContacts()[partnerCode];
+      const netName = conn.metadata?.name || partnerName;
+      if (!alias && netName) partnerName = netName;
+    }
+    if (typeof applyPartnerName === 'function') applyPartnerName();
 
     const welcomeMsg = localStorage.getItem('sm_welcome_message');
     const welcomeTarget = sessionStorage.getItem('sm_welcome_target');
     if (welcomeMsg && welcomeTarget === partnerCode && conn && conn.open) {
       const m = { t: 'text', text: welcomeMsg, ts: Date.now() };
       conn.send(m);
-      appendMsg({ ...m, own: true });
-      persistMsg({ ...m, own: true });
+      if (typeof appendMsg === 'function') appendMsg({ ...m, own: true });
+      if (typeof persistMsg === 'function') persistMsg({ ...m, own: true });
       localStorage.removeItem('sm_welcome_message');
       sessionStorage.removeItem('sm_welcome_target');
-      toast('👋 Willkommensnachricht gesendet');
+      if (typeof toast === 'function') toast('👋 Willkommensnachricht gesendet');
     }
 
     const h = document.getElementById('ehint');
@@ -201,9 +215,9 @@ function openChat(c) {
         <div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div>
         <div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     }
-    if (!chatActive) updateIdx('');
-    toast('✓ Verbunden');
-    flushPendingMessages();
+    if (!chatActive && typeof updateIdx === 'function') updateIdx('');
+    if (typeof toast === 'function') toast('✓ Verbunden');
+    if (typeof flushPendingMessages === 'function') flushPendingMessages();
     updateConnectionStatus();
   };
 
@@ -213,7 +227,7 @@ function openChat(c) {
     conn.on('open', onOpen);
   }
 
-  conn.on('data', d => handleData(d));
+  conn.on('data', d => { if (typeof handleData === 'function') handleData(d); });
 
   conn.on('close', () => {
     console.log(`🔌 DataConnection zu ${partnerCode} geschlossen`);
@@ -222,11 +236,11 @@ function openChat(c) {
     if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
     if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
     document.getElementById('sbtn').disabled = true;
-    refreshStatusText();
+    if (typeof refreshStatusText === 'function') refreshStatusText();
     document.getElementById('pav').className = 'pav offline';
     if (document.getElementById('s-chat').classList.contains('active')) {
       document.getElementById('rcbar').classList.add('show');
-      toast('○ Partner hat den Chat verlassen');
+      if (typeof toast === 'function') toast('○ Partner hat den Chat verlassen');
     }
     updateConnectionStatus();
   });
@@ -242,4 +256,4 @@ function openChat(c) {
 function markAutoReconnect() {
   console.log('🏷️ markAutoReconnect gesetzt');
   autoReconnectPending = true;
-          }
+  }
