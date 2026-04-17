@@ -2,7 +2,8 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
-// + Detaillierte Logs für Verbindungsaufbau und Moduswechsel
+// PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
+// + Detaillierte Logs + Korrektur: startHeartbeat definiert
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -19,8 +20,17 @@ function initPeer() {
   updateConnectionStatus();
 
   peer = new Peer(myCode, {
-    host: SERVER_HOST, port: 443, path: SERVER_PATH, secure: true,
-    config: { iceServers: [ /* ... */ ] }
+    host: SERVER_HOST,
+    port: 443,
+    path: SERVER_PATH,
+    secure: true,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun.cloudflare.com:3478' }
+      ]
+    }
   });
 
   peer.on('open', () => {
@@ -30,7 +40,7 @@ function initPeer() {
     peerReady = true;
     showCodeCard(true);
     updateConnectionStatus();
-    startHeartbeat();
+    startHeartbeat();  // ← jetzt definiert
 
     if (autoReconnectPending && partnerCode && !conn) {
       console.log(`🔄 autoReconnectPending für ${partnerCode} – starte peer.connect`);
@@ -38,24 +48,44 @@ function initPeer() {
       const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
       console.log('📡 peer.connect (auto) aufgerufen, newConn:', newConn);
       openChat(newConn);
-    } else {
-      console.log(`ℹ️ autoReconnectPending=${autoReconnectPending}, partnerCode=${partnerCode}, conn=${conn}`);
     }
   });
 
   peer.on('error', err => {
     console.warn('[peer] error', err.type, err.message);
-    // ... unverändert ...
+    peerReady = false;
+    if (err.type === 'unavailable-id') {
+      peerRetries++;
+      const delay = Math.min(3000 * peerRetries, 15000);
+      setTimeout(() => { peer = null; initPeer(); }, delay);
+      return;
+    }
+    if (err.type === 'peer-unavailable') {
+      console.log('⚠️ Partner nicht erreichbar – bleibt im Lokal‑Modus');
+      if (outgoingCallTimer) {
+        clearTimeout(outgoingCallTimer);
+        outgoingCallTimer = null;
+      }
+      // Kein Toast, um den Nutzer nicht zu nerven – Lokal‑Modus reicht
+      return;
+    }
+    isOffline = true;
+    updateConnectionStatus();
+    peerRetries++;
+    const delay = Math.min(4000 * peerRetries, 20000);
+    setTimeout(() => { peer = null; initPeer(); }, delay);
   });
 
   peer.on('disconnected', () => {
     console.warn('[peer] disconnected');
-    // ... unverändert ...
+    peerReady = false;
+    isOffline = true;
+    updateConnectionStatus();
+    setTimeout(() => { peer = null; initPeer(); }, 2500);
   });
 
   peer.on('connection', incoming => {
     console.log(`📥 Eingehende Verbindung von ${incoming.peer}`);
-    // Bestehende Verbindung?
     if (conn && conn.open) {
       console.log('⚠️ Bestehende Verbindung offen, lehne neue ab');
       incoming.close();
@@ -85,7 +115,26 @@ function initPeer() {
   });
 }
 
-// startHeartbeat, tryReconnect unverändert
+// 🆕 Heartbeat-Funktion (fehlte)
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(async () => {
+    if (!myCode || !peer?.open) return;
+    try {
+      await fetch(`${API_BASE}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: myCode })
+      });
+    } catch (e) {}
+  }, 600000);
+}
+
+function tryReconnect() {
+  if (!partnerCode || !peerReady) return;
+  document.getElementById('rcbar').classList.remove('show');
+  openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
+}
 
 function openChat(c) {
   console.log(`🚪 openChat aufgerufen, c=${c ? 'DataConnection' : 'null (Lokal)'}`);
@@ -173,16 +222,29 @@ function openChat(c) {
 
   conn.on('close', () => {
     console.log(`🔌 DataConnection zu ${partnerCode} geschlossen`);
-    // ... unverändert ...
+    if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+    conn = null;
+    if (partnerTypingTimer) { clearTimeout(partnerTypingTimer); partnerTypingTimer = null; }
+    if (typingStarted) { typingStarted = false; if (typingDebounceTimer) clearTimeout(typingDebounceTimer); }
+    document.getElementById('sbtn').disabled = true;
+    refreshStatusText();
+    document.getElementById('pav').className = 'pav offline';
+    if (document.getElementById('s-chat').classList.contains('active')) {
+      document.getElementById('rcbar').classList.add('show');
+      toast('○ Partner hat den Chat verlassen');
+    }
+    updateConnectionStatus();
   });
 
   conn.on('error', err => {
     console.warn('[conn] error', err);
-    // ... unverändert ...
+    if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
+    document.getElementById('rcbar').classList.add('show');
+    updateConnectionStatus();
   });
 }
 
 function markAutoReconnect() {
   console.log('🏷️ markAutoReconnect gesetzt');
   autoReconnectPending = true;
-      }
+    }
