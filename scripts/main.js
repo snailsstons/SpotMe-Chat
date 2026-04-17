@@ -3,24 +3,16 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // Lädt als letztes, initialisiert alle Komponenten
-// + Usage‑Statistiken + Service Worker + Backup-Check + Deep Link (?code=...)
+// + Usage‑Statistiken + Service Worker mit Periodic Sync + Backup-Check
+// + Verbesserter Auto‑Connect für Deep Links
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
+  // 📊 App-Start aufzeichnen
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
 
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   
-  // 🆕 Query-Parameter ?code=... auswerten (Deep Link)
-  const urlParams = new URLSearchParams(window.location.search);
-  const sharedCode = urlParams.get('code');
-  if (sharedCode && sharedCode.length === 6) {
-    sessionStorage.setItem('sm_connect_to', sharedCode);
-    const sharedName = urlParams.get('name') || '';
-    if (sharedName) sessionStorage.setItem('sm_connect_name', sharedName);
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-
   initDigits();
   renderPrev();
   renderMissed();
@@ -57,6 +49,8 @@ window.addEventListener('load', () => {
     }
   });
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Service Worker mit Periodic Sync (erweiterte Registrierung)
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(registration => {
       console.log('✅ SW registriert');
@@ -121,20 +115,26 @@ window.addEventListener('load', () => {
     });
   }
   
+  // 🆕 Verbesserter Auto‑Connect (wartet auf peer.open)
   const autoConnect = sessionStorage.getItem('sm_connect_to');
-  if (autoConnect && peer) {
+  if (autoConnect && autoConnect.length === 6) {
     sessionStorage.removeItem('sm_connect_to');
-    setTimeout(() => {
-      const inps = document.querySelectorAll('.dinp-new');
-      autoConnect.split('').forEach((ch, i) => {
-        if (inps[i]) {
-          inps[i].value = ch;
-          inps[i].classList.add('filled');
-        }
-      });
-      document.getElementById('cbtn').disabled = false;
-      connectToPeer();
-    }, 1500);
+    const tryAutoConnect = () => {
+      if (peer && peer.open) {
+        const inps = document.querySelectorAll('.dinp-new');
+        autoConnect.split('').forEach((ch, i) => {
+          if (inps[i]) {
+            inps[i].value = ch;
+            inps[i].classList.add('filled');
+          }
+        });
+        document.getElementById('cbtn').disabled = false;
+        connectToPeer();
+      } else {
+        setTimeout(tryAutoConnect, 500);
+      }
+    };
+    tryAutoConnect();
   }
 
   setTimeout(async () => {
@@ -157,15 +157,18 @@ window.addEventListener('load', () => {
   
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
 
+  // 🆕 Backup-Prüfung beim Start (nach kurzer Verzögerung)
   setTimeout(() => {
     if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
   }, 2500);
 });
 
+// App wird geschlossen oder Tab verlassen
 window.addEventListener('beforeunload', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppClose();
 });
 
+// Sichtbarkeitswechsel (App in Hintergrund / Vordergrund)
 document.addEventListener('visibilitychange', () => {
   if (typeof Usage === 'undefined') return;
   if (document.hidden) {
