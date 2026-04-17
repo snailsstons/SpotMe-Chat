@@ -3,8 +3,8 @@
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
 // + Buttons: "Nachricht" in Liste & Detail (Kurznachricht)
-// + Radar-Highlight: Avatar & Entfernung des ausgewählten Profils
-// + Optimierte Radar-Größe (Schriftzug "Radar" entfernt)
+// + Radar-Highlight: Avatar & Entfernung des ausgewählten Profils (einzeilig)
+// + Radar-Canvas Höhe: 300px (in spot.html gesetzt)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -199,47 +199,43 @@ function updateRadarHighlight(profile) {
     highlight.style.cssText = `
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
+      gap: 10px;
+      padding: 8px 12px;
       margin: 8px 0 0 0;
       background: var(--card);
-      border-radius: 40px;
+      border-radius: 30px;
       border: 1px solid var(--bord);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      white-space: nowrap;
     `;
-    // Entferne eventuell vorhandenen "Radar"-Schriftzug
-    const oldTitle = container.querySelector('div[style*="Radar"]');
-    if (oldTitle) oldTitle.remove();
     container.appendChild(highlight);
   }
 
   if (!profile) {
     highlight.innerHTML = `
-      <div style="width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">👤</div>
-      <div style="flex:1; color:var(--text-dim);">Tippe auf einen Punkt</div>
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1rem;">👤</div>
+      <div style="color:var(--text-dim);">Tippe auf einen Punkt</div>
     `;
     return;
   }
 
   const loc = locationCache.get(profile.code);
   const av = profile.avatar
-    ? `<img src="${profile.avatar}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
-    : `<div style="width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:bold;">${(profile.name || profile.code)[0]?.toUpperCase() || '🧑'}</div>`;
+    ? `<img src="${profile.avatar}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`
+    : `<div style="width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:bold;">${(profile.name || profile.code)[0]?.toUpperCase() || '🧑'}</div>`;
 
   let distText = 'Standort nicht verfügbar';
   if (loc && userPosition) {
     const dist = getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng);
-    distText = `📍 ${formatDistance(dist)} entfernt`;
+    distText = `📍 ${formatDistance(dist)}`;
   } else if (loc) {
     distText = `📍 Standort vorhanden`;
   }
 
   highlight.innerHTML = `
     ${av}
-    <div style="flex:1;">
-      <div style="font-weight:600;">${esc(profile.name || formatCode(profile.code))}</div>
-      <div style="color:var(--text-dim); font-size:0.8rem;">${distText}</div>
-    </div>
+    <div style="font-weight:600;">${esc(profile.name || formatCode(profile.code))}</div>
+    <div style="color:var(--text-dim); margin-left:auto;">${distText}</div>
   `;
 }
 
@@ -377,4 +373,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-                                                }
+                               }
