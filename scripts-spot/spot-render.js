@@ -2,7 +2,8 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
-// + Buttons: "Nachricht" in Liste & Detail (Kurznachricht), "Chat" als separater Button (Spot-Chat)
+// + Buttons: "Nachricht" in Liste & Detail (Kurznachricht)
+// + Radar-Highlight: Avatar & Zeitstempel der letzten Standortaktualisierung
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -182,6 +183,55 @@ function renderRadar() {
   });
   
   document.getElementById('status-indicator').textContent = `● ${profilesWithLocation.length} RADAR`;
+  
+  // 🆕 Radar-Highlight rendern
+  renderRadarHighlight();
+}
+
+function renderRadarHighlight() {
+  const container = document.querySelector('.radar-viewport');
+  let highlight = document.getElementById('radar-highlight');
+  if (!highlight) {
+    highlight = document.createElement('div');
+    highlight.id = 'radar-highlight';
+    highlight.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin-top: 8px;
+      background: var(--card);
+      border-radius: 40px;
+      border: 1px solid var(--bord);
+    `;
+    container.appendChild(highlight);
+  }
+
+  const av = myProfile?.avatar
+    ? `<img src="${myProfile.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
+    : `<div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;">${(myProfile?.name || myCode)[0]?.toUpperCase() || '🧑'}</div>`;
+
+  let timeText = 'Standort nicht aktiv';
+  if (isSharingLocation && userPosition) {
+    const lastUpdate = localStorage.getItem('sm_last_location_update');
+    if (lastUpdate) {
+      const diff = Math.floor((Date.now() - parseInt(lastUpdate)) / 60000);
+      timeText = diff < 1 ? 'gerade eben' : `vor ${diff} Min`;
+    } else {
+      timeText = 'gerade eben';
+    }
+  } else if (isSharingLocation) {
+    timeText = 'wird ermittelt...';
+  }
+
+  highlight.innerHTML = `
+    ${av}
+    <div style="flex:1; font-size:0.9rem;">
+      <div style="font-weight:600;">📍 Standort geteilt</div>
+      <div style="color:var(--text-dim); font-size:0.8rem;">${timeText}</div>
+    </div>
+  `;
 }
 
 function renderList() {
@@ -237,7 +287,6 @@ function renderList() {
     
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
-    // 🆕 Button in der Listenansicht: Kurznachricht
     const msgBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `
       <button class="btn-chat" onclick="showKurznachrichtModal('${esc(p.code)}','${esc(name)}')">✉️ Nachricht</button>
     `;
@@ -292,7 +341,6 @@ function showProfileDetail(profile) {
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
-  // Detailansicht: ebenfalls Kurznachricht
   const msgBtn = !isOwn ? `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Nachricht</button>` : '';
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
   const personalCount = verifications.filter(v => v.type === 'personal').length;
@@ -319,4 +367,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-}
+    }
