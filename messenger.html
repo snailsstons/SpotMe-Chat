@@ -138,7 +138,7 @@
   </div>
 </div>
 
-<!-- Info Modal -->
+<!-- Info Modal (wird für Bestätigungen verwendet) -->
 <div id="info-modal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:320px; text-align:center;">
     <h3 id="info-modal-title"></h3>
@@ -166,13 +166,120 @@
 <script src="scripts/ui-chat.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
-     MESSENGER-SPEZIFISCHE FUNKTIONEN & FIXES
+     MESSENGER-SPEZIFISCHE ANPASSUNGEN (LOCAL‑FIRST OHNE NERVIGE MODALE)
 ═══════════════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fehlende globale Funktionen definieren
+// 1. Stille Pending‑Nachrichten (keine Modale beim Schreiben)
+//    Wir überschreiben addPendingMessage und flushPendingMessages aus storage.js
+// ─────────────────────────────────────────────────────────────────────────────
+const _originalAddPending = window.addPendingMessage;
+window.addPendingMessage = function(text) {
+  // Originalfunktion aufrufen (fügt Nachricht hinzu und zeigt Modal)
+  // Aber wir wollen das Modal unterdrücken! Also temporär showInfoModal deaktivieren.
+  const originalShow = window.showInfoModal;
+  window.showInfoModal = function() {}; // Dummy
+  
+  _originalAddPending(text);
+  
+  window.showInfoModal = originalShow; // Wiederherstellen
+};
+
+const _originalFlush = window.flushPendingMessages;
+window.flushPendingMessages = function() {
+  if (!conn || !conn.open) return;
+  if (pendingMessages.length === 0) return;
+  const toSend = [...pendingMessages];
+  clearPendingMessages();
+  for (let msg of toSend) {
+    const m = { t: 'text', text: msg.text, ts: msg.ts };
+    conn.send(m);
+    appendMsg({ ...m, own: true });
+    persistMsg({ ...m, own: true });
+  }
+  // KEIN MODAL – wir sammeln die Bestätigung später
+};
+
+// Speicher für die Anzahl der gesendeten Pending‑Nachrichten
+let pendingSendCount = 0;
+
+// Beim erfolgreichen Senden einer Nachricht aus der Queue erhöhen wir den Zähler
+const _originalSendMsg = window.sendMsg;
+window.sendMsg = function() {
+  const inp = document.getElementById('minp');
+  const text = inp.value.trim();
+  if (!text) return;
+
+  if (!conn || !conn.open) {
+    if (!chatId) {
+      toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
+      return;
+    }
+    addPendingMessage(text);
+    // Sofort im Chat anzeigen
+    const m = { t: 'text', text, ts: Date.now(), own: true };
+    appendMsg(m);
+    persistMsg(m);
+    inp.value = '';
+    inp.style.height = 'auto';
+    return;
+  }
+
+  // Online – normal senden
+  _originalSendMsg.call(this);
+};
+
+// Überschreiben von openChat, um bei Verbindungsaufbau die Queue zu flushen und zu zählen
+const _originalOpenChat = window.openChat;
+window.openChat = function(c) {
+  // Wenn wir von null auf echte Verbindung wechseln, merken wir uns die aktuelle Queue-Größe
+  if (c && !conn) {
+    pendingSendCount = pendingMessages.length;
+  }
+  _originalOpenChat.call(this, c);
+  
+  // Wenn nach dem Öffnen die Verbindung steht, zeigen wir EIN Modal mit der Anzahl
+  if (c && conn && conn.open && pendingSendCount > 0) {
+    setTimeout(() => {
+      showInfoModal(
+        '✅ Nachrichten gesendet',
+        `${pendingSendCount} ${pendingSendCount === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
+        'OK'
+      );
+      pendingSendCount = 0;
+    }, 500);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Beim Verlassen des Chats: Wenn Pending‑Nachrichten existieren, einmalig bestätigen
+// ─────────────────────────────────────────────────────────────────────────────
+const _originalGoHome = window.goHome;
+window.goHome = function() {
+  const pending = pendingMessages.length;
+  if (pending > 0 && conn && !conn.open) {
+    // Wir sind im Lokal‑Modus und haben ungesendete Nachrichten
+    showInfoModal(
+      '📦 Lokal gespeichert',
+      `${pending} ${pending === 1 ? 'Nachricht wird' : 'Nachrichten werden'} gesendet, sobald du wieder online bist.`,
+      'Verstanden'
+    );
+  }
+  
+  // Original goHome ausführen (Verbindung trennen, Screen wechseln)
+  if (conn) { try { conn.close(); } catch(e) {} conn = null; }
+  pendingConn = null;
+  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  document.getElementById('cbtn').disabled = true;
+  renderPrev();
+  showScreen('s-home');
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Fehlende globale Funktionen definieren
+// ─────────────────────────────────────────────────────────────────────────────
 window.markAutoReconnect = function() {
   console.log('🏷️ markAutoReconnect (Messenger)');
   if (typeof autoReconnectPending !== 'undefined') autoReconnectPending = true;
@@ -185,8 +292,8 @@ window.toggleVoiceRecording = function() { toast('Sprachnachrichten im Messenger
 window.sendFile = function() { toast('Dateien im Messenger nicht verfügbar'); };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 🆕 ROBUSTES INFO-MODAL (überschreibt ui-core.js)
-const _originalShowInfoModal = window.showInfoModal;
+// 4. Robustes Info-Modal (OK-Button funktioniert garantiert)
+// ─────────────────────────────────────────────────────────────────────────────
 window.showInfoModal = function(title, message, buttonText = 'OK') {
   let modal = document.getElementById('info-modal');
   if (!modal) {
@@ -221,7 +328,8 @@ window.showInfoModal = function(title, message, buttonText = 'OK') {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Code-Eingabe
+// 5. Messenger‑spezifische UI‑Funktionen
+// ─────────────────────────────────────────────────────────────────────────────
 function initDigits() {
   const inps = document.querySelectorAll('.dinp-new');
   inps.forEach((p, i) => {
@@ -251,8 +359,6 @@ function initDigits() {
 }
 function getDigits() { return [...document.querySelectorAll('.dinp-new')].map(x => x.value).join(''); }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Code kopieren / teilen
 function copyCode() {
   navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: ' + myCode));
 }
@@ -262,8 +368,6 @@ function shareCode() {
   else copyCode();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Kontaktliste rendern
 function renderPrev() {
   const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const lst = document.getElementById('plist');
@@ -289,15 +393,12 @@ function renderPrev() {
   }).join('');
 }
 
-// Zu bestehendem Chat zurückkehren
 function reconnectTo(code, name, cid) {
   partnerCode = code; partnerName = name; chatId = cid;
   loadPendingMessages(); migratePendingMessages(chatId);
   openChat(peerReady ? peer.connect(code, { reliable: true, metadata: { name: myName } }) : null);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Verbindung aufbauen
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
@@ -312,7 +413,6 @@ function connectToPeer() {
   }
 }
 
-// Eingehende Chatanfrage annehmen
 function acceptCall() {
   stopRingingTone();
   if (!pendingConn) return;
@@ -323,7 +423,6 @@ function acceptCall() {
   openChat(c);
 }
 
-// Eingehende Chatanfrage ablehnen
 function declineCall() {
   stopRingingTone();
   if (pendingConn) {
@@ -334,18 +433,6 @@ function declineCall() {
   showScreen('s-home');
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Zurück zur Kontaktliste
-function goHome() {
-  if (conn) { try { conn.close(); } catch(e) {} conn = null; }
-  pendingConn = null;
-  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
-  document.getElementById('cbtn').disabled = true;
-  renderPrev();
-  showScreen('s-home');
-}
-
-// Chat löschen
 function clearChat() {
   if (!chatId) return;
   localStorage.removeItem('smmsg_' + chatId);
@@ -357,7 +444,8 @@ function clearChat() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Initialisierung
+// 6. Initialisierung
+// ─────────────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
   initDigits();
@@ -365,7 +453,6 @@ window.addEventListener('load', () => {
   initPeer();
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
 
-  // Deep Link (?code=...)
   const params = new URLSearchParams(window.location.search);
   const autoCode = params.get('code');
   if (autoCode && autoCode.length === 6) {
@@ -375,7 +462,6 @@ window.addEventListener('load', () => {
     connectToPeer();
   }
 
-  // Auto-Connect aus sessionStorage
   const stored = sessionStorage.getItem('sm_connect_to');
   if (stored && peer) {
     sessionStorage.removeItem('sm_connect_to');
@@ -388,7 +474,6 @@ window.addEventListener('load', () => {
   }
 });
 
-// Styles für leere Kontaktliste
 const style = document.createElement('style');
 style.textContent = `
   .contact-list { display: flex; flex-direction: column; gap: 8px; }
