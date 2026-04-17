@@ -41,11 +41,14 @@ function initPeer() {
     updateConnectionStatus();
     startHeartbeat();
 
-    if (autoReconnectPending && partnerCode && !conn) {
-      autoReconnectPending = false;
-      const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
-      openChat(newConn);
-    }
+    // In peer.on('open') den Block wie folgt ändern:
+if (autoReconnectPending && partnerCode && !conn) {
+  autoReconnectPending = false;
+  console.log('🔄 autoReconnectPending – versuche Verbindung zu', partnerCode);
+  const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
+  openChat(newConn);
+}
+
   });
 
   // Fehlerbehandlung, disconnect, connection etc. bleiben unverändert
