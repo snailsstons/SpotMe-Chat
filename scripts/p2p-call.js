@@ -1,57 +1,41 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME – ANRUFE (p2p-call.js)
-// Ausgehende & eingehende Anrufe, Klingelton, Nachricht hinterlassen
-// + Traffic‑Messung + Chat sofort öffnen (Local‑First)
+// SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
+// Setzt Partnerdaten, öffnet sofort den Chat, baut Verbindung im Hintergrund auf
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
-  // 1. Partnerdaten setzen und Chat SOFORT öffnen (Lokal‑Modus)
+  // Partnerdaten setzen
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
   loadPendingMessages();
   migratePendingMessages(chatId);
-  openChat(null);                     // Chat im Lokal‑Modus anzeigen
 
-  // 2. Falls Peer bereit, im Hintergrund echte Verbindung aufbauen
+  // Chat SOFORT im Lokal‑Modus öffnen
+  openChat(null);
+  setSpill('offline', '○ LOCAL');
+  updateConnectionStatus();
+
+  // Im Hintergrund: echte Verbindung aufbauen, falls Peer bereit
   if (peerReady) {
-    if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
-
     const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
-    // Traffic für connect‑Metadaten (wird von PeerJS intern gesendet, wir schätzen grob)
-    if (typeof Traffic !== 'undefined') {
-      Traffic.recordP2PSent(new Blob([JSON.stringify({ name: myName })]).size);
-    }
-    openChat(newConn);                // Bestehenden Chat in Online‑Modus überführen
-    toast(`📞 Rufe ${partnerName} an...`);
-
-    outgoingCallTimer = setTimeout(() => {
-      outgoingCallTimer = null;
-      if (!conn || !conn.open) {
-        toast('⏰ Keine Antwort');
-        addMissed(partnerCode, partnerName, true);
-        if (conn) {
-          try { conn.close(); } catch (e) {}
-          conn = null;
-        }
-        showLeaveMessageSheet(partnerCode, partnerName);
-      }
-      updateConnectionStatus();
-    }, 30000);
+    // Bestehenden Chat in Online‑Modus überführen
+    openChat(newConn);
   } else {
-    // Peer nicht bereit – Lokal‑Modus bleibt aktiv, späterer Auto‑Reconnect
+    // Später automatisch verbinden, sobald Peer bereit
     markAutoReconnect();
   }
-
-  updateConnectionStatus();
 }
 
+// Eingehende Verbindung (wird von p2p-core.js aufgerufen)
 function acceptCall() {
+  // Diese Funktion wird nicht mehr für "Annehmen" verwendet,
+  // sondern um eine eingehende Verbindung zu akzeptieren.
   stopRingingTone();
   if (!pendingConn) {
     toast('⚠️ Verbindung nicht mehr verfügbar');
@@ -137,4 +121,4 @@ async function submitLeaveMessage() {
   closeLeaveMessageSheet();
   showScreen('s-home');
   updateConnectionStatus();
-                                      }
+      }
