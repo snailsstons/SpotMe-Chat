@@ -3,7 +3,8 @@
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
 // + Buttons: "Nachricht" in Liste & Detail (Kurznachricht)
-// + Radar-Highlight: Avatar & Zeitstempel des AUSGEWÄHLTEN Profils
+// + Radar-Highlight: Avatar & Entfernung des ausgewählten Profils
+// + Optimierte Radar-Größe (Schriftzug "Radar" entfernt)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -178,7 +179,6 @@ function renderRadar() {
     node.style.left = x + '%';
     node.style.top = y + '%';
     node.setAttribute('data-label', `${profile.name || '?'} (${formatDistance(distance)})`);
-    // 🆕 Bei Klick auf Peer-Node Highlight aktualisieren
     node.onclick = () => {
       updateRadarHighlight(profile);
       showProfileDetail(profile);
@@ -187,12 +187,9 @@ function renderRadar() {
   });
   
   document.getElementById('status-indicator').textContent = `● ${profilesWithLocation.length} RADAR`;
-  
-  // 🆕 Highlight leeren, wenn kein Profil ausgewählt
   updateRadarHighlight(null);
 }
 
-// 🆕 Radar-Highlight für ausgewähltes Profil
 function updateRadarHighlight(profile) {
   const container = document.querySelector('.radar-viewport');
   let highlight = document.getElementById('radar-highlight');
@@ -202,47 +199,46 @@ function updateRadarHighlight(profile) {
     highlight.style.cssText = `
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 12px;
-      padding: 12px 16px;
-      margin-top: 8px;
+      padding: 10px 14px;
+      margin: 8px 0 0 0;
       background: var(--card);
       border-radius: 40px;
       border: 1px solid var(--bord);
+      font-size: 0.9rem;
     `;
+    // Entferne eventuell vorhandenen "Radar"-Schriftzug
+    const oldTitle = container.querySelector('div[style*="Radar"]');
+    if (oldTitle) oldTitle.remove();
     container.appendChild(highlight);
   }
 
   if (!profile) {
-    // Kein Profil ausgewählt → Platzhalter
     highlight.innerHTML = `
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">👤</div>
-      <div style="flex:1; font-size:0.9rem; color:var(--text-dim);">
-        Tippe auf einen Punkt im Radar
-      </div>
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">👤</div>
+      <div style="flex:1; color:var(--text-dim);">Tippe auf einen Punkt</div>
     `;
     return;
   }
 
   const loc = locationCache.get(profile.code);
   const av = profile.avatar
-    ? `<img src="${profile.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`
-    : `<div style="width:36px;height:36px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:bold;">${(profile.name || profile.code)[0]?.toUpperCase() || '🧑'}</div>`;
+    ? `<img src="${profile.avatar}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">`
+    : `<div style="width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:bold;">${(profile.name || profile.code)[0]?.toUpperCase() || '🧑'}</div>`;
 
-  let timeText = 'Standort nicht verfügbar';
-  if (loc) {
-    // Wir haben keine Zeitstempel für andere Profile, also zeigen wir die Entfernung an
-    const dist = userPosition 
-      ? formatDistance(getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng))
-      : 'unbekannt';
-    timeText = `📍 ${dist} entfernt`;
+  let distText = 'Standort nicht verfügbar';
+  if (loc && userPosition) {
+    const dist = getDistance(userPosition.lat, userPosition.lng, loc.lat, loc.lng);
+    distText = `📍 ${formatDistance(dist)} entfernt`;
+  } else if (loc) {
+    distText = `📍 Standort vorhanden`;
   }
 
   highlight.innerHTML = `
     ${av}
-    <div style="flex:1; font-size:0.9rem;">
+    <div style="flex:1;">
       <div style="font-weight:600;">${esc(profile.name || formatCode(profile.code))}</div>
-      <div style="color:var(--text-dim); font-size:0.8rem;">${timeText}</div>
+      <div style="color:var(--text-dim); font-size:0.8rem;">${distText}</div>
     </div>
   `;
 }
@@ -318,7 +314,7 @@ function renderList() {
     if (profile) {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.btn-chat') || e.target.closest('.location-badge')) return;
-        updateRadarHighlight(profile);  // 🆕 Auch bei Listenklick Highlight setzen
+        updateRadarHighlight(profile);
         showProfileDetail(profile);
       });
     }
