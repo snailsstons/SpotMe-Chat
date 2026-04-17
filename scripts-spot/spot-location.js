@@ -1,6 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – STANDORT & KARTE (spot-location.js)
+// + Speichert Zeitstempel der letzten erfolgreichen Standortaktualisierung
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function toggleLocationSharing() {
@@ -66,6 +67,8 @@ async function sendLocationToServer(lat, lng) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: myCode, lat, lng, spot: SPOT })
     });
+    // 🆕 Zeitstempel der letzten erfolgreichen Aktualisierung speichern
+    localStorage.setItem('sm_last_location_update', Date.now());
   } catch(e) {}
 }
 
@@ -135,4 +138,4 @@ function updateModalDistance() {
 function closeLocationModal(e) {
   if (e && e.target !== document.getElementById('location-modal')) return;
   document.getElementById('location-modal').style.display = 'none';
-          }
+      }
