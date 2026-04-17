@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
   <!-- Eruda – Mobile Console (nur für Debugging) -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
@@ -14,6 +13,10 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* Versteckte Dummy-Elemente für ui-chat.js */
+    #upw, #upb, .album-btn, .location-btn, .attach-btn, #finp, #voice-btn { display: none !important; }
+  </style>
 </head>
 <body>
 
@@ -93,6 +96,9 @@
         <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
       </div>
     </div>
+    <!-- Dummy-Buttons für ui-chat.js -->
+    <button class="album-btn" style="display:none;"></button>
+    <button class="location-btn" style="display:none;"></button>
     <button class="menu-btn" onclick="openSheet()">☰</button>
   </div>
   <div class="rcbar" id="rcbar">
@@ -105,8 +111,13 @@
       <div class="empty-txt">Verbindung wird aufgebaut...</div>
     </div>
   </div>
+  <!-- Dummy-Elemente für Datei-Upload -->
+  <div class="upbar-wrap" id="upw" style="display:none;"><div class="upbar" id="upb"></div></div>
+  <input type="file" id="finp" style="display:none">
   <div class="icont">
     <div class="ibar">
+      <button class="attach-btn" style="display:none;"></button>
+      <button class="voice-btn" id="voice-btn" style="display:none;"></button>
       <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
       <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
     </div>
@@ -155,10 +166,24 @@
 <script src="scripts/ui-chat.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
-     MESSENGER-SPEZIFISCHE FUNKTIONEN
+     MESSENGER-SPEZIFISCHE FUNKTIONEN & FIXES
 ═══════════════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fehlende globale Funktionen definieren
+window.markAutoReconnect = function() {
+  console.log('🏷️ markAutoReconnect (Messenger)');
+  // Die eigentliche Variable wird in p2p-core.js verwaltet, wir setzen sie direkt
+  if (typeof autoReconnectPending !== 'undefined') autoReconnectPending = true;
+};
+
+// Dummy-Funktionen für nicht benötigte Features
+window.showAlbumMenu = function() { toast('Alben im Messenger nicht verfügbar'); };
+window.openLocationScreen = function() { toast('Standort im Messenger nicht verfügbar'); };
+window.toggleVoiceRecording = function() { toast('Sprachnachrichten im Messenger nicht verfügbar'); };
+window.sendFile = function() { toast('Dateien im Messenger nicht verfügbar'); };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Code-Eingabe
@@ -337,4 +362,4 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 </body>
-  </html>
+      </html>
