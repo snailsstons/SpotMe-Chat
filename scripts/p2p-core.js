@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
 // PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
-// + openChat kann vom Lokal‑ in Online‑Modus wechseln
+// + Eingehende Verbindungen öffnen direkt den Chat (kein Annahme-Bildschirm)
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -61,17 +61,13 @@ function initPeer() {
       return;
     }
     if (err.type === 'peer-unavailable') {
+      // Partner nicht erreichbar – keine Aktion, Chat bleibt im Lokal‑Modus
       if (outgoingCallTimer) {
         clearTimeout(outgoingCallTimer);
         outgoingCallTimer = null;
       }
-      toast('⚠️ Partner nicht erreichbar');
-      addMissed(partnerCode, partnerName, true);
-      if (conn) {
-        try { conn.close(); } catch (e) {}
-        conn = null;
-      }
-      showLeaveMessageSheet(partnerCode, partnerName);
+      // Optional: Toast, dass Partner offline ist
+      toast('⚠️ Partner ist offline – Nachrichten werden lokal gespeichert.');
       return;
     }
     isOffline = true;
@@ -94,30 +90,34 @@ function initPeer() {
     }, 2500);
   });
 
+  // 🆕 Eingehende Verbindung: DIREKT Chat öffnen, kein Annahme-Bildschirm
   peer.on('connection', incoming => {
+    // Bestehende Verbindung? Alte schließen
     if (conn && conn.open) {
       incoming.close();
       return;
     }
-    pendingConn = incoming;
+    // Partnerdaten setzen
     partnerCode = incoming.peer;
     partnerName = localName(incoming.peer, incoming.metadata?.name);
-    document.getElementById('in-name').textContent = partnerName;
-    document.getElementById('in-code').textContent = 'Code: ' + formatCode(partnerCode);
-    showScreen('s-in');
-    pushNotif(partnerName, 'möchte mit dir chatten');
-    inAppNotif(partnerName, 'Eingehender Chat');
-    playRingingTone();
-    triggerHaptic();
+    chatId = buildCID(myCode, partnerCode);
+    loadPendingMessages();
+    migratePendingMessages(chatId);
+
+    // Chat sofort öffnen (Online‑Modus, da Verbindung schon besteht)
+    openChat(incoming);
+
+    // Benachrichtigung (Ton/Vibrieren) nur, wenn App nicht im Vordergrund
+    if (document.hidden) {
+      pushNotif(partnerName, 'möchte mit dir chatten');
+      inAppNotif(partnerName, 'Eingehender Chat');
+      playRingingTone();
+      triggerHaptic();
+    }
 
     incoming.on('close', () => {
-      if (pendingConn === incoming) {
-        stopRingingTone();
-        addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
-        pendingConn = null;
-        showScreen('s-home');
-        toast('📵 Verpasster Anruf von ' + localName(incoming.peer, incoming.metadata?.name));
-      }
+      conn = null;
+      updateConnectionStatus();
     });
   });
 }
@@ -149,7 +149,6 @@ function openChat(c) {
   }
   conn = c;
 
-  // Wenn der Chat bereits geöffnet ist, nur UI aktualisieren
   const chatActive = document.getElementById('s-chat').classList.contains('active');
 
   if (!chatActive) {
@@ -174,12 +173,8 @@ function openChat(c) {
     return;
   }
 
-  // Online‑Modus: Data‑Handler registrieren
+  // Online‑Modus
   const onOpen = () => {
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     refreshStatusText();
@@ -190,7 +185,7 @@ function openChat(c) {
     if (!alias && netName) partnerName = netName;
     applyPartnerName();
 
-    // 🆕 Willkommensnachricht senden, falls für diesen Partner hinterlegt
+    // Willkommensnachricht senden, falls für diesen Partner hinterlegt
     const welcomeMsg = localStorage.getItem('sm_welcome_message');
     const welcomeTarget = sessionStorage.getItem('sm_welcome_target');
     if (welcomeMsg && welcomeTarget === partnerCode && conn && conn.open) {
@@ -224,10 +219,6 @@ function openChat(c) {
   conn.on('data', d => handleData(d));
 
   conn.on('close', () => {
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
     conn = null;
     if (partnerTypingTimer) {
       clearTimeout(partnerTypingTimer);
@@ -249,10 +240,6 @@ function openChat(c) {
 
   conn.on('error', err => {
     console.warn('[conn]', err);
-    if (outgoingCallTimer) {
-      clearTimeout(outgoingCallTimer);
-      outgoingCallTimer = null;
-    }
     document.getElementById('rcbar').classList.add('show');
     updateConnectionStatus();
   });
@@ -260,4 +247,4 @@ function openChat(c) {
 
 function markAutoReconnect() {
   autoReconnectPending = true;
-}
+        }
