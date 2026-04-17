@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – NACHRICHTEN & DATA-HANDLER (p2p-message.js)
 // Textnachrichten senden/empfangen, Typing-Indikator, Pending-Queue
-// + Traffic‑Messung + Usage‑Zähler
+// + Traffic‑Messung + Usage‑Zähler + LOCAL‑FIRST (Nachrichten erscheinen sofort)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function sendMsg() {
@@ -11,18 +11,29 @@ function sendMsg() {
   const text = inp.value.trim();
   if (!text) return;
 
+  // Keine aktive Verbindung → Nachricht lokal speichern und sofort anzeigen
   if (!conn || !conn.open) {
     if (!chatId) {
       toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
       return;
     }
+
+    // 1. In Pending‑Queue speichern
     addPendingMessage(text);
-    toast(`📦 Nachricht gespeichert (${pendingMessages.length} in Warteschlange)`);
+
+    // 2. Sofort im Chat anzeigen (eigene Nachricht)
+    const m = { t: 'text', text, ts: Date.now(), own: true };
+    appendMsg(m);
+    persistMsg(m);
+
+    // 3. Eingabefeld leeren
     inp.value = '';
     inp.style.height = 'auto';
     return;
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Aktive Verbindung → Nachricht direkt senden
   if (typingStarted) {
     conn.send({ t: 'typing', state: 'end' });
     if (typingDebounceTimer) clearTimeout(typingDebounceTimer);
@@ -38,7 +49,7 @@ function sendMsg() {
   appendMsg({ ...m, own: true });
   persistMsg({ ...m, own: true });
 
-   // 📊 Nachrichtenzähler erhöhen – mit deutlichem Log
+  // 📊 Nachrichtenzähler erhöhen
   console.log('📊 [Usage] Verfügbar?', typeof Usage !== 'undefined' ? '✅ Ja' : '❌ Nein');
   if (typeof Usage !== 'undefined') {
     Usage.incrementMessagesSent();
@@ -191,4 +202,4 @@ function inAppNotif(from, text) {
 function switchToChat() {
   document.getElementById('in-notif').classList.remove('show');
   showScreen('s-chat');
-             }
+  }
