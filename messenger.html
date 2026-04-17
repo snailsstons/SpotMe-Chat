@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpotMe · Messenger</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Bibliotheken -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- LOCAL‑MODE BANNER -->
+<div id="local-mode-banner" class="local-banner" style="display: none;">
+  <span>📴</span>
+  <span>Lokaler Modus – Nachrichten werden gespeichert und später gesendet</span>
+</div>
+
+<!-- SCREEN 1 – HOME -->
+<div id="s-home" class="screen active">
+  <header class="app-header">
+    <div class="header-left"></div>
+    <div class="logo">SPOT<b>ME</b></div>
+    <div class="header-right">
+      <div class="status-badge" id="header-status">● ONLINE</div>
+    </div>
+  </header>
+
+  <div class="home-content">
+    <div class="code-card-new">
+      <div class="code-label">Dein persönlicher Code</div>
+      <div class="code-value" id="mycode">--- ---</div>
+      <div class="code-actions">
+        <button class="csbtn-new" onclick="copyCode()">📋 Kopieren</button>
+        <button class="csbtn-new csbtn-primary" onclick="shareCode()">↗️ Teilen</button>
+      </div>
+    </div>
+
+    <div class="conn-box-new">
+      <div class="conn-label">Partner verbinden</div>
+      <div class="drow-new">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
+    </div>
+
+    <div id="psec" style="display:none;">
+      <div class="section-header"><span class="section-label">Letzte Chats</span></div>
+      <div id="plist" class="horizontal-scroll"></div>
+    </div>
+
+    <div id="offline-msg-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
+        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
+      </div>
+      <div id="offline-msg-list" class="horizontal-scroll"></div>
+    </div>
+
+    <div id="missed-sec" style="display:none;">
+      <div class="section-header">
+        <span class="section-label missed-label-text">Verpasste Chatanfragen</span>
+        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
+      </div>
+      <div id="missed-list" class="horizontal-scroll"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2 – CHATANFRAGE -->
+<div id="s-in" class="screen">
+  <div class="call-wrap">
+    <div class="caller-ring">🧑</div>
+    <div class="caller-name" id="in-name">...</div>
+    <div class="caller-code" id="in-code">Code: ---</div>
+    <div class="caller-hint">möchte mit dir chatten</div>
+    <div class="call-btns">
+      <button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button>
+      <button class="call-btn btn-accept" onclick="acceptCall()">✓ Annehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 3 – CHAT -->
+<div id="s-chat" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="peer-wrap">
+      <div class="pav offline" id="pav">🧑</div>
+      <div class="pinfo">
+        <div class="pname" id="pname">...</div>
+        <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
+      </div>
+    </div>
+    <button class="menu-btn" onclick="openSheet()">☰</button>
+  </div>
+  <div class="rcbar" id="rcbar">
+    <span>○ Verbindung unterbrochen</span>
+    <button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="ehint">
+      <div class="empty-icon">💬</div>
+      <div class="empty-txt">Verbindung wird aufgebaut...</div>
+      <div class="empty-hint"><span class="spin"></span></div>
+    </div>
+  </div>
+  <div class="icont">
+    <div class="ibar">
+      <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
+      <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheets -->
+<div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Chat-Optionen</div>
+  <div class="sheet-body">
+    <button class="sitem" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button>
+    <button class="sitem danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Zurück zur Übersicht</div></div></button>
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="info-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3 id="info-modal-title"></h3>
+    <p id="info-modal-message"></p>
+    <button id="info-modal-ok" class="btn-primary">OK</button>
+  </div>
+</div>
+
+<input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+<div class="in-notif" id="in-notif" onclick="switchToChat()">
+  <div class="in-ico">💬</div>
+  <div><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div>
+</div>
+
+<!-- Gemeinsame Module -->
+<script src="scripts-shared/config.js"></script>
+<script src="scripts-shared/utils.js"></script>
+<script src="scripts-shared/storage.js"></script>
+<script src="scripts-shared/ui-core.js"></script>
+<script src="scripts-shared/audio.js"></script>
+<script src="scripts-shared/p2p-core.js"></script>
+<script src="scripts-shared/p2p-message.js"></script>
+<script src="scripts-shared/ui-chat.js"></script>
+
+<!-- Messenger-spezifische Module -->
+<script src="scripts-messenger/messenger-home.js"></script>
+<script src="scripts-messenger/messenger-call.js"></script>
+<script src="scripts-messenger/messenger-main.js"></script>
+</body>
+          </html>
