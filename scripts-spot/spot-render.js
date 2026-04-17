@@ -2,7 +2,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
-// + SPOT CHAT Integration (Chat‑Button & Funktionen)
+// + SPOT CHAT Integration (Chat‑Button in Liste, Kurznachricht in Detail)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -16,7 +16,6 @@ function openSpotChat(code, name) {
   
   loadSpotChatHistory(code);
   
-  // Verstecke aktiven Screen (der Container mit class="screen active" existiert hier nicht – wir blenden selbst)
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s-spot-chat').classList.add('active');
   document.getElementById('spot-chat-input').focus();
@@ -24,12 +23,9 @@ function openSpotChat(code, name) {
 
 function closeSpotChat() {
   document.getElementById('s-spot-chat').classList.remove('active');
-  // Zurück zum Hauptscreen (der hat id 's-home' – existiert nicht im Spot, wir blenden alles wieder ein)
-  // Stattdessen: Wir zeigen den Radar-Container an, da es keinen s-home gibt.
-  // Der Spot hat kein Screen-System wie die Hauptapp, also blenden wir das Chat-Fenster aus und der Rest bleibt sichtbar.
   document.getElementById('s-spot-chat').style.display = 'none';
   currentSpotPartner = null;
-  renderAll(); // Aktualisiere die Liste (optional)
+  renderAll();
 }
 
 function getSpotChatKey(partnerCode) {
@@ -42,7 +38,6 @@ function loadSpotChatHistory(partnerCode) {
   const container = document.getElementById('spot-chat-messages');
   container.innerHTML = '';
   
-  // Auch Offline‑Nachrichten vom Server holen (empfangene)
   fetchAndMergeServerMessages(partnerCode).then(allMsgs => {
     if (allMsgs.length === 0) {
       container.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Noch keine Nachrichten</div></div>';
@@ -67,7 +62,6 @@ async function fetchAndMergeServerMessages(partnerCode) {
         serverMsgs = all
           .filter(m => m.senderCode === partnerCode)
           .map(m => ({ text: m.message, ts: new Date(m.timestamp).getTime(), own: false }));
-        // Als gelesen markieren
         for (const m of all.filter(m => !m.read && m.senderCode === partnerCode)) {
           await fetch(`${API}/offline-message/${m.id}`, {
             method: 'DELETE',
@@ -152,7 +146,7 @@ function spotChatHkey(e) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RENDERING (angepasst)
+// RENDERING
 function renderAll() {
   renderRadar();
   renderList();
@@ -241,10 +235,8 @@ function renderList() {
       locationBadge = `<span class="location-badge" onclick="showLocationOnMap('${p.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 ${distStr}</span>`;
     }
     
-    // Bio mit Fallback
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
-    // 🆕 Zwei Buttons: Chat (Spot-Chat) und ggf. P2P-Chat (lassen wir den vorhandenen startChat, der P2P startet)
     const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `
       <button class="btn-chat" onclick="openSpotChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>
     `;
@@ -299,9 +291,9 @@ function showProfileDetail(profile) {
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
-  const chatBtn = isOwn ? `<button class="detail-btn btn-secondary" disabled style="opacity:0.5;">Dein Profil</button>` : `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); openSpotChat('${esc(profile.code)}','${esc(name)}')">💬 Chat</button>`;
+  // 🆕 Chat-Button durch Kurznachricht-Button ersetzen
+  const msgBtn = !isOwn ? `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Nachricht</button>` : '';
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
-  const msgBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Kurznachricht</button>` : '';
   const personalCount = verifications.filter(v => v.type === 'personal').length;
   const chatCount = verifications.filter(v => v.type === 'chat').length;
   let verifyText = '';
@@ -317,9 +309,8 @@ function showProfileDetail(profile) {
     ${bio}
     <div class="detail-footer" style="flex-wrap:wrap; gap:0.5rem;">
       ${locationBtn}
-      ${chatBtn}
-      ${verifyBtn}
       ${msgBtn}
+      ${verifyBtn}
     </div>
   `;
   modal.style.display = 'flex';
@@ -327,4 +318,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-                                                 }
+}
