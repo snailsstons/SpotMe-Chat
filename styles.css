@@ -602,3 +602,34 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   color: var(--bg);
   cursor: pointer;
 }
+/* Kontaktliste */
+.contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unread-badge {
+  background: var(--p3);
+  color: white;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-dim);
+}
+
+/* Chat-Karten */
+.chat-card {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.chat-card:hover {
+  background: var(--bg3);
+}
