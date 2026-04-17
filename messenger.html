@@ -16,6 +16,9 @@
   <style>
     /* Versteckte Dummy-Elemente für ui-chat.js */
     #upw, #upb, .album-btn, .location-btn, .attach-btn, #finp, #voice-btn { display: none !important; }
+    /* Modal schließen per Hintergrundklick */
+    .modal { cursor: pointer; }
+    .modal-content { cursor: default; }
   </style>
 </head>
 <body>
@@ -138,7 +141,7 @@
   </div>
 </div>
 
-<!-- Info Modal (wird für Bestätigungen verwendet) -->
+<!-- Info Modal (robust) -->
 <div id="info-modal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:320px; text-align:center;">
     <h3 id="info-modal-title"></h3>
@@ -166,25 +169,21 @@
 <script src="scripts/ui-chat.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
-     MESSENGER-SPEZIFISCHE ANPASSUNGEN (LOCAL‑FIRST OHNE NERVIGE MODALE)
+     MESSENGER-SPEZIFISCHE ANPASSUNGEN (LOCAL‑FIRST, SAUBERE MODALE)
 ═══════════════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Stille Pending‑Nachrichten (keine Modale beim Schreiben)
-//    Wir überschreiben addPendingMessage und flushPendingMessages aus storage.js
+// 1. Unterdrücke Modale während des Schreibens, aber sammle für später
 // ─────────────────────────────────────────────────────────────────────────────
 const _originalAddPending = window.addPendingMessage;
 window.addPendingMessage = function(text) {
-  // Originalfunktion aufrufen (fügt Nachricht hinzu und zeigt Modal)
-  // Aber wir wollen das Modal unterdrücken! Also temporär showInfoModal deaktivieren.
+  // Zeige kein Modal an – wir merken uns nur die Anzahl
   const originalShow = window.showInfoModal;
-  window.showInfoModal = function() {}; // Dummy
-  
+  window.showInfoModal = function() {}; // Stumm schalten
   _originalAddPending(text);
-  
-  window.showInfoModal = originalShow; // Wiederherstellen
+  window.showInfoModal = originalShow;
 };
 
 const _originalFlush = window.flushPendingMessages;
@@ -199,39 +198,14 @@ window.flushPendingMessages = function() {
     appendMsg({ ...m, own: true });
     persistMsg({ ...m, own: true });
   }
-  // KEIN MODAL – wir sammeln die Bestätigung später
+  // Kein Modal – wird später in goHome oder openChat gezeigt
 };
 
-// Speicher für die Anzahl der gesendeten Pending‑Nachrichten
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Zähler für gesendete Pending‑Nachrichten
+// ─────────────────────────────────────────────────────────────────────────────
 let pendingSendCount = 0;
 
-// Beim erfolgreichen Senden einer Nachricht aus der Queue erhöhen wir den Zähler
-const _originalSendMsg = window.sendMsg;
-window.sendMsg = function() {
-  const inp = document.getElementById('minp');
-  const text = inp.value.trim();
-  if (!text) return;
-
-  if (!conn || !conn.open) {
-    if (!chatId) {
-      toast('⚠️ Bitte zuerst eine Verbindung aufbauen');
-      return;
-    }
-    addPendingMessage(text);
-    // Sofort im Chat anzeigen
-    const m = { t: 'text', text, ts: Date.now(), own: true };
-    appendMsg(m);
-    persistMsg(m);
-    inp.value = '';
-    inp.style.height = 'auto';
-    return;
-  }
-
-  // Online – normal senden
-  _originalSendMsg.call(this);
-};
-
-// Überschreiben von openChat, um bei Verbindungsaufbau die Queue zu flushen und zu zählen
 const _originalOpenChat = window.openChat;
 window.openChat = function(c) {
   // Wenn wir von null auf echte Verbindung wechseln, merken wir uns die aktuelle Queue-Größe
@@ -254,13 +228,14 @@ window.openChat = function(c) {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Beim Verlassen des Chats: Wenn Pending‑Nachrichten existieren, einmalig bestätigen
+// 3. Beim Verlassen des Chats: Wenn Pending‑Nachrichten existieren, einmalig bestätigen
 // ─────────────────────────────────────────────────────────────────────────────
 const _originalGoHome = window.goHome;
 window.goHome = function() {
   const pending = pendingMessages.length;
-  if (pending > 0 && conn && !conn.open) {
-    // Wir sind im Lokal‑Modus und haben ungesendete Nachrichten
+  const isOnline = conn && conn.open;
+  
+  if (pending > 0 && !isOnline) {
     showInfoModal(
       '📦 Lokal gespeichert',
       `${pending} ${pending === 1 ? 'Nachricht wird' : 'Nachrichten werden'} gesendet, sobald du wieder online bist.`,
@@ -268,7 +243,7 @@ window.goHome = function() {
     );
   }
   
-  // Original goHome ausführen (Verbindung trennen, Screen wechseln)
+  // Verbindung trennen und UI zurücksetzen
   if (conn) { try { conn.close(); } catch(e) {} conn = null; }
   pendingConn = null;
   document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
@@ -277,8 +252,11 @@ window.goHome = function() {
   showScreen('s-home');
 };
 
+// Falls goHome noch nicht existiert (Sicherheitshalber)
+if (typeof window.goHome !== 'function') window.goHome = function() {};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. Fehlende globale Funktionen definieren
+// 4. Fehlende globale Funktionen definieren
 // ─────────────────────────────────────────────────────────────────────────────
 window.markAutoReconnect = function() {
   console.log('🏷️ markAutoReconnect (Messenger)');
@@ -292,7 +270,7 @@ window.toggleVoiceRecording = function() { toast('Sprachnachrichten im Messenger
 window.sendFile = function() { toast('Dateien im Messenger nicht verfügbar'); };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Robustes Info-Modal (OK-Button funktioniert garantiert)
+// 5. Robustes Info-Modal (OK-Button funktioniert garantiert)
 // ─────────────────────────────────────────────────────────────────────────────
 window.showInfoModal = function(title, message, buttonText = 'OK') {
   let modal = document.getElementById('info-modal');
@@ -311,12 +289,10 @@ window.showInfoModal = function(title, message, buttonText = 'OK') {
     document.body.appendChild(modal);
     
     const okBtn = modal.querySelector('#info-modal-ok');
-    okBtn.addEventListener('click', function() {
-      modal.style.display = 'none';
-    });
-    
+    const closeModal = () => modal.style.display = 'none';
+    okBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', function(e) {
-      if (e.target === modal) modal.style.display = 'none';
+      if (e.target === modal) closeModal();
     });
   }
   
@@ -328,7 +304,7 @@ window.showInfoModal = function(title, message, buttonText = 'OK') {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. Messenger‑spezifische UI‑Funktionen
+// 6. Messenger‑spezifische UI‑Funktionen
 // ─────────────────────────────────────────────────────────────────────────────
 function initDigits() {
   const inps = document.querySelectorAll('.dinp-new');
@@ -444,7 +420,7 @@ function clearChat() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. Initialisierung
+// 7. Initialisierung
 // ─────────────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
@@ -482,4 +458,4 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 </body>
-  </html>
+</html>
