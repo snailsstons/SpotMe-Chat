@@ -1,25 +1,35 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <!-- Eruda – Mobile Console (nur für Debugging) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-  
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SpotMe · Messenger</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#060a0f">
   <link rel="stylesheet" href="styles.css">
-  <!-- Bibliotheken -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    /* Versteckte Dummy-Elemente für ui-chat.js */
-    #upw, #upb, .album-btn, .location-btn, .attach-btn, #finp, #voice-btn { display: none !important; }
-    /* Modal schließen per Hintergrundklick */
-    .modal { cursor: pointer; }
-    .modal-content { cursor: default; }
+    /* Messenger-spezifische Ergänzungen */
+    .chat-card { cursor: pointer; }
+    .unread-badge {
+      background: var(--p3);
+      color: white;
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      margin-left: 8px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-dim);
+    }
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
@@ -51,17 +61,18 @@
       </div>
     </div>
 
-    <!-- Kontaktliste (Letzte Chats) -->
+    <!-- Kontaktliste (aus sm_idx + Offline-Nachrichten) -->
     <div id="psec">
       <div class="section-header">
         <span class="section-label">Chats</span>
+        <button class="missed-clear-btn" onclick="refreshChatList()">↻</button>
       </div>
       <div id="plist" class="contact-list"></div>
     </div>
 
-    <!-- Neuen Kontakt hinzufügen -->
+    <!-- Neue Nachricht verfassen -->
     <div class="conn-box-new">
-      <div class="conn-label">Neuer Chat</div>
+      <div class="conn-label">Neue Nachricht</div>
       <div class="drow-new">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
@@ -70,65 +81,41 @@
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
       </div>
-      <button class="btn-main-new" id="cbtn" onclick="startNewChat()" disabled>💬 Chat starten</button>
+      <button class="btn-main-new" id="cbtn" onclick="openNewMessage()" disabled>✉️ Nachricht verfassen</button>
     </div>
   </div>
 </div>
 
-<!-- SCREEN 3 – CHAT -->
+<!-- SCREEN 2 – NACHRICHT VERFASSEN / CHAT -->
 <div id="s-chat" class="screen">
   <div class="chat-bar">
     <button class="back-btn" onclick="goHome()">‹</button>
     <div class="peer-wrap">
-      <div class="pav offline" id="pav">🧑</div>
+      <div class="pav" id="pav">🧑</div>
       <div class="pinfo">
         <div class="pname" id="pname">...</div>
-        <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
+        <div class="pstatus dim" id="pstatus">○ Nachricht senden</div>
       </div>
     </div>
-    <!-- Dummy-Buttons für ui-chat.js -->
-    <button class="album-btn" style="display:none;"></button>
-    <button class="location-btn" style="display:none;"></button>
-    <button class="menu-btn" onclick="openSheet()">☰</button>
+    <button class="menu-btn" onclick="openChatOptions()">☰</button>
   </div>
-  <div class="rcbar" id="rcbar">
-    <span>○ Verbindung unterbrochen</span>
-    <button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button>
-  </div>
+
   <div class="messages" id="messages">
     <div class="empty-chat" id="ehint">
       <div class="empty-icon">💬</div>
-      <div class="empty-txt">Verbindung wird aufgebaut...</div>
+      <div class="empty-txt">Noch keine Nachrichten</div>
     </div>
   </div>
-  <!-- Dummy-Elemente für Datei-Upload -->
-  <div class="upbar-wrap" id="upw" style="display:none;"><div class="upbar" id="upb"></div></div>
-  <input type="file" id="finp" style="display:none">
+
   <div class="icont">
     <div class="ibar">
-      <button class="attach-btn" style="display:none;"></button>
-      <button class="voice-btn" id="voice-btn" style="display:none;"></button>
       <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
-      <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
+      <button class="send-btn" id="sbtn" onclick="sendMessage()" disabled>➤</button>
     </div>
   </div>
 </div>
 
-<!-- Chat-Optionen (Sheet) -->
-<div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title">Chat-Optionen</div>
-  <div class="sheet-body">
-    <button class="sitem" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div></div></button>
-    <div class="ssep"></div>
-    <button class="sitem" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div></div></button>
-    <div class="ssep"></div>
-    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico">✕</div><div class="slab"><div>Chat beenden</div></div></button>
-  </div>
-</div>
-
-<!-- Info Modal (robust) -->
+<!-- Info Modal -->
 <div id="info-modal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:320px; text-align:center;">
     <h3 id="info-modal-title"></h3>
@@ -143,150 +130,47 @@
   <div><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     MODULE (aus /scripts/)
-═══════════════════════════════════════════════════════════════════════════ -->
-<script src="scripts/config.js"></script>
-<script src="scripts/utils.js"></script>
-<script src="scripts/storage.js"></script>
-<script src="scripts/ui-core.js"></script>
-<script src="scripts/audio.js"></script>
-<script src="scripts/p2p-core.js"></script>
-<script src="scripts/p2p-message.js"></script>
-<script src="scripts/ui-chat.js"></script>
-
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     MESSENGER-SPEZIFISCHE ANPASSUNGEN (CLIENT-SERVER PRINZIP)
-═══════════════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Unterdrücke Modale während des Schreibens
+// Globale Variablen & Konstanten
 // ─────────────────────────────────────────────────────────────────────────────
-const _originalAddPending = window.addPendingMessage;
-window.addPendingMessage = function(text) {
-  const originalShow = window.showInfoModal;
-  window.showInfoModal = function() {}; // Stumm schalten
-  _originalAddPending(text);
-  window.showInfoModal = originalShow;
-};
-
-const _originalFlush = window.flushPendingMessages;
-window.flushPendingMessages = function() {
-  if (!conn || !conn.open) return;
-  if (pendingMessages.length === 0) return;
-  const toSend = [...pendingMessages];
-  clearPendingMessages();
-  for (let msg of toSend) {
-    const m = { t: 'text', text: msg.text, ts: msg.ts };
-    conn.send(m);
-    appendMsg({ ...m, own: true });
-    persistMsg({ ...m, own: true });
-  }
-};
+const API_BASE = 'https://spotme-pg-test.onrender.com/api';
+const myCode = localStorage.getItem('sm_code') || (() => { const c = Math.floor(100000 + Math.random() * 900000).toString(); localStorage.setItem('sm_code', c); return c; })();
+const myToken = localStorage.getItem('sm_token') || '';
+let currentPartnerCode = '';
+let currentPartnerName = '';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. Zähler für gesendete Pending‑Nachrichten
+// Hilfsfunktionen
 // ─────────────────────────────────────────────────────────────────────────────
-let pendingSendCount = 0;
+function toast(msg, ms = 2400) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, ms);
+}
 
-const _originalOpenChat = window.openChat;
-window.openChat = function(c) {
-  if (c && !conn) {
-    pendingSendCount = pendingMessages.length;
-  }
-  _originalOpenChat.call(this, c);
-  
-  if (c && conn && conn.open && pendingSendCount > 0) {
-    setTimeout(() => {
-      showInfoModal(
-        '✅ Nachrichten gesendet',
-        `${pendingSendCount} ${pendingSendCount === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
-        'OK'
-      );
-      pendingSendCount = 0;
-    }, 500);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. Beim Verlassen des Chats: Wenn Pending‑Nachrichten existieren, einmalig bestätigen
-// ─────────────────────────────────────────────────────────────────────────────
-const _originalGoHome = window.goHome;
-window.goHome = function() {
-  const pending = pendingMessages.length;
-  const isOnline = conn && conn.open;
-  
-  if (pending > 0 && !isOnline) {
-    showInfoModal(
-      '📦 Lokal gespeichert',
-      `${pending} ${pending === 1 ? 'Nachricht wird' : 'Nachrichten werden'} gesendet, sobald du wieder online bist.`,
-      'Verstanden'
-    );
-  }
-  
-  // Verbindung trennen und UI zurücksetzen
-  if (conn) { try { conn.close(); } catch(e) {} conn = null; }
-  pendingConn = null;
-  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
-  document.getElementById('cbtn').disabled = true;
-  renderPrev();
-  showScreen('s-home');
-};
-
-if (typeof window.goHome !== 'function') window.goHome = function() {};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 4. Fehlende globale Funktionen definieren
-// ─────────────────────────────────────────────────────────────────────────────
-window.markAutoReconnect = function() {
-  console.log('🏷️ markAutoReconnect (Messenger)');
-  if (typeof autoReconnectPending !== 'undefined') autoReconnectPending = true;
-};
-
-// Dummy-Funktionen für nicht benötigte Features
-window.showAlbumMenu = function() { toast('Alben im Messenger nicht verfügbar'); };
-window.openLocationScreen = function() { toast('Standort im Messenger nicht verfügbar'); };
-window.toggleVoiceRecording = function() { toast('Sprachnachrichten im Messenger nicht verfügbar'); };
-window.sendFile = function() { toast('Dateien im Messenger nicht verfügbar'); };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. Robustes Info-Modal (OK-Button funktioniert garantiert)
-// ─────────────────────────────────────────────────────────────────────────────
-window.showInfoModal = function(title, message, buttonText = 'OK') {
+function showInfoModal(title, message, buttonText = 'OK') {
   let modal = document.getElementById('info-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'info-modal';
-    modal.className = 'modal';
-    modal.style.display = 'none';
-    modal.innerHTML = `
-      <div class="modal-content" style="max-width:320px; text-align:center;">
-        <h3 id="info-modal-title"></h3>
-        <p id="info-modal-message" style="margin:16px 0; color:var(--text-dim);"></p>
-        <button id="info-modal-ok" class="btn-primary" style="width:100%;">OK</button>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    
-    const okBtn = modal.querySelector('#info-modal-ok');
-    const closeModal = () => modal.style.display = 'none';
-    okBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', function(e) {
-      if (e.target === modal) closeModal();
-    });
-  }
-  
+  if (!modal) return;
   document.getElementById('info-modal-title').textContent = title;
   document.getElementById('info-modal-message').textContent = message;
-  const okBtn = document.getElementById('info-modal-ok');
-  okBtn.textContent = buttonText;
+  document.getElementById('info-modal-ok').textContent = buttonText;
   modal.style.display = 'flex';
-};
+  const close = () => modal.style.display = 'none';
+  document.getElementById('info-modal-ok').onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+}
+
+function formatCode(c) { return c.slice(0,3) + ' · ' + c.slice(3,6); }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. Messenger‑spezifische UI‑Funktionen
+// Code-Eingabe
 // ─────────────────────────────────────────────────────────────────────────────
 function initDigits() {
   const inps = document.querySelectorAll('.dinp-new');
@@ -317,6 +201,9 @@ function initDigits() {
 }
 function getDigits() { return [...document.querySelectorAll('.dinp-new')].map(x => x.value).join(''); }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Code kopieren / teilen
+// ─────────────────────────────────────────────────────────────────────────────
 function copyCode() {
   navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: ' + myCode));
 }
@@ -326,122 +213,308 @@ function shareCode() {
   else copyCode();
 }
 
-function renderPrev() {
-  const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+// ─────────────────────────────────────────────────────────────────────────────
+// Kontaktliste rendern (aus sm_idx + Offline-Nachrichten)
+// ─────────────────────────────────────────────────────────────────────────────
+async function refreshChatList() {
   const lst = document.getElementById('plist');
-  if (!arr.length) {
+  if (!lst) return;
+  
+  // 1. Lokale sm_idx laden
+  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  
+  // 2. Offline-Nachrichten vom Server holen (ungelesene)
+  let unreadCounts = {};
+  if (myToken) {
+    try {
+      const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
+      if (res.ok) {
+        const msgs = await res.json();
+        msgs.filter(m => !m.read).forEach(m => {
+          unreadCounts[m.senderCode] = (unreadCounts[m.senderCode] || 0) + 1;
+        });
+      }
+    } catch (e) {}
+  }
+  
+  // 3. Kombinierte Liste erstellen
+  const contacts = [];
+  const seen = new Set();
+  
+  // Zuerst sm_idx
+  idx.forEach(c => {
+    if (!seen.has(c.code)) {
+      seen.add(c.code);
+      contacts.push({
+        code: c.code,
+        name: c.partner || formatCode(c.code),
+        preview: c.preview || '—',
+        ts: c.ts,
+        unread: unreadCounts[c.code] || 0
+      });
+    }
+  });
+  
+  // Dann Offline-Nachrichten von unbekannten Absendern
+  Object.keys(unreadCounts).forEach(code => {
+    if (!seen.has(code)) {
+      contacts.push({
+        code: code,
+        name: formatCode(code),
+        preview: 'Neue Nachricht',
+        ts: Date.now(),
+        unread: unreadCounts[code]
+      });
+    }
+  });
+  
+  // Sortieren nach Zeitstempel (neueste zuerst)
+  contacts.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  
+  if (contacts.length === 0) {
     lst.innerHTML = '<div class="empty-state">Noch keine Chats</div>';
     return;
   }
-  lst.innerHTML = arr.map(c => {
-    const alias = getContacts()[c.code] || c.partner;
-    return `<div class="chat-card" onclick="reconnectTo('${c.code}','${esc2(alias)}','${c.id}')">
-      <div class="card-row">
-        <div class="card-avatar">🧑</div>
-        <div class="card-details">
-          <div class="card-name">${esc(alias)}</div>
-          <div class="card-preview">${esc(c.preview || '—')}</div>
+  
+  lst.innerHTML = contacts.map(c => {
+    const alias = c.name;
+    const unreadBadge = c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : '';
+    const timeStr = c.ts ? new Date(c.ts).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) : '';
+    return `
+      <div class="chat-card" onclick="openChatWith('${c.code}', '${esc(alias)}')">
+        <div class="card-row">
+          <div class="card-avatar">🧑</div>
+          <div class="card-details">
+            <div class="card-name">${esc(alias)} ${unreadBadge}</div>
+            <div class="card-preview">${esc(c.preview || '—')}</div>
+          </div>
+        </div>
+        <div class="card-meta">
+          <span class="card-time">${timeStr}</span>
+          <span class="card-code">${formatCode(c.code)}</span>
         </div>
       </div>
-      <div class="card-meta">
-        <span class="card-time">${timeAgo(c.ts)}</span>
-        <span class="card-code">${formatCode(c.code)}</span>
-      </div>
-    </div>`;
+    `;
   }).join('');
 }
 
-function reconnectTo(code, name, cid) {
-  partnerCode = code; partnerName = name; chatId = cid;
-  loadPendingMessages(); migratePendingMessages(chatId);
-  openChat(peerReady ? peer.connect(code, { reliable: true, metadata: { name: myName } }) : null);
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat öffnen
+// ─────────────────────────────────────────────────────────────────────────────
+async function openChatWith(code, name) {
+  currentPartnerCode = code;
+  currentPartnerName = name || formatCode(code);
+  
+  document.getElementById('pname').textContent = currentPartnerName;
+  document.getElementById('pav').textContent = currentPartnerName[0]?.toUpperCase() || '🧑';
+  document.getElementById('sbtn').disabled = true;
+  
+  // Nachrichtenverlauf laden (lokal + Server)
+  const messagesDiv = document.getElementById('messages');
+  messagesDiv.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Lade Nachrichten...</div></div>';
+  
+  // Lokalen Verlauf anzeigen (falls vorhanden)
+  const chatId = 'sm_' + [myCode, code].sort().join('_');
+  const localMsgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
+  
+  // Offline-Nachrichten vom Server holen
+  let serverMsgs = [];
+  if (myToken) {
+    try {
+      const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
+      if (res.ok) {
+        const all = await res.json();
+        serverMsgs = all.filter(m => m.senderCode === code || m.recipient === code);
+        // Als gelesen markieren
+        serverMsgs.filter(m => !m.read && m.senderCode === code).forEach(m => {
+          fetch(`${API_BASE}/offline-message/${m.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: myCode, token: myToken })
+          });
+        });
+      }
+    } catch (e) {}
+  }
+  
+  // Nachrichten rendern
+  renderMessages(localMsgs, serverMsgs, code);
+  
+  document.getElementById('s-home').classList.remove('active');
+  document.getElementById('s-chat').classList.add('active');
+  
+  // Textarea aktivieren
+  const inp = document.getElementById('minp');
+  inp.disabled = false;
+  inp.focus();
+  document.getElementById('sbtn').disabled = false;
+  
+  // Kontaktliste aktualisieren (Badges verschwinden)
+  refreshChatList();
 }
 
-function startNewChat() {
-  const code = getDigits();
-  if (code.length !== 6 || code === myCode) return;
-  partnerCode = code; partnerName = localName(code); chatId = buildCID(myCode, code);
-  loadPendingMessages(); migratePendingMessages(chatId);
-  openChat(null);
-  if (peerReady) {
-    const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
-    openChat(newConn);
-  } else {
-    markAutoReconnect();
+function renderMessages(localMsgs, serverMsgs, partnerCode) {
+  const messagesDiv = document.getElementById('messages');
+  messagesDiv.innerHTML = '';
+  
+  // Lokale Nachrichten (eigene gesendete)
+  localMsgs.forEach(m => {
+    appendMessageToUI(m.text, m.own, m.ts);
+  });
+  
+  // Server-Nachrichten (empfangene)
+  serverMsgs.filter(m => m.senderCode === partnerCode).forEach(m => {
+    appendMessageToUI(m.message, false, new Date(m.timestamp).getTime());
+  });
+  
+  if (messagesDiv.children.length === 0) {
+    messagesDiv.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Noch keine Nachrichten</div></div>';
   }
 }
 
-// Entfernt die alte acceptCall/declineCall Logik, da wir kein "Chatanfrage"-Fenster mehr wollen
-window.acceptCall = function() {};
-window.declineCall = function() {};
-
-function clearChat() {
-  if (!chatId) return;
-  localStorage.removeItem('smmsg_' + chatId);
-  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
-  localStorage.setItem('sm_idx', JSON.stringify(idx.filter(c => c.id !== chatId)));
-  document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="empty-icon">🗑️</div><div class="empty-txt">Verlauf gelöscht.</div></div>';
-  renderPrev();
-  toast('🗑️ Verlauf gelöscht');
+function appendMessageToUI(text, own, ts) {
+  const messagesDiv = document.getElementById('messages');
+  const hint = document.getElementById('ehint');
+  if (hint) hint.remove();
+  
+  const d = new Date(ts);
+  const timeStr = d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg ' + (own ? 'msg-o' : 'msg-i');
+  wrapper.innerHTML = `
+    <div class="bubble">
+      <div class="btxt">${esc(text)}</div>
+      <div class="btime">${timeStr}${own ? ' ✓✓' : ''}</div>
+    </div>
+  `;
+  messagesDiv.appendChild(wrapper);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 7. Initialisierung
+// Nachricht senden
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const inp = document.getElementById('minp');
+  const text = inp.value.trim();
+  if (!text) return;
+  
+  const code = currentPartnerCode;
+  if (!code) return;
+  
+  // Sofort im Chat anzeigen
+  const ts = Date.now();
+  appendMessageToUI(text, true, ts);
+  inp.value = '';
+  inp.style.height = 'auto';
+  
+  // In sm_idx speichern
+  const chatId = 'sm_' + [myCode, code].sort().join('_');
+  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  const existing = idx.find(c => c.code === code);
+  const entry = { id: chatId, partner: currentPartnerName, code: code, ts: ts, preview: text };
+  if (existing) Object.assign(existing, entry);
+  else idx.unshift(entry);
+  localStorage.setItem('sm_idx', JSON.stringify(idx.slice(0, 15)));
+  
+  // Lokal im Chat-Verlauf speichern
+  const localMsgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
+  localMsgs.push({ text, own: true, ts });
+  localStorage.setItem('smmsg_' + chatId, JSON.stringify(localMsgs));
+  
+  // An Server senden (Offline-Nachricht)
+  if (myToken) {
+    try {
+      const res = await fetch(`${API_BASE}/offline-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: code,
+          senderCode: myCode,
+          senderName: localStorage.getItem('sm_name') || myCode,
+          message: text
+        })
+      });
+      if (res.ok) {
+        toast('✅ Nachricht gesendet');
+      } else if (res.status === 429) {
+        toast('⏳ Bitte warte kurz');
+      }
+    } catch (e) {
+      toast('📴 Offline – Nachricht gespeichert');
+    }
+  } else {
+    toast('⚠️ Kein Token – Nachricht lokal gespeichert');
+  }
+  
+  refreshChatList();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Neue Nachricht verfassen
+// ─────────────────────────────────────────────────────────────────────────────
+function openNewMessage() {
+  const code = getDigits();
+  if (code.length !== 6) return;
+  if (code === myCode) { toast('⚠️ Das ist dein eigener Code'); return; }
+  
+  // Partner-Name (falls bekannt)
+  const contacts = JSON.parse(localStorage.getItem('sm_contacts') || '{}');
+  const name = contacts[code] || formatCode(code);
+  
+  openChatWith(code, name);
+  
+  // Eingabefelder leeren
+  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  document.getElementById('cbtn').disabled = true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Zurück zur Kontaktliste
+// ─────────────────────────────────────────────────────────────────────────────
+function goHome() {
+  document.getElementById('s-chat').classList.remove('active');
+  document.getElementById('s-home').classList.add('active');
+  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  document.getElementById('cbtn').disabled = true;
+  refreshChatList();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hilfsfunktionen für UI
+// ─────────────────────────────────────────────────────────────────────────────
+function autoH(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+function hkey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+
+function openChatOptions() {
+  // Später erweiterbar (z.B. Chat löschen, Blockieren)
+  toast('Chat-Optionen');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialisierung
 // ─────────────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
+  document.getElementById('mycode').textContent = formatCode(myCode);
   initDigits();
-  renderPrev();
-  initPeer();
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-
+  refreshChatList();
+  
+  // Deep Link (?code=...)
   const params = new URLSearchParams(window.location.search);
   const autoCode = params.get('code');
   if (autoCode && autoCode.length === 6) {
     const inps = document.querySelectorAll('.dinp-new');
     autoCode.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
     document.getElementById('cbtn').disabled = false;
-    startNewChat();
+    openNewMessage();
   }
-
-  const stored = sessionStorage.getItem('sm_connect_to');
-  if (stored && peer) {
-    sessionStorage.removeItem('sm_connect_to');
-    setTimeout(() => {
-      const inps = document.querySelectorAll('.dinp-new');
-      stored.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
-      document.getElementById('cbtn').disabled = false;
-      startNewChat();
-    }, 1500);
-  }
-
-  // Automatisches Polling für neue Offline-Nachrichten alle 30 Sekunden
-  setInterval(async () => {
-    if (myToken) {
-      try {
-        const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
-        if (!res.ok) return;
-        const msgs = await res.json();
-        const unread = msgs.filter(m => !m.read);
-        if (unread.length > 0) {
-          // Aktualisiere die Kontaktliste im Hintergrund
-          renderPrev();
-          // Zeige eine dezente In-App Notification
-          if (typeof inAppNotif === 'function') {
-            inAppNotif('SpotMe', `Du hast ${unread.length} ungelesene Nachricht(en).`);
-          }
-        }
-      } catch (e) {}
-    }
+  
+  // Polling für neue Nachrichten (alle 30 Sekunden)
+  setInterval(() => {
+    if (myToken) refreshChatList();
   }, 30000);
 });
-
-const style = document.createElement('style');
-style.textContent = `
-  .contact-list { display: flex; flex-direction: column; gap: 8px; }
-  .empty-state { text-align: center; padding: 24px; color: var(--text-dim); }
-`;
-document.head.appendChild(style);
 </script>
 </body>
   </html>
