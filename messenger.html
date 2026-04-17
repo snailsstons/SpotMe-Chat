@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <!-- Eruda – Mobile Console (nur für Debugging) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-  
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SpotMe · Messenger</title>
@@ -22,7 +18,7 @@
   <span>Lokaler Modus – Nachrichten werden gespeichert und später gesendet</span>
 </div>
 
-<!-- SCREEN 1 – HOME -->
+<!-- SCREEN 1 – HOME (Kontaktliste) -->
 <div id="s-home" class="screen active">
   <header class="app-header">
     <div class="header-left"></div>
@@ -33,8 +29,9 @@
   </header>
 
   <div class="home-content">
+    <!-- Eigener Code -->
     <div class="code-card-new">
-      <div class="code-label">Dein persönlicher Code</div>
+      <div class="code-label">Dein Code</div>
       <div class="code-value" id="mycode">--- ---</div>
       <div class="code-actions">
         <button class="csbtn-new" onclick="copyCode()">📋 Kopieren</button>
@@ -42,8 +39,17 @@
       </div>
     </div>
 
+    <!-- Kontaktliste (Letzte Chats) -->
+    <div id="psec">
+      <div class="section-header">
+        <span class="section-label">Chats</span>
+      </div>
+      <div id="plist" class="contact-list"></div>
+    </div>
+
+    <!-- Neuen Kontakt hinzufügen -->
     <div class="conn-box-new">
-      <div class="conn-label">Partner verbinden</div>
+      <div class="conn-label">Neuer Chat</div>
       <div class="drow-new">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
@@ -53,27 +59,6 @@
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
       </div>
       <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
-    </div>
-
-    <div id="psec" style="display:none;">
-      <div class="section-header"><span class="section-label">Letzte Chats</span></div>
-      <div id="plist" class="horizontal-scroll"></div>
-    </div>
-
-    <div id="offline-msg-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
-        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
-      </div>
-      <div id="offline-msg-list" class="horizontal-scroll"></div>
-    </div>
-
-    <div id="missed-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label missed-label-text">Verpasste Chatanfragen</span>
-        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
-      </div>
-      <div id="missed-list" class="horizontal-scroll"></div>
     </div>
   </div>
 </div>
@@ -113,7 +98,6 @@
     <div class="empty-chat" id="ehint">
       <div class="empty-icon">💬</div>
       <div class="empty-txt">Verbindung wird aufgebaut...</div>
-      <div class="empty-hint"><span class="spin"></span></div>
     </div>
   </div>
   <div class="icont">
@@ -124,22 +108,21 @@
   </div>
 </div>
 
-<!-- Sheets -->
+<!-- Chat-Optionen (Sheet) -->
 <div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title">Chat-Optionen</div>
   <div class="sheet-body">
-    <button class="sitem" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname</div></div></button>
+    <button class="sitem" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button>
-    <button class="sitem danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button>
+    <button class="sitem" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div></div></button>
     <div class="ssep"></div>
-    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Zurück zur Übersicht</div></div></button>
+    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico">✕</div><div class="slab"><div>Chat beenden</div></div></button>
   </div>
 </div>
 
-<!-- Modals -->
+<!-- Info Modal -->
 <div id="info-modal" class="modal" style="display:none;">
   <div class="modal-content">
     <h3 id="info-modal-title"></h3>
@@ -148,13 +131,15 @@
   </div>
 </div>
 
-<input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+<!-- In-App Notification -->
 <div class="in-notif" id="in-notif" onclick="switchToChat()">
   <div class="in-ico">💬</div>
   <div><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div>
 </div>
 
-<!-- ⚡ WICHTIG: Vorhandene Module aus /scripts/ nutzen -->
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODULE (aus /scripts/)
+═══════════════════════════════════════════════════════════════════════════ -->
 <script src="scripts/config.js"></script>
 <script src="scripts/utils.js"></script>
 <script src="scripts/storage.js"></script>
@@ -164,10 +149,14 @@
 <script src="scripts/p2p-message.js"></script>
 <script src="scripts/ui-chat.js"></script>
 
-<!-- Messenger‑spezifische Mini‑Module (direkt im HTML) -->
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MESSENGER-SPEZIFISCHE FUNKTIONEN
+═══════════════════════════════════════════════════════════════════════════ -->
 <script>
+'use strict';
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Messenger Home (Mini‑Version)
+// Code-Eingabe
 function initDigits() {
   const inps = document.querySelectorAll('.dinp-new');
   inps.forEach((p, i) => {
@@ -196,92 +185,151 @@ function initDigits() {
   });
 }
 function getDigits() { return [...document.querySelectorAll('.dinp-new')].map(x => x.value).join(''); }
-function copyCode() { navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: ' + myCode)); }
-function shareCode() { if (navigator.share) navigator.share({ title: 'SpotMe', text: `Mein Code: ${formatCode(myCode)} – chatte mit mir!` }); else copyCode(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Code kopieren / teilen
+function copyCode() {
+  navigator.clipboard.writeText(myCode).then(() => toast('✅ Code kopiert')).catch(() => toast('Code: ' + myCode));
+}
+function shareCode() {
+  const url = `${window.location.origin}${window.location.pathname}?code=${myCode}`;
+  if (navigator.share) navigator.share({ title: 'SpotMe', text: `Mein Code: ${formatCode(myCode)}`, url });
+  else copyCode();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kontaktliste rendern
 function renderPrev() {
   const arr = JSON.parse(localStorage.getItem('sm_idx') || '[]');
-  const sec = document.getElementById('psec'), lst = document.getElementById('plist');
-  if (!arr.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
+  const lst = document.getElementById('plist');
+  if (!arr.length) {
+    lst.innerHTML = '<div class="empty-state">Noch keine Chats</div>';
+    return;
+  }
   lst.innerHTML = arr.map(c => {
     const alias = getContacts()[c.code] || c.partner;
     return `<div class="chat-card" onclick="reconnectTo('${c.code}','${esc2(alias)}','${c.id}')">
-      <div class="card-row"><div class="card-avatar">🧑</div><div class="card-details"><div class="card-name">${esc(alias)}</div><div class="card-preview">${esc(c.preview||'—')}</div></div></div>
-      <div class="card-meta"><span class="card-time">${timeAgo(c.ts)}</span><span class="card-code">${formatCode(c.code)}</span></div>
+      <div class="card-row">
+        <div class="card-avatar">🧑</div>
+        <div class="card-details">
+          <div class="card-name">${esc(alias)}</div>
+          <div class="card-preview">${esc(c.preview || '—')}</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <span class="card-time">${timeAgo(c.ts)}</span>
+        <span class="card-code">${formatCode(c.code)}</span>
+      </div>
     </div>`;
   }).join('');
 }
-function reconnectTo(code, name, cid) { partnerCode=code; partnerName=name; chatId=cid; loadPendingMessages(); migratePendingMessages(chatId); openChat(peerReady ? peer.connect(code, { reliable: true, metadata: { name: myName } }) : null); }
-function renderMissed() {
-  const arr = getMissed(), sec = document.getElementById('missed-sec'), lst = document.getElementById('missed-list');
-  if (!arr.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  lst.innerHTML = arr.map(m => {
-    const n = getContacts()[m.code] || m.name || formatCode(m.code);
-    const d = new Date(m.ts), time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    return `<div class="chat-card missed-card"><div class="card-row"><div class="card-avatar">📵</div><div class="card-details"><div class="card-name">${esc(n)}</div><div class="card-preview">${formatCode(m.code)} · ${time}</div></div></div><button class="call-back-btn" onclick="callBack('${m.code}')">📞 Zurückrufen</button></div>`;
-  }).join('');
+
+// Zu bestehendem Chat zurückkehren
+function reconnectTo(code, name, cid) {
+  partnerCode = code; partnerName = name; chatId = cid;
+  loadPendingMessages(); migratePendingMessages(chatId);
+  openChat(peerReady ? peer.connect(code, { reliable: true, metadata: { name: myName } }) : null);
 }
-function clearMissed() { saveMissed([]); renderMissed(); }
-function callBack(code) {
-  const inps = document.querySelectorAll('.dinp-new');
-  code.split('').forEach((ch,i) => { if(inps[i]) { inps[i].value=ch; inps[i].classList.add('filled'); } });
-  document.getElementById('cbtn').disabled = false; connectToPeer();
-  setTimeout(() => { inps.forEach(d => { d.value=''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled=true; }, 200);
-}
-function renderOfflineMessages(msgs) {
-  const sec = document.getElementById('offline-msg-sec'), lst = document.getElementById('offline-msg-list');
-  if (!sec || !lst) return;
-  const unread = msgs.filter(m => !m.read);
-  if (!unread.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  lst.innerHTML = unread.map(m => {
-    const d = new Date(m.timestamp), time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const n = getContacts()[m.senderCode] || m.senderName || ('Nutzer_'+m.senderCode.slice(0,4));
-    return `<div class="chat-card missed-card" id="offmsg-${m.id}"><div class="card-row"><div class="card-avatar">✉️</div><div class="card-details"><div class="card-name">${esc(n)}</div><div class="card-preview">${esc(m.message)}</div><div class="card-preview">${formatCode(m.senderCode)} · ${time}</div></div></div><div style="display:flex;gap:0.5rem;margin-top:0.5rem;"><button class="call-back-btn" onclick="callBack('${m.senderCode}')">📞 Zurückrufen</button><button class="call-back-btn" onclick="dismissOfflineMsg(${m.id})">✓ Gelesen</button></div></div>`;
-  }).join('');
-}
-async function dismissOfflineMsg(id) { await markOfflineMsgRead(id); document.getElementById('offmsg-'+id)?.remove(); if(!document.querySelectorAll('#offline-msg-list .chat-card').length) document.getElementById('offline-msg-sec').style.display='none'; }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Messenger Call (Mini‑Version)
+// Verbindung aufbauen
 function connectToPeer() {
-  const code = getDigits(); if (code.length !== 6 || code === myCode) return;
-  partnerCode=code; partnerName=localName(code); chatId=buildCID(myCode,code);
+  const code = getDigits();
+  if (code.length !== 6 || code === myCode) return;
+  partnerCode = code; partnerName = localName(code); chatId = buildCID(myCode, code);
   loadPendingMessages(); migratePendingMessages(chatId);
   openChat(null);
-  if (peerReady) { const c = peer.connect(code, { reliable: true, metadata: { name: myName } }); openChat(c); }
-  else markAutoReconnect();
+  if (peerReady) {
+    const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
+    openChat(newConn);
+  } else {
+    markAutoReconnect();
+  }
 }
+
+// Eingehende Chatanfrage annehmen
 function acceptCall() {
-  stopRingingTone(); if (!pendingConn) return;
-  const c = pendingConn; pendingConn=null;
-  partnerCode=c.peer; partnerName=localName(c.peer, c.metadata?.name); chatId=buildCID(myCode,partnerCode);
-  loadPendingMessages(); migratePendingMessages(chatId); openChat(c);
+  stopRingingTone();
+  if (!pendingConn) return;
+  const c = pendingConn; pendingConn = null;
+  partnerCode = c.peer; partnerName = localName(c.peer, c.metadata?.name);
+  chatId = buildCID(myCode, partnerCode);
+  loadPendingMessages(); migratePendingMessages(chatId);
+  openChat(c);
 }
+
+// Eingehende Chatanfrage ablehnen
 function declineCall() {
   stopRingingTone();
-  if (pendingConn) { const c = pendingConn; pendingConn=null; addMissed(c.peer, localName(c.peer, c.metadata?.name)); try { c.close(); } catch(e) {} }
+  if (pendingConn) {
+    const c = pendingConn; pendingConn = null;
+    addMissed(c.peer, localName(c.peer, c.metadata?.name));
+    try { c.close(); } catch(e) {}
+  }
   showScreen('s-home');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Init
+// Zurück zur Kontaktliste
+function goHome() {
+  if (conn) { try { conn.close(); } catch(e) {} conn = null; }
+  pendingConn = null;
+  document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
+  document.getElementById('cbtn').disabled = true;
+  renderPrev();
+  showScreen('s-home');
+}
+
+// Chat löschen
+function clearChat() {
+  if (!chatId) return;
+  localStorage.removeItem('smmsg_' + chatId);
+  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  localStorage.setItem('sm_idx', JSON.stringify(idx.filter(c => c.id !== chatId)));
+  document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="empty-icon">🗑️</div><div class="empty-txt">Verlauf gelöscht.</div></div>';
+  renderPrev();
+  toast('🗑️ Verlauf gelöscht');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialisierung
 window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0,3) + ' · ' + myCode.slice(3,6);
-  initDigits(); renderPrev(); renderMissed(); initPeer();
+  initDigits();
+  renderPrev();
+  initPeer();
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-  window.addEventListener('online', () => { if (!peer || peer.destroyed) initPeer(); });
-  window.addEventListener('offline', () => { isOffline = true; updateConnectionStatus(); });
-  const autoConnect = sessionStorage.getItem('sm_connect_to');
-  if (autoConnect && peer) { sessionStorage.removeItem('sm_connect_to'); setTimeout(() => { const inps=document.querySelectorAll('.dinp-new'); autoConnect.split('').forEach((ch,i)=>{ if(inps[i]){ inps[i].value=ch; inps[i].classList.add('filled'); } }); document.getElementById('cbtn').disabled=false; connectToPeer(); }, 1500); }
-  setTimeout(async () => {
-    if (myToken) { const msgs = await fetchOfflineMessages(); if (msgs.length) renderOfflineMessages(msgs); }
-    const remote = await fetchRemoteMissedCalls(), local = getMissed();
-    for (const c of remote) if (!local.some(m => m.code===c.callerId && Math.abs(m.ts - new Date(c.timestamp).getTime())<300000)) addMissed(c.callerId, c.callerName);
-  }, 2000);
+
+  // Deep Link (?code=...)
+  const params = new URLSearchParams(window.location.search);
+  const autoCode = params.get('code');
+  if (autoCode && autoCode.length === 6) {
+    const inps = document.querySelectorAll('.dinp-new');
+    autoCode.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
+    document.getElementById('cbtn').disabled = false;
+    connectToPeer();
+  }
+
+  // Auto-Connect aus sessionStorage
+  const stored = sessionStorage.getItem('sm_connect_to');
+  if (stored && peer) {
+    sessionStorage.removeItem('sm_connect_to');
+    setTimeout(() => {
+      const inps = document.querySelectorAll('.dinp-new');
+      stored.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
+      document.getElementById('cbtn').disabled = false;
+      connectToPeer();
+    }, 1500);
+  }
 });
-function goHome() { if (conn) { try { conn.close(); } catch(e) {} conn = null; } pendingConn=null; document.querySelectorAll('.dinp-new').forEach(d => { d.value=''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled=true; renderPrev(); renderMissed(); showScreen('s-home'); }
+
+// Styles für leere Kontaktliste
+const style = document.createElement('style');
+style.textContent = `
+  .contact-list { display: flex; flex-direction: column; gap: 8px; }
+  .empty-state { text-align: center; padding: 24px; color: var(--text-dim); }
+`;
+document.head.appendChild(style);
 </script>
 </body>
-        </html>
+  </html>
