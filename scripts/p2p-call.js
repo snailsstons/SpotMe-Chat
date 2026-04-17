@@ -3,53 +3,52 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – ANRUFE (p2p-call.js)
 // Ausgehende & eingehende Anrufe, Klingelton, Nachricht hinterlassen
-// + Traffic‑Messung für connect und leave‑message
+// + Traffic‑Messung + Chat sofort öffnen (Local‑First)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
-  if (!peerReady) {
-    toast('📴 Lokaler Modus – Nachrichten werden gespeichert und später gesendet');
-    partnerCode = code;
-    partnerName = localName(code);
-    chatId = buildCID(myCode, code);
-    loadPendingMessages();
-    migratePendingMessages(chatId);
-    openChat(null);
-    markAutoReconnect();
-    return;
-  }
-
-  if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
-
+  // 1. Partnerdaten setzen und Chat SOFORT öffnen (Lokal‑Modus)
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
   loadPendingMessages();
   migratePendingMessages(chatId);
+  openChat(null);                     // Chat im Lokal‑Modus anzeigen
 
-  const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
-  // Traffic für connect‑Metadaten (wird von PeerJS intern gesendet, wir schätzen grob)
-  Traffic.recordP2PSent(new Blob([JSON.stringify({ name: myName })]).size);
-  openChat(newConn);
-  toast(`📞 Rufe ${partnerName} an...`);
-  updateConnectionStatus();
+  // 2. Falls Peer bereit, im Hintergrund echte Verbindung aufbauen
+  if (peerReady) {
+    if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
 
-  outgoingCallTimer = setTimeout(() => {
-    outgoingCallTimer = null;
-    if (!conn || !conn.open) {
-      toast('⏰ Keine Antwort');
-      addMissed(partnerCode, partnerName, true);
-      if (conn) {
-        try { conn.close(); } catch (e) {}
-        conn = null;
-      }
-      showLeaveMessageSheet(partnerCode, partnerName);
+    const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
+    // Traffic für connect‑Metadaten (wird von PeerJS intern gesendet, wir schätzen grob)
+    if (typeof Traffic !== 'undefined') {
+      Traffic.recordP2PSent(new Blob([JSON.stringify({ name: myName })]).size);
     }
-    updateConnectionStatus();
-  }, 30000);
+    openChat(newConn);                // Bestehenden Chat in Online‑Modus überführen
+    toast(`📞 Rufe ${partnerName} an...`);
+
+    outgoingCallTimer = setTimeout(() => {
+      outgoingCallTimer = null;
+      if (!conn || !conn.open) {
+        toast('⏰ Keine Antwort');
+        addMissed(partnerCode, partnerName, true);
+        if (conn) {
+          try { conn.close(); } catch (e) {}
+          conn = null;
+        }
+        showLeaveMessageSheet(partnerCode, partnerName);
+      }
+      updateConnectionStatus();
+    }, 30000);
+  } else {
+    // Peer nicht bereit – Lokal‑Modus bleibt aktiv, späterer Auto‑Reconnect
+    markAutoReconnect();
+  }
+
+  updateConnectionStatus();
 }
 
 function acceptCall() {
@@ -138,4 +137,4 @@ async function submitLeaveMessage() {
   closeLeaveMessageSheet();
   showScreen('s-home');
   updateConnectionStatus();
-}
+                                      }
