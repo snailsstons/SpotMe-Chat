@@ -203,4 +203,4 @@ function updatePendingBadge() {
 
 function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
-    }
+                 }
