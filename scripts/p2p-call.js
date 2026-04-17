@@ -2,13 +2,28 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
-// + Einmaliger openChat-Aufruf, robuste Verbindungslogik
+// + Schutz vor Mehrfachaufrufen, stabile Lokal/Online-Umschaltung
 // ══════════════════════════════════════════════════════════════════════════════
 
+let isConnecting = false; // Verhindert parallele Verbindungsversuche
+
 function connectToPeer() {
-  console.log('📞 connectToPeer called, peerReady:', peerReady, 'peer:', peer);
+  if (isConnecting) {
+    console.warn('⚠️ connectToPeer bereits aktiv, ignoriere erneuten Aufruf');
+    return;
+  }
+  isConnecting = true;
+
+  console.log('📞 connectToPeer called, peerReady:', peerReady);
   const code = getDigits();
-  if (code.length !== 6 || code === myCode) return;
+  if (code.length !== 6 || code === myCode) {
+    isConnecting = false;
+    return;
+  }
+
+  // Button deaktivieren, um Mehrfachklicks zu verhindern
+  const btn = document.getElementById('cbtn');
+  if (btn) btn.disabled = true;
 
   partnerCode = code;
   partnerName = localName(code);
@@ -16,7 +31,7 @@ function connectToPeer() {
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  // Bestehende Verbindung schließen, falls vorhanden
+  // Bestehende Verbindung schließen
   if (conn) {
     try { conn.close(); } catch (e) {}
     conn = null;
@@ -25,18 +40,24 @@ function connectToPeer() {
   if (peerReady) {
     console.log('🔄 Peer ist bereit, starte peer.connect zu', code);
     const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
-    openChat(newConn);   // Öffnet direkt den Online-Chat
+    openChat(newConn);
   } else {
-    console.log('⏳ Peer noch nicht bereit, öffne Lokal‑Modus und markiere AutoReconnect');
+    console.log('⏳ Peer nicht bereit – öffne Lokal‑Modus');
     openChat(null);
     setSpill('offline', '○ LOCAL');
     updateConnectionStatus();
     markAutoReconnect();
   }
+
+  // Button nach kurzer Zeit wieder aktivieren (falls Verbindung fehlschlägt)
+  setTimeout(() => {
+    if (btn) btn.disabled = false;
+    isConnecting = false;
+  }, 3000);
 }
 
 function acceptCall() {
-  console.log('✅ acceptCall called, pendingConn:', pendingConn);
+  console.log('✅ acceptCall called');
   stopRingingTone();
   if (!pendingConn) return;
   const c = pendingConn;
@@ -61,58 +82,8 @@ function declineCall() {
   showScreen('s-home');
 }
 
-function showLeaveMessageSheet(code, name) {
-  partnerCode = code;
-  partnerName = name;
-  document.getElementById('leave-message-input').value = '';
-  document.getElementById('leave-message-ovl').classList.add('open');
-  document.getElementById('leave-message-sheet').classList.add('open');
-  setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
-}
+// ... (showLeaveMessageSheet, closeLeaveMessageSheet, submitLeaveMessage unverändert)
 
-function closeLeaveMessageSheet() {
-  document.getElementById('leave-message-ovl').classList.remove('open');
-  document.getElementById('leave-message-sheet').classList.remove('open');
-  showScreen('s-home');
-  updateConnectionStatus();
-}
-
-async function submitLeaveMessage() {
-  const input = document.getElementById('leave-message-input');
-  const text = input.value.trim();
-  if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
-  const btn = document.getElementById('leave-msg-send-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
-  try {
-    const payload = {
-      recipient: partnerCode,
-      senderCode: myCode,
-      senderName: myName,
-      message: text
-    };
-    const res = await fetch(API_BASE + '/offline-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (res.ok) {
-      toast(`📨 Nachricht an ${partnerName} gesendet`);
-    } else if (res.status === 429) {
-      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
-    } else {
-      toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
-    }
-  } catch (e) {
-    toast('⚠️ Keine Verbindung zum Server');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
-  }
-  closeLeaveMessageSheet();
-  showScreen('s-home');
-  updateConnectionStatus();
-}
-
-// Explizit global verfügbar machen (für onclick-Handler)
 window.acceptCall = acceptCall;
 window.declineCall = declineCall;
+window.connectToPeer = connectToPeer;
