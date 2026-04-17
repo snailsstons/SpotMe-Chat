@@ -2,7 +2,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
-// + SPOT CHAT Integration (Chat‑Button in Liste, Kurznachricht in Detail)
+// + Buttons: "Nachricht" in Liste & Detail (Kurznachricht), "Chat" als separater Button (Spot-Chat)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -237,15 +237,16 @@ function renderList() {
     
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '<div class="card-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung</div>';
     const cardClass = p.orientation ? ` ${p.orientation}` : '';
-    const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `
-      <button class="btn-chat" onclick="openSpotChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>
+    // 🆕 Button in der Listenansicht: Kurznachricht
+    const msgBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `
+      <button class="btn-chat" onclick="showKurznachrichtModal('${esc(p.code)}','${esc(name)}')">✉️ Nachricht</button>
     `;
     
     return `<div class="profile-card${cardClass}" data-code="${p.code}">
       <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" style="background:${isOnline ? 'var(--green)' : 'var(--muted)'}; box-shadow:0 0 8px ${isOnline ? 'var(--green)' : 'transparent'};" title="${isOnline ? 'Online' : 'Offline'}"></div></div>
       ${badges ? `<div class="card-badges">${badges}</div>` : ''}
       ${bio}
-      <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${chatBtn}</div>
+      <div class="card-footer"><div class="card-time">🕐 ${ago}</div>${msgBtn}</div>
     </div>`;
   }).join('');
   
@@ -291,7 +292,7 @@ function showProfileDetail(profile) {
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
   const locationBtn = (locData && !isOwn) ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showLocationOnMap('${profile.code}', '${esc(name)}', ${locData.lat}, ${locData.lng})">📍 Standort</button>` : '';
-  // 🆕 Chat-Button durch Kurznachricht-Button ersetzen
+  // Detailansicht: ebenfalls Kurznachricht
   const msgBtn = !isOwn ? `<button class="detail-btn btn-primary" onclick="closeProfileDetail(); showKurznachrichtModal('${esc(profile.code)}', '${esc(name)}')">✉️ Nachricht</button>` : '';
   const verifyBtn = !isOwn ? `<button class="detail-btn btn-secondary" onclick="closeProfileDetail(); showVerifyOptions('${profile.code}')">✅ Verifizieren</button>` : '';
   const personalCount = verifications.filter(v => v.type === 'personal').length;
