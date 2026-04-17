@@ -30,6 +30,35 @@
       flex-direction: column;
       gap: 8px;
     }
+    .msg {
+      display: flex;
+      margin-bottom: 8px;
+    }
+    .msg-i { justify-content: flex-start; }
+    .msg-o { justify-content: flex-end; }
+    .bubble {
+      max-width: 75%;
+      background: var(--bg2);
+      padding: 12px 14px;
+      border-radius: 20px;
+      border-top-left-radius: 4px;
+      border: 1px solid var(--bord);
+    }
+    .msg-o .bubble {
+      background: var(--acc);
+      color: var(--bg);
+      border: none;
+      border-top-right-radius: 4px;
+      border-top-left-radius: 20px;
+    }
+    .btxt { word-break: break-word; }
+    .btime {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 6px;
+      text-align: right;
+    }
+    .msg-o .btime { color: rgba(0,0,0,0.5); }
   </style>
 </head>
 <body>
@@ -61,7 +90,7 @@
       </div>
     </div>
 
-    <!-- Kontaktliste (aus sm_idx + Offline-Nachrichten) -->
+    <!-- Kontaktliste -->
     <div id="psec">
       <div class="section-header">
         <span class="section-label">Chats</span>
@@ -70,7 +99,7 @@
       <div id="plist" class="contact-list"></div>
     </div>
 
-    <!-- Neue Nachricht verfassen -->
+    <!-- Neue Nachricht -->
     <div class="conn-box-new">
       <div class="conn-label">Neue Nachricht</div>
       <div class="drow-new">
@@ -86,7 +115,7 @@
   </div>
 </div>
 
-<!-- SCREEN 2 – NACHRICHT VERFASSEN / CHAT -->
+<!-- SCREEN 2 – CHAT -->
 <div id="s-chat" class="screen">
   <div class="chat-bar">
     <button class="back-btn" onclick="goHome()">‹</button>
@@ -97,7 +126,7 @@
         <div class="pstatus dim" id="pstatus">○ Nachricht senden</div>
       </div>
     </div>
-    <button class="menu-btn" onclick="openChatOptions()">☰</button>
+    <button class="menu-btn" onclick="clearCurrentChat()">🗑️</button>
   </div>
 
   <div class="messages" id="messages">
@@ -125,7 +154,7 @@
 </div>
 
 <!-- In-App Notification -->
-<div class="in-notif" id="in-notif" onclick="switchToChat()">
+<div class="in-notif" id="in-notif" onclick="switchToChatFromNotif()">
   <div class="in-ico">💬</div>
   <div><div class="in-from" id="in-from">...</div><div class="in-msg" id="in-msg">...</div></div>
 </div>
@@ -134,10 +163,14 @@
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Globale Variablen & Konstanten
+// Konfiguration & Globale Variablen
 // ─────────────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://spotme-pg-test.onrender.com/api';
-const myCode = localStorage.getItem('sm_code') || (() => { const c = Math.floor(100000 + Math.random() * 900000).toString(); localStorage.setItem('sm_code', c); return c; })();
+let myCode = localStorage.getItem('sm_code');
+if (!myCode) {
+  myCode = Math.floor(100000 + Math.random() * 900000).toString();
+  localStorage.setItem('sm_code', myCode);
+}
 const myToken = localStorage.getItem('sm_token') || '';
 let currentPartnerCode = '';
 let currentPartnerName = '';
@@ -214,17 +247,15 @@ function shareCode() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Kontaktliste rendern (aus sm_idx + Offline-Nachrichten)
+// Kontaktliste rendern
 // ─────────────────────────────────────────────────────────────────────────────
 async function refreshChatList() {
   const lst = document.getElementById('plist');
   if (!lst) return;
   
-  // 1. Lokale sm_idx laden
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
-  
-  // 2. Offline-Nachrichten vom Server holen (ungelesene)
   let unreadCounts = {};
+  
   if (myToken) {
     try {
       const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
@@ -237,11 +268,9 @@ async function refreshChatList() {
     } catch (e) {}
   }
   
-  // 3. Kombinierte Liste erstellen
   const contacts = [];
   const seen = new Set();
   
-  // Zuerst sm_idx
   idx.forEach(c => {
     if (!seen.has(c.code)) {
       seen.add(c.code);
@@ -255,7 +284,6 @@ async function refreshChatList() {
     }
   });
   
-  // Dann Offline-Nachrichten von unbekannten Absendern
   Object.keys(unreadCounts).forEach(code => {
     if (!seen.has(code)) {
       contacts.push({
@@ -268,7 +296,6 @@ async function refreshChatList() {
     }
   });
   
-  // Sortieren nach Zeitstempel (neueste zuerst)
   contacts.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   
   if (contacts.length === 0) {
@@ -307,17 +334,17 @@ async function openChatWith(code, name) {
   
   document.getElementById('pname').textContent = currentPartnerName;
   document.getElementById('pav').textContent = currentPartnerName[0]?.toUpperCase() || '🧑';
-  document.getElementById('sbtn').disabled = true;
+  document.getElementById('sbtn').disabled = false;
+  document.getElementById('minp').disabled = false;
   
-  // Nachrichtenverlauf laden (lokal + Server)
   const messagesDiv = document.getElementById('messages');
-  messagesDiv.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Lade Nachrichten...</div></div>';
+  messagesDiv.innerHTML = '';
   
-  // Lokalen Verlauf anzeigen (falls vorhanden)
+  // Lokale Nachrichten laden
   const chatId = 'sm_' + [myCode, code].sort().join('_');
   const localMsgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
   
-  // Offline-Nachrichten vom Server holen
+  // Offline-Nachrichten vom Server laden
   let serverMsgs = [];
   if (myToken) {
     try {
@@ -326,50 +353,36 @@ async function openChatWith(code, name) {
         const all = await res.json();
         serverMsgs = all.filter(m => m.senderCode === code || m.recipient === code);
         // Als gelesen markieren
-        serverMsgs.filter(m => !m.read && m.senderCode === code).forEach(m => {
-          fetch(`${API_BASE}/offline-message/${m.id}`, {
+        for (const m of serverMsgs.filter(m => !m.read && m.senderCode === code)) {
+          await fetch(`${API_BASE}/offline-message/${m.id}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: myCode, token: myToken })
           });
-        });
+        }
       }
     } catch (e) {}
   }
   
   // Nachrichten rendern
-  renderMessages(localMsgs, serverMsgs, code);
+  const allMessages = [
+    ...localMsgs.map(m => ({ ...m, type: 'local' })),
+    ...serverMsgs.filter(m => m.senderCode === code).map(m => ({ text: m.message, ts: new Date(m.timestamp).getTime(), own: false, type: 'server' }))
+  ].sort((a, b) => (a.ts || 0) - (b.ts || 0));
   
-  document.getElementById('s-home').classList.remove('active');
-  document.getElementById('s-chat').classList.add('active');
-  
-  // Textarea aktivieren
-  const inp = document.getElementById('minp');
-  inp.disabled = false;
-  inp.focus();
-  document.getElementById('sbtn').disabled = false;
-  
-  // Kontaktliste aktualisieren (Badges verschwinden)
-  refreshChatList();
-}
-
-function renderMessages(localMsgs, serverMsgs, partnerCode) {
-  const messagesDiv = document.getElementById('messages');
-  messagesDiv.innerHTML = '';
-  
-  // Lokale Nachrichten (eigene gesendete)
-  localMsgs.forEach(m => {
+  allMessages.forEach(m => {
     appendMessageToUI(m.text, m.own, m.ts);
   });
   
-  // Server-Nachrichten (empfangene)
-  serverMsgs.filter(m => m.senderCode === partnerCode).forEach(m => {
-    appendMessageToUI(m.message, false, new Date(m.timestamp).getTime());
-  });
-  
-  if (messagesDiv.children.length === 0) {
+  if (allMessages.length === 0) {
     messagesDiv.innerHTML = '<div class="empty-chat"><div class="empty-icon">💬</div><div class="empty-txt">Noch keine Nachrichten</div></div>';
   }
+  
+  document.getElementById('s-home').classList.remove('active');
+  document.getElementById('s-chat').classList.add('active');
+  document.getElementById('minp').focus();
+  
+  refreshChatList();
 }
 
 function appendMessageToUI(text, own, ts) {
@@ -398,39 +411,36 @@ function appendMessageToUI(text, own, ts) {
 async function sendMessage() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
-  if (!text) return;
+  if (!text || !currentPartnerCode) return;
   
-  const code = currentPartnerCode;
-  if (!code) return;
-  
-  // Sofort im Chat anzeigen
   const ts = Date.now();
   appendMessageToUI(text, true, ts);
   inp.value = '';
   inp.style.height = 'auto';
   
-  // In sm_idx speichern
-  const chatId = 'sm_' + [myCode, code].sort().join('_');
+  const chatId = 'sm_' + [myCode, currentPartnerCode].sort().join('_');
+  
+  // sm_idx aktualisieren
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
-  const existing = idx.find(c => c.code === code);
-  const entry = { id: chatId, partner: currentPartnerName, code: code, ts: ts, preview: text };
+  const existing = idx.find(c => c.code === currentPartnerCode);
+  const entry = { id: chatId, partner: currentPartnerName, code: currentPartnerCode, ts: ts, preview: text };
   if (existing) Object.assign(existing, entry);
   else idx.unshift(entry);
   localStorage.setItem('sm_idx', JSON.stringify(idx.slice(0, 15)));
   
-  // Lokal im Chat-Verlauf speichern
+  // Lokaler Chat-Verlauf
   const localMsgs = JSON.parse(localStorage.getItem('smmsg_' + chatId) || '[]');
   localMsgs.push({ text, own: true, ts });
   localStorage.setItem('smmsg_' + chatId, JSON.stringify(localMsgs));
   
-  // An Server senden (Offline-Nachricht)
+  // An Server senden
   if (myToken) {
     try {
       const res = await fetch(`${API_BASE}/offline-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipient: code,
+          recipient: currentPartnerCode,
           senderCode: myCode,
           senderName: localStorage.getItem('sm_name') || myCode,
           message: text
@@ -459,13 +469,11 @@ function openNewMessage() {
   if (code.length !== 6) return;
   if (code === myCode) { toast('⚠️ Das ist dein eigener Code'); return; }
   
-  // Partner-Name (falls bekannt)
   const contacts = JSON.parse(localStorage.getItem('sm_contacts') || '{}');
   const name = contacts[code] || formatCode(code);
   
   openChatWith(code, name);
   
-  // Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => { d.value = ''; d.classList.remove('filled'); });
   document.getElementById('cbtn').disabled = true;
 }
@@ -482,14 +490,25 @@ function goHome() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Chat löschen
+// ─────────────────────────────────────────────────────────────────────────────
+function clearCurrentChat() {
+  if (!currentPartnerCode) return;
+  const chatId = 'sm_' + [myCode, currentPartnerCode].sort().join('_');
+  localStorage.removeItem('smmsg_' + chatId);
+  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  localStorage.setItem('sm_idx', JSON.stringify(idx.filter(c => c.code !== currentPartnerCode)));
+  goHome();
+  toast('🗑️ Chat gelöscht');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Hilfsfunktionen für UI
 // ─────────────────────────────────────────────────────────────────────────────
 function autoH(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
 function hkey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
-
-function openChatOptions() {
-  // Später erweiterbar (z.B. Chat löschen, Blockieren)
-  toast('Chat-Optionen');
+function switchToChatFromNotif() {
+  document.getElementById('in-notif').classList.remove('show');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -500,7 +519,6 @@ window.addEventListener('load', () => {
   initDigits();
   refreshChatList();
   
-  // Deep Link (?code=...)
   const params = new URLSearchParams(window.location.search);
   const autoCode = params.get('code');
   if (autoCode && autoCode.length === 6) {
@@ -510,7 +528,6 @@ window.addEventListener('load', () => {
     openNewMessage();
   }
   
-  // Polling für neue Nachrichten (alle 30 Sekunden)
   setInterval(() => {
     if (myToken) refreshChatList();
   }, 30000);
