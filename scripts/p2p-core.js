@@ -3,12 +3,13 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
 // PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
-// + Eingehende Verbindungen zeigen "Chatanfrage"-Screen
+// + Robustere Verbindungslogik, weniger Disconnects
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
 let heartbeatInterval = null;
 let autoReconnectPending = false;
+let reconnectTimer = null;
 
 function initPeer() {
   if (peer && !peer.destroyed && peer.open) return;
@@ -34,7 +35,7 @@ function initPeer() {
   });
 
   peer.on('open', () => {
-    console.log('✅ PeerJS open – Verbindung zum Server hergestellt');
+    console.log('✅ PeerJS open');
     peerRetries = 0;
     isOffline = false;
     peerReady = true;
@@ -43,7 +44,6 @@ function initPeer() {
     startHeartbeat();
 
     if (autoReconnectPending && partnerCode && !conn) {
-      console.log(`🔄 autoReconnectPending für ${partnerCode} – starte peer.connect`);
       autoReconnectPending = false;
       const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
       openChat(newConn);
@@ -60,11 +60,11 @@ function initPeer() {
       return;
     }
     if (err.type === 'peer-unavailable') {
-      console.log('⚠️ Partner nicht erreichbar – bleibt im Lokal‑Modus');
       if (outgoingCallTimer) {
         clearTimeout(outgoingCallTimer);
         outgoingCallTimer = null;
       }
+      // Kein Toast, Lokal‑Modus reicht
       return;
     }
     isOffline = true;
@@ -75,28 +75,32 @@ function initPeer() {
   });
 
   peer.on('disconnected', () => {
-    console.warn('[peer] disconnected');
+    console.warn('[peer] disconnected – versuche reconnect');
     peerReady = false;
     isOffline = true;
     updateConnectionStatus();
-    setTimeout(() => { peer = null; initPeer(); }, 2500);
+    // PeerJS versucht automatisch neu zu verbinden – wir warten kurz und initialisieren ggf. neu
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      if (!peer || !peer.open) {
+        peer = null;
+        initPeer();
+      }
+      reconnectTimer = null;
+    }, 3000);
   });
 
-  // 🆕 Eingehende Verbindung: "Chatanfrage"-Screen statt direktem Chat
   peer.on('connection', incoming => {
     console.log(`📥 Eingehende Verbindung von ${incoming.peer}`);
     if (conn && conn.open) {
-      console.log('⚠️ Bestehende Verbindung offen, lehne neue ab');
+      console.log('⚠️ Bestehende Verbindung offen – lehne neue ab');
       incoming.close();
       return;
     }
-    // Partnerdaten merken, aber noch nicht übernehmen
     pendingConn = incoming;
     const peerName = localName(incoming.peer, incoming.metadata?.name);
     document.getElementById('in-name').textContent = peerName;
     document.getElementById('in-code').textContent = 'Code: ' + formatCode(incoming.peer);
-    // Texte anpassen: "Chatanfrage"
-    document.querySelector('#s-in .caller-hint').textContent = 'möchte mit dir chatten';
     showScreen('s-in');
     pushNotif(peerName, 'möchte mit dir chatten');
     inAppNotif(peerName, 'Eingehende Chatanfrage');
@@ -132,12 +136,14 @@ function startHeartbeat() {
 function tryReconnect() {
   if (!partnerCode || !peerReady) return;
   document.getElementById('rcbar').classList.remove('show');
-  openChat(peer.connect(partnerCode, { reliable: true, metadata: { name: myName } }));
+  const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
+  openChat(newConn);
 }
 
 function openChat(c) {
   console.log(`🚪 openChat aufgerufen, c=${c ? 'DataConnection' : 'null (Lokal)'}`);
 
+  // Alte Verbindung nur schließen, wenn sie nicht identisch ist
   if (conn && conn !== c) {
     console.log('🔄 Schließe alte Verbindung');
     try { conn.close(); } catch (e) {}
@@ -145,15 +151,13 @@ function openChat(c) {
   conn = c;
 
   const chatActive = document.getElementById('s-chat').classList.contains('active');
-  console.log(`📱 Chat bereits aktiv? ${chatActive}`);
-
   if (!chatActive) {
     prepChat();
     showScreen('s-chat');
   }
 
   if (!c) {
-    console.log('📴 Setze UI auf Lokal‑Modus');
+    // Lokaler Modus
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
     refreshStatusText();
@@ -170,7 +174,7 @@ function openChat(c) {
   }
 
   const onOpen = () => {
-    console.log('🎉 DataConnection ist offen – wechsle in Online‑Modus');
+    console.log('🎉 DataConnection offen – Online-Modus');
     if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
     document.getElementById('sbtn').disabled = false;
     document.getElementById('rcbar').classList.remove('show');
@@ -185,7 +189,6 @@ function openChat(c) {
     const welcomeMsg = localStorage.getItem('sm_welcome_message');
     const welcomeTarget = sessionStorage.getItem('sm_welcome_target');
     if (welcomeMsg && welcomeTarget === partnerCode && conn && conn.open) {
-      console.log(`👋 Sende Willkommensnachricht an ${partnerCode}`);
       const m = { t: 'text', text: welcomeMsg, ts: Date.now() };
       conn.send(m);
       appendMsg({ ...m, own: true });
@@ -208,10 +211,8 @@ function openChat(c) {
   };
 
   if (conn.open) {
-    console.log('⚡ conn.open bereits true, rufe onOpen direkt auf');
     onOpen();
   } else {
-    console.log('⏳ Warte auf conn.on("open")');
     conn.on('open', onOpen);
   }
 
