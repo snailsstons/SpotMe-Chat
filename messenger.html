@@ -11,6 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#060a0f">
   <link rel="stylesheet" href="styles.css">
+  <!-- Bibliotheken -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -69,21 +70,7 @@
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
         <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
       </div>
-      <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
-    </div>
-  </div>
-</div>
-
-<!-- SCREEN 2 – CHATANFRAGE -->
-<div id="s-in" class="screen">
-  <div class="call-wrap">
-    <div class="caller-ring">🧑</div>
-    <div class="caller-name" id="in-name">...</div>
-    <div class="caller-code" id="in-code">Code: ---</div>
-    <div class="caller-hint">möchte mit dir chatten</div>
-    <div class="call-btns">
-      <button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button>
-      <button class="call-btn btn-accept" onclick="acceptCall()">✓ Annehmen</button>
+      <button class="btn-main-new" id="cbtn" onclick="startNewChat()" disabled>💬 Chat starten</button>
     </div>
   </div>
 </div>
@@ -169,17 +156,16 @@
 <script src="scripts/ui-chat.js"></script>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
-     MESSENGER-SPEZIFISCHE ANPASSUNGEN (LOCAL‑FIRST, SAUBERE MODALE)
+     MESSENGER-SPEZIFISCHE ANPASSUNGEN (CLIENT-SERVER PRINZIP)
 ═══════════════════════════════════════════════════════════════════════════ -->
 <script>
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. Unterdrücke Modale während des Schreibens, aber sammle für später
+// 1. Unterdrücke Modale während des Schreibens
 // ─────────────────────────────────────────────────────────────────────────────
 const _originalAddPending = window.addPendingMessage;
 window.addPendingMessage = function(text) {
-  // Zeige kein Modal an – wir merken uns nur die Anzahl
   const originalShow = window.showInfoModal;
   window.showInfoModal = function() {}; // Stumm schalten
   _originalAddPending(text);
@@ -198,7 +184,6 @@ window.flushPendingMessages = function() {
     appendMsg({ ...m, own: true });
     persistMsg({ ...m, own: true });
   }
-  // Kein Modal – wird später in goHome oder openChat gezeigt
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,13 +193,11 @@ let pendingSendCount = 0;
 
 const _originalOpenChat = window.openChat;
 window.openChat = function(c) {
-  // Wenn wir von null auf echte Verbindung wechseln, merken wir uns die aktuelle Queue-Größe
   if (c && !conn) {
     pendingSendCount = pendingMessages.length;
   }
   _originalOpenChat.call(this, c);
   
-  // Wenn nach dem Öffnen die Verbindung steht, zeigen wir EIN Modal mit der Anzahl
   if (c && conn && conn.open && pendingSendCount > 0) {
     setTimeout(() => {
       showInfoModal(
@@ -252,7 +235,6 @@ window.goHome = function() {
   showScreen('s-home');
 };
 
-// Falls goHome noch nicht existiert (Sicherheitshalber)
 if (typeof window.goHome !== 'function') window.goHome = function() {};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,7 +357,7 @@ function reconnectTo(code, name, cid) {
   openChat(peerReady ? peer.connect(code, { reliable: true, metadata: { name: myName } }) : null);
 }
 
-function connectToPeer() {
+function startNewChat() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
   partnerCode = code; partnerName = localName(code); chatId = buildCID(myCode, code);
@@ -389,25 +371,9 @@ function connectToPeer() {
   }
 }
 
-function acceptCall() {
-  stopRingingTone();
-  if (!pendingConn) return;
-  const c = pendingConn; pendingConn = null;
-  partnerCode = c.peer; partnerName = localName(c.peer, c.metadata?.name);
-  chatId = buildCID(myCode, partnerCode);
-  loadPendingMessages(); migratePendingMessages(chatId);
-  openChat(c);
-}
-
-function declineCall() {
-  stopRingingTone();
-  if (pendingConn) {
-    const c = pendingConn; pendingConn = null;
-    addMissed(c.peer, localName(c.peer, c.metadata?.name));
-    try { c.close(); } catch(e) {}
-  }
-  showScreen('s-home');
-}
+// Entfernt die alte acceptCall/declineCall Logik, da wir kein "Chatanfrage"-Fenster mehr wollen
+window.acceptCall = function() {};
+window.declineCall = function() {};
 
 function clearChat() {
   if (!chatId) return;
@@ -435,7 +401,7 @@ window.addEventListener('load', () => {
     const inps = document.querySelectorAll('.dinp-new');
     autoCode.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
     document.getElementById('cbtn').disabled = false;
-    connectToPeer();
+    startNewChat();
   }
 
   const stored = sessionStorage.getItem('sm_connect_to');
@@ -445,9 +411,29 @@ window.addEventListener('load', () => {
       const inps = document.querySelectorAll('.dinp-new');
       stored.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
       document.getElementById('cbtn').disabled = false;
-      connectToPeer();
+      startNewChat();
     }, 1500);
   }
+
+  // Automatisches Polling für neue Offline-Nachrichten alle 30 Sekunden
+  setInterval(async () => {
+    if (myToken) {
+      try {
+        const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
+        if (!res.ok) return;
+        const msgs = await res.json();
+        const unread = msgs.filter(m => !m.read);
+        if (unread.length > 0) {
+          // Aktualisiere die Kontaktliste im Hintergrund
+          renderPrev();
+          // Zeige eine dezente In-App Notification
+          if (typeof inAppNotif === 'function') {
+            inAppNotif('SpotMe', `Du hast ${unread.length} ungelesene Nachricht(en).`);
+          }
+        }
+      } catch (e) {}
+    }
+  }, 30000);
 });
 
 const style = document.createElement('style');
@@ -458,4 +444,4 @@ style.textContent = `
 document.head.appendChild(style);
 </script>
 </body>
-</html>
+  </html>
