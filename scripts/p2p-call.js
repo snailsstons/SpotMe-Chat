@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
-// + acceptCall / declineCall global und robust
+// + Einmaliger openChat-Aufruf, robuste Verbindungslogik
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
@@ -16,21 +16,21 @@ function connectToPeer() {
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  if (!conn) {
-    console.log('📴 Öffne Lokal‑Modus');
-    openChat(null);
-    setSpill('offline', '○ LOCAL');
-    updateConnectionStatus();
+  // Bestehende Verbindung schließen, falls vorhanden
+  if (conn) {
+    try { conn.close(); } catch (e) {}
+    conn = null;
   }
 
   if (peerReady) {
     console.log('🔄 Peer ist bereit, starte peer.connect zu', code);
     const newConn = peer.connect(code, { reliable: true, metadata: { name: myName } });
-    if (conn !== newConn) {
-      openChat(newConn);
-    }
+    openChat(newConn);   // Öffnet direkt den Online-Chat
   } else {
-    console.log('⏳ Peer noch nicht bereit, markiere AutoReconnect');
+    console.log('⏳ Peer noch nicht bereit, öffne Lokal‑Modus und markiere AutoReconnect');
+    openChat(null);
+    setSpill('offline', '○ LOCAL');
+    updateConnectionStatus();
     markAutoReconnect();
   }
 }
