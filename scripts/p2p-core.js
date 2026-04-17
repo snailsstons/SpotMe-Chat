@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
 // PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
-// + Traffic‑Messung für Verbindungsaufbau
+// + openChat kann vom Lokal‑ in Online‑Modus wechseln
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -143,15 +143,23 @@ function tryReconnect() {
 }
 
 function openChat(c) {
+  // Alte Verbindung schließen (falls vorhanden und ungleich c)
   if (conn && conn !== c) {
     try { conn.close(); } catch (e) {}
   }
   conn = c;
-  prepChat();
-  showScreen('s-chat');
 
+  // Wenn der Chat bereits geöffnet ist, nur UI aktualisieren
+  const chatActive = document.getElementById('s-chat').classList.contains('active');
+
+  if (!chatActive) {
+    prepChat();
+    showScreen('s-chat');
+  }
+
+  // Lokaler Modus (c === null)
   if (!c) {
-    document.getElementById('sbtn').disabled = true;
+    document.getElementById('sbtn').disabled = false;  // ← Eingabe immer möglich!
     document.getElementById('rcbar').classList.remove('show');
     refreshStatusText();
     document.getElementById('pav').className = 'pav offline';
@@ -161,11 +169,12 @@ function openChat(c) {
         <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
         <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
     }
-    updateIdx('');
+    if (!chatActive) updateIdx('');
     updateConnectionStatus();
     return;
   }
 
+  // Online‑Modus: Data‑Handler registrieren
   const onOpen = () => {
     if (outgoingCallTimer) {
       clearTimeout(outgoingCallTimer);
@@ -181,13 +190,26 @@ function openChat(c) {
     if (!alias && netName) partnerName = netName;
     applyPartnerName();
 
+    // 🆕 Willkommensnachricht senden, falls für diesen Partner hinterlegt
+    const welcomeMsg = localStorage.getItem('sm_welcome_message');
+    const welcomeTarget = sessionStorage.getItem('sm_welcome_target');
+    if (welcomeMsg && welcomeTarget === partnerCode && conn && conn.open) {
+      const m = { t: 'text', text: welcomeMsg, ts: Date.now() };
+      conn.send(m);
+      appendMsg({ ...m, own: true });
+      persistMsg({ ...m, own: true });
+      localStorage.removeItem('sm_welcome_message');
+      sessionStorage.removeItem('sm_welcome_target');
+      toast('👋 Willkommensnachricht gesendet');
+    }
+
     const h = document.getElementById('ehint');
     if (h) {
       h.innerHTML = `<div class="empty-icon">💬</div>
         <div class="empty-txt" style="font-weight:600;color:var(--text)">Verbunden!</div>
         <div class="empty-hint">🔒 P2P · Ende-zu-Ende verschlüsselt</div>`;
     }
-    updateIdx('');
+    if (!chatActive) updateIdx('');
     toast('✓ Verbunden');
     flushPendingMessages();
     updateConnectionStatus();
