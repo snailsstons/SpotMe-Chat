@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – P2P CORE (p2p-core.js)
 // PeerJS-Initialisierung, Verbindungsaufbau, Heartbeat, Reconnect
-// + Detaillierte Logs + Korrektur: startHeartbeat definiert
+// + Eingehende Verbindungen zeigen "Chatanfrage"-Screen
 // ══════════════════════════════════════════════════════════════════════════════
 
 let peerRetries = 0;
@@ -40,13 +40,12 @@ function initPeer() {
     peerReady = true;
     showCodeCard(true);
     updateConnectionStatus();
-    startHeartbeat();  // ← jetzt definiert
+    startHeartbeat();
 
     if (autoReconnectPending && partnerCode && !conn) {
       console.log(`🔄 autoReconnectPending für ${partnerCode} – starte peer.connect`);
       autoReconnectPending = false;
       const newConn = peer.connect(partnerCode, { reliable: true, metadata: { name: myName } });
-      console.log('📡 peer.connect (auto) aufgerufen, newConn:', newConn);
       openChat(newConn);
     }
   });
@@ -66,7 +65,6 @@ function initPeer() {
         clearTimeout(outgoingCallTimer);
         outgoingCallTimer = null;
       }
-      // Kein Toast, um den Nutzer nicht zu nerven – Lokal‑Modus reicht
       return;
     }
     isOffline = true;
@@ -84,6 +82,7 @@ function initPeer() {
     setTimeout(() => { peer = null; initPeer(); }, 2500);
   });
 
+  // 🆕 Eingehende Verbindung: "Chatanfrage"-Screen statt direktem Chat
   peer.on('connection', incoming => {
     console.log(`📥 Eingehende Verbindung von ${incoming.peer}`);
     if (conn && conn.open) {
@@ -91,31 +90,31 @@ function initPeer() {
       incoming.close();
       return;
     }
-    partnerCode = incoming.peer;
-    partnerName = localName(incoming.peer, incoming.metadata?.name);
-    chatId = buildCID(myCode, partnerCode);
-    loadPendingMessages();
-    migratePendingMessages(chatId);
-
-    console.log('💬 Öffne Chat für eingehende Verbindung (Online)');
-    openChat(incoming);
-
-    if (document.hidden) {
-      pushNotif(partnerName, 'möchte mit dir chatten');
-      inAppNotif(partnerName, 'Eingehender Chat');
-      playRingingTone();
-      triggerHaptic();
-    }
+    // Partnerdaten merken, aber noch nicht übernehmen
+    pendingConn = incoming;
+    const peerName = localName(incoming.peer, incoming.metadata?.name);
+    document.getElementById('in-name').textContent = peerName;
+    document.getElementById('in-code').textContent = 'Code: ' + formatCode(incoming.peer);
+    // Texte anpassen: "Chatanfrage"
+    document.querySelector('#s-in .caller-hint').textContent = 'möchte mit dir chatten';
+    showScreen('s-in');
+    pushNotif(peerName, 'möchte mit dir chatten');
+    inAppNotif(peerName, 'Eingehende Chatanfrage');
+    playRingingTone();
+    triggerHaptic();
 
     incoming.on('close', () => {
-      console.log(`🔌 Eingehende Verbindung von ${partnerCode} geschlossen`);
-      conn = null;
-      updateConnectionStatus();
+      if (pendingConn === incoming) {
+        stopRingingTone();
+        addMissed(incoming.peer, localName(incoming.peer, incoming.metadata?.name));
+        pendingConn = null;
+        showScreen('s-home');
+        toast('📵 Verpasste Chatanfrage von ' + localName(incoming.peer, incoming.metadata?.name));
+      }
     });
   });
 }
 
-// 🆕 Heartbeat-Funktion (fehlte)
 function startHeartbeat() {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
   heartbeatInterval = setInterval(async () => {
@@ -153,7 +152,6 @@ function openChat(c) {
     showScreen('s-chat');
   }
 
-  // Lokaler Modus
   if (!c) {
     console.log('📴 Setze UI auf Lokal‑Modus');
     document.getElementById('sbtn').disabled = false;
@@ -171,7 +169,6 @@ function openChat(c) {
     return;
   }
 
-  // Online‑Modus
   const onOpen = () => {
     console.log('🎉 DataConnection ist offen – wechsle in Online‑Modus');
     if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
@@ -247,4 +244,4 @@ function openChat(c) {
 function markAutoReconnect() {
   console.log('🏷️ markAutoReconnect gesetzt');
   autoReconnectPending = true;
-    }
+          }
