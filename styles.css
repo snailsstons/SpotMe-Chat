@@ -633,3 +633,8 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
 .chat-card:hover {
   background: var(--bg3);
 }
+.call-btn {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  z-index: 1000 !important;
+}
