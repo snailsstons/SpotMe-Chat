@@ -213,7 +213,11 @@ function isMessageAlreadyStored(ts, own) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAT ÖFFNEN / SCHLIESSEN
+
 function openApiChat() {
+  // 🆕 Explizit Online-Status setzen
+  isOffline = false;
+  
   prepChat();
   showScreen('s-chat');
   document.getElementById('sbtn').disabled = false;
@@ -232,6 +236,7 @@ function openApiChat() {
   updateConnectionStatus();
   startGlobalPolling();
 }
+
 
 function stopChatPolling() {
   if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
