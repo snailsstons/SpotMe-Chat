@@ -1,8 +1,8 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME – VERBINDUNGSAUFBAU (p2p-call.js) – API‑Version
-// + Benachrichtigungen aus der P2P‑Version (inAppNotif, pushNotif)
+// SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
+// + acceptCall / declineCall für s-in‑Screen
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
@@ -15,17 +15,14 @@ function connectToPeer() {
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  // Chat sofort öffnen
   openApiChat();
 
-  // Chat‑Anfrage an den Server senden (nur wenn Token vorhanden)
   if (myToken) {
     sendChatRequest(partnerCode);
   } else {
     toast('⚠️ Profil nicht veröffentlicht – Partner wird nicht benachrichtigt.');
   }
 
-  // Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
     d.classList.remove('filled');
@@ -49,9 +46,32 @@ async function sendChatRequest(recipient) {
   } catch (e) {}
 }
 
-// Dummy-Funktionen für Kompatibilität
-function acceptCall() {}
-function declineCall() {}
+// 🆕 Vom s-in‑Screen aufgerufen
+function acceptCall() {
+  const pending = window.pendingChatPartner;
+  if (!pending) return;
+
+  partnerCode = pending.code;
+  partnerName = pending.name;
+  chatId = buildCID(myCode, partnerCode);
+  loadPendingMessages();
+  migratePendingMessages(chatId);
+
+  openApiChat();
+  window.pendingChatPartner = null;
+}
+
+function declineCall() {
+  const pending = window.pendingChatPartner;
+  if (pending) {
+    addMissed(pending.code, pending.name);
+    toast('📵 Chat-Anfrage abgelehnt');
+  }
+  window.pendingChatPartner = null;
+  showScreen('s-home');
+}
+
+// Dummy-Funktionen
 function tryReconnect() {}
 function markAutoReconnect() {}
 
@@ -78,25 +98,16 @@ async function submitLeaveMessage() {
   const btn = document.getElementById('leave-msg-send-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
   try {
-    const payload = {
-      recipient: partnerCode,
-      senderCode: myCode,
-      senderName: myName,
-      message: text
-    };
+    const payload = { recipient: partnerCode, senderCode: myCode, senderName: myName, message: text };
     const res = await fetch(API_BASE + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    if (res.ok) {
-      toast(`📨 Nachricht an ${partnerName} gesendet`);
-    } else if (res.status === 429) {
-      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
-    } else {
-      toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
-    }
+    if (res.ok) toast(`📨 Nachricht an ${partnerName} gesendet`);
+    else if (res.status === 429) toast('⏳ ' + (data.error || 'Bitte warte etwas'));
+    else toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
   } catch (e) {
     toast('⚠️ Keine Verbindung zum Server');
   } finally {
