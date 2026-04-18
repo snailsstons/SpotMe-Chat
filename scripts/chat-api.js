@@ -2,13 +2,14 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// + s-in‑Screen für eingehende Chat‑Anfragen
+// + s-in‑Screen für eingehende Chat‑Anfragen (robust)
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
+let pendingCallModal = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BENACHRICHTIGUNGEN (Klingelton, Vibration)
+// BENACHRICHTIGUNGEN
 function playChatNotificationSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -30,15 +31,20 @@ function triggerChatHaptic() {
   if (navigator.vibrate) navigator.vibrate(200);
 }
 
-// 🆕 eingehende Chat‑Anfrage verarbeiten (zeigt s-in‑Screen)
 function handleIncomingChatRequest(senderCode, senderName) {
-  // Prüfen, ob bereits eine aktive Verbindung besteht
+  // Prüfen, ob bereits ein s-in offen ist
+  if (document.getElementById('s-in').classList.contains('active')) {
+    console.log('⚠️ s-in bereits aktiv, ignoriere doppelte Anfrage');
+    return;
+  }
+
+  // Prüfen, ob wir bereits in einem aktiven Chat sind
   if (partnerCode && document.getElementById('s-chat').classList.contains('active')) {
     toast('⚠️ Bereits in einem Chat');
     return;
   }
 
-  // Partnerdaten für acceptCall/declineCall setzen
+  // Partnerdaten setzen
   window.pendingChatPartner = { code: senderCode, name: senderName };
 
   // s-in‑Screen aktualisieren
@@ -46,10 +52,7 @@ function handleIncomingChatRequest(senderCode, senderName) {
   document.getElementById('in-code').textContent = 'Code: ' + formatCode(senderCode);
   document.querySelector('#s-in .caller-hint').textContent = 'möchte mit dir chatten';
 
-  // Screen anzeigen
   showScreen('s-in');
-
-  // Klingelton & Vibration
   playChatNotificationSound();
   triggerChatHaptic();
 }
@@ -70,7 +73,6 @@ function sendMsg() {
   appendMsg(m);
   persistMsg(m);
 
-  // "Lokal Nachricht"-Modal unterdrücken
   const originalShowInfoModal = window.showInfoModal;
   window.showInfoModal = function() {};
   addPendingMessage(text);
@@ -153,7 +155,7 @@ function isMessageAlreadyStored(ts, own) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CHAT ÖFFNEN
+// CHAT ÖFFNEN / SCHLIESSEN
 function openApiChat() {
   prepChat();
   showScreen('s-chat');
