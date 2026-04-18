@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// + reconnectTo korrigiert für API‑Version
+// + reconnectTo: Partnerdaten VOR openApiChat setzen
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -129,22 +129,23 @@ async function renderPrev() {
   }).join('');
 }
 
-// 🆕 reconnectTo – vollständig korrigiert für API‑Version
+// 🆕 reconnectTo – Partnerdaten VOR openApiChat setzen
 function reconnectTo(code, name, cid) {
   console.log('📂 reconnectTo', code, name, cid);
-  
-  // Online-Status setzen
+
+  // 1. Online-Status setzen
   isOffline = false;
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
 
+  // 2. Partnerdaten setzen (WICHTIG: vor openApiChat!)
   partnerCode = code;
   partnerName = name;
   chatId = cid;
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  // Chat über die neue API öffnen
+  // 3. Chat über die neue API öffnen
   if (typeof openApiChat === 'function') {
     openApiChat();
   } else {
@@ -152,7 +153,7 @@ function reconnectTo(code, name, cid) {
     toast('⚠️ Fehler beim Öffnen des Chats');
   }
 
-  // Eingabefelder leeren
+  // 4. Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
     d.classList.remove('filled');
@@ -277,4 +278,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-      }
+  }
