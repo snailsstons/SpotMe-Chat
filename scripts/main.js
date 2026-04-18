@@ -16,7 +16,6 @@ window.addEventListener('load', () => {
   
   initDB();
   
-  // Dummy – wird nicht mehr benötigt, aber Aufruf bleibt zur Sicherheit
   if (typeof ensureRingingToneCached === 'function') ensureRingingToneCached();
   
   document.getElementById('voice-btn').style.display = voiceEnabled ? 'flex' : 'none';
@@ -67,7 +66,7 @@ window.addEventListener('load', () => {
   const textarea = document.getElementById('minp');
   if (textarea) {
     textarea.addEventListener('input', () => {
-      // Typing-Indikator kann entfallen oder per API simuliert werden
+      // Typing-Indikator entfällt
     });
   }
   
