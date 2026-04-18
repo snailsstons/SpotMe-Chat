@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
-// + Verpasste Anrufe mit Nachricht
+// + Verpasste Anrufe mit Nachricht + Debug-Logs
 // ══════════════════════════════════════════════════════════════════════════════
 
 let isConnecting = false;
@@ -11,7 +11,7 @@ function connectToPeer() {
   if (isConnecting) { console.warn('⚠️ bereits aktiv'); return; }
   isConnecting = true;
 
-  console.log('📞 connectToPeer, peerReady:', peerReady, 'peer:', peer);
+  console.log('📞 connectToPeer, peerReady:', peerReady);
   const code = getDigits();
   if (code.length !== 6 || code === myCode) { isConnecting = false; return; }
 
@@ -60,7 +60,6 @@ function openChatFallback() {
   if (typeof openChat === 'function') {
     openChat(null);
   } else {
-    // Notfall: UI manuell auf Lokalmodus setzen
     if (typeof prepChat === 'function') prepChat();
     showScreen('s-chat');
     document.getElementById('sbtn').disabled = false;
@@ -100,6 +99,7 @@ function declineCall() {
 
 // 🆕 Hilfsfunktion, die addMissed mit message aufruft
 function addMissedWithMessage(code, name, outgoing, message) {
+  console.log('💾 addMissedWithMessage', code, name, message);
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
   const entry = { code, name, ts: Date.now(), message };
@@ -107,7 +107,6 @@ function addMissedWithMessage(code, name, outgoing, message) {
   else arr.unshift(entry);
   saveMissed(arr.slice(0, 30));
   renderMissed();
-  // Server-Sync wie gehabt (ohne message, da API das nicht unterstützt)
   try {
     const payload = outgoing
       ? { recipient: code, callerId: myCode, callerName: myName }
@@ -121,6 +120,7 @@ function addMissedWithMessage(code, name, outgoing, message) {
 }
 
 async function submitLeaveMessage() {
+  console.log('📝 submitLeaveMessage aufgerufen');
   const input = document.getElementById('leave-message-input');
   const text = input.value.trim();
   if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
@@ -141,7 +141,7 @@ async function submitLeaveMessage() {
     const data = await res.json();
     if (res.ok) {
       toast(`📨 Nachricht an ${partnerName} gesendet`);
-      // 🆕 Nachricht auch im verpassten Anruf speichern
+      console.log('✅ Nachricht gesendet, speichere lokal');
       addMissedWithMessage(partnerCode, partnerName, true, text);
     } else if (res.status === 429) {
       toast('⏳ ' + (data.error || 'Bitte warte etwas'));
@@ -150,7 +150,7 @@ async function submitLeaveMessage() {
     }
   } catch (e) {
     toast('⚠️ Keine Verbindung zum Server');
-    // Auch bei Offline-Fehler lokal speichern
+    console.log('🌐 Offline – speichere Nachricht lokal');
     addMissedWithMessage(partnerCode, partnerName, true, text);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
@@ -176,7 +176,6 @@ function closeLeaveMessageSheet() {
   updateConnectionStatus();
 }
 
-// Explizit global verfügbar machen (für onclick-Handler)
 window.acceptCall = acceptCall;
 window.declineCall = declineCall;
 window.connectToPeer = connectToPeer;
