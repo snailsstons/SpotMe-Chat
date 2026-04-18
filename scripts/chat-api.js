@@ -3,11 +3,11 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // Senden/Empfangen über /api/offline-message, Polling alle 15 Sekunden
+// + Chat‑Request‑Erkennung und In‑App‑Benachrichtigung
 // ══════════════════════════════════════════════════════════════════════════════
 
 let lastPoll = Date.now();
 let pollingTimer = null;
-let pendingSendQueue = [];
 
 function sendMsg() {
   const inp = document.getElementById('minp');
@@ -52,7 +52,6 @@ async function sendToServer(recipient, message) {
       })
     });
     if (res.ok) {
-      // Erfolgreich gesendet – aus Pending‑Queue entfernen
       removePendingMessageByText(message);
     }
   } catch (e) {
@@ -61,7 +60,6 @@ async function sendToServer(recipient, message) {
 }
 
 function removePendingMessageByText(text) {
-  // Einfache Implementierung: wir filtern die pendingMessages (aus storage.js)
   if (typeof pendingMessages !== 'undefined') {
     const index = pendingMessages.findIndex(m => m.text === text);
     if (index !== -1) {
@@ -72,7 +70,6 @@ function removePendingMessageByText(text) {
   }
 }
 
-// Polling für neue Nachrichten starten
 function startChatPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -81,20 +78,30 @@ function startChatPolling() {
       const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
       if (!res.ok) return;
       const msgs = await res.json();
-      msgs.filter(m => m.senderCode === partnerCode && !m.read)
-          .forEach(m => {
-            // Prüfen, ob Nachricht bereits lokal existiert (via timestamp)
-            const ts = new Date(m.timestamp).getTime();
-            if (!isMessageAlreadyStored(ts, false)) {
-              appendMsg({ t: 'text', text: m.message, ts, own: false });
-              persistMsg({ t: 'text', text: m.message, ts, own: false });
-              notify(m.message);
-              playNotificationSound();
-              triggerHaptic();
-            }
-            // Als gelesen markieren
-            markOfflineMsgRead(m.id);
-          });
+
+      msgs.filter(m => !m.read).forEach(m => {
+        // Chat‑Request erkennen
+        if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
+          if (typeof inAppNotif === 'function') {
+            inAppNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
+          }
+          markOfflineMsgRead(m.id);
+          return;
+        }
+
+        // Normale Nachricht
+        if (m.senderCode === partnerCode) {
+          const ts = new Date(m.timestamp).getTime();
+          if (!isMessageAlreadyStored(ts, false)) {
+            appendMsg({ t: 'text', text: m.message, ts, own: false });
+            persistMsg({ t: 'text', text: m.message, ts, own: false });
+            notify(m.message);
+            if (typeof playNotificationSound === 'function') playNotificationSound();
+            if (typeof triggerHaptic === 'function') triggerHaptic();
+          }
+          markOfflineMsgRead(m.id);
+        }
+      });
     } catch (e) {}
   }, 15000);
 }
@@ -105,7 +112,6 @@ function isMessageAlreadyStored(ts, own) {
   return msgs.some(m => m.ts === ts && m.own === own);
 }
 
-// Wird aufgerufen, wenn der Chat geöffnet wird (ersetzt openChat)
 function openApiChat() {
   prepChat();
   showScreen('s-chat');
@@ -133,5 +139,4 @@ function stopChatPolling() {
   }
 }
 
-// Überschreibe das alte openChat (falls noch referenziert)
 window.openChat = openApiChat;
