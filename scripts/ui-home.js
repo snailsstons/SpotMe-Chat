@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// + reconnectTo: Partnerdaten VOR openApiChat setzen
+// + reconnectTo mit Verzögerung für sicheres Timing
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -129,7 +129,7 @@ async function renderPrev() {
   }).join('');
 }
 
-// 🆕 reconnectTo – Partnerdaten VOR openApiChat setzen
+// 🆕 reconnectTo – mit Verzögerung für sicheres Timing
 function reconnectTo(code, name, cid) {
   console.log('📂 reconnectTo', code, name, cid);
 
@@ -138,27 +138,29 @@ function reconnectTo(code, name, cid) {
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
 
-  // 2. Partnerdaten setzen (WICHTIG: vor openApiChat!)
+  // 2. Partnerdaten setzen
   partnerCode = code;
   partnerName = name;
   chatId = cid;
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  // 3. Chat über die neue API öffnen
-  if (typeof openApiChat === 'function') {
-    openApiChat();
-  } else {
-    console.error('❌ openApiChat nicht gefunden');
-    toast('⚠️ Fehler beim Öffnen des Chats');
-  }
-
-  // 4. Eingabefelder leeren
+  // 3. Eingabefelder leeren (sofort)
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
     d.classList.remove('filled');
   });
   document.getElementById('cbtn').disabled = true;
+
+  // 4. Chat mit VERZÖGERUNG öffnen (gibt JS Zeit, alle globalen Variablen zu synchronisieren)
+  setTimeout(() => {
+    if (typeof openApiChat === 'function') {
+      openApiChat();
+    } else {
+      console.error('❌ openApiChat nicht gefunden');
+      toast('⚠️ Fehler beim Öffnen des Chats');
+    }
+  }, 100); // 100ms Verzögerung – das reicht völlig aus
 }
 
 // Verpasste Anrufe
@@ -278,4 +280,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-  }
+             }
