@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js) – API‑Version
-// Öffnet nur noch den Chat, kein P2P mehr
+// + Chat‑Anfrage an Server senden
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
@@ -18,6 +18,9 @@ function connectToPeer() {
   // Chat sofort öffnen
   openApiChat();
 
+  // 🆕 Chat‑Anfrage an den Server senden (damit Partner benachrichtigt wird)
+  sendChatRequest(partnerCode);
+
   // Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
@@ -26,10 +29,28 @@ function connectToPeer() {
   document.getElementById('cbtn').disabled = true;
 }
 
+async function sendChatRequest(recipient) {
+  if (!myToken) return;
+  try {
+    await fetch(API_BASE + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient,
+        senderCode: myCode,
+        senderName: myName,
+        message: '__CHAT_REQUEST__',
+        type: 'chat_request'
+      })
+    });
+  } catch (e) {}
+}
+
 // Dummy-Funktionen für Kompatibilität
 function acceptCall() {}
 function declineCall() {}
 function tryReconnect() {}
+
 function showLeaveMessageSheet(code, name) {
   partnerCode = code;
   partnerName = name;
@@ -38,12 +59,14 @@ function showLeaveMessageSheet(code, name) {
   document.getElementById('leave-message-sheet').classList.add('open');
   setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
 }
+
 function closeLeaveMessageSheet() {
   document.getElementById('leave-message-ovl').classList.remove('open');
   document.getElementById('leave-message-sheet').classList.remove('open');
   showScreen('s-home');
   updateConnectionStatus();
 }
+
 async function submitLeaveMessage() {
   const input = document.getElementById('leave-message-input');
   const text = input.value.trim();
