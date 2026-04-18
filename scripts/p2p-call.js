@@ -98,3 +98,65 @@ function declineCall() {
 window.acceptCall = acceptCall;
 window.declineCall = declineCall;
 window.connectToPeer = connectToPeer;
+
+async function submitLeaveMessage() {
+  const input = document.getElementById('leave-message-input');
+  const text = input.value.trim();
+  if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
+  const btn = document.getElementById('leave-msg-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
+  try {
+    const payload = {
+      recipient: partnerCode,
+      senderCode: myCode,
+      senderName: myName,
+      message: text
+    };
+    const res = await fetch(API_BASE + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(`📨 Nachricht an ${partnerName} gesendet`);
+      // 🆕 Nachricht auch im verpassten Anruf speichern
+      addMissedWithMessage(partnerCode, partnerName, true, text);
+    } else if (res.status === 429) {
+      toast('⏳ ' + (data.error || 'Bitte warte etwas'));
+    } else {
+      toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
+    }
+  } catch (e) {
+    toast('⚠️ Keine Verbindung zum Server');
+    // Auch bei Offline-Fehler lokal speichern
+    addMissedWithMessage(partnerCode, partnerName, true, text);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
+  }
+  closeLeaveMessageSheet();
+  showScreen('s-home');
+  updateConnectionStatus();
+}
+
+// 🆕 Hilfsfunktion, die addMissed mit message aufruft
+function addMissedWithMessage(code, name, outgoing, message) {
+  const arr = getMissed();
+  const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
+  const entry = { code, name, ts: Date.now(), message };
+  if (recent >= 0) arr[recent] = entry;
+  else arr.unshift(entry);
+  saveMissed(arr.slice(0, 30));
+  renderMissed();
+  // Server-Sync wie gehabt (ohne message, da API das nicht unterstützt)
+  try {
+    const payload = outgoing
+      ? { recipient: code, callerId: myCode, callerName: myName }
+      : { recipient: myCode, callerId: code, callerName: name };
+    fetch(API_MISSED, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {}
+}
