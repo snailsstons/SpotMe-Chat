@@ -2,11 +2,46 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// + Benachrichtigungen aus der P2P‑Version (inAppNotif, pushNotif, playRingingTone)
+// + Eigenständige Benachrichtigungen (Klingelton, Vibration, In‑App)
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EIGENSTÄNDIGE BENACHRICHTIGUNGEN (Klingelton, Vibration, In‑App)
+function playChatNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.2;
+    osc.type = 'sine';
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+    osc.stop(ctx.currentTime + 0.5);
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch (e) {}
+}
+
+function triggerChatHaptic() {
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function showChatInAppNotif(from, text) {
+  const el = document.getElementById('in-notif');
+  if (!el) return;
+  document.getElementById('in-from').textContent = '💬 ' + from;
+  document.getElementById('in-msg').textContent = text.length > 60 ? text.slice(0, 60) + '…' : text;
+  el.classList.add('show');
+  clearTimeout(window._chatNotifTimer);
+  window._chatNotifTimer = setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NACHRICHTEN SENDEN/EMPFANGEN
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -18,15 +53,10 @@ function sendMsg() {
   }
 
   const m = { t: 'text', text, ts: Date.now(), own: true };
-
-  // 1. Sofort im Chat anzeigen
   appendMsg(m);
   persistMsg(m);
-
-  // 2. In Pending‑Queue für Offline‑Fallback
   addPendingMessage(text);
 
-  // 3. An Server senden (wenn Token vorhanden)
   if (myToken) {
     sendToServer(partnerCode, text);
   } else {
@@ -42,19 +72,10 @@ async function sendToServer(recipient, message) {
     const res = await fetch(API_BASE + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient,
-        senderCode: myCode,
-        senderName: myName,
-        message
-      })
+      body: JSON.stringify({ recipient, senderCode: myCode, senderName: myName, message })
     });
-    if (res.ok) {
-      removePendingMessageByText(message);
-    }
-  } catch (e) {
-    console.warn('Server nicht erreichbar – Nachricht bleibt in Queue');
-  }
+    if (res.ok) removePendingMessageByText(message);
+  } catch (e) {}
 }
 
 function removePendingMessageByText(text) {
@@ -68,7 +89,8 @@ function removePendingMessageByText(text) {
   }
 }
 
-// Globales Polling (läuft immer, sobald Token vorhanden)
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBALES POLLING (läuft immer, sobald Token vorhanden)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -79,34 +101,25 @@ function startGlobalPolling() {
       const msgs = await res.json();
 
       msgs.filter(m => !m.read).forEach(m => {
-        // Chat‑Request erkennen
+        // Chat‑Request
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
-          // Benachrichtigungen wie in der P2P‑Version
-          if (typeof pushNotif === 'function') {
-            pushNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
-          }
-          if (typeof inAppNotif === 'function') {
-            inAppNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
-          }
-          if (typeof playRingingTone === 'function') {
-            playRingingTone();
-          }
-          if (typeof triggerHaptic === 'function') {
-            triggerHaptic();
-          }
+          const senderName = m.senderName || formatCode(m.senderCode);
+          showChatInAppNotif(senderName, 'möchte mit dir chatten');
+          playChatNotificationSound();
+          triggerChatHaptic();
           markOfflineMsgRead(m.id);
           return;
         }
 
-        // Normale Nachrichten
+        // Normale Nachricht
         if (partnerCode && m.senderCode === partnerCode) {
           const ts = new Date(m.timestamp).getTime();
           if (!isMessageAlreadyStored(ts, false)) {
             appendMsg({ t: 'text', text: m.message, ts, own: false });
-            persistMsg({ t: 'text', text: m.message, ts, own:16 });
+            persistMsg({ t: 'text', text: m.message, ts, own: false });
             notify(m.message);
-            if (typeof playNotificationSound === 'function') playNotificationSound();
-            if (typeof triggerHaptic === 'function') triggerHaptic();
+            playChatNotificationSound();
+            triggerChatHaptic();
           }
           markOfflineMsgRead(m.id);
         }
@@ -122,6 +135,8 @@ function isMessageAlreadyStored(ts, own) {
   return msgs.some(m => m.ts === ts && m.own === own);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT ÖFFNEN
 function openApiChat() {
   prepChat();
   showScreen('s-chat');
@@ -143,10 +158,7 @@ function openApiChat() {
 }
 
 function stopChatPolling() {
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-    pollingTimer = null;
-  }
+  if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
 }
 
 window.openChat = openApiChat;
