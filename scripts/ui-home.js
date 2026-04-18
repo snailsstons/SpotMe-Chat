@@ -147,7 +147,6 @@ function reconnectTo(code, name, cid) {
   openChat(peer.connect(code, { reliable: true, metadata: { name: myName } }));
 }
 
-// Verpasste Anrufe
 function renderMissed() {
   const arr = getMissed();
   const sec = document.getElementById('missed-sec');
@@ -158,12 +157,15 @@ function renderMissed() {
     const displayName = getContacts()[m.code] || m.name || formatCode(m.code);
     const d = new Date(m.ts);
     const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    // 🆕 Nachrichtenvorschau, falls vorhanden
+    const msgPreview = m.message ? `<div class="missed-msg-preview" style="font-size:0.8rem; color:var(--text-dim); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">💬 ${esc(m.message)}</div>` : '';
     return `<div class="chat-card missed-card">
       <div class="card-row">
         <div class="card-avatar">📵</div>
         <div class="card-details">
           <div class="card-name">${esc(displayName)}</div>
           <div class="card-preview">${formatCode(m.code)} · ${time}</div>
+          ${msgPreview}
         </div>
       </div>
       <button class="call-back-btn" onclick="callBack('${m.code}')">📞 Zurückrufen</button>
