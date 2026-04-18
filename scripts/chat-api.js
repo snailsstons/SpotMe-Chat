@@ -2,14 +2,13 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// + Keine "Lokal Nachricht"-Modale, korrekte Online-Erkennung
+// + s-in‑Screen für eingehende Chat‑Anfragen
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
-let pendingCallModal = null; // Für eingehende Chat-Anfragen
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EIGENSTÄNDIGE BENACHRICHTIGUNGEN
+// BENACHRICHTIGUNGEN (Klingelton, Vibration)
 function playChatNotificationSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -31,60 +30,32 @@ function triggerChatHaptic() {
   if (navigator.vibrate) navigator.vibrate(200);
 }
 
-function showChatInAppNotif(from, text) {
-  const el = document.getElementById('in-notif');
-  if (!el) return;
-  document.getElementById('in-from').textContent = '💬 ' + from;
-  document.getElementById('in-msg').textContent = text.length > 60 ? text.slice(0, 60) + '…' : text;
-  el.classList.add('show');
-  clearTimeout(window._chatNotifTimer);
-  window._chatNotifTimer = setTimeout(() => el.classList.remove('show'), 5000);
-}
+// 🆕 eingehende Chat‑Anfrage verarbeiten (zeigt s-in‑Screen)
+function handleIncomingChatRequest(senderCode, senderName) {
+  // Prüfen, ob bereits eine aktive Verbindung besteht
+  if (partnerCode && document.getElementById('s-chat').classList.contains('active')) {
+    toast('⚠️ Bereits in einem Chat');
+    return;
+  }
 
-// 🆕 Modal für eingehende Chat-Anfrage (Annehmen/Ablehnen)
-function showIncomingChatRequest(senderCode, senderName) {
-  // Altes Modal entfernen
-  if (pendingCallModal) pendingCallModal.remove();
+  // Partnerdaten für acceptCall/declineCall setzen
+  window.pendingChatPartner = { code: senderCode, name: senderName };
 
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.style.display = 'flex';
-  modal.innerHTML = `
-    <div class="modal-content" style="max-width:320px; text-align:center;">
-      <div style="font-size:3rem; margin-bottom:0.5rem;">🧑</div>
-      <h3>${esc(senderName)}</h3>
-      <p style="color:var(--text-dim);">${formatCode(senderCode)}</p>
-      <p>möchte mit dir chatten</p>
-      <div style="display:flex; gap:0.8rem; margin-top:1.5rem;">
-        <button class="btn-secondary" id="decline-chat-request" style="flex:1;">✕ Ablehnen</button>
-        <button class="btn-primary" id="accept-chat-request" style="flex:1;">✓ Annehmen</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  pendingCallModal = modal;
+  // s-in‑Screen aktualisieren
+  document.getElementById('in-name').textContent = senderName;
+  document.getElementById('in-code').textContent = 'Code: ' + formatCode(senderCode);
+  document.querySelector('#s-in .caller-hint').textContent = 'möchte mit dir chatten';
 
-  document.getElementById('accept-chat-request').addEventListener('click', () => {
-    modal.remove();
-    pendingCallModal = null;
-    // Chat mit dem Anfrager öffnen
-    partnerCode = senderCode;
-    partnerName = senderName;
-    chatId = buildCID(myCode, senderCode);
-    loadPendingMessages();
-    migratePendingMessages(chatId);
-    openApiChat();
-  });
+  // Screen anzeigen
+  showScreen('s-in');
 
-  document.getElementById('decline-chat-request').addEventListener('click', () => {
-    modal.remove();
-    pendingCallModal = null;
-    toast('📵 Chat-Anfrage abgelehnt');
-  });
+  // Klingelton & Vibration
+  playChatNotificationSound();
+  triggerChatHaptic();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NACHRICHTEN SENDEN/EMPFANGEN
+// NACHRICHTEN SENDEN
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -99,15 +70,12 @@ function sendMsg() {
   appendMsg(m);
   persistMsg(m);
 
-  // 🆕 "Lokal Nachricht"-Modal unterdrücken
+  // "Lokal Nachricht"-Modal unterdrücken
   const originalShowInfoModal = window.showInfoModal;
   window.showInfoModal = function() {};
-
   addPendingMessage(text);
-
   window.showInfoModal = originalShowInfoModal;
 
-  // Online-Status prüfen
   if (navigator.onLine && myToken) {
     sendToServer(partnerCode, text);
   } else {
@@ -155,10 +123,7 @@ function startGlobalPolling() {
         // Chat‑Request
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
           const senderName = m.senderName || formatCode(m.senderCode);
-          // 🆕 Modal statt nur In‑App
-          showIncomingChatRequest(m.senderCode, senderName);
-          playChatNotificationSound();
-          triggerChatHaptic();
+          handleIncomingChatRequest(m.senderCode, senderName);
           markOfflineMsgRead(m.id);
           return;
         }
