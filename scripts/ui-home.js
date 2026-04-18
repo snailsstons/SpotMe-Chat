@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// + reconnectTo nutzt jetzt openApiChat() und setzt Online-Status
+// + reconnectTo korrigiert für API‑Version
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -129,8 +129,10 @@ async function renderPrev() {
   }).join('');
 }
 
-// 🆕 reconnectTo – korrigiert für API‑Version
+// 🆕 reconnectTo – vollständig korrigiert für API‑Version
 function reconnectTo(code, name, cid) {
+  console.log('📂 reconnectTo', code, name, cid);
+  
   // Online-Status setzen
   isOffline = false;
   setSpill('online', '● ONLINE');
@@ -145,8 +147,9 @@ function reconnectTo(code, name, cid) {
   // Chat über die neue API öffnen
   if (typeof openApiChat === 'function') {
     openApiChat();
-  } else if (typeof openChat === 'function') {
-    openChat(null);
+  } else {
+    console.error('❌ openApiChat nicht gefunden');
+    toast('⚠️ Fehler beim Öffnen des Chats');
   }
 
   // Eingabefelder leeren
@@ -274,4 +277,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-                            }
+      }
