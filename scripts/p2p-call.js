@@ -2,10 +2,11 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
-// + Verpasste Anrufe mit Nachricht + Debug-Logs
+// + Timer für ausgehende Anrufe, automatisches "Nachricht hinterlassen"
 // ══════════════════════════════════════════════════════════════════════════════
 
 let isConnecting = false;
+let outgoingCallTimer = null;
 
 function connectToPeer() {
   if (isConnecting) { console.warn('⚠️ bereits aktiv'); return; }
@@ -25,6 +26,21 @@ function connectToPeer() {
   migratePendingMessages(chatId);
 
   if (conn) { try { conn.close(); } catch (e) {} conn = null; }
+
+  // Bestehenden Timer abbrechen
+  if (outgoingCallTimer) clearTimeout(outgoingCallTimer);
+
+  // Timer für Nicht-Erreichbarkeit starten
+  outgoingCallTimer = setTimeout(() => {
+    outgoingCallTimer = null;
+    if (!conn || !conn.open) {
+      console.log('⏰ Keine Antwort – öffne Nachricht‑Sheet');
+      addMissed(partnerCode, partnerName, true);
+      showLeaveMessageSheet(partnerCode, partnerName);
+    }
+    isConnecting = false;
+    if (btn) btn.disabled = false;
+  }, 30000);
 
   if (peerReady && peer) {
     console.log('🔄 starte peer.connect zu', code);
@@ -52,7 +68,13 @@ function connectToPeer() {
     openChatFallback();
   }
 
-  setTimeout(() => { if (btn) btn.disabled = false; isConnecting = false; }, 3000);
+  // Button nach kurzer Zeit wieder aktivieren (falls Verbindung fehlschlägt)
+  setTimeout(() => {
+    if (!conn || !conn.open) {
+      if (btn) btn.disabled = false;
+      isConnecting = false;
+    }
+  }, 3000);
 }
 
 function openChatFallback() {
@@ -78,6 +100,7 @@ function openChatFallback() {
 function acceptCall() {
   console.log('✅ acceptCall called');
   stopRingingTone();
+  if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (!pendingConn) return;
   const c = pendingConn; pendingConn = null;
   partnerCode = c.peer; partnerName = localName(c.peer, c.metadata?.name);
@@ -89,6 +112,7 @@ function acceptCall() {
 function declineCall() {
   console.log('❌ declineCall called');
   stopRingingTone();
+  if (outgoingCallTimer) { clearTimeout(outgoingCallTimer); outgoingCallTimer = null; }
   if (pendingConn) {
     const c = pendingConn; pendingConn = null;
     addMissed(c.peer, localName(c.peer, c.metadata?.name));
