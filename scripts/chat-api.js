@@ -2,13 +2,14 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// + Eigenständige Benachrichtigungen (Klingelton, Vibration, In‑App)
+// + Keine "Lokal Nachricht"-Modale, korrekte Online-Erkennung
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
+let pendingCallModal = null; // Für eingehende Chat-Anfragen
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EIGENSTÄNDIGE BENACHRICHTIGUNGEN (Klingelton, Vibration, In‑App)
+// EIGENSTÄNDIGE BENACHRICHTIGUNGEN
 function playChatNotificationSound() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,6 +41,48 @@ function showChatInAppNotif(from, text) {
   window._chatNotifTimer = setTimeout(() => el.classList.remove('show'), 5000);
 }
 
+// 🆕 Modal für eingehende Chat-Anfrage (Annehmen/Ablehnen)
+function showIncomingChatRequest(senderCode, senderName) {
+  // Altes Modal entfernen
+  if (pendingCallModal) pendingCallModal.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:320px; text-align:center;">
+      <div style="font-size:3rem; margin-bottom:0.5rem;">🧑</div>
+      <h3>${esc(senderName)}</h3>
+      <p style="color:var(--text-dim);">${formatCode(senderCode)}</p>
+      <p>möchte mit dir chatten</p>
+      <div style="display:flex; gap:0.8rem; margin-top:1.5rem;">
+        <button class="btn-secondary" id="decline-chat-request" style="flex:1;">✕ Ablehnen</button>
+        <button class="btn-primary" id="accept-chat-request" style="flex:1;">✓ Annehmen</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  pendingCallModal = modal;
+
+  document.getElementById('accept-chat-request').addEventListener('click', () => {
+    modal.remove();
+    pendingCallModal = null;
+    // Chat mit dem Anfrager öffnen
+    partnerCode = senderCode;
+    partnerName = senderName;
+    chatId = buildCID(myCode, senderCode);
+    loadPendingMessages();
+    migratePendingMessages(chatId);
+    openApiChat();
+  });
+
+  document.getElementById('decline-chat-request').addEventListener('click', () => {
+    modal.remove();
+    pendingCallModal = null;
+    toast('📵 Chat-Anfrage abgelehnt');
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // NACHRICHTEN SENDEN/EMPFANGEN
 function sendMsg() {
@@ -55,12 +98,20 @@ function sendMsg() {
   const m = { t: 'text', text, ts: Date.now(), own: true };
   appendMsg(m);
   persistMsg(m);
+
+  // 🆕 "Lokal Nachricht"-Modal unterdrücken
+  const originalShowInfoModal = window.showInfoModal;
+  window.showInfoModal = function() {};
+
   addPendingMessage(text);
 
-  if (myToken) {
+  window.showInfoModal = originalShowInfoModal;
+
+  // Online-Status prüfen
+  if (navigator.onLine && myToken) {
     sendToServer(partnerCode, text);
   } else {
-    toast('⚠️ Profil nicht veröffentlicht – Nachricht nur lokal gespeichert.');
+    toast('📴 Offline – Nachricht gespeichert');
   }
 
   inp.value = '';
@@ -90,7 +141,7 @@ function removePendingMessageByText(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING (läuft immer, sobald Token vorhanden)
+// GLOBALES POLLING
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -104,7 +155,8 @@ function startGlobalPolling() {
         // Chat‑Request
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
           const senderName = m.senderName || formatCode(m.senderCode);
-          showChatInAppNotif(senderName, 'möchte mit dir chatten');
+          // 🆕 Modal statt nur In‑App
+          showIncomingChatRequest(m.senderCode, senderName);
           playChatNotificationSound();
           triggerChatHaptic();
           markOfflineMsgRead(m.id);
