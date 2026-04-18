@@ -31,16 +31,21 @@ window.addEventListener('load', () => {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
-  
+
   window.addEventListener('online', () => {
-    setSpill('online', '● ONLINE');
-    updateConnectionStatus();
-  });
-  window.addEventListener('offline', () => {
-    setSpill('offline', '○ LOCAL');
-    updateConnectionStatus();
-  });
-  
+  isOffline = false;
+  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
+  toast('🌐 Online – Nachrichten werden gesendet');
+});
+
+window.addEventListener('offline', () => {
+  isOffline = true;
+  setSpill('offline', '○ LOCAL');
+  updateConnectionStatus();
+  toast('📴 Offline – Nachrichten werden gespeichert');
+});
+    
   document.addEventListener('click', e => {
     if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) {
       closeHomeMenu();
