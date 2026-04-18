@@ -9,6 +9,11 @@ function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
+  // 🆕 Online-Status setzen
+  isOffline = false;
+  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
+
   partnerCode = code;
   partnerName = localName(code);
   chatId = buildCID(myCode, code);
