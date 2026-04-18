@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js) – API‑Version
-// + Chat‑Anfrage an Server senden, Dummy für markAutoReconnect
+// + Benachrichtigungen aus der P2P‑Version (inAppNotif, pushNotif)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
@@ -18,8 +18,12 @@ function connectToPeer() {
   // Chat sofort öffnen
   openApiChat();
 
-  // Chat‑Anfrage an den Server senden
-  sendChatRequest(partnerCode);
+  // Chat‑Anfrage an den Server senden (nur wenn Token vorhanden)
+  if (myToken) {
+    sendChatRequest(partnerCode);
+  } else {
+    toast('⚠️ Profil nicht veröffentlicht – Partner wird nicht benachrichtigt.');
+  }
 
   // Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => {
@@ -30,7 +34,6 @@ function connectToPeer() {
 }
 
 async function sendChatRequest(recipient) {
-  if (!myToken) return;
   try {
     await fetch(API_BASE + '/offline-message', {
       method: 'POST',
@@ -50,7 +53,7 @@ async function sendChatRequest(recipient) {
 function acceptCall() {}
 function declineCall() {}
 function tryReconnect() {}
-function markAutoReconnect() {}   // ← NEU
+function markAutoReconnect() {}
 
 function showLeaveMessageSheet(code, name) {
   partnerCode = code;
@@ -108,7 +111,7 @@ window.connectToPeer = connectToPeer;
 window.acceptCall = acceptCall;
 window.declineCall = declineCall;
 window.tryReconnect = tryReconnect;
-window.markAutoReconnect = markAutoReconnect;   // ← NEU
+window.markAutoReconnect = markAutoReconnect;
 window.showLeaveMessageSheet = showLeaveMessageSheet;
 window.closeLeaveMessageSheet = closeLeaveMessageSheet;
 window.submitLeaveMessage = submitLeaveMessage;
