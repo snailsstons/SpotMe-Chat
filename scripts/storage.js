@@ -33,10 +33,10 @@ function saveMissed(a) {
   localStorage.setItem('sm_missed', JSON.stringify(a));
 }
 
-async function addMissed(code, name, outgoing = false) {
+async function addMissed(code, name, outgoing = false, message = '') {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
-  const entry = { code, name, ts: Date.now() };
+  const entry = { code, name, ts: Date.now(), message };   // 🆕 message hinzugefügt
   if (recent >= 0) arr[recent] = entry;
   else arr.unshift(entry);
   saveMissed(arr.slice(0, 30));

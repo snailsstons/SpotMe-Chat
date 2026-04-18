@@ -2,8 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// Code-Anzeige, Zifferneingabe, Letzte Chats, Verpasste Anrufe, Offline-Msgs
-// + Kontaktliste aus sm_idx & Offline-Nachrichten (Badges)
+// + reconnectTo mit Toast-Feedback, korrigierte Reihenfolge
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -130,21 +129,39 @@ async function renderPrev() {
   }).join('');
 }
 
+// 🆕 reconnectTo – mit Toast-Feedback und korrigierter Reihenfolge
 function reconnectTo(code, name, cid) {
+  console.log('📂 reconnectTo', code, name, cid);
+
+  // 🆕 Nutzer-Feedback
+  toast(`📞 Öffne Chat mit ${name}…`, 2000);
+
+  // 1. Online-Status setzen
+  isOffline = false;
+  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
+
+  // 2. Partnerdaten setzen
   partnerCode = code;
   partnerName = name;
   chatId = cid;
   loadPendingMessages();
   migratePendingMessages(chatId);
-  if (!peerReady) {
-    toast('📴 Lokaler Modus – Nachrichten werden gespeichert');
-    openChat(null);
-    setSpill('offline', '○ LOCAL');
-    markAutoReconnect();
-    return;
+
+  // 3. Eingabefelder leeren
+  document.querySelectorAll('.dinp-new').forEach(d => {
+    d.value = '';
+    d.classList.remove('filled');
+  });
+  document.getElementById('cbtn').disabled = true;
+
+  // 4. Chat öffnen
+  if (typeof openApiChat === 'function') {
+    openApiChat();
+  } else {
+    console.error('❌ openApiChat nicht gefunden');
+    toast('⚠️ Fehler beim Öffnen des Chats');
   }
-  toast('↺ Verbinde...');
-  openChat(peer.connect(code, { reliable: true, metadata: { name: myName } }));
 }
 
 // Verpasste Anrufe
@@ -264,4 +281,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-      }
+  }
