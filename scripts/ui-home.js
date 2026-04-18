@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// + reconnectTo mit Verzögerung für sicheres Timing
+// + reconnectTo mit Toast-Feedback, korrigierte Reihenfolge
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -129,9 +129,12 @@ async function renderPrev() {
   }).join('');
 }
 
-// 🆕 reconnectTo – mit Verzögerung für sicheres Timing
+// 🆕 reconnectTo – mit Toast-Feedback und korrigierter Reihenfolge
 function reconnectTo(code, name, cid) {
   console.log('📂 reconnectTo', code, name, cid);
+
+  // 🆕 Nutzer-Feedback
+  toast(`📞 Öffne Chat mit ${name}…`, 2000);
 
   // 1. Online-Status setzen
   isOffline = false;
@@ -145,22 +148,20 @@ function reconnectTo(code, name, cid) {
   loadPendingMessages();
   migratePendingMessages(chatId);
 
-  // 3. Eingabefelder leeren (sofort)
+  // 3. Eingabefelder leeren
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
     d.classList.remove('filled');
   });
   document.getElementById('cbtn').disabled = true;
 
-  // 4. Chat mit VERZÖGERUNG öffnen (gibt JS Zeit, alle globalen Variablen zu synchronisieren)
-  setTimeout(() => {
-    if (typeof openApiChat === 'function') {
-      openApiChat();
-    } else {
-      console.error('❌ openApiChat nicht gefunden');
-      toast('⚠️ Fehler beim Öffnen des Chats');
-    }
-  }, 100); // 100ms Verzögerung – das reicht völlig aus
+  // 4. Chat öffnen
+  if (typeof openApiChat === 'function') {
+    openApiChat();
+  } else {
+    console.error('❌ openApiChat nicht gefunden');
+    toast('⚠️ Fehler beim Öffnen des Chats');
+  }
 }
 
 // Verpasste Anrufe
@@ -280,4 +281,4 @@ function renameContact(code, networkName) {
   setAlias(code, trimmed);
   renderPrev();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-             }
+  }
