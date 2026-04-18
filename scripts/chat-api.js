@@ -2,11 +2,11 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// + s-in‑Screen für eingehende Chat‑Anfragen (robust)
+// + Schnelleres Polling (5s), Z-Index-Fix, Debug-Logs
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
-let pendingCallModal = null;
+let isRequestInProgress = false;   // 🆕 verhindert doppelte Anfragen
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BENACHRICHTIGUNGEN
@@ -32,9 +32,18 @@ function triggerChatHaptic() {
 }
 
 function handleIncomingChatRequest(senderCode, senderName) {
-  // Prüfen, ob bereits ein s-in offen ist
-  if (document.getElementById('s-in').classList.contains('active')) {
-    console.log('⚠️ s-in bereits aktiv, ignoriere doppelte Anfrage');
+  console.log('📞 handleIncomingChatRequest', senderCode, senderName);
+
+  // 🆕 Prüfen, ob bereits eine Anfrage bearbeitet wird
+  if (isRequestInProgress) {
+    console.warn('⚠️ Anfrage bereits in Bearbeitung');
+    return;
+  }
+
+  // Prüfen, ob s-in bereits aktiv
+  const sIn = document.getElementById('s-in');
+  if (sIn.classList.contains('active')) {
+    console.warn('⚠️ s-in bereits aktiv');
     return;
   }
 
@@ -44,6 +53,8 @@ function handleIncomingChatRequest(senderCode, senderName) {
     return;
   }
 
+  isRequestInProgress = true;
+
   // Partnerdaten setzen
   window.pendingChatPartner = { code: senderCode, name: senderName };
 
@@ -52,9 +63,19 @@ function handleIncomingChatRequest(senderCode, senderName) {
   document.getElementById('in-code').textContent = 'Code: ' + formatCode(senderCode);
   document.querySelector('#s-in .caller-hint').textContent = 'möchte mit dir chatten';
 
+  // 🆕 Z-Index erhöhen, damit s-in sicher über allem liegt
+  sIn.style.zIndex = '10000';
+
   showScreen('s-in');
   playChatNotificationSound();
   triggerChatHaptic();
+}
+
+// 🆕 Wird von acceptCall/declineCall aufgerufen, um den Zustand zurückzusetzen
+function resetIncomingRequestState() {
+  isRequestInProgress = false;
+  window.pendingChatPartner = null;
+  document.getElementById('s-in').style.zIndex = '';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,7 +132,7 @@ function removePendingMessageByText(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING
+// GLOBALES POLLING (jetzt alle 5 Sekunden)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -125,6 +146,7 @@ function startGlobalPolling() {
         // Chat‑Request
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
           const senderName = m.senderName || formatCode(m.senderCode);
+          console.log('📩 Chat-Request empfangen von', senderName);
           handleIncomingChatRequest(m.senderCode, senderName);
           markOfflineMsgRead(m.id);
           return;
@@ -144,7 +166,7 @@ function startGlobalPolling() {
         }
       });
     } catch (e) {}
-  }, 15000);
+  }, 5000);  // 🆕 5 Sekunden statt 15
 }
 
 function isMessageAlreadyStored(ts, own) {
@@ -180,4 +202,6 @@ function stopChatPolling() {
   if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
 }
 
+// Globale Funktionen exportieren
 window.openChat = openApiChat;
+window.resetIncomingRequestState = resetIncomingRequestState;
