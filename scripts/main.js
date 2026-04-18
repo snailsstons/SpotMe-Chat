@@ -87,6 +87,8 @@ window.addEventListener('load', () => {
     if (myToken) {
       const offlineMsgs = await fetchOfflineMessages();
       if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
+      // 🆕 Globales Polling starten
+      if (typeof startGlobalPolling === 'function') startGlobalPolling();
     }
     const remoteMissed = await fetchRemoteMissedCalls();
     const localMissed = getMissed();
