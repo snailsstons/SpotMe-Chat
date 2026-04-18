@@ -6,7 +6,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 let isConnecting = false;
-let outgoingCallTimer = null;
+// ❌ outgoingCallTimer ist bereits in config.js global deklariert – NICHT neu deklarieren!
 
 function connectToPeer() {
   if (isConnecting) { console.warn('⚠️ bereits aktiv'); return; }
