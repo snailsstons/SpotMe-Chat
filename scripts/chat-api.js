@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // Senden/Empfangen über /api/offline-message, Polling alle 15 Sekunden
-// + Chat‑Request‑Erkennung und In‑App‑Benachrichtigung
+// + Chat‑Request‑Erkennung auch ohne aktiven Partner
 // ══════════════════════════════════════════════════════════════════════════════
 
 let lastPoll = Date.now();
@@ -70,17 +70,18 @@ function removePendingMessageByText(text) {
   }
 }
 
-function startChatPolling() {
+// 🆕 Globales Polling (läuft immer, sobald Token vorhanden)
+function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
-    if (!myToken || !partnerCode || !chatId) return;
+    if (!myToken) return;
     try {
       const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
       if (!res.ok) return;
       const msgs = await res.json();
 
       msgs.filter(m => !m.read).forEach(m => {
-        // Chat‑Request erkennen
+        // Chat‑Request erkennen (unabhängig vom aktuellen Partner)
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
           if (typeof inAppNotif === 'function') {
             inAppNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
@@ -89,8 +90,8 @@ function startChatPolling() {
           return;
         }
 
-        // Normale Nachricht
-        if (m.senderCode === partnerCode) {
+        // Normale Nachrichten nur verarbeiten, wenn der passende Chat geöffnet ist
+        if (partnerCode && m.senderCode === partnerCode) {
           const ts = new Date(m.timestamp).getTime();
           if (!isMessageAlreadyStored(ts, false)) {
             appendMsg({ t: 'text', text: m.message, ts, own: false });
@@ -107,6 +108,7 @@ function startChatPolling() {
 }
 
 function isMessageAlreadyStored(ts, own) {
+  if (!chatId) return false;
   const chatKey = 'smmsg_' + chatId;
   const msgs = JSON.parse(localStorage.getItem(chatKey) || '[]');
   return msgs.some(m => m.ts === ts && m.own === own);
@@ -129,7 +131,8 @@ function openApiChat() {
   updateIdx('');
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
-  startChatPolling();
+  // Globales Polling starten (falls nicht schon läuft)
+  startGlobalPolling();
 }
 
 function stopChatPolling() {
