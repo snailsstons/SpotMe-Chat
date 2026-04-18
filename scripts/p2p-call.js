@@ -53,7 +53,6 @@ function acceptCall() {
     return;
   }
 
-  // Bestehenden Chat schließen, falls offen
   if (typeof stopChatPolling === 'function') stopChatPolling();
 
   partnerCode = pending.code;
@@ -64,8 +63,12 @@ function acceptCall() {
 
   openApiChat();
 
-  // Wichtig: Globale Variable zurücksetzen
-  window.pendingChatPartner = null;
+  // 🆕 Wichtig: Zustand zurücksetzen
+  if (typeof resetIncomingRequestState === 'function') {
+    resetIncomingRequestState();
+  } else {
+    window.pendingChatPartner = null;
+  }
 }
 
 function declineCall() {
@@ -74,8 +77,13 @@ function declineCall() {
     addMissed(pending.code, pending.name);
     toast('📵 Chat-Anfrage abgelehnt');
   }
-  // Wichtig: Globale Variable zurücksetzen
-  window.pendingChatPartner = null;
+
+  // 🆕 Wichtig: Zustand zurücksetzen
+  if (typeof resetIncomingRequestState === 'function') {
+    resetIncomingRequestState();
+  } else {
+    window.pendingChatPartner = null;
+  }
   showScreen('s-home');
 }
 
