@@ -2,11 +2,9 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
-// Senden/Empfangen über /api/offline-message, Polling alle 15 Sekunden
-// + Chat‑Request‑Erkennung auch ohne aktiven Partner
+// + Benachrichtigungen aus der P2P‑Version (inAppNotif, pushNotif, playRingingTone)
 // ══════════════════════════════════════════════════════════════════════════════
 
-let lastPoll = Date.now();
 let pollingTimer = null;
 
 function sendMsg() {
@@ -32,7 +30,7 @@ function sendMsg() {
   if (myToken) {
     sendToServer(partnerCode, text);
   } else {
-    console.warn('Kein Token – Nachricht bleibt in Pending‑Queue');
+    toast('⚠️ Profil nicht veröffentlicht – Nachricht nur lokal gespeichert.');
   }
 
   inp.value = '';
@@ -70,7 +68,7 @@ function removePendingMessageByText(text) {
   }
 }
 
-// 🆕 Globales Polling (läuft immer, sobald Token vorhanden)
+// Globales Polling (läuft immer, sobald Token vorhanden)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -81,21 +79,31 @@ function startGlobalPolling() {
       const msgs = await res.json();
 
       msgs.filter(m => !m.read).forEach(m => {
-        // Chat‑Request erkennen (unabhängig vom aktuellen Partner)
+        // Chat‑Request erkennen
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
+          // Benachrichtigungen wie in der P2P‑Version
+          if (typeof pushNotif === 'function') {
+            pushNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
+          }
           if (typeof inAppNotif === 'function') {
             inAppNotif(m.senderName || formatCode(m.senderCode), 'möchte mit dir chatten');
+          }
+          if (typeof playRingingTone === 'function') {
+            playRingingTone();
+          }
+          if (typeof triggerHaptic === 'function') {
+            triggerHaptic();
           }
           markOfflineMsgRead(m.id);
           return;
         }
 
-        // Normale Nachrichten nur verarbeiten, wenn der passende Chat geöffnet ist
+        // Normale Nachrichten
         if (partnerCode && m.senderCode === partnerCode) {
           const ts = new Date(m.timestamp).getTime();
           if (!isMessageAlreadyStored(ts, false)) {
             appendMsg({ t: 'text', text: m.message, ts, own: false });
-            persistMsg({ t: 'text', text: m.message, ts, own: false });
+            persistMsg({ t: 'text', text: m.message, ts, own:16 });
             notify(m.message);
             if (typeof playNotificationSound === 'function') playNotificationSound();
             if (typeof triggerHaptic === 'function') triggerHaptic();
@@ -131,7 +139,6 @@ function openApiChat() {
   updateIdx('');
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
-  // Globales Polling starten (falls nicht schon läuft)
   startGlobalPolling();
 }
 
