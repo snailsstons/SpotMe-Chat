@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
-// Lädt als letztes, initialisiert alle Komponenten (API‑Version, kein PeerJS)
+// API‑Version – keine PeerJS‑Abhängigkeiten mehr
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
@@ -15,7 +15,9 @@ window.addEventListener('load', () => {
   renderMissed();
   
   initDB();
-  ensureRingingToneCached();
+  
+  // Dummy – wird nicht mehr benötigt, aber Aufruf bleibt zur Sicherheit
+  if (typeof ensureRingingToneCached === 'function') ensureRingingToneCached();
   
   document.getElementById('voice-btn').style.display = voiceEnabled ? 'flex' : 'none';
   const icon = document.getElementById('voice-toggle-icon'), desc = document.getElementById('voice-toggle-desc');
