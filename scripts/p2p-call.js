@@ -2,7 +2,7 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js) – API‑Version
-// + Chat‑Anfrage an Server senden
+// + Chat‑Anfrage an Server senden, Dummy für markAutoReconnect
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
@@ -18,7 +18,7 @@ function connectToPeer() {
   // Chat sofort öffnen
   openApiChat();
 
-  // 🆕 Chat‑Anfrage an den Server senden (damit Partner benachrichtigt wird)
+  // Chat‑Anfrage an den Server senden
   sendChatRequest(partnerCode);
 
   // Eingabefelder leeren
@@ -50,6 +50,7 @@ async function sendChatRequest(recipient) {
 function acceptCall() {}
 function declineCall() {}
 function tryReconnect() {}
+function markAutoReconnect() {}   // ← NEU
 
 function showLeaveMessageSheet(code, name) {
   partnerCode = code;
@@ -107,6 +108,7 @@ window.connectToPeer = connectToPeer;
 window.acceptCall = acceptCall;
 window.declineCall = declineCall;
 window.tryReconnect = tryReconnect;
+window.markAutoReconnect = markAutoReconnect;   // ← NEU
 window.showLeaveMessageSheet = showLeaveMessageSheet;
 window.closeLeaveMessageSheet = closeLeaveMessageSheet;
 window.submitLeaveMessage = submitLeaveMessage;
