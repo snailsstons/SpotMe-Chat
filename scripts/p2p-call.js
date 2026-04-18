@@ -2,17 +2,15 @@
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
-// + acceptCall / declineCall mit korrekter Rücksetzung
+// + "Rufe Partner…"-Feedback
 // ══════════════════════════════════════════════════════════════════════════════
 
 function connectToPeer() {
   const code = getDigits();
   if (code.length !== 6 || code === myCode) return;
 
-  // 🆕 Online-Status setzen
-  isOffline = false;
-  setSpill('online', '● ONLINE');
-  updateConnectionStatus();
+  // 🆕 Nutzer-Feedback
+  toast(`📞 Rufe ${localName(code)} an…`, 2000);
 
   partnerCode = code;
   partnerName = localName(code);
@@ -53,10 +51,7 @@ async function sendChatRequest(recipient) {
 
 function acceptCall() {
   const pending = window.pendingChatPartner;
-  if (!pending) {
-    console.warn('acceptCall ohne pendingChatPartner');
-    return;
-  }
+  if (!pending) return;
 
   if (typeof stopChatPolling === 'function') stopChatPolling();
 
@@ -68,7 +63,6 @@ function acceptCall() {
 
   openApiChat();
 
-  // 🆕 Wichtig: Zustand zurücksetzen
   if (typeof resetIncomingRequestState === 'function') {
     resetIncomingRequestState();
   } else {
@@ -83,7 +77,6 @@ function declineCall() {
     toast('📵 Chat-Anfrage abgelehnt');
   }
 
-  // 🆕 Wichtig: Zustand zurücksetzen
   if (typeof resetIncomingRequestState === 'function') {
     resetIncomingRequestState();
   } else {
