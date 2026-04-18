@@ -1,5 +1,10 @@
 'use strict';
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOTME – VERBINDUNGSAUFBAU (p2p-call.js)
+// + Verpasste Anrufe mit Nachricht
+// ══════════════════════════════════════════════════════════════════════════════
+
 let isConnecting = false;
 
 function connectToPeer() {
@@ -93,11 +98,27 @@ function declineCall() {
   showScreen('s-home');
 }
 
-// ... (showLeaveMessageSheet, closeLeaveMessageSheet, submitLeaveMessage unverändert)
-
-window.acceptCall = acceptCall;
-window.declineCall = declineCall;
-window.connectToPeer = connectToPeer;
+// 🆕 Hilfsfunktion, die addMissed mit message aufruft
+function addMissedWithMessage(code, name, outgoing, message) {
+  const arr = getMissed();
+  const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
+  const entry = { code, name, ts: Date.now(), message };
+  if (recent >= 0) arr[recent] = entry;
+  else arr.unshift(entry);
+  saveMissed(arr.slice(0, 30));
+  renderMissed();
+  // Server-Sync wie gehabt (ohne message, da API das nicht unterstützt)
+  try {
+    const payload = outgoing
+      ? { recipient: code, callerId: myCode, callerName: myName }
+      : { recipient: myCode, callerId: code, callerName: name };
+    fetch(API_MISSED, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {}
+}
 
 async function submitLeaveMessage() {
   const input = document.getElementById('leave-message-input');
@@ -139,24 +160,26 @@ async function submitLeaveMessage() {
   updateConnectionStatus();
 }
 
-// 🆕 Hilfsfunktion, die addMissed mit message aufruft
-function addMissedWithMessage(code, name, outgoing, message) {
-  const arr = getMissed();
-  const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
-  const entry = { code, name, ts: Date.now(), message };
-  if (recent >= 0) arr[recent] = entry;
-  else arr.unshift(entry);
-  saveMissed(arr.slice(0, 30));
-  renderMissed();
-  // Server-Sync wie gehabt (ohne message, da API das nicht unterstützt)
-  try {
-    const payload = outgoing
-      ? { recipient: code, callerId: myCode, callerName: myName }
-      : { recipient: myCode, callerId: code, callerName: name };
-    fetch(API_MISSED, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-  } catch (e) {}
+function showLeaveMessageSheet(code, name) {
+  partnerCode = code;
+  partnerName = name;
+  document.getElementById('leave-message-input').value = '';
+  document.getElementById('leave-message-ovl').classList.add('open');
+  document.getElementById('leave-message-sheet').classList.add('open');
+  setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
 }
+
+function closeLeaveMessageSheet() {
+  document.getElementById('leave-message-ovl').classList.remove('open');
+  document.getElementById('leave-message-sheet').classList.remove('open');
+  showScreen('s-home');
+  updateConnectionStatus();
+}
+
+// Explizit global verfügbar machen (für onclick-Handler)
+window.acceptCall = acceptCall;
+window.declineCall = declineCall;
+window.connectToPeer = connectToPeer;
+window.submitLeaveMessage = submitLeaveMessage;
+window.closeLeaveMessageSheet = closeLeaveMessageSheet;
+window.showLeaveMessageSheet = showLeaveMessageSheet;
