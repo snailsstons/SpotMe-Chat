@@ -107,32 +107,24 @@
       </div>
       <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
     </div>
+    
+<div id="psec" style="display:none;">
+  <div class="section-header">
+    <span class="section-label">Letzte Chats</span>
+  </div>
+  <div id="plist" class="horizontal-scroll"></div>
+</div>
 
-    <div id="psec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label">Letzte Chats</span>
-      </div>
-      <div id="plist" class="horizontal-scroll"></div>
-    </div>
+<div id="offline-msg-sec" style="display:none;">
+  <div class="section-header">
+    <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
+    <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
+  </div>
+  <div id="offline-msg-list" class="horizontal-scroll"></div>
+</div>
 
-    <div id="offline-msg-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
-        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
-      </div>
-      <div id="offline-msg-list" class="horizontal-scroll"></div>
-    </div>
-
-    <div id="missed-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label missed-label-text">Verpasste Anrufe</span>
-        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
-      </div>
-      <div id="missed-list" class="horizontal-scroll"></div>
-    </div>
-
-    <!-- SPOTS -->
-    <div class="section-header" style="margin-top:0.5rem;">
+<!-- SPOTS -->
+  <div class="section-header" style="margin-top:0.5rem;">
       <span class="section-label">Spots entdecken</span>
     </div>
     <div class="spots-grid">
