@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ p2p-call.js v2.0 geladen');
+console.log('✅ p2p-call.js v3.0 geladen');
 
 let callModalTimer = null;
 
@@ -73,4 +73,42 @@ function showLeaveMessageSheet(code, name) {
   partnerName = name;
   document.getElementById('leave-message-input').value = '';
   document.getElementById('leave-message-ovl').classList.add('open');
-  document.getElementById('leave-message-sheet').class
+  document.getElementById('leave-message-sheet').classList.add('open');
+  setTimeout(() => document.getElementById('leave-message-input').focus(), 100);
+}
+
+function closeLeaveMessageSheet() {
+  document.getElementById('leave-message-ovl').classList.remove('open');
+  document.getElementById('leave-message-sheet').classList.remove('open');
+  showScreen('s-home');
+  updateConnectionStatus();
+}
+
+async function submitLeaveMessage() {
+  const input = document.getElementById('leave-message-input');
+  const text = input.value.trim();
+  if (!text) { toast('Bitte eine Nachricht eingeben'); return; }
+  const btn = document.getElementById('leave-msg-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
+  try {
+    const res = await fetch(API_BASE + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient: partnerCode, senderCode: myCode, senderName: myName, message: text })
+    });
+    if (res.ok) toast(`📨 Nachricht an ${partnerName} gesendet`);
+    else toast('⚠️ Fehler beim Senden');
+  } catch (e) {
+    toast('⚠️ Keine Verbindung');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Senden'; }
+  }
+  closeLeaveMessageSheet();
+}
+
+window.showCallModal = showCallModal;
+window.acceptCall = acceptCall;
+window.declineCall = declineCall;
+window.showLeaveMessageSheet = showLeaveMessageSheet;
+window.closeLeaveMessageSheet = closeLeaveMessageSheet;
+window.submitLeaveMessage = submitLeaveMessage;
