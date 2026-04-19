@@ -187,7 +187,6 @@ function isMessageAlreadyStored(ts, own) {
   const msgs = JSON.parse(localStorage.getItem(chatKey) || '[]');
   return msgs.some(m => m.ts === ts && m.own === own);
 }
-
 function openApiChat() {
   const id = window.chatId || chatId;
   
@@ -200,6 +199,9 @@ function openApiChat() {
   chatId = id;
   window.chatId = id;
   
+  // ⭐ isOffline NICHT überschreiben – das ist schon korrekt gesetzt!
+  console.log('🔍 openApiChat – isOffline:', isOffline);
+  
   prepChat();
   showScreen('s-chat');
   document.getElementById('sbtn').disabled = false;
@@ -207,6 +209,8 @@ function openApiChat() {
   refreshStatusText();
   document.getElementById('pav').className = 'pav';
   applyPartnerName();
+
+}
   
   const h = document.getElementById('ehint');
   if (h) {
