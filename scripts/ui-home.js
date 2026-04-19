@@ -1,11 +1,11 @@
 'use strict';
 
-console.log('✅ ui-home.js v2.5 geladen – Unified Activity Feed (Final)');
+console.log('✅ ui-home.js v3.0 geladen – Unified Activity Feed (Final)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// Unified Activity Feed – Chats & verpasste Anrufe in einer Liste
-// Buttons: 📝 Nachricht (Lokal) | 📞 Anrufen (Live mit Klingeln)
+// Unified Activity Feed – Ein Button: 💬 Chat
+// Standard: LIVE mit automatischem Lokal-Fallback
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -67,7 +67,6 @@ async function renderUnifiedActivity() {
   const sec = document.getElementById('psec');
   if (!lst || !sec) return;
 
-  // 1. DATEN SAMMELN
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const missed = getMissed();
   
@@ -84,7 +83,6 @@ async function renderUnifiedActivity() {
     } catch (e) {}
   }
 
-  // 2. DATEN PRO KONTAKT ZUSAMMENFÜHREN
   const contacts = new Map();
   
   idx.forEach(c => {
@@ -140,13 +138,11 @@ async function renderUnifiedActivity() {
     }
   });
 
-  // 3. SORTIEREN
   const contactArray = Array.from(contacts.values()).map(c => {
     const latestTs = Math.max(c.chat?.ts || 0, c.missedCall?.ts || 0);
     return { ...c, latestTs };
   }).sort((a, b) => b.latestTs - a.latestTs);
 
-  // 4. LEERZUSTAND
   if (contactArray.length === 0) {
     sec.style.display = 'block';
     lst.innerHTML = '<div class="empty-state">✨ Noch keine Aktivitäten</div>';
@@ -155,7 +151,6 @@ async function renderUnifiedActivity() {
 
   sec.style.display = 'block';
 
-  // 5. RENDERN
   lst.innerHTML = contactArray.map(c => {
     const alias = esc(c.name);
     const unreadBadge = c.unread > 0 
@@ -202,6 +197,9 @@ async function renderUnifiedActivity() {
          </div>`
       : '';
 
+    const buttonText = hasMissedCall ? '📞 Zurückrufen' : '💬 Chat';
+    const buttonColor = hasMissedCall ? 'var(--acc)' : 'var(--acc)';
+
     return `
       <div class="chat-card unified-activity-card" style="position:relative;">
         <div class="card-row" style="align-items:flex-start;">
@@ -227,23 +225,14 @@ async function renderUnifiedActivity() {
           </div>
         </div>
         
-        <!-- Zwei große, fingerfreundliche Buttons -->
-        <div style="display:flex;gap:8px;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+        <!-- EIN BUTTON FÜR ALLES -->
+        <div style="display:flex;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
           <button class="unified-action-btn" 
-                  onclick="event.stopPropagation(); unifiedAnswer('${c.code}', '${esc2(c.name)}', '${chatId}')"
-                  style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:rgba(123,92,250,0.12);
-                         color:var(--p2);font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <span style="display:flex;align-items:center;gap:4px;">📝 <span style="font-weight:600;">Nachricht</span></span>
-            <span style="font-size:0.6rem;opacity:0.7;font-weight:400;">ohne Klingeln</span>
-          </button>
-          <button class="unified-action-btn"
-                  onclick="event.stopPropagation(); unifiedCall('${c.code}', '${esc2(c.name)}')"
-                  style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:var(--acc);
-                         color:white;font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <span style="display:flex;align-items:center;gap:4px;">📞 <span style="font-weight:600;">${hasMissedCall ? 'Zurückrufen' : 'Anrufen'}</span></span>
-            <span style="font-size:0.6rem;opacity:0.8;font-weight:400;">mit Klingeln</span>
+                  onclick="event.stopPropagation(); openChatUnified('${c.code}', '${esc2(c.name)}', '${chatId}', ${hasMissedCall})"
+                  style="flex:1;padding:12px;border-radius:30px;border:none;background:${buttonColor};
+                         color:white;font-weight:600;cursor:pointer;font-size:1rem;
+                         display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span>${buttonText}</span>
           </button>
         </div>
       </div>
@@ -252,78 +241,90 @@ async function renderUnifiedActivity() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// AKTIONEN
+// EINHEITLICHE CHAT-ÖFFNEN FUNKTION
 // ══════════════════════════════════════════════════════════════════════════════
-function unifiedAnswer(code, name, chatId) {
-  console.log('📝 unifiedAnswer →', code, name, chatId);
+
+function openChatUnified(code, name, chatId, isCallback = false) {
+  console.log('💬 openChatUnified →', code, name, chatId, 'isCallback:', isCallback);
   
   if (code === myCode) {
     toast('⚠️ Du kannst nicht mit dir selbst chatten');
     return;
   }
   
-  toast(`📝 Lokaler Chat mit ${name}…`, 2000);
-  
-  isOffline = true;
-  setSpill('offline', '● LOCAL');
-  updateConnectionStatus();
-  
-  partnerCode = code;
-  partnerName = name;
-  
-  // HART SETZEN – direkt window.chatId
-  window.chatId = 'sm_' + [myCode, code].sort().join('_');
-  console.log('✅ window.chatId gesetzt:', window.chatId);
-  
-  loadPendingMessages();
-  migratePendingMessages(window.chatId);
-  
-  if (typeof openApiChat === 'function') {
-    openApiChat();
-  } else {
-    toast('⚠️ Fehler beim Öffnen des Chats');
-  }
-}
-
-function unifiedCall(code, name) {
-  console.log('📞 unifiedCall →', code, name);
-  
-  if (code === myCode) {
-    toast('⚠️ Du kannst dich nicht selbst anrufen');
-    return;
-  }
-  
-  const inps = document.querySelectorAll('.dinp-new');
-  code.split('').forEach((ch, i) => {
-    if (inps[i]) {
-      inps[i].value = ch;
-      inps[i].classList.add('filled');
-    }
-  });
-  document.getElementById('cbtn').disabled = false;
-  
+  // Standard: LIVE-Modus
   isOffline = false;
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
   
   partnerCode = code;
   partnerName = name;
-  chatId = buildCID(myCode, code);
+  chatId = chatId || buildCID(myCode, code);
   window.chatId = chatId;
   
   loadPendingMessages();
   migratePendingMessages(chatId);
   
-  if (typeof connectToPeer === 'function') {
-    connectToPeer();
-  } else {
-    toast('⚠️ Anruf-Fehler');
+  // Zeige Verbindungs-Modal
+  if (typeof showCallModal === 'function') {
+    showCallModal('📞 Verbinde...', `${name} (${formatCode(code)})`);
   }
   
+  // Chat-UI öffnen
+  if (typeof openApiChat === 'function') {
+    openApiChat();
+  } else {
+    toast('⚠️ Fehler beim Öffnen des Chats');
+    return;
+  }
+  
+  // Bei Rückruf oder normalem Chat: Anruf senden
+  if (myToken) {
+    sendChatRequest(code);
+  }
+  
+  toast(`📞 Rufe ${name} an...`);
+  
+  // Fallback: Nach 10 Sekunden auf Lokal-Modus umschalten, wenn keine Antwort
   setTimeout(() => {
-    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
-    document.getElementById('cbtn').disabled = true;
-  }, 300);
+    if (partnerCode === code && isOffline === false) {
+      // Prüfen ob Verbindung zustande kam (peerReady o.ä.)
+      const chatActive = document.getElementById('s-chat').classList.contains('active');
+      if (chatActive) {
+        console.log('⏰ Keine Antwort – schalte auf Lokal-Modus');
+        isOffline = true;
+        setSpill('offline', '● LOCAL');
+        updateConnectionStatus();
+        
+        const h = document.getElementById('ehint');
+        if (h) {
+          h.innerHTML = `<div class="empty-icon">📴</div>
+            <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
+            <div class="empty-hint">Partner nicht erreichbar – Nachrichten werden später zugestellt</div>`;
+        }
+        
+        toast('📴 Partner nicht erreichbar – Lokaler Modus aktiv');
+      }
+    }
+  }, 10000);
+}
+
+async function sendChatRequest(recipient) {
+  try {
+    await fetch(API_BASE + '/offline-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient,
+        senderCode: myCode,
+        senderName: myName,
+        message: '__CHAT_REQUEST__',
+        type: 'chat_request'
+      })
+    });
+  } catch (e) {
+    console.warn('Chat-Request fehlgeschlagen:', e);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -386,7 +387,7 @@ function renderOfflineMessages(msgs) {
       </div>
       <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto; color:var(--text);">${msgListHtml}</div>
       <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
-        <button class="call-back-btn" style="background:var(--acc);" onclick="startChatDirect('${s.code}', '${esc2(displayName)}')">💬 Chat</button>
+        <button class="call-back-btn" style="background:var(--acc);" onclick="openChatUnified('${s.code}', '${esc2(displayName)}', '${buildCID(myCode, s.code)}', false)">💬 Chat</button>
         <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${s.code}', '${esc2(displayName)}')">↩️ Antworten</button>
         <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissSenderOfflineMsgs('${s.code}', [${allIds.join(',')}])">✓ Gelesen</button>
         ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,0.1);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
@@ -415,14 +416,6 @@ async function dismissOfflineMsg(id) {
   if (!document.querySelectorAll('#offline-msg-list .chat-card').length) document.getElementById('offline-msg-sec').style.display = 'none';
 }
 
-function startChatDirect(code, name) {
-  const inps = document.querySelectorAll('.dinp-new');
-  code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
-  document.getElementById('cbtn').disabled = false;
-  connectToPeer();
-  setTimeout(() => { inps.forEach(d => { d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; }, 200);
-}
-
 function renameContact(code, networkName) {
   const current = getContacts()[code] || '';
   const input = prompt(`Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`, current);
@@ -439,6 +432,24 @@ function renameContact(code, networkName) {
 
 function renderPrev() { renderUnifiedActivity(); }
 function renderMissed() { }
-function reconnectTo(code, name, cid) { unifiedAnswer(code, name, cid); }
-function callBack(code) { unifiedCall(code, getContacts()[code] || formatCode(code)); }
+function reconnectTo(code, name, cid) { openChatUnified(code, name, cid, false); }
+function callBack(code) { openChatUnified(code, getContacts()[code] || formatCode(code), buildCID(myCode, code), true); }
 function clearMissed() { saveMissed([]); renderUnifiedActivity(); }
+
+// Für "Chat starten" Button (LIVE)
+function connectToPeer() {
+  const code = getDigits();
+  if (code.length !== 6 || code === myCode) return;
+  
+  const name = localName(code);
+  openChatUnified(code, name, buildCID(myCode, code), false);
+  
+  document.querySelectorAll('.dinp-new').forEach(d => {
+    d.value = '';
+    d.classList.remove('filled');
+  });
+  document.getElementById('cbtn').disabled = true;
+}
+
+window.connectToPeer = connectToPeer;
+window.openChatUnified = openChatUnified;
