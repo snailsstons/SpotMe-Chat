@@ -430,4 +430,4 @@ function callBack(code) {
 function clearMissed() {
   saveMissed([]);
   renderUnifiedActivity();
-                    }
+}                    
