@@ -1,15 +1,15 @@
 'use strict';
 
-console.log('✅ ui-home.js v2.1 geladen – Unified Activity Feed mit Lokal/Online-Trennung');
+console.log('✅ ui-home.js v2.2 geladen – Unified Activity Feed mit optimierten Buttons');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Unified Activity Feed – Chats & verpasste Anrufe in einer Liste
-// Buttons: 💬 Antworten = Lokal-Modus | 📞 Anrufen = Live-Chat mit Klingeln
+// Buttons: 📝 Nachricht (Lokal) | 📞 Anrufen (Live mit Klingeln)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DIGIT INPUT FELDER (unverändert)
+// DIGIT INPUT FELDER
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -59,7 +59,7 @@ async function shareCode() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// UNIFIED ACTIVITY FEED (ersetzt renderPrev + renderMissed)
+// UNIFIED ACTIVITY FEED
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function renderUnifiedActivity() {
@@ -180,7 +180,7 @@ async function renderUnifiedActivity() {
       if (!c.chat) {
         activityIcon = '📵';
         activityText = missedMessage 
-          ? `📵 Verpasst: "${missedMessage.substring(0, 40)}${missedMessage.length > 40 ? '…' : ''}"`
+          ? `Verpasst: "${missedMessage.substring(0, 40)}${missedMessage.length > 40 ? '…' : ''}"`
           : '📵 Verpasster Anruf';
       }
       activityTime = formatRelativeTime(c.missedCall.ts);
@@ -220,26 +220,36 @@ async function renderUnifiedActivity() {
               <span style="color:var(--text-dim);">${esc(activityText)}</span>
             </div>
             ${missedInfoHtml}
-            <div style="color:var(--text-dim);font-size:0.7rem;margin-top:4px;">
-              ${formatCode(c.code)}
+            <div style="color:var(--text-dim);font-size:0.7rem;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span>${formatCode(c.code)}</span>
+              ${c.missedCall ? `<span style="opacity:0.7;">📵 ${formatRelativeTime(c.missedCall.ts)}</span>` : ''}
             </div>
           </div>
         </div>
         
+        <!-- Zwei große, fingerfreundliche Buttons -->
         <div style="display:flex;gap:8px;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
           <button class="unified-action-btn" 
                   onclick="event.stopPropagation(); unifiedAnswer('${c.code}', '${esc2(c.name)}', '${chatId}')"
-                  style="flex:1;padding:8px;border-radius:20px;border:none;background:rgba(123,92,250,0.15);
+                  style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:rgba(123,92,250,0.12);
                          color:var(--p2);font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;align-items:center;justify-content:center;gap:4px;">
-            💬 Antworten
+                         display:flex;flex-direction:column;align-items:center;gap:2px;
+                         transition:background 0.2s;"
+                  onmouseover="this.style.background='rgba(123,92,250,0.20)'"
+                  onmouseout="this.style.background='rgba(123,92,250,0.12)'">
+            <span style="display:flex;align-items:center;gap:4px;">📝 <span style="font-weight:600;">Nachricht</span></span>
+            <span style="font-size:0.6rem;opacity:0.7;font-weight:400;">ohne Klingeln</span>
           </button>
           <button class="unified-action-btn"
                   onclick="event.stopPropagation(); unifiedCall('${c.code}', '${esc2(c.name)}')"
-                  style="flex:1;padding:8px;border-radius:20px;border:none;background:var(--acc);
+                  style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:var(--acc);
                          color:white;font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;align-items:center;justify-content:center;gap:4px;">
-            ${hasMissedCall ? '📞 Zurückrufen' : '📞 Anrufen'}
+                         display:flex;flex-direction:column;align-items:center;gap:2px;
+                         transition:filter 0.2s;"
+                  onmouseover="this.style.filter='brightness(1.1)'"
+                  onmouseout="this.style.filter='brightness(1)'">
+            <span style="display:flex;align-items:center;gap:4px;">📞 <span style="font-weight:600;">${hasMissedCall ? 'Zurückrufen' : 'Anrufen'}</span></span>
+            <span style="font-size:0.6rem;opacity:0.8;font-weight:400;">mit Klingeln</span>
           </button>
         </div>
       </div>
@@ -251,24 +261,21 @@ async function renderUnifiedActivity() {
 // AKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-// 💬 Antworten = Lokal-Modus (kein Klingeln, Nachrichten werden gespeichert)
+// 📝 Nachricht = Lokal-Modus (kein Klingeln)
 function unifiedAnswer(code, name, chatId) {
-  console.log('💬 unifiedAnswer (Lokal-Modus) →', code, name);
+  console.log('📝 unifiedAnswer (Lokal-Modus) →', code, name);
   toast(`📝 Lokaler Chat mit ${name}…`, 2000);
   
-  // WICHTIG: Offline-Flag setzen → Nachrichten gehen in Pending-Queue
   isOffline = true;
   setSpill('offline', '● LOCAL');
   updateConnectionStatus();
   
-  // Partnerdaten setzen
   partnerCode = code;
   partnerName = name;
   chatId = chatId || buildCID(myCode, code);
   loadPendingMessages();
   migratePendingMessages(chatId);
   
-  // Chat-UI öffnen (openApiChat respektiert isOffline = true)
   if (typeof openApiChat === 'function') {
     openApiChat();
   } else {
@@ -277,11 +284,10 @@ function unifiedAnswer(code, name, chatId) {
   }
 }
 
-// 📞 Anrufen = Live-Chat (mit Klingelton beim Empfänger)
+// 📞 Anrufen = Live-Chat (mit Klingelton)
 function unifiedCall(code, name) {
   console.log('📞 unifiedCall (Live-Chat) →', code, name);
   
-  // Code in Eingabefelder setzen
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
     if (inps[i]) {
@@ -291,19 +297,16 @@ function unifiedCall(code, name) {
   });
   document.getElementById('cbtn').disabled = false;
   
-  // Online-Status setzen
   isOffline = false;
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
   
-  // Partnerdaten setzen
   partnerCode = code;
   partnerName = name;
   chatId = buildCID(myCode, code);
   loadPendingMessages();
   migratePendingMessages(chatId);
   
-  // Anruf starten (mit Klingelton beim Empfänger)
   if (typeof connectToPeer === 'function') {
     connectToPeer();
   } else {
@@ -311,7 +314,6 @@ function unifiedCall(code, name) {
     toast('⚠️ Anruf-Fehler');
   }
   
-  // Felder nach kurzer Zeit leeren
   setTimeout(() => {
     inps.forEach(d => {
       d.value = '';
@@ -341,7 +343,7 @@ function formatRelativeTime(ts) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE NACHRICHTEN (unverändert)
+// OFFLINE NACHRICHTEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderOfflineMessages(msgs) {
@@ -451,4 +453,4 @@ function callBack(code) {
 function clearMissed() {
   saveMissed([]);
   renderUnifiedActivity();
-          }
+                              }
