@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v2.4 geladen – Unified Activity Feed (chatId-Fix)');
+console.log('✅ ui-home.js v2.5 geladen – Unified Activity Feed (Final)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
@@ -233,10 +233,7 @@ async function renderUnifiedActivity() {
                   onclick="event.stopPropagation(); unifiedAnswer('${c.code}', '${esc2(c.name)}', '${chatId}')"
                   style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:rgba(123,92,250,0.12);
                          color:var(--p2);font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;flex-direction:column;align-items:center;gap:2px;
-                         transition:background 0.2s;"
-                  onmouseover="this.style.background='rgba(123,92,250,0.20)'"
-                  onmouseout="this.style.background='rgba(123,92,250,0.12)'">
+                         display:flex;flex-direction:column;align-items:center;gap:2px;">
             <span style="display:flex;align-items:center;gap:4px;">📝 <span style="font-weight:600;">Nachricht</span></span>
             <span style="font-size:0.6rem;opacity:0.7;font-weight:400;">ohne Klingeln</span>
           </button>
@@ -244,10 +241,7 @@ async function renderUnifiedActivity() {
                   onclick="event.stopPropagation(); unifiedCall('${c.code}', '${esc2(c.name)}')"
                   style="flex:1;padding:10px 4px;border-radius:16px;border:none;background:var(--acc);
                          color:white;font-weight:500;cursor:pointer;font-size:0.85rem;
-                         display:flex;flex-direction:column;align-items:center;gap:2px;
-                         transition:filter 0.2s;"
-                  onmouseover="this.style.filter='brightness(1.1)'"
-                  onmouseout="this.style.filter='brightness(1)'">
+                         display:flex;flex-direction:column;align-items:center;gap:2px;">
             <span style="display:flex;align-items:center;gap:4px;">📞 <span style="font-weight:600;">${hasMissedCall ? 'Zurückrufen' : 'Anrufen'}</span></span>
             <span style="font-size:0.6rem;opacity:0.8;font-weight:400;">mit Klingeln</span>
           </button>
@@ -261,9 +255,14 @@ async function renderUnifiedActivity() {
 // AKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-// 📝 Nachricht = Lokal-Modus (kein Klingeln)
 function unifiedAnswer(code, name, chatId) {
-  console.log('📝 unifiedAnswer (Lokal-Modus) →', code, name, 'chatId:', chatId);
+  console.log('📝 unifiedAnswer →', code, name, chatId);
+  
+  if (code === myCode) {
+    toast('⚠️ Du kannst nicht mit dir selbst chatten');
+    return;
+  }
+  
   toast(`📝 Lokaler Chat mit ${name}…`, 2000);
   
   isOffline = true;
@@ -272,12 +271,8 @@ function unifiedAnswer(code, name, chatId) {
   
   partnerCode = code;
   partnerName = name;
-  
-  // 🆕 chatId korrekt setzen – nicht überschreiben!
   chatId = chatId || buildCID(myCode, code);
   window.chatId = chatId;
-  
-  console.log('✅ chatId gesetzt:', chatId);
   
   loadPendingMessages();
   migratePendingMessages(chatId);
@@ -285,14 +280,17 @@ function unifiedAnswer(code, name, chatId) {
   if (typeof openApiChat === 'function') {
     openApiChat();
   } else {
-    console.error('❌ openApiChat nicht gefunden');
     toast('⚠️ Fehler beim Öffnen des Chats');
   }
 }
 
-// 📞 Anrufen = Live-Chat (mit Klingelton)
 function unifiedCall(code, name) {
-  console.log('📞 unifiedCall (Live-Chat) →', code, name);
+  console.log('📞 unifiedCall →', code, name);
+  
+  if (code === myCode) {
+    toast('⚠️ Du kannst dich nicht selbst anrufen');
+    return;
+  }
   
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
@@ -312,23 +310,17 @@ function unifiedCall(code, name) {
   chatId = buildCID(myCode, code);
   window.chatId = chatId;
   
-  console.log('✅ chatId gesetzt:', chatId);
-  
   loadPendingMessages();
   migratePendingMessages(chatId);
   
   if (typeof connectToPeer === 'function') {
     connectToPeer();
   } else {
-    console.error('❌ connectToPeer nicht gefunden');
     toast('⚠️ Anruf-Fehler');
   }
   
   setTimeout(() => {
-    inps.forEach(d => {
-      d.value = '';
-      d.classList.remove('filled');
-    });
+    inps.forEach(d => { d.value = ''; d.classList.remove('filled'); });
     document.getElementById('cbtn').disabled = true;
   }, 300);
 }
@@ -441,26 +433,11 @@ function renameContact(code, networkName) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KOMPATIBILITÄT: Alte Funktionen als Aliasse
+// KOMPATIBILITÄT
 // ══════════════════════════════════════════════════════════════════════════════
 
-function renderPrev() {
-  renderUnifiedActivity();
-}
-
-function renderMissed() {
-  // Leer – wird nicht mehr separat gerendert
-}
-
-function reconnectTo(code, name, cid) {
-  unifiedAnswer(code, name, cid);
-}
-
-function callBack(code) {
-  unifiedCall(code, getContacts()[code] || formatCode(code));
-}
-
-function clearMissed() {
-  saveMissed([]);
-  renderUnifiedActivity();
-      }
+function renderPrev() { renderUnifiedActivity(); }
+function renderMissed() { }
+function reconnectTo(code, name, cid) { unifiedAnswer(code, name, cid); }
+function callBack(code) { unifiedCall(code, getContacts()[code] || formatCode(code)); }
+function clearMissed() { saveMissed([]); renderUnifiedActivity(); }
