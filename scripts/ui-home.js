@@ -1,5 +1,7 @@
 'use strict';
 
+console.log('✅ ui+home.js v1.0.0 geladen – Home UI aktiv');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // + reconnectTo mit Toast-Feedback, korrigierte Reihenfolge
