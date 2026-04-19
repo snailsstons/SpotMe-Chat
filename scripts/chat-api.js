@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.0 geladen – Final');
+console.log('✅ chat-api.js v3.1 geladen – Final');
 
 let pollingTimer = null;
 let isRequestInProgress = false;
