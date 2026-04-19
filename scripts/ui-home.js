@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v3.0 geladen – Unified Activity Feed (Final)');
+console.log('✅ ui-home.js v3.1 geladen – Unified Activity Feed (Final)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
