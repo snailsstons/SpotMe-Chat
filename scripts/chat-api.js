@@ -1,8 +1,11 @@
 'use strict';
 
+console.log('✅ chat-api.js v2.1 geladen – API-Chat mit Lokal/Online-Unterstützung');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // + Robuster Klingelton (HTML5 Audio Fallback)
+// + Lokal-Modus Unterstützung (isOffline wird respektiert)
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
@@ -138,7 +141,7 @@ function sendMsg() {
   addPendingMessage(text);
   window.showInfoModal = originalShowInfoModal;
 
-  if (navigator.onLine && myToken) {
+  if (navigator.onLine && myToken && !isOffline) {
     sendToServer(partnerCode, text);
   } else {
     toast('📴 Offline – Nachricht gespeichert');
@@ -215,8 +218,7 @@ function isMessageAlreadyStored(ts, own) {
 // CHAT ÖFFNEN / SCHLIESSEN
 
 function openApiChat() {
-  // 🆕 Explizit Online-Status setzen
-  isOffline = false;
+  // 🆕 isOffline wird NICHT überschrieben – bleibt wie vorher gesetzt!
   
   prepChat();
   showScreen('s-chat');
@@ -225,22 +227,43 @@ function openApiChat() {
   refreshStatusText();
   document.getElementById('pav').className = 'pav';
   applyPartnerName();
+  
   const h = document.getElementById('ehint');
   if (h) {
-    h.innerHTML = `<div class="empty-icon">💬</div>
-      <div class="empty-txt" style="font-weight:600;color:var(--text)">Chat bereit</div>
-      <div class="empty-hint">Nachrichten werden über Server zugestellt</div>`;
+    if (isOffline) {
+      h.innerHTML = `<div class="empty-icon">📴</div>
+        <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
+        <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
+    } else {
+      h.innerHTML = `<div class="empty-icon">💬</div>
+        <div class="empty-txt" style="font-weight:600;color:var(--text)">Chat bereit</div>
+        <div class="empty-hint">Nachrichten werden über Server zugestellt</div>`;
+    }
   }
+  
   updateIdx('');
-  setSpill('online', '● ONLINE');
+  
+  // Status-Anzeige entsprechend isOffline setzen
+  setSpill(isOffline ? 'offline' : 'online', isOffline ? '● LOCAL' : '● ONLINE');
   updateConnectionStatus();
-  startGlobalPolling();
+  
+  // Polling nur starten, wenn ONLINE
+  if (!isOffline) {
+    startGlobalPolling();
+  }
 }
-
 
 function stopChatPolling() {
-  if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+  if (pollingTimer) { 
+    clearInterval(pollingTimer); 
+    pollingTimer = null; 
+  }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBALE EXPORTS
 window.openChat = openApiChat;
+window.openApiChat = openApiChat;
 window.resetIncomingRequestState = resetIncomingRequestState;
+window.startGlobalPolling = startGlobalPolling;
+window.stopChatPolling = stopChatPolling;
