@@ -1,11 +1,20 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.1 geladen – Final');
+console.log('✅ chat-api.js v3.1 geladen – Final Fixed');
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOTME – CHAT API (chat-api.js)
+// + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
+// + Robuster Klingelton (HTML5 Audio Fallback)
+// + Automatisches Senden von Pending-Nachrichten
+// ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
 let isRequestInProgress = false;
 let audioElement = null;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ROBUSTER KLINGELTON
 function initAudioElement() {
   if (audioElement) return;
   audioElement = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToAAACAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/AAAAAAAAAAAAAAAAAAAAAA==');
@@ -59,6 +68,8 @@ function triggerChatHaptic() {
   if (navigator.vibrate) navigator.vibrate(200);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// EINGEHENDE CHAT-ANFRAGE
 function handleIncomingChatRequest(senderCode, senderName) {
   console.log('📞 handleIncomingChatRequest', senderCode, senderName);
 
@@ -91,6 +102,8 @@ function resetIncomingRequestState() {
   stopChatNotificationSound();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NACHRICHTEN SENDEN
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -150,6 +163,8 @@ function removePendingMessageByText(text) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBALES POLLING
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -187,6 +202,9 @@ function isMessageAlreadyStored(ts, own) {
   const msgs = JSON.parse(localStorage.getItem(chatKey) || '[]');
   return msgs.some(m => m.ts === ts && m.own === own);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHAT ÖFFNEN
 function openApiChat() {
   const id = window.chatId || chatId;
   
@@ -199,7 +217,6 @@ function openApiChat() {
   chatId = id;
   window.chatId = id;
   
-  // ⭐ isOffline NICHT überschreiben – das ist schon korrekt gesetzt!
   console.log('🔍 openApiChat – isOffline:', isOffline);
   
   prepChat();
@@ -209,8 +226,6 @@ function openApiChat() {
   refreshStatusText();
   document.getElementById('pav').className = 'pav';
   applyPartnerName();
-
-}
   
   const h = document.getElementById('ehint');
   if (h) {
@@ -245,6 +260,8 @@ function stopChatPolling() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GLOBALE EXPORTS
 window.openChat = openApiChat;
 window.openApiChat = openApiChat;
 window.resetIncomingRequestState = resetIncomingRequestState;
