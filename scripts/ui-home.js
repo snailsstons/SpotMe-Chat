@@ -243,7 +243,6 @@ async function renderUnifiedActivity() {
 // ══════════════════════════════════════════════════════════════════════════════
 // EINHEITLICHE CHAT-ÖFFNEN FUNKTION
 // ══════════════════════════════════════════════════════════════════════════════
-
 function openChatUnified(code, name, chatId, isCallback = false) {
   console.log('💬 openChatUnified →', code, name, chatId, 'isCallback:', isCallback);
   
@@ -252,20 +251,21 @@ function openChatUnified(code, name, chatId, isCallback = false) {
     return;
   }
   
-  // Standard: LIVE-Modus
+  // ⭐ ERST DEN MODUS SETZEN, DANN ALLES ANDERE
   isOffline = false;
-  setSpill('online', '● ONLINE');
-  updateConnectionStatus();
+  window.isOffline = false;
   
   partnerCode = code;
   partnerName = name;
   chatId = chatId || buildCID(myCode, code);
   window.chatId = chatId;
   
+  console.log('✅ isOffline vor openApiChat:', isOffline);
+  
   loadPendingMessages();
   migratePendingMessages(chatId);
   
-  // Zeige Verbindungs-Modal
+  // Modal anzeigen
   if (typeof showCallModal === 'function') {
     showCallModal('📞 Verbinde...', `${name} (${formatCode(code)})`);
   }
@@ -278,35 +278,43 @@ function openChatUnified(code, name, chatId, isCallback = false) {
     return;
   }
   
-  // Bei Rückruf oder normalem Chat: Anruf senden
+  // Status NOCHMAL setzen (nach openApiChat)
+  setTimeout(() => {
+    isOffline = false;
+    window.isOffline = false;
+    setSpill('online', '● ONLINE');
+    updateConnectionStatus();
+    console.log('✅ isOffline nach Korrektur:', isOffline);
+  }, 100);
+  
+  // Chat-Request senden
   if (myToken) {
     sendChatRequest(code);
   }
   
   toast(`📞 Rufe ${name} an...`);
   
-  // Fallback: Nach 10 Sekunden auf Lokal-Modus umschalten, wenn keine Antwort
-  setTimeout(() => {
-    if (partnerCode === code && isOffline === false) {
-      // Prüfen ob Verbindung zustande kam (peerReady o.ä.)
-      const chatActive = document.getElementById('s-chat').classList.contains('active');
-      if (chatActive) {
-        console.log('⏰ Keine Antwort – schalte auf Lokal-Modus');
-        isOffline = true;
-        setSpill('offline', '● LOCAL');
-        updateConnectionStatus();
-        
-        const h = document.getElementById('ehint');
-        if (h) {
-          h.innerHTML = `<div class="empty-icon">📴</div>
-            <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
-            <div class="empty-hint">Partner nicht erreichbar – Nachrichten werden später zugestellt</div>`;
-        }
-        
-        toast('📴 Partner nicht erreichbar – Lokaler Modus aktiv');
+  // Fallback NUR wenn wirklich keine Verbindung
+  window.chatFallbackTimer = setTimeout(() => {
+    // Prüfen ob wir noch im gleichen Chat sind
+    if (partnerCode === code) {
+      console.log('⏰ Keine Antwort – schalte auf Lokal-Modus');
+      isOffline = true;
+      window.isOffline = true;
+      setSpill('offline', '● LOCAL');
+      updateConnectionStatus();
+      
+      const h = document.getElementById('ehint');
+      if (h) {
+        h.innerHTML = `<div class="empty-icon">📴</div>
+          <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
+          <div class="empty-hint">Partner nicht erreichbar – Nachrichten werden später zugestellt</div>`;
       }
+      
+      toast('📴 Partner nicht erreichbar – Lokaler Modus aktiv');
     }
-  }, 10000);
+    window.chatFallbackTimer = null;
+  }, 15000); // 15 Sekunden warten
 }
 
 async function sendChatRequest(recipient) {
