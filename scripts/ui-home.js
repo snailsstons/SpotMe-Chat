@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v2.2 geladen – Unified Activity Feed mit optimierten Buttons');
+console.log('✅ ui-home.js v2.3 geladen – Unified Activity Feed mit optimierten Buttons');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
@@ -272,7 +272,7 @@ function unifiedAnswer(code, name, chatId) {
   
   partnerCode = code;
   partnerName = name;
-  chatId = chatId || buildCID(myCode, code);
+  const chatId = c.chat?.chatId || buildCID(myCode, c.code);
   loadPendingMessages();
   migratePendingMessages(chatId);
   
