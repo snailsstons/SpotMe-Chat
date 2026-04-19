@@ -1,5 +1,7 @@
 'use strict';
 
+console.log('✅ storage.js v2.0 geladen – API Pending-Flush');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
@@ -36,11 +38,11 @@ function saveMissed(a) {
 async function addMissed(code, name, outgoing = false, message = '') {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
-  const entry = { code, name, ts: Date.now(), message };   // 🆕 message hinzugefügt
+  const entry = { code, name, ts: Date.now(), message };
   if (recent >= 0) arr[recent] = entry;
   else arr.unshift(entry);
   saveMissed(arr.slice(0, 30));
-  renderMissed();
+  if (typeof renderMissed === 'function') renderMissed();
 
   try {
     const payload = outgoing
@@ -124,11 +126,13 @@ function addPendingMessage(text) {
   pendingMessages.push({ text, ts: Date.now() });
   savePendingMessages();
   updatePendingBadge();
-  showInfoModal(
-    '📦 Lokal gespeichert',
-    `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
-    'Verstanden'
-  );
+  if (typeof showInfoModal === 'function') {
+    showInfoModal(
+      '📦 Lokal gespeichert',
+      `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
+      'Verstanden'
+    );
+  }
 }
 
 function clearPendingMessages() {
@@ -154,22 +158,64 @@ function migratePendingMessages(newChatId) {
   }
 }
 
-function flushPendingMessages() {
-  if (!conn || !conn.open) return;
-  if (pendingMessages.length === 0) return;
+// 🆕 NEU: API-Version von flushPendingMessages
+async function flushPendingMessages() {
+  if (!partnerCode || !chatId) {
+    console.warn('⚠️ flushPendingMessages: Kein partnerCode/chatId');
+    return;
+  }
+  
+  if (pendingMessages.length === 0) {
+    console.log('📭 Keine Pending-Nachrichten');
+    return;
+  }
+  
+  console.log('📤 Sende', pendingMessages.length, 'Pending-Nachrichten...');
+  
   const toSend = [...pendingMessages];
   clearPendingMessages();
+  
+  let sentCount = 0;
+  
   for (let msg of toSend) {
-    const m = { t: 'text', text: msg.text, ts: msg.ts };
-    conn.send(m);
-    appendMsg({ ...m, own: true });
-    persistMsg({ ...m, own: true });
+    try {
+      const res = await fetch(API_BASE + '/offline-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: partnerCode,
+          senderCode: myCode,
+          senderName: myName,
+          message: msg.text
+        })
+      });
+      
+      if (res.ok) {
+        sentCount++;
+        console.log('✅ Gesendet:', msg.text);
+      } else {
+        console.warn('❌ Fehler beim Senden:', msg.text);
+        // Bei Fehler wieder in Queue legen
+        pendingMessages.push(msg);
+        savePendingMessages();
+      }
+    } catch (e) {
+      console.warn('❌ Netzwerkfehler:', e);
+      // Bei Fehler wieder in Queue legen
+      pendingMessages.push(msg);
+      savePendingMessages();
+    }
   }
-  showInfoModal(
-    '✅ Nachrichten gesendet',
-    `${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
-    'OK'
-  );
+  
+  updatePendingBadge();
+  
+  if (sentCount > 0) {
+    toast(`✅ ${sentCount} Nachricht(en) gesendet`);
+  }
+  
+  if (pendingMessages.length > 0) {
+    toast(`📦 ${pendingMessages.length} Nachricht(en) verbleiben in Warteschlange`);
+  }
 }
 
 function updatePendingBadge() {
@@ -203,4 +249,7 @@ function updatePendingBadge() {
 
 function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
-                 }
+}
+
+// Globale Exports
+window.flushPendingMessages = flushPendingMessages;
