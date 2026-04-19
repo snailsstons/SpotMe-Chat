@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v2.3 geladen – Unified Activity Feed mit optimierten Buttons');
+console.log('✅ ui-home.js v2.4 geladen – Unified Activity Feed (chatId-Fix)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
@@ -263,7 +263,7 @@ async function renderUnifiedActivity() {
 
 // 📝 Nachricht = Lokal-Modus (kein Klingeln)
 function unifiedAnswer(code, name, chatId) {
-  console.log('📝 unifiedAnswer (Lokal-Modus) →', code, name);
+  console.log('📝 unifiedAnswer (Lokal-Modus) →', code, name, 'chatId:', chatId);
   toast(`📝 Lokaler Chat mit ${name}…`, 2000);
   
   isOffline = true;
@@ -272,7 +272,13 @@ function unifiedAnswer(code, name, chatId) {
   
   partnerCode = code;
   partnerName = name;
-  const chatId = c.chat?.chatId || buildCID(myCode, c.code);
+  
+  // 🆕 chatId korrekt setzen – nicht überschreiben!
+  chatId = chatId || buildCID(myCode, code);
+  window.chatId = chatId;
+  
+  console.log('✅ chatId gesetzt:', chatId);
+  
   loadPendingMessages();
   migratePendingMessages(chatId);
   
@@ -304,6 +310,10 @@ function unifiedCall(code, name) {
   partnerCode = code;
   partnerName = name;
   chatId = buildCID(myCode, code);
+  window.chatId = chatId;
+  
+  console.log('✅ chatId gesetzt:', chatId);
+  
   loadPendingMessages();
   migratePendingMessages(chatId);
   
@@ -453,4 +463,4 @@ function callBack(code) {
 function clearMissed() {
   saveMissed([]);
   renderUnifiedActivity();
-                              }
+      }
