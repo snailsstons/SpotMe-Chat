@@ -1,11 +1,12 @@
 'use strict';
 
-console.log('✅ chat-api.js v2.3 geladen – Gemeinsamer Chat-Verlauf + chatId-Check');
+console.log('✅ chat-api.js v2.4 geladen – Gemeinsamer Chat-Verlauf + Pending-Flush');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
 // + Robuster Klingelton (HTML5 Audio Fallback)
+// + Automatisches Senden von Pending-Nachrichten bei Live-Chat
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
@@ -209,7 +210,6 @@ function isMessageAlreadyStored(ts, own) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAT ÖFFNEN
 function openApiChat() {
-  // Nutze window.chatId
   const id = window.chatId || chatId;
   
   console.log('🔍 openApiChat – window.chatId:', window.chatId, 'chatId:', chatId, 'id:', id);
@@ -220,7 +220,6 @@ function openApiChat() {
     return;
   }
   
-  // Setze globale chatId
   chatId = id;
   window.chatId = id;
   
@@ -254,6 +253,11 @@ function openApiChat() {
   
   if (!isOffline) {
     startGlobalPolling();
+    
+    // 🆕 Pending-Nachrichten automatisch senden
+    if (typeof flushPendingMessages === 'function') {
+      setTimeout(() => flushPendingMessages(), 500);
+    }
   }
 }
 
