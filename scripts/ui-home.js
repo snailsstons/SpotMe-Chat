@@ -254,7 +254,6 @@ async function renderUnifiedActivity() {
 // ══════════════════════════════════════════════════════════════════════════════
 // AKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
-
 function unifiedAnswer(code, name, chatId) {
   console.log('📝 unifiedAnswer →', code, name, chatId);
   
@@ -271,11 +270,13 @@ function unifiedAnswer(code, name, chatId) {
   
   partnerCode = code;
   partnerName = name;
-  chatId = chatId || buildCID(myCode, code);
-  window.chatId = chatId;
+  
+  // HART SETZEN – direkt window.chatId
+  window.chatId = 'sm_' + [myCode, code].sort().join('_');
+  console.log('✅ window.chatId gesetzt:', window.chatId);
   
   loadPendingMessages();
-  migratePendingMessages(chatId);
+  migratePendingMessages(window.chatId);
   
   if (typeof openApiChat === 'function') {
     openApiChat();
