@@ -1,8 +1,14 @@
 'use strict';
 
+console.log('✅ ui-home.js v1.0 geladen – UI Home aktiv');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// + reconnectTo mit Toast-Feedback, korrigierte Reihenfolge
+// Unified Activity Feed – Chats & verpasste Anrufe in einer Liste
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DIGIT INPUT FELDER (unverändert)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function initDigits() {
@@ -51,13 +57,20 @@ async function shareCode() {
   }
 }
 
-async function renderPrev() {
+// ══════════════════════════════════════════════════════════════════════════════
+// UNIFIED ACTIVITY FEED (ersetzt renderPrev + renderMissed)
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function renderUnifiedActivity() {
   const lst = document.getElementById('plist');
-  if (!lst) return;
+  const sec = document.getElementById('psec');
+  if (!lst || !sec) return;
 
+  // 1. DATEN SAMMELN
   const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  const missed = getMissed();
+  
   let unreadCounts = {};
-
   if (myToken) {
     try {
       const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
@@ -70,92 +83,187 @@ async function renderPrev() {
     } catch (e) {}
   }
 
-  const contacts = [];
-  const seen = new Set();
-
+  // 2. DATEN PRO KONTAKT ZUSAMMENFÜHREN
+  const contacts = new Map();
+  
   idx.forEach(c => {
-    if (!seen.has(c.code)) {
-      seen.add(c.code);
-      contacts.push({
-        code: c.code,
-        name: c.partner || formatCode(c.code),
+    const code = c.code;
+    if (!contacts.has(code)) {
+      contacts.set(code, {
+        code,
+        name: c.partner || getContacts()[code] || formatCode(code),
+        chat: null,
+        missedCall: null,
+        unread: unreadCounts[code] || 0
+      });
+    }
+    const entry = contacts.get(code);
+    if (!entry.chat || c.ts > entry.chat.ts) {
+      entry.chat = {
         preview: c.preview || '—',
         ts: c.ts,
-        unread: unreadCounts[c.code] || 0
+        chatId: c.id || buildCID(myCode, code)
+      };
+    }
+  });
+
+  missed.forEach(m => {
+    const code = m.code;
+    if (!contacts.has(code)) {
+      contacts.set(code, {
+        code,
+        name: m.name || getContacts()[code] || formatCode(code),
+        chat: null,
+        missedCall: null,
+        unread: unreadCounts[code] || 0
       });
+    }
+    const entry = contacts.get(code);
+    if (!entry.missedCall || m.ts > entry.missedCall.ts) {
+      entry.missedCall = {
+        message: m.message || '',
+        ts: m.ts
+      };
     }
   });
 
   Object.keys(unreadCounts).forEach(code => {
-    if (!seen.has(code)) {
-      contacts.push({
-        code: code,
-        name: formatCode(code),
-        preview: 'Neue Nachricht',
-        ts: Date.now(),
+    if (!contacts.has(code)) {
+      contacts.set(code, {
+        code,
+        name: getContacts()[code] || formatCode(code),
+        chat: null,
+        missedCall: null,
         unread: unreadCounts[code]
       });
     }
   });
 
-  contacts.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  // 3. SORTIEREN
+  const contactArray = Array.from(contacts.values()).map(c => {
+    const latestTs = Math.max(c.chat?.ts || 0, c.missedCall?.ts || 0);
+    return { ...c, latestTs };
+  }).sort((a, b) => b.latestTs - a.latestTs);
 
-  const sec = document.getElementById('psec');
-  if (contacts.length === 0) {
+  // 4. LEERZUSTAND
+  if (contactArray.length === 0) {
     sec.style.display = 'block';
-    lst.innerHTML = '<div class="empty-state">Noch keine Chats</div>';
+    lst.innerHTML = '<div class="empty-state">✨ Noch keine Aktivitäten</div>';
     return;
   }
 
   sec.style.display = 'block';
-  lst.innerHTML = contacts.map(c => {
-    const alias = c.name;
-    const unreadBadge = c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : '';
-    const timeStr = c.ts ? new Date(c.ts).toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) : '';
-    const chatId = c.id || ('sm_' + [myCode, c.code].sort().join('_'));
-    return `<div class="chat-card" onclick="reconnectTo('${c.code}','${esc2(alias)}','${chatId}')">
-      <div class="card-row">
-        <div class="card-avatar">🧑</div>
-        <div class="card-details">
-          <div class="card-name">${esc(alias)} ${unreadBadge}</div>
-          <div class="card-preview">${esc(c.preview || '—')}</div>
+
+  // 5. RENDERN
+  lst.innerHTML = contactArray.map(c => {
+    const alias = esc(c.name);
+    const unreadBadge = c.unread > 0 
+      ? `<span class="unread-badge">${c.unread}</span>` 
+      : '';
+    
+    let activityIcon = '💬';
+    let activityText = '';
+    let activityTime = '';
+    let hasMissedCall = false;
+    let missedMessage = '';
+    
+    if (c.chat) {
+      activityIcon = '💬';
+      activityText = c.chat.preview;
+      activityTime = formatRelativeTime(c.chat.ts);
+    }
+    
+    if (c.missedCall) {
+      hasMissedCall = true;
+      missedMessage = c.missedCall.message;
+      if (!c.chat) {
+        activityIcon = '📵';
+        activityText = missedMessage 
+          ? `📵 Verpasst: "${missedMessage.substring(0, 40)}${missedMessage.length > 40 ? '…' : ''}"`
+          : '📵 Verpasster Anruf';
+      }
+      activityTime = formatRelativeTime(c.missedCall.ts);
+    }
+    
+    if (!c.chat && !c.missedCall) {
+      activityIcon = '📨';
+      activityText = `${c.unread} neue Nachricht${c.unread > 1 ? 'en' : ''}`;
+      activityTime = 'Jetzt';
+    }
+
+    const timeStr = activityTime;
+    const chatId = c.chat?.chatId || buildCID(myCode, c.code);
+    
+    const missedInfoHtml = (c.chat && c.missedCall) 
+      ? `<div class="missed-call-indicator" style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:0.75rem;color:var(--p2);">
+           <span>📵</span>
+           <span>${c.missedCall.message ? `Verpasst: "${esc(c.missedCall.message.substring(0, 30))}${c.missedCall.message.length > 30 ? '…' : ''}"` : 'Verpasster Anruf'}</span>
+         </div>`
+      : '';
+
+    return `
+      <div class="chat-card unified-activity-card" style="position:relative;">
+        <div class="card-row" style="align-items:flex-start;">
+          <div class="card-avatar" style="background:linear-gradient(135deg,var(--p2),var(--p3));">
+            ${alias[0]?.toUpperCase() || '?'}
+          </div>
+          <div class="card-details" style="flex:1;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="card-name" style="display:flex;align-items:center;gap:6px;">
+                ${alias} ${unreadBadge}
+              </div>
+              <span class="card-time" style="font-size:0.75rem;color:var(--text-dim);">${timeStr}</span>
+            </div>
+            <div class="card-preview" style="margin-top:2px;display:flex;align-items:center;gap:4px;">
+              <span style="opacity:0.7;">${activityIcon}</span>
+              <span style="color:var(--text-dim);">${esc(activityText)}</span>
+            </div>
+            ${missedInfoHtml}
+            <div style="color:var(--text-dim);font-size:0.7rem;margin-top:4px;">
+              ${formatCode(c.code)}
+            </div>
+          </div>
+        </div>
+        
+        <div style="display:flex;gap:8px;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
+          <button class="unified-action-btn" 
+                  onclick="event.stopPropagation(); unifiedAnswer('${c.code}', '${esc2(c.name)}', '${chatId}')"
+                  style="flex:1;padding:8px;border-radius:20px;border:none;background:rgba(123,92,250,0.15);
+                         color:var(--p2);font-weight:500;cursor:pointer;font-size:0.85rem;
+                         display:flex;align-items:center;justify-content:center;gap:4px;">
+            💬 Antworten
+          </button>
+          <button class="unified-action-btn"
+                  onclick="event.stopPropagation(); unifiedCall('${c.code}', '${esc2(c.name)}')"
+                  style="flex:1;padding:8px;border-radius:20px;border:none;background:var(--acc);
+                         color:white;font-weight:500;cursor:pointer;font-size:0.85rem;
+                         display:flex;align-items:center;justify-content:center;gap:4px;">
+            ${hasMissedCall ? '📞 Zurückrufen' : '📞 Anrufen'}
+          </button>
         </div>
       </div>
-      <div class="card-meta">
-        <span class="card-time">${timeStr}</span>
-        <span class="card-code">${formatCode(c.code)}</span>
-      </div>
-    </div>`;
+    `;
   }).join('');
 }
 
-// 🆕 reconnectTo – mit Toast-Feedback und korrigierter Reihenfolge
-function reconnectTo(code, name, cid) {
-  console.log('📂 reconnectTo', code, name, cid);
+// ══════════════════════════════════════════════════════════════════════════════
+// AKTIONEN
+// ══════════════════════════════════════════════════════════════════════════════
 
-  // 🆕 Nutzer-Feedback
-  toast(`📞 Öffne Chat mit ${name}…`, 2000);
-
-  // 1. Online-Status setzen
+function unifiedAnswer(code, name, chatId) {
+  console.log('💬 unifiedAnswer →', code, name, chatId);
+  toast(`📂 Öffne Chat mit ${name}…`, 2000);
+  
   isOffline = false;
   setSpill('online', '● ONLINE');
   updateConnectionStatus();
-
-  // 2. Partnerdaten setzen
+  
   partnerCode = code;
   partnerName = name;
-  chatId = cid;
+  chatId = chatId;
   loadPendingMessages();
   migratePendingMessages(chatId);
-
-  // 3. Eingabefelder leeren
-  document.querySelectorAll('.dinp-new').forEach(d => {
-    d.value = '';
-    d.classList.remove('filled');
-  });
-  document.getElementById('cbtn').disabled = true;
-
-  // 4. Chat öffnen
+  
   if (typeof openApiChat === 'function') {
     openApiChat();
   } else {
@@ -164,41 +272,57 @@ function reconnectTo(code, name, cid) {
   }
 }
 
-// Verpasste Anrufe
-function renderMissed() {
-  const arr = getMissed();
-  const sec = document.getElementById('missed-sec');
-  const lst = document.getElementById('missed-list');
-  if (!arr.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  lst.innerHTML = arr.map(m => {
-    const displayName = getContacts()[m.code] || m.name || formatCode(m.code);
-    const d = new Date(m.ts);
-    const time = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    return `<div class="chat-card missed-card">
-      <div class="card-row">
-        <div class="card-avatar">📵</div>
-        <div class="card-details">
-          <div class="card-name">${esc(displayName)}</div>
-          <div class="card-preview">${formatCode(m.code)} · ${time}</div>
-        </div>
-      </div>
-      <button class="call-back-btn" onclick="callBack('${m.code}')">📞 Zurückrufen</button>
-    </div>`;
-  }).join('');
-}
-
-function clearMissed() { saveMissed([]); renderMissed(); }
-
-function callBack(code) {
+function unifiedCall(code, name) {
+  console.log('📞 unifiedCall →', code, name);
+  
   const inps = document.querySelectorAll('.dinp-new');
-  code.split('').forEach((ch, i) => { if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); } });
+  code.split('').forEach((ch, i) => {
+    if (inps[i]) {
+      inps[i].value = ch;
+      inps[i].classList.add('filled');
+    }
+  });
   document.getElementById('cbtn').disabled = false;
-  connectToPeer();
-  setTimeout(() => { inps.forEach(d => { d.value = ''; d.classList.remove('filled'); }); document.getElementById('cbtn').disabled = true; }, 200);
+  
+  if (typeof connectToPeer === 'function') {
+    connectToPeer();
+  } else {
+    console.error('❌ connectToPeer nicht gefunden');
+    toast('⚠️ Anruf-Fehler');
+  }
+  
+  setTimeout(() => {
+    inps.forEach(d => {
+      d.value = '';
+      d.classList.remove('filled');
+    });
+    document.getElementById('cbtn').disabled = true;
+  }, 300);
 }
 
-// Offline-Nachrichten – GRUPPIERT NACH ABSENDER
+// ══════════════════════════════════════════════════════════════════════════════
+// HELFER
+// ══════════════════════════════════════════════════════════════════════════════
+
+function formatRelativeTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  
+  if (mins < 1) return 'Jetzt';
+  if (mins < 60) return `vor ${mins} Min`;
+  if (hours < 24) return `vor ${hours} Std`;
+  if (days < 7) return `vor ${days} T`;
+  
+  return new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OFFLINE NACHRICHTEN (unverändert)
+// ══════════════════════════════════════════════════════════════════════════════
+
 function renderOfflineMessages(msgs) {
   const sec = document.getElementById('offline-msg-sec');
   const lst = document.getElementById('offline-msg-list');
@@ -279,6 +403,31 @@ function renameContact(code, networkName) {
   if (input === null) return;
   const trimmed = input.trim();
   setAlias(code, trimmed);
-  renderPrev();
+  renderUnifiedActivity();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
-  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KOMPATIBILITÄT: Alte Funktionen als Aliasse
+// ══════════════════════════════════════════════════════════════════════════════
+
+function renderPrev() {
+  renderUnifiedActivity();
+}
+
+function renderMissed() {
+  // Leer – wird nicht mehr separat gerendert
+}
+
+function reconnectTo(code, name, cid) {
+  unifiedAnswer(code, name, cid);
+}
+
+function callBack(code) {
+  unifiedCall(code, getContacts()[code] || formatCode(code));
+}
+
+function clearMissed() {
+  saveMissed([]);
+  renderUnifiedActivity();
+                    }
