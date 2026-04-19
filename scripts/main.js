@@ -1,5 +1,7 @@
 'use strict';
 
+console.log('✅ main.js v2.1 geladen – Online-Event mit Pending-Flush');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // API‑Version – keine PeerJS‑Abhängigkeiten mehr
@@ -32,19 +34,25 @@ window.addEventListener('load', () => {
     Notification.requestPermission();
   }
 
+  // 🆕 Online-Event mit Pending-Flush
   window.addEventListener('online', () => {
-  isOffline = false;
-  setSpill('online', '● ONLINE');
-  updateConnectionStatus();
-  toast('🌐 Online – Nachrichten werden gesendet');
-});
+    isOffline = false;
+    setSpill('online', '● ONLINE');
+    updateConnectionStatus();
+    toast('🌐 Online – Nachrichten werden gesendet');
+    
+    // Pending-Nachrichten senden
+    if (typeof flushPendingMessages === 'function') {
+      flushPendingMessages();
+    }
+  });
 
-window.addEventListener('offline', () => {
-  isOffline = true;
-  setSpill('offline', '○ LOCAL');
-  updateConnectionStatus();
-  toast('📴 Offline – Nachrichten werden gespeichert');
-});
+  window.addEventListener('offline', () => {
+    isOffline = true;
+    setSpill('offline', '○ LOCAL');
+    updateConnectionStatus();
+    toast('📴 Offline – Nachrichten werden gespeichert');
+  });
     
   document.addEventListener('click', e => {
     if (!e.target.closest('.home-drop') && !e.target.closest('.home-menu-btn')) {
@@ -92,7 +100,6 @@ window.addEventListener('offline', () => {
     if (myToken) {
       const offlineMsgs = await fetchOfflineMessages();
       if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
-      // 🆕 Globales Polling starten
       if (typeof startGlobalPolling === 'function') startGlobalPolling();
     }
     const remoteMissed = await fetchRemoteMissedCalls();
