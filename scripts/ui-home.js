@@ -1,10 +1,11 @@
 'use strict';
 
-console.log('✅ ui-home.js v1.0 geladen – UI Home aktiv');
+console.log('✅ ui-home.js v2.1 geladen – Unified Activity Feed mit Lokal/Online-Trennung');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Unified Activity Feed – Chats & verpasste Anrufe in einer Liste
+// Buttons: 💬 Antworten = Lokal-Modus | 📞 Anrufen = Live-Chat mit Klingeln
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -250,20 +251,24 @@ async function renderUnifiedActivity() {
 // AKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
+// 💬 Antworten = Lokal-Modus (kein Klingeln, Nachrichten werden gespeichert)
 function unifiedAnswer(code, name, chatId) {
-  console.log('💬 unifiedAnswer →', code, name, chatId);
-  toast(`📂 Öffne Chat mit ${name}…`, 2000);
+  console.log('💬 unifiedAnswer (Lokal-Modus) →', code, name);
+  toast(`📝 Lokaler Chat mit ${name}…`, 2000);
   
-  isOffline = false;
-  setSpill('online', '● ONLINE');
+  // WICHTIG: Offline-Flag setzen → Nachrichten gehen in Pending-Queue
+  isOffline = true;
+  setSpill('offline', '● LOCAL');
   updateConnectionStatus();
   
+  // Partnerdaten setzen
   partnerCode = code;
   partnerName = name;
-  chatId = chatId;
+  chatId = chatId || buildCID(myCode, code);
   loadPendingMessages();
   migratePendingMessages(chatId);
   
+  // Chat-UI öffnen (openApiChat respektiert isOffline = true)
   if (typeof openApiChat === 'function') {
     openApiChat();
   } else {
@@ -272,9 +277,11 @@ function unifiedAnswer(code, name, chatId) {
   }
 }
 
+// 📞 Anrufen = Live-Chat (mit Klingelton beim Empfänger)
 function unifiedCall(code, name) {
-  console.log('📞 unifiedCall →', code, name);
+  console.log('📞 unifiedCall (Live-Chat) →', code, name);
   
+  // Code in Eingabefelder setzen
   const inps = document.querySelectorAll('.dinp-new');
   code.split('').forEach((ch, i) => {
     if (inps[i]) {
@@ -284,6 +291,19 @@ function unifiedCall(code, name) {
   });
   document.getElementById('cbtn').disabled = false;
   
+  // Online-Status setzen
+  isOffline = false;
+  setSpill('online', '● ONLINE');
+  updateConnectionStatus();
+  
+  // Partnerdaten setzen
+  partnerCode = code;
+  partnerName = name;
+  chatId = buildCID(myCode, code);
+  loadPendingMessages();
+  migratePendingMessages(chatId);
+  
+  // Anruf starten (mit Klingelton beim Empfänger)
   if (typeof connectToPeer === 'function') {
     connectToPeer();
   } else {
@@ -291,6 +311,7 @@ function unifiedCall(code, name) {
     toast('⚠️ Anruf-Fehler');
   }
   
+  // Felder nach kurzer Zeit leeren
   setTimeout(() => {
     inps.forEach(d => {
       d.value = '';
@@ -430,4 +451,4 @@ function callBack(code) {
 function clearMissed() {
   saveMissed([]);
   renderUnifiedActivity();
-}                    
+          }
