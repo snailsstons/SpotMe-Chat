@@ -209,12 +209,20 @@ function isMessageAlreadyStored(ts, own) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAT ÖFFNEN
 function openApiChat() {
-  // 🆕 chatId-Check
-  if (!chatId) {
+  // Nutze window.chatId
+  const id = window.chatId || chatId;
+  
+  console.log('🔍 openApiChat – window.chatId:', window.chatId, 'chatId:', chatId, 'id:', id);
+  
+  if (!id) {
     console.error('❌ chatId ist leer – kann Chat nicht öffnen');
     toast('⚠️ Fehler: Keine Chat-ID');
     return;
   }
+  
+  // Setze globale chatId
+  chatId = id;
+  window.chatId = id;
   
   console.log('✅ openApiChat – chatId:', chatId, 'isOffline:', isOffline);
   
