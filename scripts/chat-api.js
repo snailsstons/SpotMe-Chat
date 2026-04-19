@@ -1,20 +1,11 @@
 'use strict';
 
-console.log('✅ chat-api.js v2.4 geladen – Gemeinsamer Chat-Verlauf + Pending-Flush');
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SPOTME – CHAT API (chat-api.js)
-// + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
-// + Robuster Klingelton (HTML5 Audio Fallback)
-// + Automatisches Senden von Pending-Nachrichten bei Live-Chat
-// ══════════════════════════════════════════════════════════════════════════════
+console.log('✅ chat-api.js v3.0 geladen – Final');
 
 let pollingTimer = null;
 let isRequestInProgress = false;
 let audioElement = null;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ROBUSTER KLINGELTON
 function initAudioElement() {
   if (audioElement) return;
   audioElement = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToAAACAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/AAAAAAAAAAAAAAAAAAAAAA==');
@@ -68,8 +59,6 @@ function triggerChatHaptic() {
   if (navigator.vibrate) navigator.vibrate(200);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EINGEHENDE CHAT-ANFRAGE
 function handleIncomingChatRequest(senderCode, senderName) {
   console.log('📞 handleIncomingChatRequest', senderCode, senderName);
 
@@ -102,8 +91,6 @@ function resetIncomingRequestState() {
   stopChatNotificationSound();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NACHRICHTEN SENDEN (GEMEINSAMER VERLAUF)
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -116,20 +103,18 @@ function sendMsg() {
 
   const m = { t: 'text', text, ts: Date.now(), own: true };
   
-  // IMMER im Chat anzeigen und speichern
   appendMsg(m);
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  // Nur bei OFFLINE in Pending-Queue speichern
   if (isOffline) {
     addPendingMessageSilent(text);
-    toast('📴 Lokal gespeichert – wird später gesendet');
+    toast('📴 Lokal gespeichert');
   } else if (navigator.onLine && myToken) {
     sendToServer(partnerCode, text);
   } else {
     addPendingMessageSilent(text);
-    toast('📦 Nachricht wird gesendet, sobald du online bist');
+    toast('📦 Wird später gesendet');
   }
 
   inp.value = '';
@@ -137,9 +122,7 @@ function sendMsg() {
 }
 
 function addPendingMessageSilent(text) {
-  if (typeof pendingMessages === 'undefined') {
-    window.pendingMessages = [];
-  }
+  if (typeof pendingMessages === 'undefined') window.pendingMessages = [];
   pendingMessages.push({ text, ts: Date.now() });
   if (typeof savePendingMessages === 'function') savePendingMessages();
   if (typeof updatePendingBadge === 'function') updatePendingBadge();
@@ -167,8 +150,6 @@ function removePendingMessageByText(text) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -207,23 +188,17 @@ function isMessageAlreadyStored(ts, own) {
   return msgs.some(m => m.ts === ts && m.own === own);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CHAT ÖFFNEN
 function openApiChat() {
   const id = window.chatId || chatId;
   
-  console.log('🔍 openApiChat – window.chatId:', window.chatId, 'chatId:', chatId, 'id:', id);
-  
   if (!id) {
-    console.error('❌ chatId ist leer – kann Chat nicht öffnen');
+    console.error('❌ chatId ist leer');
     toast('⚠️ Fehler: Keine Chat-ID');
     return;
   }
   
   chatId = id;
   window.chatId = id;
-  
-  console.log('✅ openApiChat – chatId:', chatId, 'isOffline:', isOffline);
   
   prepChat();
   showScreen('s-chat');
@@ -253,8 +228,6 @@ function openApiChat() {
   
   if (!isOffline) {
     startGlobalPolling();
-    
-    // 🆕 Pending-Nachrichten automatisch senden
     if (typeof flushPendingMessages === 'function') {
       setTimeout(() => flushPendingMessages(), 500);
     }
@@ -268,8 +241,6 @@ function stopChatPolling() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GLOBALE EXPORTS
 window.openChat = openApiChat;
 window.openApiChat = openApiChat;
 window.resetIncomingRequestState = resetIncomingRequestState;
