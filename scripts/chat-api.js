@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ chat-api.js v2.2 geladen – Gemeinsamer Chat-Verlauf für Lokal & Live');
+console.log('✅ chat-api.js v2.3 geladen – Gemeinsamer Chat-Verlauf + chatId-Check');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
@@ -102,7 +102,7 @@ function resetIncomingRequestState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NACHRICHTEN SENDEN (KORRIGIERT – GEMEINSAMER VERLAUF)
+// NACHRICHTEN SENDEN (GEMEINSAMER VERLAUF)
 function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -115,21 +115,18 @@ function sendMsg() {
 
   const m = { t: 'text', text, ts: Date.now(), own: true };
   
-  // 🆕 IMMER im Chat anzeigen und speichern (gemeinsamer Verlauf!)
+  // IMMER im Chat anzeigen und speichern
   appendMsg(m);
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  // 🆕 Nur bei OFFLINE in Pending-Queue speichern
+  // Nur bei OFFLINE in Pending-Queue speichern
   if (isOffline) {
-    // silent = true → kein Modal, nur Toast
     addPendingMessageSilent(text);
     toast('📴 Lokal gespeichert – wird später gesendet');
   } else if (navigator.onLine && myToken) {
-    // ONLINE: Direkt an Server senden
     sendToServer(partnerCode, text);
   } else {
-    // Kein Token oder offline → in Queue
     addPendingMessageSilent(text);
     toast('📦 Nachricht wird gesendet, sobald du online bist');
   }
@@ -138,7 +135,6 @@ function sendMsg() {
   inp.style.height = 'auto';
 }
 
-// 🆕 Hilfsfunktion für silent Pending
 function addPendingMessageSilent(text) {
   if (typeof pendingMessages === 'undefined') {
     window.pendingMessages = [];
@@ -213,6 +209,15 @@ function isMessageAlreadyStored(ts, own) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CHAT ÖFFNEN
 function openApiChat() {
+  // 🆕 chatId-Check
+  if (!chatId) {
+    console.error('❌ chatId ist leer – kann Chat nicht öffnen');
+    toast('⚠️ Fehler: Keine Chat-ID');
+    return;
+  }
+  
+  console.log('✅ openApiChat – chatId:', chatId, 'isOffline:', isOffline);
+  
   prepChat();
   showScreen('s-chat');
   document.getElementById('sbtn').disabled = false;
