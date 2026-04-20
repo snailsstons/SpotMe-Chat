@@ -103,8 +103,8 @@ function resetIncomingRequestState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NACHRICHTEN SENDEN
-function sendMsg() {
+// NACHRICHTEN SENDEN (MIT ECHTEM VERBINDUNGS-CHECK)
+async function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
@@ -120,10 +120,16 @@ function sendMsg() {
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  if (isOffline) {
+  // 🆕 ECHTE Verbindung prüfen (Heartbeat)
+  let isReallyOnline = navigator.onLine;
+  if (typeof ensureConnection === 'function') {
+    isReallyOnline = await ensureConnection();
+  }
+  
+  if (!isReallyOnline) {
     addPendingMessageSilent(text);
-    toast('📴 Lokal gespeichert');
-  } else if (navigator.onLine && myToken) {
+    toast('📴 Server nicht erreichbar – lokal gespeichert');
+  } else if (myToken) {
     sendToServer(partnerCode, text);
   } else {
     addPendingMessageSilent(text);
@@ -133,6 +139,7 @@ function sendMsg() {
   inp.value = '';
   inp.style.height = 'auto';
 }
+
 
 function addPendingMessageSilent(text) {
   if (typeof pendingMessages === 'undefined') window.pendingMessages = [];
