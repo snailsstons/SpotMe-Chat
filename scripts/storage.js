@@ -1,11 +1,12 @@
 'use strict';
 
-console.log('✅ storage.js v2.1 geladen – API Pending-Flush + AutoFlush');
+console.log('✅ storage.js v2.2 geladen – API Pending-Flush + AutoFlush + Spot-Messages');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
 // + AutoFlush für Pending-Nachrichten
+// + Spot-Kurznachrichten (separat vom Chat)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getContacts() {
@@ -165,21 +166,21 @@ async function flushPendingMessages(silent = false) {
     if (!silent) toast('⚠️ Kein aktiver Chat');
     return;
   }
-  
+
   if (pendingMessages.length === 0) {
     console.log('📭 Keine Pending-Nachrichten');
     if (!silent) toast('📭 Keine gespeicherten Nachrichten');
     return;
   }
-  
+
   console.log('📤 Sende', pendingMessages.length, 'Pending-Nachrichten...');
   if (!silent) toast(`📤 Sende ${pendingMessages.length} Nachricht(en)...`);
-  
+
   const toSend = [...pendingMessages];
   clearPendingMessages();
-  
+
   let sentCount = 0;
-  
+
   for (let msg of toSend) {
     try {
       const res = await fetch(API_BASE + '/offline-message', {
@@ -192,7 +193,7 @@ async function flushPendingMessages(silent = false) {
           message: msg.text
         })
       });
-      
+
       if (res.ok) {
         sentCount++;
         console.log('✅ Gesendet:', msg.text);
@@ -207,17 +208,17 @@ async function flushPendingMessages(silent = false) {
       savePendingMessages();
     }
   }
-  
+
   updatePendingBadge();
-  
+
   if (sentCount > 0) {
     toast(`✅ ${sentCount} Nachricht(en) gesendet`);
   }
-  
+
   if (pendingMessages.length > 0) {
     toast(`📦 ${pendingMessages.length} verbleiben in Warteschlange`);
   }
-  
+
   return sentCount;
 }
 
@@ -226,38 +227,38 @@ let autoFlushInterval = null;
 
 function startPendingAutoFlush() {
   if (autoFlushInterval) clearInterval(autoFlushInterval);
-  
+
   autoFlushInterval = setInterval(async () => {
     // Nur wenn online und Token vorhanden
     if (!navigator.onLine || !myToken) return;
-    
+
     // Alle Pending-Keys durchgehen
     const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
     if (keys.length === 0) return;
-    
+
     let totalSent = 0;
-    
+
     for (let key of keys) {
       const stored = localStorage.getItem(key);
       if (!stored) continue;
-      
+
       try {
         const msgs = JSON.parse(stored);
         if (msgs.length === 0) {
           localStorage.removeItem(key);
           continue;
         }
-        
+
         // Partner-Code aus Key extrahieren
         const chatIdFromKey = key.replace('sm_pending_', '');
         const parts = chatIdFromKey.split('_');
         const partner = parts.find(p => p !== myCode);
         if (!partner) continue;
-        
+
         console.log(`🔄 AutoFlush: ${msgs.length} Nachricht(en) an ${partner}`);
-        
+
         const remaining = [];
-        
+
         for (let msg of msgs) {
           try {
             const res = await fetch(API_BASE + '/offline-message', {
@@ -270,7 +271,7 @@ function startPendingAutoFlush() {
                 message: msg.text
               })
             });
-            
+
             if (res.ok) {
               totalSent++;
             } else {
@@ -280,25 +281,23 @@ function startPendingAutoFlush() {
             remaining.push(msg);
           }
         }
-        
+
         // Update Storage
         if (remaining.length === 0) {
           localStorage.removeItem(key);
         } else {
           localStorage.setItem(key, JSON.stringify(remaining));
         }
-        
       } catch (e) {}
     }
-    
+
     if (totalSent > 0) {
       console.log(`✅ AutoFlush: ${totalSent} Nachricht(en) gesendet`);
       // Badge aktualisieren falls nötig
       if (typeof updatePendingBadge === 'function') updatePendingBadge();
     }
-    
   }, 30000); // Alle 30 Sekunden
-  
+
   console.log('🔄 Pending AutoFlush gestartet (30s Intervall)');
 }
 
@@ -316,35 +315,35 @@ async function manualFlushAll() {
     toast('⚠️ Profil nicht veröffentlicht');
     return;
   }
-  
+
   const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
   if (keys.length === 0) {
     toast('📭 Keine gespeicherten Nachrichten');
     return;
   }
-  
+
   toast('📤 Sende alle gespeicherten Nachrichten...');
-  
+
   let totalSent = 0;
-  
+
   for (let key of keys) {
     const stored = localStorage.getItem(key);
     if (!stored) continue;
-    
+
     try {
       const msgs = JSON.parse(stored);
       if (msgs.length === 0) {
         localStorage.removeItem(key);
         continue;
       }
-      
+
       const chatIdFromKey = key.replace('sm_pending_', '');
       const parts = chatIdFromKey.split('_');
       const partner = parts.find(p => p !== myCode);
       if (!partner) continue;
-      
+
       const remaining = [];
-      
+
       for (let msg of msgs) {
         try {
           const res = await fetch(API_BASE + '/offline-message', {
@@ -357,7 +356,7 @@ async function manualFlushAll() {
               message: msg.text
             })
           });
-          
+
           if (res.ok) {
             totalSent++;
           } else {
@@ -367,31 +366,30 @@ async function manualFlushAll() {
           remaining.push(msg);
         }
       }
-      
+
       if (remaining.length === 0) {
         localStorage.removeItem(key);
       } else {
         localStorage.setItem(key, JSON.stringify(remaining));
       }
-      
     } catch (e) {}
   }
-  
+
   if (typeof updatePendingBadge === 'function') updatePendingBadge();
-  
+
   if (totalSent > 0) {
     toast(`✅ ${totalSent} Nachricht(en) gesendet`);
   } else {
     toast('❌ Keine Nachrichten gesendet');
   }
-  
+
   return totalSent;
 }
 
 function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
-  
+
   // Zähle ALLE Pending-Nachrichten
   let totalCount = 0;
   const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
@@ -401,7 +399,7 @@ function updatePendingBadge() {
       totalCount += msgs.length;
     } catch (e) {}
   }
-  
+
   if (totalCount > 0) {
     btn.style.position = 'relative';
     let badge = document.getElementById('pending-badge');
@@ -432,8 +430,64 @@ function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
 }
 
-// Globale Exports
+// ══════════════════════════════════════════════════════════════════════════════
+// KURZNACHRICHTEN (SPOT) – SEPARAT VOM CHAT
+// ══════════════════════════════════════════════════════════════════════════════
+
+function getSpotMessages() {
+  return JSON.parse(localStorage.getItem('sm_spot_messages') || '[]');
+}
+
+function saveSpotMessages(msgs) {
+  localStorage.setItem('sm_spot_messages', JSON.stringify(msgs));
+}
+
+function addSpotMessage(senderCode, senderName, message, ts = Date.now()) {
+  const msgs = getSpotMessages();
+  msgs.push({
+    code: senderCode,
+    name: senderName,
+    message: message,
+    ts: ts,
+    read: false
+  });
+  saveSpotMessages(msgs);
+}
+
+function getUnreadSpotCount(code) {
+  const msgs = getSpotMessages();
+  return msgs.filter(m => m.code === code && !m.read).length;
+}
+
+function markSpotMessageRead(code, ts) {
+  const msgs = getSpotMessages();
+  const updated = msgs.map(m => {
+    if (m.code === code && m.ts === ts) {
+      return { ...m, read: true };
+    }
+    return m;
+  });
+  saveSpotMessages(updated);
+}
+
+function markAllSpotMessagesRead(code) {
+  const msgs = getSpotMessages();
+  const updated = msgs.filter(m => m.code !== code);
+  saveSpotMessages(updated);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GLOBALE EXPORTS
+// ══════════════════════════════════════════════════════════════════════════════
+
 window.flushPendingMessages = flushPendingMessages;
 window.startPendingAutoFlush = startPendingAutoFlush;
 window.stopPendingAutoFlush = stopPendingAutoFlush;
 window.manualFlushAll = manualFlushAll;
+
+window.getSpotMessages = getSpotMessages;
+window.saveSpotMessages = saveSpotMessages;
+window.addSpotMessage = addSpotMessage;
+window.getUnreadSpotCount = getUnreadSpotCount;
+window.markSpotMessageRead = markSpotMessageRead;
+window.markAllSpotMessagesRead = markAllSpotMessagesRead;
