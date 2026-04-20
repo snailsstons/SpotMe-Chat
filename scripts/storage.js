@@ -442,17 +442,20 @@ function saveSpotMessages(msgs) {
   localStorage.setItem('sm_spot_messages', JSON.stringify(msgs));
 }
 
-function addSpotMessage(senderCode, senderName, message, ts = Date.now()) {
+
+function addSpotMessage(senderCode, senderName, message, spotType = 'SPOT', ts = Date.now()) {
   const msgs = getSpotMessages();
   msgs.push({
     code: senderCode,
     name: senderName,
     message: message,
+    spotType: spotType,  // 🆕 Für spätere Filterung (Gay, Dates, General etc.)
     ts: ts,
     read: false
   });
   saveSpotMessages(msgs);
 }
+
 
 function getUnreadSpotCount(code) {
   const msgs = getSpotMessages();
