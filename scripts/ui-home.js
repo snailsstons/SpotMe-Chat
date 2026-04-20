@@ -1,11 +1,11 @@
 'use strict';
 
-console.log('✅ ui-home.js v5.0 geladen – Final mit Status-Fix');
+console.log('✅ ui-home.js v5.1 geladen – Final mit ECHTEM Online-Status');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Unified Activity Feed – Chats & Kurznachrichten getrennt mit Tags
-// + chatId-Fix + Status-Fix + Fallback deaktiviert
+// + chatId-Fix + ECHTER Online-Status vom Heartbeat
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ function clearSpotMessages() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EINHEITLICHE CHAT-ÖFFNEN FUNKTION – MIT ALLEN FIXES
+// EINHEITLICHE CHAT-ÖFFNEN FUNKTION – MIT ECHTEM STATUS
 // ══════════════════════════════════════════════════════════════════════════════
 
 function openChatUnified(code, name, chatId, isCallback = false, source = 'chat') {
@@ -344,22 +344,23 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
     return;
   }
 
-  // 🆕 chatId ERZWINGEN – niemals undefined
   if (!chatId || chatId === 'undefined') {
     chatId = buildCID(myCode, code);
   }
 
-  // 🆕 Source speichern
   window.chatSource = source;
 
-  // LIVE-Modus setzen
-  isOffline = false;
-  window.isOffline = false;
+  // 🆕 ECHTEN Status vom Heartbeat verwenden
+  const reallyOnline = window.isServerOnline !== false && navigator.onLine;
+  isOffline = !reallyOnline;
+  window.isOffline = !reallyOnline;
+
+  console.log('🌐 Server-Status:', reallyOnline ? 'ONLINE' : 'OFFLINE');
 
   partnerCode = code;
   partnerName = name;
   window.chatId = chatId;
-  chatId = chatId; // globale Variable
+  chatId = chatId;
 
   console.log('✅ chatId gesetzt:', chatId);
 
@@ -367,7 +368,7 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
   migratePendingMessages(chatId);
 
   if (typeof showCallModal === 'function') {
-    showCallModal('📞 Verbinde...', `${name} (${formatCode(code)})`);
+    showCallModal(reallyOnline ? '📞 Verbinde...' : '📝 Lokaler Modus', `${name} (${formatCode(code)})`);
   }
 
   if (typeof openApiChat === 'function') {
@@ -377,31 +378,29 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
     return;
   }
 
-  // 🆕 Status SOFORT auf ONLINE setzen
   setTimeout(() => {
-    isOffline = false;
-    window.isOffline = false;
-    setSpill('online', '● ONLINE');
-    updateConnectionStatus();
-    
-    // 🆕 Avatar-Status auf ONLINE setzen
-    const pav = document.getElementById('pav');
-    if (pav) pav.className = 'pav';
-    const pstatus = document.getElementById('pstatus');
-    if (pstatus) pstatus.textContent = '● ONLINE';
-    
-    console.log('✅ Status auf ONLINE gesetzt');
-  }, 50); // Sofort, aber nach DOM-Update
+    const reallyOnline = window.isServerOnline !== false && navigator.onLine;
+    isOffline = !reallyOnline;
+    window.isOffline = !reallyOnline;
 
-  if (myToken) {
+    setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
+    updateConnectionStatus();
+
+    const pav = document.getElementById('pav');
+    if (pav) pav.className = reallyOnline ? 'pav' : 'pav offline';
+    const pstatus = document.getElementById('pstatus');
+    if (pstatus) pstatus.textContent = reallyOnline ? '● ONLINE' : '○ LOCAL';
+
+    console.log('✅ Status gesetzt:', reallyOnline ? 'ONLINE' : 'LOCAL');
+  }, 50);
+
+  if (myToken && reallyOnline) {
     sendChatRequest(code);
   }
 
-  toast(`📞 Rufe ${name} an...`);
+  toast(reallyOnline ? `📞 Rufe ${name} an...` : `📝 Lokaler Chat mit ${name}...`);
 
-  // 🆕 Fallback-Timer DEAKTIVIERT für Beta
-  // Bleibt immer im Live-Modus
-  console.log('⏰ Fallback-Timer DEAKTIVIERT – bleibe im Live-Modus');
+  console.log('⏰ Fallback-Timer DEAKTIVIERT – Status wird vom Heartbeat gesteuert');
 }
 
 async function sendChatRequest(recipient) {
