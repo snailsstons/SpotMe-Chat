@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v4.0 geladen – Final Beta (Chat/Spot getrennt)');
+console.log('✅ ui-home.js v4.1 geladen – Final Beta (Syntax-Fix)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
@@ -557,4 +557,16 @@ function connectToPeer() {
   if (code.length !== 6 || code === myCode) return;
 
   const name = localName(code);
-  openChatUnified(code, name, buildCID(myCode, co
+  openChatUnified(code, name, buildCID(myCode, code), false);
+
+  document.querySelectorAll('.dinp-new').forEach(d => {
+    d.value = '';
+    d.classList.remove('filled');
+  });
+  document.getElementById('cbtn').disabled = true;
+}
+
+window.connectToPeer = connectToPeer;
+window.openChatUnified = openChatUnified;
+window.renderSpotMessages = renderSpotMessages;
+window.clearSpotMessages = clearSpotMessages;
