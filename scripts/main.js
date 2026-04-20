@@ -1,11 +1,12 @@
 'use strict';
 
-console.log('✅ main.js v2.3 geladen – Online-Event + AutoFlush + Heartbeat');
+console.log('✅ main.js v2.4 geladen – Online-Event + AutoFlush + Heartbeat + Status-Init');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // API‑Version – keine PeerJS‑Abhängigkeiten mehr
 // + Heartbeat für Render.com
+// + Echter Online-Status vom Heartbeat
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
@@ -37,23 +38,26 @@ window.addEventListener('load', () => {
   }
 
   window.addEventListener('online', () => {
-    isOffline = false;
-    setSpill('online', '● ONLINE');
-    updateConnectionStatus();
-    toast('🌐 Online – Nachrichten werden gesendet');
-
-    if (typeof flushPendingMessages === 'function') {
-      flushPendingMessages(true);
-    }
-
-    // 🆕 Heartbeat sofort prüfen
+    // Nicht mehr hart setzen – Heartbeat entscheidet
     if (typeof checkServerConnection === 'function') {
-      checkServerConnection();
+      checkServerConnection().then(isOnline => {
+        if (isOnline) {
+          setSpill('online', '● ONLINE');
+          updateConnectionStatus();
+          toast('🌐 Online – Nachrichten werden gesendet');
+
+          if (typeof flushPendingMessages === 'function') {
+            flushPendingMessages(true);
+          }
+        }
+      });
     }
   });
 
   window.addEventListener('offline', () => {
     isOffline = true;
+    window.isOffline = true;
+    window.isServerOnline = false;
     setSpill('offline', '○ LOCAL');
     updateConnectionStatus();
     toast('📴 Offline – Nachrichten werden gespeichert');
@@ -146,11 +150,21 @@ window.addEventListener('load', () => {
     }
   }, 5000);
 
-  // 🆕 Heartbeat für Render starten
+  // 🆕 Heartbeat für Render starten UND initialen Status setzen
   setTimeout(() => {
     if (typeof startHeartbeat === 'function') {
       startHeartbeat();
     }
+
+    // 🆕 Initialen Status vom Heartbeat übernehmen (nach erstem Ping)
+    setTimeout(() => {
+      const reallyOnline = window.isServerOnline !== false && navigator.onLine;
+      isOffline = !reallyOnline;
+      window.isOffline = !reallyOnline;
+      setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
+      updateConnectionStatus();
+      console.log('🌐 Initialer Status:', reallyOnline ? 'ONLINE' : 'OFFLINE');
+    }, 1500);
   }, 1000);
 });
 
