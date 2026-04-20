@@ -1,9 +1,10 @@
 'use strict';
 
+console.log('✅ ui-home.js v6.0 geladen – Communication Hub (Unified)');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// Unified Activity Feed – Chats & Kurznachrichten getrennt mit Tags
-// + chatId-Fix + ECHTER Online-Status vom Heartbeat
+// Communication Hub – Alle Nachrichten in einer vertikalen Liste mit Tags
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -64,252 +65,159 @@ async function shareCode() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHAT AKTIVITÄTEN (NUR echte Chats aus sm_idx) – MIT TAG
+// UNIFIED HUB – ALLE NACHRICHTEN IN EINER LISTE MIT TAGS
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function renderUnifiedActivity() {
-  const lst = document.getElementById('plist');
-  const sec = document.getElementById('psec');
-  if (!lst || !sec) return;
+async function renderUnifiedHub() {
+  const container = document.getElementById('hub-list');
+  if (!container) return;
 
-  const idx = JSON.parse(localStorage.getItem('sm_idx') || '[]');
+  // Alle Datenquellen sammeln
+  const chats = JSON.parse(localStorage.getItem('sm_idx') || '[]');
   const missed = getMissed();
-
-  let unreadCounts = {};
+  const spotMsgs = getSpotMessages();
+  
+  let serverOfflineMsgs = [];
   if (myToken) {
     try {
       const res = await fetch(`${API_BASE}/offline-messages/${myCode}?token=${myToken}`);
-      if (res.ok) {
-        const msgs = await res.json();
-        msgs.filter(m => !m.read).forEach(m => {
-          unreadCounts[m.senderCode] = (unreadCounts[m.senderCode] || 0) + 1;
-        });
-      }
+      if (res.ok) serverOfflineMsgs = await res.json();
     } catch (e) {}
   }
 
-  const contacts = new Map();
+  // Alle Einträge in ein einheitliches Format bringen
+  const items = [];
 
-  idx.forEach(c => {
-    const code = c.code;
-    if (!contacts.has(code)) {
-      contacts.set(code, {
-        code,
-        name: c.partner || getContacts()[code] || formatCode(code),
-        chat: null,
-        missedCall: null,
-        unread: unreadCounts[code] || 0
-      });
-    }
-    const entry = contacts.get(code);
-    if (!entry.chat || c.ts > entry.chat.ts) {
-      entry.chat = {
-        preview: c.preview || '—',
-        ts: c.ts,
-        chatId: c.id || buildCID(myCode, code)
-      };
-    }
+  // 1. Chat-Nachrichten
+  chats.forEach(c => {
+    items.push({
+      type: 'chat',
+      code: c.code,
+      name: c.partner || getContacts()[c.code] || formatCode(c.code),
+      preview: c.preview || '—',
+      ts: c.ts,
+      chatId: c.id || buildCID(myCode, c.code),
+      hasMissed: missed.some(m => m.code === c.code)
+    });
   });
 
+  // 2. Verpasste Anrufe (ohne bestehenden Chat)
   missed.forEach(m => {
-    const code = m.code;
-    if (!contacts.has(code)) {
-      contacts.set(code, {
-        code,
-        name: m.name || getContacts()[code] || formatCode(code),
-        chat: null,
-        missedCall: null,
-        unread: unreadCounts[code] || 0
-      });
-    }
-    const entry = contacts.get(code);
-    if (!entry.missedCall || m.ts > entry.missedCall.ts) {
-      entry.missedCall = {
-        message: m.message || '',
-        ts: m.ts
-      };
-    }
-  });
-
-  Object.keys(unreadCounts).forEach(code => {
-    if (!contacts.has(code)) {
-      contacts.set(code, {
-        code,
-        name: getContacts()[code] || formatCode(code),
-        chat: null,
-        missedCall: null,
-        unread: unreadCounts[code]
-      });
-    }
-  });
-
-  const contactArray = Array.from(contacts.values())
-    .map(c => {
-      const latestTs = Math.max(c.chat?.ts || 0, c.missedCall?.ts || 0);
-      return { ...c, latestTs };
-    })
-    .sort((a, b) => b.latestTs - a.latestTs);
-
-  if (contactArray.length === 0) {
-    sec.style.display = 'block';
-    lst.innerHTML = '<div class="empty-state">✨ Noch keine Chats</div>';
-    return;
-  }
-
-  sec.style.display = 'block';
-
-  lst.innerHTML = contactArray
-    .map(c => {
-      const alias = esc(c.name);
-      const unreadBadge = c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : '';
-
-      let activityIcon = '💬';
-      let activityText = '';
-      let activityTime = '';
-      let hasMissedCall = false;
-
-      if (c.chat) {
-        activityIcon = '💬';
-        activityText = c.chat.preview;
-        activityTime = formatRelativeTime(c.chat.ts);
-      }
-
-      if (c.missedCall) {
-        hasMissedCall = true;
-        if (!c.chat) {
-          activityIcon = '📵';
-          activityText = c.missedCall.message
-            ? `Verpasst: "${c.missedCall.message.substring(0, 40)}${c.missedCall.message.length > 40 ? '…' : ''}"`
-            : '📵 Verpasster Anruf';
-        }
-        activityTime = formatRelativeTime(c.missedCall.ts);
-      }
-
-      if (!c.chat && !c.missedCall) {
-        activityIcon = '📨';
-        activityText = `${c.unread} neue Nachricht${c.unread > 1 ? 'en' : ''}`;
-        activityTime = 'Jetzt';
-      }
-
-      const timeStr = activityTime;
-      const chatId = c.chat?.chatId || buildCID(myCode, c.code);
-
-      const missedInfoHtml =
-        c.chat && c.missedCall
-          ? `<div class="missed-call-indicator" style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:0.75rem;color:var(--p2);">
-               <span>📵</span>
-               <span>${c.missedCall.message ? `Verpasst: "${esc(c.missedCall.message.substring(0, 30))}${c.missedCall.message.length > 30 ? '…' : ''}"` : 'Verpasster Anruf'}</span>
-             </div>`
-          : '';
-
-      const buttonText = hasMissedCall ? '📞 Zurückrufen' : '💬 Chat';
-      const buttonColor = 'var(--acc)';
-
-      return `
-      <div class="chat-card unified-activity-card" style="position:relative;">
-        <div class="card-row" style="align-items:flex-start;">
-          <div class="card-avatar" style="background:linear-gradient(135deg,var(--p2),var(--p3));">
-            ${alias[0]?.toUpperCase() || '?'}
-          </div>
-          <div class="card-details" style="flex:1;">
-            <div style="margin-bottom:4px;">
-              <span style="background:var(--p2);color:white;padding:3px 10px;border-radius:20px;font-size:0.65rem;font-weight:600;letter-spacing:0.3px;">💬 CHAT</span>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div class="card-name" style="display:flex;align-items:center;gap:6px;">
-                ${alias} ${unreadBadge}
-              </div>
-              <span class="card-time" style="font-size:0.75rem;color:var(--text-dim);">${timeStr}</span>
-            </div>
-            <div class="card-preview" style="margin-top:2px;display:flex;align-items:center;gap:4px;">
-              <span style="opacity:0.7;">${activityIcon}</span>
-              <span style="color:var(--text-dim);">${esc(activityText)}</span>
-            </div>
-            ${missedInfoHtml}
-            <div style="color:var(--text-dim);font-size:0.7rem;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <span>${formatCode(c.code)}</span>
-              ${c.missedCall ? `<span style="opacity:0.7;">📵 ${formatRelativeTime(c.missedCall.ts)}</span>` : ''}
-            </div>
-          </div>
-        </div>
-        
-        <div style="display:flex;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
-          <button class="unified-action-btn" 
-                  onclick="event.stopPropagation(); openChatUnified('${c.code}', '${esc2(c.name)}', '${chatId}', ${hasMissedCall}, 'chat')"
-                  style="flex:1;padding:12px;border-radius:30px;border:none;background:${buttonColor};
-                         color:white;font-weight:600;cursor:pointer;font-size:1rem;
-                         display:flex;align-items:center;justify-content:center;gap:8px;">
-            <span>${buttonText}</span>
-          </button>
-        </div>
-      </div>
-    `;
-    })
-    .join('');
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// KURZNACHRICHTEN (SPOT) – SEPARAT MIT SPOT-TAG
-// ══════════════════════════════════════════════════════════════════════════════
-
-function renderSpotMessages() {
-  const sec = document.getElementById('spot-msg-sec');
-  const lst = document.getElementById('spot-msg-list');
-  if (!sec || !lst) return;
-
-  const msgs = getSpotMessages();
-  const unread = msgs.filter(m => !m.read);
-  if (!unread.length) {
-    sec.style.display = 'none';
-    return;
-  }
-
-  sec.style.display = 'block';
-
-  const grouped = {};
-  unread.forEach(m => {
-    if (!grouped[m.code]) {
-      grouped[m.code] = {
-        name: m.name || formatCode(m.code),
+    if (!chats.some(c => c.code === m.code)) {
+      items.push({
+        type: 'missed',
         code: m.code,
-        spotType: m.spotType || 'SPOT',
-        msgs: []
-      };
+        name: m.name || formatCode(m.code),
+        preview: m.message || 'Verpasster Anruf',
+        ts: m.ts,
+        message: m.message
+      });
     }
-    grouped[m.code].msgs.push(m);
   });
 
-  const senders = Object.values(grouped);
+  // 3. Server-Offline-Nachrichten
+  serverOfflineMsgs.filter(m => !m.read).forEach(m => {
+    items.push({
+      type: 'offline',
+      code: m.senderCode,
+      name: m.senderName || formatCode(m.senderCode),
+      preview: m.message,
+      ts: new Date(m.timestamp).getTime(),
+      messageId: m.id
+    });
+  });
 
-  lst.innerHTML = senders
-    .map(s => {
-      const lastMsg = s.msgs[s.msgs.length - 1];
-      const time = new Date(lastMsg.ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      const initial = s.name ? s.name[0].toUpperCase() : '?';
-      const displayName = s.name;
+  // 4. Spot-Kurznachrichten
+  spotMsgs.filter(m => !m.read).forEach(m => {
+    items.push({
+      type: 'spot',
+      code: m.code,
+      name: m.name || formatCode(m.code),
+      preview: m.message,
+      ts: m.ts,
+      spotType: m.spotType || 'SPOT'
+    });
+  });
 
-      return `
-      <div class="chat-card spot-card" style="min-width:260px;" onclick="openSpotChat('${s.code}')">
-        <div class="card-row">
-          <div class="card-avatar" style="background:linear-gradient(135deg,#00e5c0,#009688);">${esc(initial)}</div>
-          <div class="card-details">
-            <div style="margin-bottom:4px;">
-              <span style="background:#00e5c0;color:#000;padding:3px 10px;border-radius:20px;font-size:0.65rem;font-weight:600;letter-spacing:0.3px;">📟 ${s.spotType}</span>
-            </div>
-            <div class="card-name">${esc(displayName)}</div>
-            <div class="card-preview" style="color:var(--text-dim);">${esc(lastMsg.message)}</div>
-            <div class="card-time" style="font-size:0.7rem;color:var(--text-dim);">${time}</div>
-          </div>
+  // Nach Zeit sortieren (neueste zuerst)
+  items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="empty-state">✨ Noch keine Nachrichten</div>';
+    return;
+  }
+
+  // Rendern
+  container.innerHTML = items.map(item => {
+    const alias = esc(item.name);
+    const initial = alias[0]?.toUpperCase() || '?';
+    const timeStr = formatRelativeTime(item.ts);
+    
+    // Tag bestimmen
+    let tagText = '', tagClass = '';
+    if (item.type === 'chat') {
+      tagText = '💬 CHAT';
+      tagClass = 'tag-chat';
+    } else if (item.type === 'missed') {
+      tagText = '📵 ANRUF';
+      tagClass = 'tag-missed';
+    } else if (item.type === 'offline') {
+      tagText = '📴 OFFLINE';
+      tagClass = 'tag-offline';
+    } else if (item.type === 'spot') {
+      tagText = `📟 ${item.spotType || 'SPOT'}`;
+      tagClass = 'tag-spot';
+    }
+
+    // Buttons je nach Typ
+    let actionsHtml = '';
+    if (item.type === 'chat') {
+      const btnText = item.hasMissed ? '📞 Zurückrufen' : '💬 Chat';
+      actionsHtml = `<button class="card-btn btn-primary" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${item.chatId}', ${item.hasMissed}, 'chat')">${btnText}</button>`;
+    } else if (item.type === 'missed') {
+      actionsHtml = `
+        <button class="card-btn btn-missed" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${buildCID(myCode, item.code)}', true, 'missed')">📞 Zurückrufen</button>
+        <button class="card-btn btn-secondary" onclick="showLeaveMessageSheet('${item.code}', '${esc2(alias)}')">↩️ Antworten</button>
+      `;
+    } else if (item.type === 'offline') {
+      actionsHtml = `
+        <button class="card-btn btn-primary" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${buildCID(myCode, item.code)}', false, 'offline')">💬 Chat</button>
+        <button class="card-btn btn-secondary" onclick="markOfflineMsgRead('${item.messageId}'); renderUnifiedHub();">✓ Gelesen</button>
+      `;
+    } else if (item.type === 'spot') {
+      actionsHtml = `
+        <button class="card-btn btn-primary" onclick="openSpotChat('${item.code}')">💬 Antworten</button>
+        <button class="card-btn btn-secondary" onclick="markSpotMessagesRead('${item.code}'); renderUnifiedHub();">✓ Gelesen</button>
+      `;
+    }
+
+    return `
+      <div class="unified-card">
+        <div class="card-header">
+          <span class="card-tag ${tagClass}">${tagText}</span>
+          <span class="card-time">${timeStr}</span>
         </div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-          <button class="call-back-btn" style="background:var(--acc);" onclick="event.stopPropagation(); openSpotChat('${s.code}')">💬 Antworten</button>
-          <button class="call-back-btn" style="background:rgba(255,255,255,0.1);" onclick="event.stopPropagation(); markSpotMessagesRead('${s.code}')">✓ Gelesen</button>
+        <div style="display: flex;">
+          <div class="card-avatar" style="background:linear-gradient(135deg, var(--p2), var(--p3));">${initial}</div>
+          <div style="flex: 1;">
+            <div class="card-contact">
+              <span class="card-name">${alias}</span>
+              <span class="card-code">${formatCode(item.code)}</span>
+            </div>
+            <div class="card-preview">${esc(item.preview)}</div>
+            <div class="card-actions">
+              ${actionsHtml}
+            </div>
+          </div>
         </div>
       </div>
     `;
-    })
-    .join('');
+  }).join('');
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KURZNACHRICHTEN (SPOT) – HILFSFUNKTIONEN
+// ══════════════════════════════════════════════════════════════════════════════
 
 function openSpotChat(code) {
   const name = getContacts()[code] || formatCode(code);
@@ -321,12 +229,12 @@ function markSpotMessagesRead(code) {
   const msgs = getSpotMessages();
   const updated = msgs.filter(m => m.code !== code);
   saveSpotMessages(updated);
-  renderSpotMessages();
+  renderUnifiedHub();
 }
 
 function clearSpotMessages() {
   saveSpotMessages([]);
-  renderSpotMessages();
+  renderUnifiedHub();
   toast('✓ Alle Kurznachrichten als gelesen markiert');
 }
 
@@ -348,7 +256,7 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
 
   window.chatSource = source;
 
-  // 🆕 ECHTEN Status vom Heartbeat verwenden
+  // ECHTEN Status vom Heartbeat verwenden
   const reallyOnline = window.isServerOnline !== false && navigator.onLine;
   isOffline = !reallyOnline;
   window.isOffline = !reallyOnline;
@@ -439,93 +347,13 @@ function formatRelativeTime(ts) {
   return new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE NACHRICHTEN (Server-Polling)
-// ══════════════════════════════════════════════════════════════════════════════
-
-function renderOfflineMessages(msgs) {
-  const sec = document.getElementById('offline-msg-sec');
-  const lst = document.getElementById('offline-msg-list');
-  if (!sec || !lst) return;
-  const unread = msgs.filter(m => !m.read);
-  if (!unread.length) {
-    sec.style.display = 'none';
-    return;
-  }
-  sec.style.display = 'block';
-
-  const grouped = {};
-  unread.forEach(m => {
-    if (!grouped[m.senderCode]) grouped[m.senderCode] = { name: m.senderName, code: m.senderCode, msgs: [] };
-    grouped[m.senderCode].msgs.push(m);
-  });
-
-  const senders = Object.values(grouped);
-
-  lst.innerHTML = senders
-    .map(s => {
-      const lastMsg = s.msgs[s.msgs.length - 1];
-      const allIds = s.msgs.map(m => m.id);
-      const d = new Date(lastMsg.timestamp);
-      const time =
-        d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) +
-        ' ' +
-        d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      const initial = s.name ? s.name[0].toUpperCase() : '?';
-      const displayName = getContacts()[s.code] || s.name || 'Nutzer_' + s.code.slice(0, 4);
-      const msgPreview =
-        s.msgs.length === 1
-          ? esc(lastMsg.message)
-          : `${s.msgs.length} Nachrichten – letzte: "${esc(lastMsg.message.substring(0, 30))}…"`;
-      const msgListHtml = s.msgs
-        .map(
-          m =>
-            `<div style="background:var(--bg);border-radius:10px;padding:0.5rem 0.65rem;margin-bottom:0.4rem;font-size:0.85rem;color:var(--text);line-height:1.4;">${esc(m.message)}</div>`
-        )
-        .join('');
-
-      return `<div class="chat-card missed-card" style="min-width:260px;" id="sender-${s.code}">
-      <div class="card-row">
-        <div class="card-avatar" style="background:linear-gradient(135deg,var(--p2),var(--p3));">${esc(initial)}</div>
-        <div class="card-details">
-          <div class="card-name">${esc(displayName)}</div>
-          <div class="card-preview" style="color:var(--text);margin-top:3px;">${msgPreview}</div>
-          <div class="card-preview" style="color:var(--text-dim);">${formatCode(s.code)} · ${time}</div>
-        </div>
-      </div>
-      <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto; color:var(--text);">${msgListHtml}</div>
-      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
-        <button class="call-back-btn" style="background:var(--acc);" onclick="openChatUnified('${s.code}', '${esc2(displayName)}', '${buildCID(myCode, s.code)}', false, 'offline')">💬 Chat</button>
-        <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${s.code}', '${esc2(displayName)}')">↩️ Antworten</button>
-        <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissSenderOfflineMsgs('${s.code}', [${allIds.join(',')}])">✓ Gelesen</button>
-        ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,0.1);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
-      </div>
-    </div>`;
-    })
-    .join('');
-}
-
-function toggleSenderMessages(code) {
-  const card = document.getElementById('sender-' + code);
-  const detail = card?.querySelector('.offline-msg-detail');
-  if (detail) detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
-}
-
-async function dismissSenderOfflineMsgs(senderCode, ids) {
-  for (const id of ids) await markOfflineMsgRead(id);
-  const el = document.getElementById('sender-' + senderCode);
-  if (el) el.remove();
-  if (!document.querySelectorAll('#offline-msg-list .chat-card').length)
-    document.getElementById('offline-msg-sec').style.display = 'none';
-}
-
 function renameContact(code, networkName) {
   const current = getContacts()[code] || '';
   const input = prompt(`Spitzname für ${networkName || formatCode(code)}:\n(leer lassen zum Zurücksetzen)`, current);
   if (input === null) return;
   const trimmed = input.trim();
   setAlias(code, trimmed);
-  renderUnifiedActivity();
+  renderUnifiedHub();
   toast(trimmed ? `✅ "${trimmed}" gespeichert` : '○ Spitzname entfernt');
 }
 
@@ -534,11 +362,13 @@ function renameContact(code, networkName) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderPrev() {
-  renderUnifiedActivity();
-  renderSpotMessages();
+  renderUnifiedHub();
 }
 
 function renderMissed() {}
+function renderUnifiedActivity() { renderUnifiedHub(); }
+function renderOfflineMessages() {}
+function renderSpotMessages() {}
 
 function reconnectTo(code, name, cid) {
   openChatUnified(code, name, cid, false, 'reconnect');
@@ -550,7 +380,7 @@ function callBack(code) {
 
 function clearMissed() {
   saveMissed([]);
-  renderUnifiedActivity();
+  renderUnifiedHub();
 }
 
 function connectToPeer() {
@@ -567,8 +397,10 @@ function connectToPeer() {
   document.getElementById('cbtn').disabled = true;
 }
 
+// Exports
 window.connectToPeer = connectToPeer;
 window.openChatUnified = openChatUnified;
+window.renderUnifiedHub = renderUnifiedHub;
 window.renderSpotMessages = renderSpotMessages;
 window.clearSpotMessages = clearSpotMessages;
 window.markSpotMessagesRead = markSpotMessagesRead;
