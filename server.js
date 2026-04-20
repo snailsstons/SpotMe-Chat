@@ -5,6 +5,7 @@
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
 //   • Offline-Nachrichten       → Nachricht hinterlassen wenn Nutzer offline
 //   • Dialog-Erkennung          → Sobald Antwort erfolgt, kein Stundenlimit mehr
+//   • Ping-Endpunkt             → Für Heartbeat (Render Free Tier)
 //
 // Setup:
 //   npm install pg
@@ -627,6 +628,18 @@ app.delete('/api/offline-messages/:code', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PING ENDPUNKTE (für Heartbeat – Render Free Tier)
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.all('/ping', (req, res) => {
+  res.status(204).end();
+});
+
+app.all('/api/ping', (req, res) => {
+  res.status(204).end();
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
