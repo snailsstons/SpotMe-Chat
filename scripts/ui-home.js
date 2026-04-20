@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui-home.js v6.0 geladen – Communication Hub (Unified)');
+console.log('✅ ui-home.js v6.1 geladen – Communication Hub (Spot-Fix)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
@@ -165,7 +165,7 @@ async function renderUnifiedHub() {
       tagText = '📴 OFFLINE';
       tagClass = 'tag-offline';
     } else if (item.type === 'spot') {
-      tagText = `📟 ${item.spotType || 'SPOT'}`;
+      tagText = `📟 SPOTNACHRICHT`;  // 🆕 Umbenannt von "OFFLINE"
       tagClass = 'tag-spot';
     }
 
@@ -185,8 +185,9 @@ async function renderUnifiedHub() {
         <button class="card-btn btn-secondary" onclick="markOfflineMsgRead('${item.messageId}'); renderUnifiedHub();">✓ Gelesen</button>
       `;
     } else if (item.type === 'spot') {
+      // 🆕 "Antworten" statt "Chat" – öffnet Kurznachricht-Antwort (Lokal-Modus)
       actionsHtml = `
-        <button class="card-btn btn-primary" onclick="openSpotChat('${item.code}')">💬 Antworten</button>
+        <button class="card-btn btn-primary" onclick="answerSpotMessage('${item.code}', '${esc2(alias)}')">💬 Antworten</button>
         <button class="card-btn btn-secondary" onclick="markSpotMessagesRead('${item.code}'); renderUnifiedHub();">✓ Gelesen</button>
       `;
     }
@@ -216,13 +217,43 @@ async function renderUnifiedHub() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// SPOT-NACHRICHTEN – ANTWORTEN (LOKAL-MODUS)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function answerSpotMessage(code, name) {
+  console.log('📟 answerSpotMessage →', code, name);
+  
+  // Lokal-Modus: Nachricht schreiben ohne Anruf
+  isOffline = true;
+  window.isOffline = true;
+  setSpill('offline', '○ LOCAL');
+  updateConnectionStatus();
+  
+  partnerCode = code;
+  partnerName = name;
+  const chatId = buildCID(myCode, code);
+  window.chatId = chatId;
+  chatId = chatId;
+  
+  loadPendingMessages();
+  migratePendingMessages(chatId);
+  
+  // Chat im Lokal-Modus öffnen
+  if (typeof openApiChat === 'function') {
+    openApiChat();
+    toast(`📝 Lokale Antwort an ${name}`);
+  } else {
+    toast('⚠️ Fehler beim Öffnen des Chats');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // KURZNACHRICHTEN (SPOT) – HILFSFUNKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 function openSpotChat(code) {
   const name = getContacts()[code] || formatCode(code);
-  openChatUnified(code, name, buildCID(myCode, code), false, 'spot');
-  markSpotMessagesRead(code);
+  answerSpotMessage(code, name);  // 🆕 Nutzt jetzt answerSpotMessage
 }
 
 function markSpotMessagesRead(code) {
@@ -235,7 +266,7 @@ function markSpotMessagesRead(code) {
 function clearSpotMessages() {
   saveSpotMessages([]);
   renderUnifiedHub();
-  toast('✓ Alle Kurznachrichten als gelesen markiert');
+  toast('✓ Alle Spot-Nachrichten als gelesen markiert');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -405,3 +436,4 @@ window.renderSpotMessages = renderSpotMessages;
 window.clearSpotMessages = clearSpotMessages;
 window.markSpotMessagesRead = markSpotMessagesRead;
 window.openSpotChat = openSpotChat;
+window.answerSpotMessage = answerSpotMessage;
