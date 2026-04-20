@@ -1,11 +1,11 @@
 'use strict';
 
-console.log('✅ storage.js v2.0 geladen – API Pending-Flush');
+console.log('✅ storage.js v2.1 geladen – API Pending-Flush + AutoFlush');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
-// + Info-Modal für Bestätigungen
+// + AutoFlush für Pending-Nachrichten
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getContacts() {
@@ -158,19 +158,22 @@ function migratePendingMessages(newChatId) {
   }
 }
 
-// 🆕 NEU: API-Version von flushPendingMessages
-async function flushPendingMessages() {
+// 🆕 API-Version von flushPendingMessages
+async function flushPendingMessages(silent = false) {
   if (!partnerCode || !chatId) {
     console.warn('⚠️ flushPendingMessages: Kein partnerCode/chatId');
+    if (!silent) toast('⚠️ Kein aktiver Chat');
     return;
   }
   
   if (pendingMessages.length === 0) {
     console.log('📭 Keine Pending-Nachrichten');
+    if (!silent) toast('📭 Keine gespeicherten Nachrichten');
     return;
   }
   
   console.log('📤 Sende', pendingMessages.length, 'Pending-Nachrichten...');
+  if (!silent) toast(`📤 Sende ${pendingMessages.length} Nachricht(en)...`);
   
   const toSend = [...pendingMessages];
   clearPendingMessages();
@@ -195,13 +198,11 @@ async function flushPendingMessages() {
         console.log('✅ Gesendet:', msg.text);
       } else {
         console.warn('❌ Fehler beim Senden:', msg.text);
-        // Bei Fehler wieder in Queue legen
         pendingMessages.push(msg);
         savePendingMessages();
       }
     } catch (e) {
       console.warn('❌ Netzwerkfehler:', e);
-      // Bei Fehler wieder in Queue legen
       pendingMessages.push(msg);
       savePendingMessages();
     }
@@ -214,15 +215,194 @@ async function flushPendingMessages() {
   }
   
   if (pendingMessages.length > 0) {
-    toast(`📦 ${pendingMessages.length} Nachricht(en) verbleiben in Warteschlange`);
+    toast(`📦 ${pendingMessages.length} verbleiben in Warteschlange`);
   }
+  
+  return sentCount;
+}
+
+// 🆕 Automatisches Senden im Hintergrund (alle 30 Sekunden)
+let autoFlushInterval = null;
+
+function startPendingAutoFlush() {
+  if (autoFlushInterval) clearInterval(autoFlushInterval);
+  
+  autoFlushInterval = setInterval(async () => {
+    // Nur wenn online und Token vorhanden
+    if (!navigator.onLine || !myToken) return;
+    
+    // Alle Pending-Keys durchgehen
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+    if (keys.length === 0) return;
+    
+    let totalSent = 0;
+    
+    for (let key of keys) {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      
+      try {
+        const msgs = JSON.parse(stored);
+        if (msgs.length === 0) {
+          localStorage.removeItem(key);
+          continue;
+        }
+        
+        // Partner-Code aus Key extrahieren
+        const chatIdFromKey = key.replace('sm_pending_', '');
+        const parts = chatIdFromKey.split('_');
+        const partner = parts.find(p => p !== myCode);
+        if (!partner) continue;
+        
+        console.log(`🔄 AutoFlush: ${msgs.length} Nachricht(en) an ${partner}`);
+        
+        const remaining = [];
+        
+        for (let msg of msgs) {
+          try {
+            const res = await fetch(API_BASE + '/offline-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: partner,
+                senderCode: myCode,
+                senderName: myName,
+                message: msg.text
+              })
+            });
+            
+            if (res.ok) {
+              totalSent++;
+            } else {
+              remaining.push(msg);
+            }
+          } catch (e) {
+            remaining.push(msg);
+          }
+        }
+        
+        // Update Storage
+        if (remaining.length === 0) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify(remaining));
+        }
+        
+      } catch (e) {}
+    }
+    
+    if (totalSent > 0) {
+      console.log(`✅ AutoFlush: ${totalSent} Nachricht(en) gesendet`);
+      // Badge aktualisieren falls nötig
+      if (typeof updatePendingBadge === 'function') updatePendingBadge();
+    }
+    
+  }, 30000); // Alle 30 Sekunden
+  
+  console.log('🔄 Pending AutoFlush gestartet (30s Intervall)');
+}
+
+function stopPendingAutoFlush() {
+  if (autoFlushInterval) {
+    clearInterval(autoFlushInterval);
+    autoFlushInterval = null;
+    console.log('⏹️ Pending AutoFlush gestoppt');
+  }
+}
+
+// 🆕 Manueller Flush für Test-Button
+async function manualFlushAll() {
+  if (!myToken) {
+    toast('⚠️ Profil nicht veröffentlicht');
+    return;
+  }
+  
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+  if (keys.length === 0) {
+    toast('📭 Keine gespeicherten Nachrichten');
+    return;
+  }
+  
+  toast('📤 Sende alle gespeicherten Nachrichten...');
+  
+  let totalSent = 0;
+  
+  for (let key of keys) {
+    const stored = localStorage.getItem(key);
+    if (!stored) continue;
+    
+    try {
+      const msgs = JSON.parse(stored);
+      if (msgs.length === 0) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      
+      const chatIdFromKey = key.replace('sm_pending_', '');
+      const parts = chatIdFromKey.split('_');
+      const partner = parts.find(p => p !== myCode);
+      if (!partner) continue;
+      
+      const remaining = [];
+      
+      for (let msg of msgs) {
+        try {
+          const res = await fetch(API_BASE + '/offline-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipient: partner,
+              senderCode: myCode,
+              senderName: myName,
+              message: msg.text
+            })
+          });
+          
+          if (res.ok) {
+            totalSent++;
+          } else {
+            remaining.push(msg);
+          }
+        } catch (e) {
+          remaining.push(msg);
+        }
+      }
+      
+      if (remaining.length === 0) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(remaining));
+      }
+      
+    } catch (e) {}
+  }
+  
+  if (typeof updatePendingBadge === 'function') updatePendingBadge();
+  
+  if (totalSent > 0) {
+    toast(`✅ ${totalSent} Nachricht(en) gesendet`);
+  } else {
+    toast('❌ Keine Nachrichten gesendet');
+  }
+  
+  return totalSent;
 }
 
 function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
-  const count = pendingMessages.length;
-  if (count > 0) {
+  
+  // Zähle ALLE Pending-Nachrichten
+  let totalCount = 0;
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+  for (let key of keys) {
+    try {
+      const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+      totalCount += msgs.length;
+    } catch (e) {}
+  }
+  
+  if (totalCount > 0) {
     btn.style.position = 'relative';
     let badge = document.getElementById('pending-badge');
     if (!badge) {
@@ -237,9 +417,10 @@ function updatePendingBadge() {
       badge.style.padding = '2px 6px';
       badge.style.fontSize = '11px';
       badge.style.fontWeight = 'bold';
+      badge.style.zIndex = '10';
       btn.appendChild(badge);
     }
-    badge.textContent = count > 99 ? '99+' : count;
+    badge.textContent = totalCount > 99 ? '99+' : totalCount;
     badge.style.display = 'block';
   } else {
     const badge = document.getElementById('pending-badge');
@@ -253,3 +434,6 @@ function buildCID(a, b) {
 
 // Globale Exports
 window.flushPendingMessages = flushPendingMessages;
+window.startPendingAutoFlush = startPendingAutoFlush;
+window.stopPendingAutoFlush = stopPendingAutoFlush;
+window.manualFlushAll = manualFlushAll;
