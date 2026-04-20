@@ -1,7 +1,5 @@
 'use strict';
 
-console.log('✅ ui-home.js v5.1 geladen – Final mit ECHTEM Online-Status');
-
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Unified Activity Feed – Chats & Kurznachrichten getrennt mit Tags
