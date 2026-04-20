@@ -1,14 +1,6 @@
 'use strict';
 
-console.log('✅ main.js v2.5 geladen – Hub-Integration + Heartbeat');
-
-// ══════════════════════════════════════════════════════════════════════════════
-// SPOTME – EINSTIEGSPUNKT (main.js)
-// API‑Version – keine PeerJS‑Abhängigkeiten mehr
-// + Heartbeat für Render.com
-// + Echter Online-Status vom Heartbeat
-// + Communication Hub Integration
-// ══════════════════════════════════════════════════════════════════════════════
+console.log('✅ main.js v2.6 geladen – Hub-Final');
 
 window.addEventListener('load', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
@@ -16,7 +8,7 @@ window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0, 3) + ' · ' + myCode.slice(3, 6);
 
   initDigits();
-  renderPrev();
+  // 🆕 NICHT hier rendern – erst nach Daten-Load!
   renderMissed();
 
   initDB();
@@ -45,7 +37,6 @@ window.addEventListener('load', () => {
           setSpill('online', '● ONLINE');
           updateConnectionStatus();
           toast('🌐 Online – Nachrichten werden gesendet');
-
           if (typeof flushPendingMessages === 'function') {
             flushPendingMessages(true);
           }
@@ -111,17 +102,10 @@ window.addEventListener('load', () => {
     }, 500);
   }
 
-  // 🆕 SOFORT rendern mit lokalen Daten (Hub)
-  if (typeof renderUnifiedHub === 'function') {
-    renderUnifiedHub();
-  } else {
-    renderPrev();
-  }
-
-  // 🆕 Dann Server-Daten laden und Hub erneut rendern
+  // 🆕 ERST Server-Daten laden, DANN rendern
   setTimeout(async () => {
     if (myToken) {
-      await fetchOfflineMessages(); // Nur laden, Hub rendert selbst!
+      await fetchOfflineMessages();
       if (typeof startGlobalPolling === 'function') startGlobalPolling();
     }
     const remoteMissed = await fetchRemoteMissedCalls();
@@ -136,13 +120,13 @@ window.addEventListener('load', () => {
       }
     }
 
-    // 🆕 Nach Server-Daten Hub erneut rendern
+    // 🆕 JETZT rendern – nachdem ALLE Daten geladen sind!
     if (typeof renderUnifiedHub === 'function') {
       renderUnifiedHub();
     } else {
       renderPrev();
     }
-  }, 500);
+  }, 300);
 
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
 
@@ -150,20 +134,16 @@ window.addEventListener('load', () => {
     if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
   }, 2500);
 
-  // 🆕 AutoFlush für Pending-Nachrichten starten
   setTimeout(() => {
     if (typeof startPendingAutoFlush === 'function') {
       startPendingAutoFlush();
     }
   }, 5000);
 
-  // 🆕 Heartbeat für Render starten UND initialen Status setzen
   setTimeout(() => {
     if (typeof startHeartbeat === 'function') {
       startHeartbeat();
     }
-
-    // 🆕 Initialen Status vom Heartbeat übernehmen (nach erstem Ping)
     setTimeout(() => {
       const reallyOnline = window.isServerOnline !== false && navigator.onLine;
       isOffline = !reallyOnline;
