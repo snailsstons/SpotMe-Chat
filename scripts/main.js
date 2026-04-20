@@ -94,20 +94,29 @@ window.addEventListener('load', () => {
     }, 500);
   }
 
-  setTimeout(async () => {
-    if (myToken) {
-      const offlineMsgs = await fetchOfflineMessages();
-      if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
-      if (typeof startGlobalPolling === 'function') startGlobalPolling();
+  
+  // 🆕 SOFORT rendern mit lokalen Daten
+renderPrev();
+
+// 🆕 Dann Server-Daten laden und erneut rendern
+setTimeout(async () => {
+  if (myToken) {
+    const offlineMsgs = await fetchOfflineMessages();
+    if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
+    if (typeof startGlobalPolling === 'function') startGlobalPolling();
+  }
+  const remoteMissed = await fetchRemoteMissedCalls();
+  const localMissed = getMissed();
+  for (const call of remoteMissed) {
+    if (!localMissed.some(m => m.code === call.callerId && Math.abs(m.ts - new Date(call.timestamp).getTime()) < 300000)) {
+      addMissed(call.callerId, call.callerName);
     }
-    const remoteMissed = await fetchRemoteMissedCalls();
-    const localMissed = getMissed();
-    for (const call of remoteMissed) {
-      if (!localMissed.some(m => m.code === call.callerId && Math.abs(m.ts - new Date(call.timestamp).getTime()) < 300000)) {
-        addMissed(call.callerId, call.callerName);
-      }
-    }
-  }, 2000);
+  }
+  
+  // 🆕 Nach Server-Daten erneut rendern
+  renderPrev();
+}, 500);
+
   
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
 
