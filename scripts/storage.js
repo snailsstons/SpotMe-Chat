@@ -1,9 +1,12 @@
 'use strict';
 
+console.log('✅ storage.js v2.2 geladen – API Pending-Flush + AutoFlush + Spot-Messages');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
-// + Info-Modal für Bestätigungen
+// + AutoFlush für Pending-Nachrichten
+// + Spot-Kurznachrichten (separat vom Chat)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getContacts() {
@@ -36,11 +39,11 @@ function saveMissed(a) {
 async function addMissed(code, name, outgoing = false, message = '') {
   const arr = getMissed();
   const recent = arr.findIndex(m => m.code === code && Date.now() - m.ts < 60000);
-  const entry = { code, name, ts: Date.now(), message };   // 🆕 message hinzugefügt
+  const entry = { code, name, ts: Date.now(), message };
   if (recent >= 0) arr[recent] = entry;
   else arr.unshift(entry);
   saveMissed(arr.slice(0, 30));
-  renderMissed();
+  if (typeof renderMissed === 'function') renderMissed();
 
   try {
     const payload = outgoing
@@ -124,11 +127,13 @@ function addPendingMessage(text) {
   pendingMessages.push({ text, ts: Date.now() });
   savePendingMessages();
   updatePendingBadge();
-  showInfoModal(
-    '📦 Lokal gespeichert',
-    `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
-    'Verstanden'
-  );
+  if (typeof showInfoModal === 'function') {
+    showInfoModal(
+      '📦 Lokal gespeichert',
+      `Nachricht wird gesendet, sobald du wieder online bist.\n(${pendingMessages.length} in Warteschlange)`,
+      'Verstanden'
+    );
+  }
 }
 
 function clearPendingMessages() {
@@ -154,29 +159,248 @@ function migratePendingMessages(newChatId) {
   }
 }
 
-function flushPendingMessages() {
-  if (!conn || !conn.open) return;
-  if (pendingMessages.length === 0) return;
+// 🆕 API-Version von flushPendingMessages
+async function flushPendingMessages(silent = false) {
+  if (!partnerCode || !chatId) {
+    console.warn('⚠️ flushPendingMessages: Kein partnerCode/chatId');
+    if (!silent) toast('⚠️ Kein aktiver Chat');
+    return;
+  }
+
+  if (pendingMessages.length === 0) {
+    console.log('📭 Keine Pending-Nachrichten');
+    if (!silent) toast('📭 Keine gespeicherten Nachrichten');
+    return;
+  }
+
+  console.log('📤 Sende', pendingMessages.length, 'Pending-Nachrichten...');
+  if (!silent) toast(`📤 Sende ${pendingMessages.length} Nachricht(en)...`);
+
   const toSend = [...pendingMessages];
   clearPendingMessages();
+
+  let sentCount = 0;
+
   for (let msg of toSend) {
-    const m = { t: 'text', text: msg.text, ts: msg.ts };
-    conn.send(m);
-    appendMsg({ ...m, own: true });
-    persistMsg({ ...m, own: true });
+    try {
+      const res = await fetch(API_BASE + '/offline-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: partnerCode,
+          senderCode: myCode,
+          senderName: myName,
+          message: msg.text
+        })
+      });
+
+      if (res.ok) {
+        sentCount++;
+        console.log('✅ Gesendet:', msg.text);
+      } else {
+        console.warn('❌ Fehler beim Senden:', msg.text);
+        pendingMessages.push(msg);
+        savePendingMessages();
+      }
+    } catch (e) {
+      console.warn('❌ Netzwerkfehler:', e);
+      pendingMessages.push(msg);
+      savePendingMessages();
+    }
   }
-  showInfoModal(
-    '✅ Nachrichten gesendet',
-    `${toSend.length} ${toSend.length === 1 ? 'Nachricht' : 'Nachrichten'} erfolgreich gesendet.`,
-    'OK'
-  );
+
+  updatePendingBadge();
+
+  if (sentCount > 0) {
+    toast(`✅ ${sentCount} Nachricht(en) gesendet`);
+  }
+
+  if (pendingMessages.length > 0) {
+    toast(`📦 ${pendingMessages.length} verbleiben in Warteschlange`);
+  }
+
+  return sentCount;
+}
+
+// 🆕 Automatisches Senden im Hintergrund (alle 30 Sekunden)
+let autoFlushInterval = null;
+
+function startPendingAutoFlush() {
+  if (autoFlushInterval) clearInterval(autoFlushInterval);
+
+  autoFlushInterval = setInterval(async () => {
+    // Nur wenn online und Token vorhanden
+    if (!navigator.onLine || !myToken) return;
+
+    // Alle Pending-Keys durchgehen
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+    if (keys.length === 0) return;
+
+    let totalSent = 0;
+
+    for (let key of keys) {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+
+      try {
+        const msgs = JSON.parse(stored);
+        if (msgs.length === 0) {
+          localStorage.removeItem(key);
+          continue;
+        }
+
+        // Partner-Code aus Key extrahieren
+        const chatIdFromKey = key.replace('sm_pending_', '');
+        const parts = chatIdFromKey.split('_');
+        const partner = parts.find(p => p !== myCode);
+        if (!partner) continue;
+
+        console.log(`🔄 AutoFlush: ${msgs.length} Nachricht(en) an ${partner}`);
+
+        const remaining = [];
+
+        for (let msg of msgs) {
+          try {
+            const res = await fetch(API_BASE + '/offline-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipient: partner,
+                senderCode: myCode,
+                senderName: myName,
+                message: msg.text
+              })
+            });
+
+            if (res.ok) {
+              totalSent++;
+            } else {
+              remaining.push(msg);
+            }
+          } catch (e) {
+            remaining.push(msg);
+          }
+        }
+
+        // Update Storage
+        if (remaining.length === 0) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify(remaining));
+        }
+      } catch (e) {}
+    }
+
+    if (totalSent > 0) {
+      console.log(`✅ AutoFlush: ${totalSent} Nachricht(en) gesendet`);
+      // Badge aktualisieren falls nötig
+      if (typeof updatePendingBadge === 'function') updatePendingBadge();
+    }
+  }, 30000); // Alle 30 Sekunden
+
+  console.log('🔄 Pending AutoFlush gestartet (30s Intervall)');
+}
+
+function stopPendingAutoFlush() {
+  if (autoFlushInterval) {
+    clearInterval(autoFlushInterval);
+    autoFlushInterval = null;
+    console.log('⏹️ Pending AutoFlush gestoppt');
+  }
+}
+
+// 🆕 Manueller Flush für Test-Button
+async function manualFlushAll() {
+  if (!myToken) {
+    toast('⚠️ Profil nicht veröffentlicht');
+    return;
+  }
+
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+  if (keys.length === 0) {
+    toast('📭 Keine gespeicherten Nachrichten');
+    return;
+  }
+
+  toast('📤 Sende alle gespeicherten Nachrichten...');
+
+  let totalSent = 0;
+
+  for (let key of keys) {
+    const stored = localStorage.getItem(key);
+    if (!stored) continue;
+
+    try {
+      const msgs = JSON.parse(stored);
+      if (msgs.length === 0) {
+        localStorage.removeItem(key);
+        continue;
+      }
+
+      const chatIdFromKey = key.replace('sm_pending_', '');
+      const parts = chatIdFromKey.split('_');
+      const partner = parts.find(p => p !== myCode);
+      if (!partner) continue;
+
+      const remaining = [];
+
+      for (let msg of msgs) {
+        try {
+          const res = await fetch(API_BASE + '/offline-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recipient: partner,
+              senderCode: myCode,
+              senderName: myName,
+              message: msg.text
+            })
+          });
+
+          if (res.ok) {
+            totalSent++;
+          } else {
+            remaining.push(msg);
+          }
+        } catch (e) {
+          remaining.push(msg);
+        }
+      }
+
+      if (remaining.length === 0) {
+        localStorage.removeItem(key);
+      } else {
+        localStorage.setItem(key, JSON.stringify(remaining));
+      }
+    } catch (e) {}
+  }
+
+  if (typeof updatePendingBadge === 'function') updatePendingBadge();
+
+  if (totalSent > 0) {
+    toast(`✅ ${totalSent} Nachricht(en) gesendet`);
+  } else {
+    toast('❌ Keine Nachrichten gesendet');
+  }
+
+  return totalSent;
 }
 
 function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
-  const count = pendingMessages.length;
-  if (count > 0) {
+
+  // Zähle ALLE Pending-Nachrichten
+  let totalCount = 0;
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
+  for (let key of keys) {
+    try {
+      const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+      totalCount += msgs.length;
+    } catch (e) {}
+  }
+
+  if (totalCount > 0) {
     btn.style.position = 'relative';
     let badge = document.getElementById('pending-badge');
     if (!badge) {
@@ -191,9 +415,10 @@ function updatePendingBadge() {
       badge.style.padding = '2px 6px';
       badge.style.fontSize = '11px';
       badge.style.fontWeight = 'bold';
+      badge.style.zIndex = '10';
       btn.appendChild(badge);
     }
-    badge.textContent = count > 99 ? '99+' : count;
+    badge.textContent = totalCount > 99 ? '99+' : totalCount;
     badge.style.display = 'block';
   } else {
     const badge = document.getElementById('pending-badge');
@@ -203,4 +428,69 @@ function updatePendingBadge() {
 
 function buildCID(a, b) {
   return 'sm_' + [a, b].sort().join('_');
-                 }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KURZNACHRICHTEN (SPOT) – SEPARAT VOM CHAT
+// ══════════════════════════════════════════════════════════════════════════════
+
+function getSpotMessages() {
+  return JSON.parse(localStorage.getItem('sm_spot_messages') || '[]');
+}
+
+function saveSpotMessages(msgs) {
+  localStorage.setItem('sm_spot_messages', JSON.stringify(msgs));
+}
+
+
+function addSpotMessage(senderCode, senderName, message, spotType = 'SPOT', ts = Date.now()) {
+  const msgs = getSpotMessages();
+  msgs.push({
+    code: senderCode,
+    name: senderName,
+    message: message,
+    spotType: spotType,  // 🆕 Für spätere Filterung (Gay, Dates, General etc.)
+    ts: ts,
+    read: false
+  });
+  saveSpotMessages(msgs);
+}
+
+
+function getUnreadSpotCount(code) {
+  const msgs = getSpotMessages();
+  return msgs.filter(m => m.code === code && !m.read).length;
+}
+
+function markSpotMessageRead(code, ts) {
+  const msgs = getSpotMessages();
+  const updated = msgs.map(m => {
+    if (m.code === code && m.ts === ts) {
+      return { ...m, read: true };
+    }
+    return m;
+  });
+  saveSpotMessages(updated);
+}
+
+function markAllSpotMessagesRead(code) {
+  const msgs = getSpotMessages();
+  const updated = msgs.filter(m => m.code !== code);
+  saveSpotMessages(updated);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GLOBALE EXPORTS
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.flushPendingMessages = flushPendingMessages;
+window.startPendingAutoFlush = startPendingAutoFlush;
+window.stopPendingAutoFlush = stopPendingAutoFlush;
+window.manualFlushAll = manualFlushAll;
+
+window.getSpotMessages = getSpotMessages;
+window.saveSpotMessages = saveSpotMessages;
+window.addSpotMessage = addSpotMessage;
+window.getUnreadSpotCount = getUnreadSpotCount;
+window.markSpotMessageRead = markSpotMessageRead;
+window.markAllSpotMessagesRead = markAllSpotMessagesRead;

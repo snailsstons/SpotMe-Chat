@@ -38,9 +38,10 @@
 <script src="scripts/ui-core.js"></script>
 <script src="scripts/audio.js"></script>
 <script src="scripts/traffic.js"></script>
-<script src="scripts/chat-api.js"></script>      <!-- MUSS VOR ui-home.js stehen! -->
+<script src="scripts/connection-check.js"></script>   <!-- 🆕 NEU -->
+<script src="scripts/chat-api.js"></script>
 <script src="scripts/p2p-call.js"></script>
-<script src="scripts/ui-home.js"></script>       <!-- Jetzt NACH chat-api.js -->
+<script src="scripts/ui-home.js"></script>
 <script src="scripts/albums.js"></script>
 <script src="scripts/backup.js"></script>
 <script src="scripts/voice.js"></script>
@@ -60,7 +61,7 @@
 <div id="s-home" class="screen active">
   <header class="app-header">
     <div class="header-left"></div>
-    <div class="logo">SPOT<b>ME 49</b></div>
+    <div class="logo">SPOT<b>ME 50</b></div>
     <div class="header-right">
       <div class="status-badge" id="header-status">● ONLINE</div>
       <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
@@ -74,6 +75,12 @@
           <div class="slab"><div>Achtsamkeit</div><div class="sdesc">Deine Nutzung & Balance</div></div>
         </button>
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
+        <div class="ssep"></div>
+<button class="sitem" onclick="manualFlushAll(); closeSheet();">
+  <div class="sico" style="background:var(--p2);">📤</div>
+  <div class="slab"><div>Nachrichten senden</div><div class="sdesc">Gespeicherte Nachrichten jetzt zustellen</div></div>
+</button>
+      
       </div>
     </div>
   </header>
@@ -107,32 +114,35 @@
       </div>
       <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
     </div>
+    
+<div id="psec" style="display:none;">
+  <div class="section-header">
+    <span class="section-label">Letzte Chats</span>
+  </div>
+  <div id="plist" class="horizontal-scroll"></div>
+</div>
 
-    <div id="psec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label">Letzte Chats</span>
-      </div>
-      <div id="plist" class="horizontal-scroll"></div>
-    </div>
+<div id="offline-msg-sec" style="display:none;">
+  <div class="section-header">
+    <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
+    <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
+  </div>
+  <div id="offline-msg-list" class="horizontal-scroll"></div>
+</div>
 
-    <div id="offline-msg-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label" style="color:var(--p3);">✉️ Offline-Nachrichten</span>
-        <button class="missed-clear-btn" onclick="markAllOfflineMsgsRead().then(()=>{ document.getElementById('offline-msg-sec').style.display='none'; document.getElementById('offline-msg-list').innerHTML=''; })">Alle gelesen</button>
-      </div>
-      <div id="offline-msg-list" class="horizontal-scroll"></div>
-    </div>
 
-    <div id="missed-sec" style="display:none;">
-      <div class="section-header">
-        <span class="section-label missed-label-text">Verpasste Anrufe</span>
-        <button class="missed-clear-btn" onclick="clearMissed()">Alle löschen</button>
-      </div>
-      <div id="missed-list" class="horizontal-scroll"></div>
-    </div>
+<!-- KURZNACHRICHTEN (SPOT) -->
+<div id="spot-msg-sec" style="display:none;">
+  <div class="section-header">
+    <span class="section-label" style="color:#00e5c0;">📟 Kurznachrichten</span>
+    <button class="missed-clear-btn" onclick="clearSpotMessages()">Alle gelesen</button>
+  </div>
+  <div id="spot-msg-list" class="horizontal-scroll"></div>
+</div>
 
-    <!-- SPOTS -->
-    <div class="section-header" style="margin-top:0.5rem;">
+
+<!-- SPOTS -->
+  <div class="section-header" style="margin-top:0.5rem;">
       <span class="section-label">Spots entdecken</span>
     </div>
     <div class="spots-grid">
