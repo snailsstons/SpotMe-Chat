@@ -211,54 +211,61 @@ function isMessageAlreadyStored(ts, own) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CHAT ÖFFNEN
+// CHAT ÖFFNEN (MIT ECHTEM STATUS)
 function openApiChat() {
   const id = window.chatId || chatId;
-  
+
   if (!id) {
     console.error('❌ chatId ist leer');
     toast('⚠️ Fehler: Keine Chat-ID');
     return;
   }
-  
+
   chatId = id;
   window.chatId = id;
-  
-  console.log('🔍 openApiChat – isOffline:', isOffline);
-  
+
+  // 🆕 Echten Status vom Heartbeat verwenden
+  const reallyOnline = window.isServerOnline !== false && navigator.onLine;
+
+  console.log('🔍 openApiChat – reallyOnline:', reallyOnline);
+
   prepChat();
   showScreen('s-chat');
   document.getElementById('sbtn').disabled = false;
   document.getElementById('rcbar').classList.remove('show');
   refreshStatusText();
-  document.getElementById('pav').className = 'pav';
+
+  const pav = document.getElementById('pav');
+  if (pav) pav.className = reallyOnline ? 'pav' : 'pav offline';
+
   applyPartnerName();
-  
+
   const h = document.getElementById('ehint');
   if (h) {
-    if (isOffline) {
+    if (!reallyOnline) {
       h.innerHTML = `<div class="empty-icon">📴</div>
         <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
-        <div class="empty-hint">Nachrichten werden gespeichert und später gesendet</div>`;
+        <div class="empty-hint">Server nicht erreichbar – Nachrichten werden später zugestellt</div>`;
     } else {
       h.innerHTML = `<div class="empty-icon">💬</div>
         <div class="empty-txt" style="font-weight:600;color:var(--text)">Chat bereit</div>
         <div class="empty-hint">Nachrichten werden über Server zugestellt</div>`;
     }
   }
-  
+
   if (typeof updateIdx === 'function') updateIdx('');
-  
-  setSpill(isOffline ? 'offline' : 'online', isOffline ? '● LOCAL' : '● ONLINE');
+
+  setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
   if (typeof updateConnectionStatus === 'function') updateConnectionStatus();
-  
-  if (!isOffline) {
+
+  if (reallyOnline) {
     startGlobalPolling();
     if (typeof flushPendingMessages === 'function') {
       setTimeout(() => flushPendingMessages(), 500);
     }
   }
 }
+
 
 function stopChatPolling() {
   if (pollingTimer) { 
