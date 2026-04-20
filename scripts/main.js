@@ -1,12 +1,13 @@
 'use strict';
 
-console.log('✅ main.js v2.4 geladen – Online-Event + AutoFlush + Heartbeat + Status-Init');
+console.log('✅ main.js v2.5 geladen – Hub-Integration + Heartbeat');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // API‑Version – keine PeerJS‑Abhängigkeiten mehr
 // + Heartbeat für Render.com
 // + Echter Online-Status vom Heartbeat
+// + Communication Hub Integration
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
@@ -38,7 +39,6 @@ window.addEventListener('load', () => {
   }
 
   window.addEventListener('online', () => {
-    // Nicht mehr hart setzen – Heartbeat entscheidet
     if (typeof checkServerConnection === 'function') {
       checkServerConnection().then(isOnline => {
         if (isOnline) {
@@ -111,14 +111,17 @@ window.addEventListener('load', () => {
     }, 500);
   }
 
-  // 🆕 SOFORT rendern mit lokalen Daten
-  renderPrev();
+  // 🆕 SOFORT rendern mit lokalen Daten (Hub)
+  if (typeof renderUnifiedHub === 'function') {
+    renderUnifiedHub();
+  } else {
+    renderPrev();
+  }
 
-  // 🆕 Dann Server-Daten laden und erneut rendern
+  // 🆕 Dann Server-Daten laden und Hub erneut rendern
   setTimeout(async () => {
     if (myToken) {
-      const offlineMsgs = await fetchOfflineMessages();
-      if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
+      await fetchOfflineMessages(); // Nur laden, Hub rendert selbst!
       if (typeof startGlobalPolling === 'function') startGlobalPolling();
     }
     const remoteMissed = await fetchRemoteMissedCalls();
@@ -133,8 +136,12 @@ window.addEventListener('load', () => {
       }
     }
 
-    // 🆕 Nach Server-Daten erneut rendern
-    renderPrev();
+    // 🆕 Nach Server-Daten Hub erneut rendern
+    if (typeof renderUnifiedHub === 'function') {
+      renderUnifiedHub();
+    } else {
+      renderPrev();
+    }
   }, 500);
 
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
