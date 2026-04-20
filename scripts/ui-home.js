@@ -1,10 +1,10 @@
 'use strict';
 
-console.log('✅ ui-home.js v4.1 geladen – Final Beta (Syntax-Fix)');
+console.log('✅ ui-home.js v4.2 geladen – Final Beta mit Tags');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// Unified Activity Feed – Chats & Kurznachrichten getrennt
+// Unified Activity Feed – Chats & Kurznachrichten getrennt mit Tags
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -65,7 +65,7 @@ async function shareCode() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CHAT AKTIVITÄTEN (NUR echte Chats aus sm_idx)
+// CHAT AKTIVITÄTEN (NUR echte Chats aus sm_idx) – MIT TAG
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function renderUnifiedActivity() {
@@ -213,6 +213,9 @@ async function renderUnifiedActivity() {
             ${alias[0]?.toUpperCase() || '?'}
           </div>
           <div class="card-details" style="flex:1;">
+            <div style="margin-bottom:4px;">
+              <span style="background:var(--p2);color:white;padding:3px 10px;border-radius:20px;font-size:0.65rem;font-weight:600;letter-spacing:0.3px;">💬 CHAT</span>
+            </div>
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <div class="card-name" style="display:flex;align-items:center;gap:6px;">
                 ${alias} ${unreadBadge}
@@ -247,7 +250,7 @@ async function renderUnifiedActivity() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KURZNACHRICHTEN (SPOT) – SEPARAT
+// KURZNACHRICHTEN (SPOT) – SEPARAT MIT SPOT-TAG
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderSpotMessages() {
@@ -267,7 +270,12 @@ function renderSpotMessages() {
   const grouped = {};
   unread.forEach(m => {
     if (!grouped[m.code]) {
-      grouped[m.code] = { name: m.name || formatCode(m.code), code: m.code, msgs: [] };
+      grouped[m.code] = {
+        name: m.name || formatCode(m.code),
+        code: m.code,
+        spotType: m.spotType || 'SPOT',
+        msgs: []
+      };
     }
     grouped[m.code].msgs.push(m);
   });
@@ -286,7 +294,10 @@ function renderSpotMessages() {
         <div class="card-row">
           <div class="card-avatar" style="background:linear-gradient(135deg,#00e5c0,#009688);">${esc(initial)}</div>
           <div class="card-details">
-            <div class="card-name">${esc(displayName)} · <span style="color:#00e5c0;">Spot</span></div>
+            <div style="margin-bottom:4px;">
+              <span style="background:#00e5c0;color:#000;padding:3px 10px;border-radius:20px;font-size:0.65rem;font-weight:600;letter-spacing:0.3px;">📟 ${s.spotType}</span>
+            </div>
+            <div class="card-name">${esc(displayName)}</div>
             <div class="card-preview" style="color:var(--text-dim);">${esc(lastMsg.message)}</div>
             <div class="card-time" style="font-size:0.7rem;color:var(--text-dim);">${time}</div>
           </div>
@@ -570,3 +581,5 @@ window.connectToPeer = connectToPeer;
 window.openChatUnified = openChatUnified;
 window.renderSpotMessages = renderSpotMessages;
 window.clearSpotMessages = clearSpotMessages;
+window.markSpotMessagesRead = markSpotMessagesRead;
+window.openSpotChat = openSpotChat;
