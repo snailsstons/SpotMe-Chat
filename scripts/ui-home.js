@@ -1,10 +1,10 @@
 'use strict';
 
-console.log('✅ ui-home.js v6.1 geladen – Communication Hub (Spot-Fix)');
+console.log('✅ ui-home.js v6.2 geladen – Communication Hub (Gruppiert pro Kontakt)');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
-// Communication Hub – Alle Nachrichten in einer vertikalen Liste mit Tags
+// Communication Hub – Nachrichten gruppiert pro Kontakt
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -65,7 +65,7 @@ async function shareCode() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// UNIFIED HUB – ALLE NACHRICHTEN IN EINER LISTE MIT TAGS
+// UNIFIED HUB – GRUPPIERT PRO KONTAKT (CHAT + SPOT)
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function renderUnifiedHub() {
@@ -139,77 +139,124 @@ async function renderUnifiedHub() {
     });
   });
 
-  // Nach Zeit sortieren (neueste zuerst)
-  items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  // Nach Kontakt gruppieren
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.code]) {
+      grouped[item.code] = {
+        code: item.code,
+        name: item.name,
+        chat: null,
+        spot: null,
+        missed: null,
+        offline: null,
+        latestTs: 0
+      };
+    }
+    
+    const contact = grouped[item.code];
+    if (item.ts > contact.latestTs) contact.latestTs = item.ts;
+    
+    if (item.type === 'chat') contact.chat = item;
+    else if (item.type === 'spot') contact.spot = item;
+    else if (item.type === 'missed') contact.missed = item;
+    else if (item.type === 'offline') contact.offline = item;
+  });
 
-  if (items.length === 0) {
+  // In Array umwandeln und nach Zeit sortieren
+  const contacts = Object.values(grouped).sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+
+  if (contacts.length === 0) {
     container.innerHTML = '<div class="empty-state">✨ Noch keine Nachrichten</div>';
     return;
   }
 
   // Rendern
-  container.innerHTML = items.map(item => {
-    const alias = esc(item.name);
+  container.innerHTML = contacts.map(contact => {
+    const alias = esc(contact.name);
     const initial = alias[0]?.toUpperCase() || '?';
-    const timeStr = formatRelativeTime(item.ts);
     
-    // Tag bestimmen
-    let tagText = '', tagClass = '';
-    if (item.type === 'chat') {
-      tagText = '💬 CHAT';
-      tagClass = 'tag-chat';
-    } else if (item.type === 'missed') {
-      tagText = '📵 ANRUF';
-      tagClass = 'tag-missed';
-    } else if (item.type === 'offline') {
-      tagText = '📴 OFFLINE';
-      tagClass = 'tag-offline';
-    } else if (item.type === 'spot') {
-      tagText = `📟 SPOTNACHRICHT`;  // 🆕 Umbenannt von "OFFLINE"
-      tagClass = 'tag-spot';
+    // CHAT-Zeile rendern
+    let chatRow = '';
+    if (contact.chat) {
+      const c = contact.chat;
+      const timeStr = formatRelativeTime(c.ts);
+      const btnText = c.hasMissed ? '📞 Zurückrufen' : '💬 Chat';
+      chatRow = `
+        <div class="contact-row">
+          <div class="row-tag tag-chat">💬 CHAT</div>
+          <div class="row-content">
+            <div class="row-preview">${esc(c.preview)}</div>
+            <div class="row-meta">
+              <span class="row-time">${timeStr}</span>
+              <button class="row-btn btn-primary" onclick="openChatUnified('${c.code}', '${esc2(alias)}', '${c.chatId}', ${c.hasMissed}, 'chat')">${btnText}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (contact.missed) {
+      const m = contact.missed;
+      const timeStr = formatRelativeTime(m.ts);
+      chatRow = `
+        <div class="contact-row">
+          <div class="row-tag tag-missed">📵 ANRUF</div>
+          <div class="row-content">
+            <div class="row-preview">${esc(m.preview)}</div>
+            <div class="row-meta">
+              <span class="row-time">${timeStr}</span>
+              <button class="row-btn btn-missed" onclick="openChatUnified('${m.code}', '${esc2(alias)}', '${buildCID(myCode, m.code)}', true, 'missed')">📞 Zurückrufen</button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (contact.offline) {
+      const o = contact.offline;
+      const timeStr = formatRelativeTime(o.ts);
+      chatRow = `
+        <div class="contact-row">
+          <div class="row-tag tag-offline">📴 OFFLINE</div>
+          <div class="row-content">
+            <div class="row-preview">${esc(o.preview)}</div>
+            <div class="row-meta">
+              <span class="row-time">${timeStr}</span>
+              <button class="row-btn btn-primary" onclick="openChatUnified('${o.code}', '${esc2(alias)}', '${buildCID(myCode, o.code)}', false, 'offline')">💬 Chat</button>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
-    // Buttons je nach Typ
-    let actionsHtml = '';
-    if (item.type === 'chat') {
-      const btnText = item.hasMissed ? '📞 Zurückrufen' : '💬 Chat';
-      actionsHtml = `<button class="card-btn btn-primary" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${item.chatId}', ${item.hasMissed}, 'chat')">${btnText}</button>`;
-    } else if (item.type === 'missed') {
-      actionsHtml = `
-        <button class="card-btn btn-missed" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${buildCID(myCode, item.code)}', true, 'missed')">📞 Zurückrufen</button>
-        <button class="card-btn btn-secondary" onclick="showLeaveMessageSheet('${item.code}', '${esc2(alias)}')">↩️ Antworten</button>
-      `;
-    } else if (item.type === 'offline') {
-      actionsHtml = `
-        <button class="card-btn btn-primary" onclick="openChatUnified('${item.code}', '${esc2(alias)}', '${buildCID(myCode, item.code)}', false, 'offline')">💬 Chat</button>
-        <button class="card-btn btn-secondary" onclick="markOfflineMsgRead('${item.messageId}'); renderUnifiedHub();">✓ Gelesen</button>
-      `;
-    } else if (item.type === 'spot') {
-      // 🆕 "Antworten" statt "Chat" – öffnet Kurznachricht-Antwort (Lokal-Modus)
-      actionsHtml = `
-        <button class="card-btn btn-primary" onclick="answerSpotMessage('${item.code}', '${esc2(alias)}')">💬 Antworten</button>
-        <button class="card-btn btn-secondary" onclick="markSpotMessagesRead('${item.code}'); renderUnifiedHub();">✓ Gelesen</button>
+    // SPOT-Zeile rendern (falls vorhanden)
+    let spotRow = '';
+    if (contact.spot) {
+      const s = contact.spot;
+      const timeStr = formatRelativeTime(s.ts);
+      spotRow = `
+        <div class="contact-row">
+          <div class="row-tag tag-spot">📟 SPOT</div>
+          <div class="row-content">
+            <div class="row-preview">${esc(s.preview)}</div>
+            <div class="row-meta">
+              <span class="row-time">${timeStr}</span>
+              <button class="row-btn btn-primary" onclick="answerSpotMessage('${s.code}', '${esc2(alias)}')">💬 Antworten</button>
+            </div>
+          </div>
+        </div>
       `;
     }
 
     return `
-      <div class="unified-card">
-        <div class="card-header">
-          <span class="card-tag ${tagClass}">${tagText}</span>
-          <span class="card-time">${timeStr}</span>
-        </div>
-        <div style="display: flex;">
+      <div class="contact-card">
+        <div class="contact-header">
           <div class="card-avatar" style="background:linear-gradient(135deg, var(--p2), var(--p3));">${initial}</div>
-          <div style="flex: 1;">
-            <div class="card-contact">
-              <span class="card-name">${alias}</span>
-              <span class="card-code">${formatCode(item.code)}</span>
-            </div>
-            <div class="card-preview">${esc(item.preview)}</div>
-            <div class="card-actions">
-              ${actionsHtml}
-            </div>
+          <div class="contact-info">
+            <span class="contact-name">${alias}</span>
+            <span class="contact-code">${formatCode(contact.code)}</span>
           </div>
+        </div>
+        <div class="contact-rows">
+          ${chatRow}
+          ${spotRow}
         </div>
       </div>
     `;
@@ -223,7 +270,6 @@ async function renderUnifiedHub() {
 function answerSpotMessage(code, name) {
   console.log('📟 answerSpotMessage →', code, name);
   
-  // Lokal-Modus: Nachricht schreiben ohne Anruf
   isOffline = true;
   window.isOffline = true;
   setSpill('offline', '○ LOCAL');
@@ -238,7 +284,6 @@ function answerSpotMessage(code, name) {
   loadPendingMessages();
   migratePendingMessages(chatId);
   
-  // Chat im Lokal-Modus öffnen
   if (typeof openApiChat === 'function') {
     openApiChat();
     toast(`📝 Lokale Antwort an ${name}`);
@@ -250,11 +295,6 @@ function answerSpotMessage(code, name) {
 // ══════════════════════════════════════════════════════════════════════════════
 // KURZNACHRICHTEN (SPOT) – HILFSFUNKTIONEN
 // ══════════════════════════════════════════════════════════════════════════════
-
-function openSpotChat(code) {
-  const name = getContacts()[code] || formatCode(code);
-  answerSpotMessage(code, name);  // 🆕 Nutzt jetzt answerSpotMessage
-}
 
 function markSpotMessagesRead(code) {
   const msgs = getSpotMessages();
@@ -270,7 +310,7 @@ function clearSpotMessages() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EINHEITLICHE CHAT-ÖFFNEN FUNKTION – MIT ECHTEM STATUS
+// EINHEITLICHE CHAT-ÖFFNEN FUNKTION
 // ══════════════════════════════════════════════════════════════════════════════
 
 function openChatUnified(code, name, chatId, isCallback = false, source = 'chat') {
@@ -287,19 +327,14 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
 
   window.chatSource = source;
 
-  // ECHTEN Status vom Heartbeat verwenden
   const reallyOnline = window.isServerOnline !== false && navigator.onLine;
   isOffline = !reallyOnline;
   window.isOffline = !reallyOnline;
-
-  console.log('🌐 Server-Status:', reallyOnline ? 'ONLINE' : 'OFFLINE');
 
   partnerCode = code;
   partnerName = name;
   window.chatId = chatId;
   chatId = chatId;
-
-  console.log('✅ chatId gesetzt:', chatId);
 
   loadPendingMessages();
   migratePendingMessages(chatId);
@@ -319,7 +354,6 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
     const reallyOnline = window.isServerOnline !== false && navigator.onLine;
     isOffline = !reallyOnline;
     window.isOffline = !reallyOnline;
-
     setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
     updateConnectionStatus();
 
@@ -327,8 +361,6 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
     if (pav) pav.className = reallyOnline ? 'pav' : 'pav offline';
     const pstatus = document.getElementById('pstatus');
     if (pstatus) pstatus.textContent = reallyOnline ? '● ONLINE' : '○ LOCAL';
-
-    console.log('✅ Status gesetzt:', reallyOnline ? 'ONLINE' : 'LOCAL');
   }, 50);
 
   if (myToken && reallyOnline) {
@@ -336,8 +368,6 @@ function openChatUnified(code, name, chatId, isCallback = false, source = 'chat'
   }
 
   toast(reallyOnline ? `📞 Rufe ${name} an...` : `📝 Lokaler Chat mit ${name}...`);
-
-  console.log('⏰ Fallback-Timer DEAKTIVIERT – Status wird vom Heartbeat gesteuert');
 }
 
 async function sendChatRequest(recipient) {
@@ -392,27 +422,15 @@ function renameContact(code, networkName) {
 // KOMPATIBILITÄT
 // ══════════════════════════════════════════════════════════════════════════════
 
-function renderPrev() {
-  renderUnifiedHub();
-}
-
+function renderPrev() { renderUnifiedHub(); }
 function renderMissed() {}
 function renderUnifiedActivity() { renderUnifiedHub(); }
 function renderOfflineMessages() {}
 function renderSpotMessages() {}
 
-function reconnectTo(code, name, cid) {
-  openChatUnified(code, name, cid, false, 'reconnect');
-}
-
-function callBack(code) {
-  openChatUnified(code, getContacts()[code] || formatCode(code), buildCID(myCode, code), true, 'callback');
-}
-
-function clearMissed() {
-  saveMissed([]);
-  renderUnifiedHub();
-}
+function reconnectTo(code, name, cid) { openChatUnified(code, name, cid, false, 'reconnect'); }
+function callBack(code) { openChatUnified(code, getContacts()[code] || formatCode(code), buildCID(myCode, code), true, 'callback'); }
+function clearMissed() { saveMissed([]); renderUnifiedHub(); }
 
 function connectToPeer() {
   const code = getDigits();
@@ -432,8 +450,6 @@ function connectToPeer() {
 window.connectToPeer = connectToPeer;
 window.openChatUnified = openChatUnified;
 window.renderUnifiedHub = renderUnifiedHub;
-window.renderSpotMessages = renderSpotMessages;
 window.clearSpotMessages = clearSpotMessages;
 window.markSpotMessagesRead = markSpotMessagesRead;
-window.openSpotChat = openSpotChat;
 window.answerSpotMessage = answerSpotMessage;
