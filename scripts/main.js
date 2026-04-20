@@ -1,6 +1,14 @@
 'use strict';
 
-console.log('✅ main.js v2.6 geladen – Hub-Final');
+console.log('✅ main.js v2.7 geladen – Hub-Final mit Sofort-Render');
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOTME – EINSTIEGSPUNKT (main.js)
+// API‑Version – keine PeerJS‑Abhängigkeiten mehr
+// + Heartbeat für Render.com
+// + Echter Online-Status vom Heartbeat
+// + Communication Hub Integration
+// ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
@@ -8,7 +16,14 @@ window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0, 3) + ' · ' + myCode.slice(3, 6);
 
   initDigits();
-  // 🆕 NICHT hier rendern – erst nach Daten-Load!
+  
+  // 🆕 SOFORT rendern mit lokalen Daten!
+  if (typeof renderUnifiedHub === 'function') {
+    renderUnifiedHub();
+  } else {
+    renderPrev();
+  }
+  
   renderMissed();
 
   initDB();
@@ -37,6 +52,7 @@ window.addEventListener('load', () => {
           setSpill('online', '● ONLINE');
           updateConnectionStatus();
           toast('🌐 Online – Nachrichten werden gesendet');
+
           if (typeof flushPendingMessages === 'function') {
             flushPendingMessages(true);
           }
@@ -102,7 +118,7 @@ window.addEventListener('load', () => {
     }, 500);
   }
 
-  // 🆕 ERST Server-Daten laden, DANN rendern
+  // 🆕 Dann Server-Daten laden und Hub NOCHMAL rendern
   setTimeout(async () => {
     if (myToken) {
       await fetchOfflineMessages();
@@ -120,7 +136,7 @@ window.addEventListener('load', () => {
       }
     }
 
-    // 🆕 JETZT rendern – nachdem ALLE Daten geladen sind!
+    // 🆕 Nach Server-Daten Hub erneut rendern
     if (typeof renderUnifiedHub === 'function') {
       renderUnifiedHub();
     } else {
@@ -134,16 +150,20 @@ window.addEventListener('load', () => {
     if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
   }, 2500);
 
+  // 🆕 AutoFlush für Pending-Nachrichten starten
   setTimeout(() => {
     if (typeof startPendingAutoFlush === 'function') {
       startPendingAutoFlush();
     }
   }, 5000);
 
+  // 🆕 Heartbeat für Render starten UND initialen Status setzen
   setTimeout(() => {
     if (typeof startHeartbeat === 'function') {
       startHeartbeat();
     }
+
+    // 🆕 Initialen Status vom Heartbeat übernehmen (nach erstem Ping)
     setTimeout(() => {
       const reallyOnline = window.isServerOnline !== false && navigator.onLine;
       isOffline = !reallyOnline;
