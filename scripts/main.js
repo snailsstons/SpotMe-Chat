@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ main.js v2.1 geladen – Online-Event mit Pending-Flush');
+console.log('✅ main.js v2.2 geladen – Online-Event + AutoFlush');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
@@ -34,16 +34,14 @@ window.addEventListener('load', () => {
     Notification.requestPermission();
   }
 
-  // 🆕 Online-Event mit Pending-Flush
   window.addEventListener('online', () => {
     isOffline = false;
     setSpill('online', '● ONLINE');
     updateConnectionStatus();
     toast('🌐 Online – Nachrichten werden gesendet');
     
-    // Pending-Nachrichten senden
     if (typeof flushPendingMessages === 'function') {
-      flushPendingMessages();
+      flushPendingMessages(true); // silent mode
     }
   });
 
@@ -116,11 +114,19 @@ window.addEventListener('load', () => {
   setTimeout(() => {
     if (typeof checkBackupOnStart === 'function') checkBackupOnStart();
   }, 2500);
+  
+  // 🆕 AutoFlush für Pending-Nachrichten starten
+  setTimeout(() => {
+    if (typeof startPendingAutoFlush === 'function') {
+      startPendingAutoFlush();
+    }
+  }, 5000);
 });
 
 window.addEventListener('beforeunload', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppClose();
   if (typeof stopChatPolling === 'function') stopChatPolling();
+  if (typeof stopPendingAutoFlush === 'function') stopPendingAutoFlush();
 });
 
 document.addEventListener('visibilitychange', () => {
