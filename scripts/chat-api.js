@@ -105,7 +105,7 @@ function resetIncomingRequestState() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NACHRICHTEN SENDEN
-async sendMsg() {
+async function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
   if (!text) return;
