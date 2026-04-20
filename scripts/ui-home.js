@@ -1,10 +1,11 @@
 'use strict';
 
-console.log('✅ ui-home.js v4.2 geladen – Final Beta mit Tags');
+console.log('✅ ui-home.js v5.0 geladen – Final mit Status-Fix');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
 // Unified Activity Feed – Chats & Kurznachrichten getrennt mit Tags
+// + chatId-Fix + Status-Fix + Fallback deaktiviert
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -236,7 +237,7 @@ async function renderUnifiedActivity() {
         
         <div style="display:flex;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
           <button class="unified-action-btn" 
-                  onclick="event.stopPropagation(); openChatUnified('${c.code}', '${esc2(c.name)}', '${chatId}', ${hasMissedCall})"
+                  onclick="event.stopPropagation(); openChatUnified('${c.code}', '${esc2(c.name)}', '${chatId}', ${hasMissedCall}, 'chat')"
                   style="flex:1;padding:12px;border-radius:30px;border:none;background:${buttonColor};
                          color:white;font-weight:600;cursor:pointer;font-size:1rem;
                          display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -314,7 +315,7 @@ function renderSpotMessages() {
 
 function openSpotChat(code) {
   const name = getContacts()[code] || formatCode(code);
-  openChatUnified(code, name, buildCID(myCode, code), false);
+  openChatUnified(code, name, buildCID(myCode, code), false, 'spot');
   markSpotMessagesRead(code);
 }
 
@@ -332,24 +333,35 @@ function clearSpotMessages() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EINHEITLICHE CHAT-ÖFFNEN FUNKTION
+// EINHEITLICHE CHAT-ÖFFNEN FUNKTION – MIT ALLEN FIXES
 // ══════════════════════════════════════════════════════════════════════════════
 
-function openChatUnified(code, name, chatId, isCallback = false) {
-  console.log('💬 openChatUnified →', code, name, chatId, 'isCallback:', isCallback);
+function openChatUnified(code, name, chatId, isCallback = false, source = 'chat') {
+  console.log('💬 openChatUnified →', code, name, chatId, 'source:', source);
 
   if (code === myCode) {
     toast('⚠️ Du kannst nicht mit dir selbst chatten');
     return;
   }
 
+  // 🆕 chatId ERZWINGEN – niemals undefined
+  if (!chatId || chatId === 'undefined') {
+    chatId = buildCID(myCode, code);
+  }
+
+  // 🆕 Source speichern
+  window.chatSource = source;
+
+  // LIVE-Modus setzen
   isOffline = false;
   window.isOffline = false;
 
   partnerCode = code;
   partnerName = name;
-  chatId = chatId || buildCID(myCode, code);
   window.chatId = chatId;
+  chatId = chatId; // globale Variable
+
+  console.log('✅ chatId gesetzt:', chatId);
 
   loadPendingMessages();
   migratePendingMessages(chatId);
@@ -365,12 +377,21 @@ function openChatUnified(code, name, chatId, isCallback = false) {
     return;
   }
 
+  // 🆕 Status SOFORT auf ONLINE setzen
   setTimeout(() => {
     isOffline = false;
     window.isOffline = false;
     setSpill('online', '● ONLINE');
     updateConnectionStatus();
-  }, 100);
+    
+    // 🆕 Avatar-Status auf ONLINE setzen
+    const pav = document.getElementById('pav');
+    if (pav) pav.className = 'pav';
+    const pstatus = document.getElementById('pstatus');
+    if (pstatus) pstatus.textContent = '● ONLINE';
+    
+    console.log('✅ Status auf ONLINE gesetzt');
+  }, 50); // Sofort, aber nach DOM-Update
 
   if (myToken) {
     sendChatRequest(code);
@@ -378,37 +399,9 @@ function openChatUnified(code, name, chatId, isCallback = false) {
 
   toast(`📞 Rufe ${name} an...`);
 
-  if (window.chatFallbackTimer) {
-    clearTimeout(window.chatFallbackTimer);
-    window.chatFallbackTimer = null;
-  }
-
-  window.chatFallbackTimer = setTimeout(() => {
-    if (partnerCode === code) {
-      const chatKey = 'smmsg_' + chatId;
-      const msgs = JSON.parse(localStorage.getItem(chatKey) || '[]');
-      const hasPartnerMessage = msgs.some(m => m.own === false);
-      const chatActive = document.getElementById('s-chat').classList.contains('active');
-
-      if (chatActive && !hasPartnerMessage && !isOffline) {
-        console.log('⏰ Keine Antwort – schalte auf Lokal-Modus');
-        isOffline = true;
-        window.isOffline = true;
-        setSpill('offline', '● LOCAL');
-        updateConnectionStatus();
-
-        const h = document.getElementById('ehint');
-        if (h) {
-          h.innerHTML = `<div class="empty-icon">📴</div>
-            <div class="empty-txt" style="font-weight:600;color:var(--text)">Lokaler Modus</div>
-            <div class="empty-hint">Partner nicht erreichbar – Nachrichten werden später zugestellt</div>`;
-        }
-
-        toast('📴 Partner nicht erreichbar – Lokaler Modus aktiv');
-      }
-    }
-    window.chatFallbackTimer = null;
-  }, 10000);
+  // 🆕 Fallback-Timer DEAKTIVIERT für Beta
+  // Bleibt immer im Live-Modus
+  console.log('⏰ Fallback-Timer DEAKTIVIERT – bleibe im Live-Modus');
 }
 
 async function sendChatRequest(recipient) {
@@ -505,7 +498,7 @@ function renderOfflineMessages(msgs) {
       </div>
       <div class="offline-msg-detail" style="display:none; margin-top:0.5rem; max-height:150px; overflow-y:auto; color:var(--text);">${msgListHtml}</div>
       <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
-        <button class="call-back-btn" style="background:var(--acc);" onclick="openChatUnified('${s.code}', '${esc2(displayName)}', '${buildCID(myCode, s.code)}', false)">💬 Chat</button>
+        <button class="call-back-btn" style="background:var(--acc);" onclick="openChatUnified('${s.code}', '${esc2(displayName)}', '${buildCID(myCode, s.code)}', false, 'offline')">💬 Chat</button>
         <button class="call-back-btn" style="background:rgba(123,92,250,0.15);color:var(--p2);border:1px solid rgba(123,92,250,0.3);" onclick="showLeaveMessageSheet('${s.code}', '${esc2(displayName)}')">↩️ Antworten</button>
         <button class="call-back-btn" style="background:rgba(255,255,255,.06);" onclick="dismissSenderOfflineMsgs('${s.code}', [${allIds.join(',')}])">✓ Gelesen</button>
         ${s.msgs.length > 1 ? `<button class="call-back-btn" style="background:rgba(255,255,255,0.1);" onclick="toggleSenderMessages('${s.code}')">📋 Alle anzeigen</button>` : ''}
@@ -551,11 +544,11 @@ function renderPrev() {
 function renderMissed() {}
 
 function reconnectTo(code, name, cid) {
-  openChatUnified(code, name, cid, false);
+  openChatUnified(code, name, cid, false, 'reconnect');
 }
 
 function callBack(code) {
-  openChatUnified(code, getContacts()[code] || formatCode(code), buildCID(myCode, code), true);
+  openChatUnified(code, getContacts()[code] || formatCode(code), buildCID(myCode, code), true, 'callback');
 }
 
 function clearMissed() {
@@ -568,7 +561,7 @@ function connectToPeer() {
   if (code.length !== 6 || code === myCode) return;
 
   const name = localName(code);
-  openChatUnified(code, name, buildCID(myCode, code), false);
+  openChatUnified(code, name, buildCID(myCode, code), false, 'connect');
 
   document.querySelectorAll('.dinp-new').forEach(d => {
     d.value = '';
