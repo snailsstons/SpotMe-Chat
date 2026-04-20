@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ ui+home.js v1.0.0 geladen – Home UI aktiv');
+console.log('✅ ui+home.js v5.1 geladen – Home UI aktiv');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – HOME SCREEN (ui-home.js)
