@@ -358,9 +358,13 @@ function updateBioCount() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// LOAD / SAVE
+// LOAD / SAVE (MIT AKKORDEON-ÖFFNUNG)
 // ═══════════════════════════════════════════════════════════════════════════
 function loadProfile() {
+  // 🆕 Dates-Akkordeon öffnen, damit die Radio-Buttons im DOM sind!
+  const datesDetails = document.getElementById('spot-dates-details');
+  if (datesDetails) datesDetails.open = true;
+  
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) return;
   try {
@@ -396,6 +400,10 @@ function loadProfile() {
 }
 
 function saveProfile() {
+  // 🆕 Dates-Akkordeon öffnen, damit die Radio-Buttons im DOM sind!
+  const datesDetails = document.getElementById('spot-dates-details');
+  if (datesDetails) datesDetails.open = true;
+  
   const name = document.getElementById('f-name').value.trim();
   if (!name) { toast('⚠️ Profilname ist Pflicht'); return; }
   const yearVal = document.getElementById('f-year').value;
@@ -439,7 +447,12 @@ function autoSave() {
     saveProfile_silent();
   }, 1200);
 }
+
 function saveProfile_silent() {
+  // 🆕 Dates-Akkordeon öffnen
+  const datesDetails = document.getElementById('spot-dates-details');
+  if (datesDetails) datesDetails.open = true;
+  
   const name = document.getElementById('f-name').value.trim();
   if (!name) return;
   const existing = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
@@ -470,10 +483,11 @@ function showSavedBadge() {
   b.classList.add('show');
   setTimeout(() => b.classList.remove('show'), 3000);
 }
-// 🆕 Zurück zum richtigen Spot!
-  function goBack() { 
+
+function goBack() { 
   window.history.back(); 
-  }
+}
+
 let tTimer;
 function toast(msg, ms=2600) {
   const t = document.getElementById('toast');
