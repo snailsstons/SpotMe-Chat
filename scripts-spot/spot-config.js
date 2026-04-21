@@ -1,13 +1,16 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KONFIGURATION (spot-config.js)
+// Globaler Token für ALLE Spots!
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API  = 'https://spotme-pg-test.onrender.com/api';
 
-// 🆕 Werden in spot-init.js dynamisch gesetzt!
+// 🆕 GLOBALER Token – EIN Token für ALLE Spots und den Chat!
+const TOKEN_KEY = 'sm_token';
+
+// 🆕 Profil ist Spot-spezifisch – wird in spot-init.js gesetzt!
 let PROFILE_KEY = 'sm_profile_temp';
-let TOKEN_KEY   = 'sm_token_temp';
 
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
