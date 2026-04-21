@@ -1,12 +1,13 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.1 geladen – Final Fixed');
+console.log('✅ chat-api.js v3.2 geladen – Final + Spot-Integration');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
 // + Robuster Klingelton (HTML5 Audio Fallback)
 // + Automatisches Senden von Pending-Nachrichten
+// + Spot-Nachrichten Erkennung
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
@@ -103,7 +104,7 @@ function resetIncomingRequestState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NACHRICHTEN SENDEN (MIT ECHTEM VERBINDUNGS-CHECK)
+// NACHRICHTEN SENDEN
 async function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -120,17 +121,19 @@ async function sendMsg() {
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  // 🆕 ECHTE Verbindung prüfen (Heartbeat)
+  // 🆕 ECHTE Verbindung prüfen
   let isReallyOnline = navigator.onLine;
   if (typeof ensureConnection === 'function') {
     isReallyOnline = await ensureConnection();
   }
-  
+
   if (!isReallyOnline) {
     addPendingMessageSilent(text);
     toast('📴 Server nicht erreichbar – lokal gespeichert');
   } else if (myToken) {
-    sendToServer(partnerCode, text);
+    // 🆕 Source mitgeben (chat oder spot)
+    const source = window.chatSource || 'chat';
+    sendToServer(partnerCode, text, source);
   } else {
     addPendingMessageSilent(text);
     toast('📦 Wird später gesendet');
@@ -140,7 +143,6 @@ async function sendMsg() {
   inp.style.height = 'auto';
 }
 
-
 function addPendingMessageSilent(text) {
   if (typeof pendingMessages === 'undefined') window.pendingMessages = [];
   pendingMessages.push({ text, ts: Date.now() });
@@ -148,12 +150,19 @@ function addPendingMessageSilent(text) {
   if (typeof updatePendingBadge === 'function') updatePendingBadge();
 }
 
-async function sendToServer(recipient, message) {
+async function sendToServer(recipient, message, source = 'chat') {
   try {
     const res = await fetch(API_BASE + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient, senderCode: myCode, senderName: myName, message })
+      body: JSON.stringify({ 
+        recipient, 
+        senderCode: myCode, 
+        senderName: myName, 
+        message,
+        type: source === 'spot' ? 'spot_message' : 'chat_message',
+        source: source
+      })
     });
     if (res.ok) removePendingMessageByText(message);
   } catch (e) {}
@@ -171,7 +180,7 @@ function removePendingMessageByText(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING
+// GLOBALES POLLING (MIT SPOT-ERKENNUNG)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -182,6 +191,7 @@ function startGlobalPolling() {
       const msgs = await res.json();
 
       msgs.filter(m => !m.read).forEach(m => {
+        // Chat-Request
         if (m.message === '__CHAT_REQUEST__' || m.type === 'chat_request') {
           const senderName = m.senderName || formatCode(m.senderCode);
           handleIncomingChatRequest(m.senderCode, senderName);
@@ -189,6 +199,23 @@ function startGlobalPolling() {
           return;
         }
 
+        // 🆕 Spot-Nachricht → in spot_messages speichern!
+        if (m.type === 'spot_message' || m.source === 'spot') {
+          console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
+          if (typeof addSpotMessage === 'function') {
+            const spotType = m.spotType || 'SPOT';
+            addSpotMessage(m.senderCode, m.senderName, m.message, spotType);
+          }
+          markOfflineMsgRead(m.id);
+          
+          // Hub aktualisieren
+          if (typeof renderUnifiedHub === 'function') {
+            setTimeout(() => renderUnifiedHub(), 100);
+          }
+          return;
+        }
+
+        // Normale Chat-Nachricht
         if (partnerCode && m.senderCode === partnerCode) {
           const ts = new Date(m.timestamp).getTime();
           if (!isMessageAlreadyStored(ts, false)) {
@@ -211,35 +238,34 @@ function isMessageAlreadyStored(ts, own) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CHAT ÖFFNEN (MIT ECHTEM STATUS)
+// CHAT ÖFFNEN
 function openApiChat() {
   const id = window.chatId || chatId;
-
+  
   if (!id) {
     console.error('❌ chatId ist leer');
     toast('⚠️ Fehler: Keine Chat-ID');
     return;
   }
-
+  
   chatId = id;
   window.chatId = id;
-
-  // 🆕 Echten Status vom Heartbeat verwenden
+  
   const reallyOnline = window.isServerOnline !== false && navigator.onLine;
-
+  
   console.log('🔍 openApiChat – reallyOnline:', reallyOnline);
-
+  
   prepChat();
   showScreen('s-chat');
   document.getElementById('sbtn').disabled = false;
   document.getElementById('rcbar').classList.remove('show');
   refreshStatusText();
-
+  
   const pav = document.getElementById('pav');
   if (pav) pav.className = reallyOnline ? 'pav' : 'pav offline';
-
+  
   applyPartnerName();
-
+  
   const h = document.getElementById('ehint');
   if (h) {
     if (!reallyOnline) {
@@ -252,12 +278,12 @@ function openApiChat() {
         <div class="empty-hint">Nachrichten werden über Server zugestellt</div>`;
     }
   }
-
+  
   if (typeof updateIdx === 'function') updateIdx('');
-
+  
   setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
   if (typeof updateConnectionStatus === 'function') updateConnectionStatus();
-
+  
   if (reallyOnline) {
     startGlobalPolling();
     if (typeof flushPendingMessages === 'function') {
@@ -265,7 +291,6 @@ function openApiChat() {
     }
   }
 }
-
 
 function stopChatPolling() {
   if (pollingTimer) { 

@@ -1,8 +1,12 @@
 'use strict';
+
+console.log('✅ spot-kurznachricht.js v2.0 geladen – mit Spot-Typ');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KURZNACHRICHT (spot-kurznachricht.js)
 // + Local‑First: Offline‑Nachrichten werden gespeichert und später gesendet
 // + Usage‑Zähler für Achtsamkeits‑Seite
+// + Spot-Typ wird mitgesendet (Gay, Dates, General)
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _kurznachrichtTarget = null;
@@ -30,7 +34,10 @@ function addPendingMessage(recipient, text, senderName) {
     senderCode: myCode,
     senderName,
     message: text,
-    ts: Date.now()
+    ts: Date.now(),
+    type: 'spot_message',           // 🆕
+    source: 'spot',                 // 🆕
+    spotType: SPOT || 'SPOT'        // 🆕
   });
   savePendingMessages(msgs);
 }
@@ -53,7 +60,6 @@ async function flushPendingKurznachrichten() {
 
   if (successCount > 0) {
     toast(`📨 ${successCount} gespeicherte Kurznachricht(en) gesendet`);
-    // 📊 Zähler für gesendete Nachrichten (falls Usage verfügbar)
     if (typeof Usage !== 'undefined') {
       for (let i = 0; i < successCount; i++) Usage.incrementMessagesSent();
     }
@@ -84,7 +90,7 @@ async function submitKurznachricht() {
   const btn = document.getElementById('kurznachr-btn');
   const senderName = myProfile?.name || myCode;
 
-  const online = (typeof peerReady !== 'undefined' && peerReady) || navigator.onLine;
+  const online = navigator.onLine;
 
   if (!online) {
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
@@ -101,7 +107,9 @@ async function submitKurznachricht() {
       senderCode: myCode,
       senderName: senderName,
       message: text,
-      spot: SPOT
+      type: 'spot_message',      // 🆕 WICHTIG für Empfänger!
+      source: 'spot',            // 🆕 WICHTIG für Empfänger!
+      spotType: SPOT || 'SPOT'   // 🆕 Gay, Dates, General
     };
     const res = await fetch(API + '/offline-message', {
       method: 'POST',
@@ -112,7 +120,6 @@ async function submitKurznachricht() {
     if (res.ok) {
       toast(`📨 Nachricht an ${_kurznachrichtTarget.name} gesendet`);
       closeKurznachrichtModal();
-      // 📊 Zähler erhöhen
       if (typeof Usage !== 'undefined') {
         Usage.incrementMessagesSent();
       }
@@ -127,4 +134,4 @@ async function submitKurznachricht() {
     btn.disabled = false;
     btn.textContent = '📨 Senden';
   }
-}
+  }

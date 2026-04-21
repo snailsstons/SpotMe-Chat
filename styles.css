@@ -638,3 +638,253 @@ html, body { height:100%; overflow:hidden; font-family:'DM Sans', sans-serif; ba
   opacity: 1 !important;
   z-index: 1000 !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMMUNICATION HUB – Vertikale Liste
+═══════════════════════════════════════════════════════════════════ */
+.hub-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.hub-header {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--bord);
+}
+
+.vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.unified-card {
+  flex: none;
+  width: 100%;
+  background: var(--card2);
+  border: 1px solid var(--bord);
+  border-radius: 16px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.unified-card:active {
+  border-color: var(--bord2);
+  background: var(--card);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-tag {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.tag-chat {
+  background: var(--p2);
+  color: white;
+}
+
+.tag-offline {
+  background: var(--p3);
+  color: white;
+}
+
+.tag-spot {
+  background: #00e5c0;
+  color: #000;
+}
+
+.tag-missed {
+  background: #ff6b9d;
+  color: white;
+}
+
+.card-contact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.card-code {
+  font-size: 0.7rem;
+  color: var(--muted2);
+}
+
+.card-time {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.card-content {
+  margin-left: 52px; /* Platz für Avatar */
+}
+
+.card-avatar {
+  float: left;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p2), var(--p3));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  margin-right: 8px;
+}
+
+.card-preview {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.card-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 20px;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--acc);
+  color: var(--bg);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  border: 1px solid var(--bord);
+}
+
+.btn-missed {
+  background: #ff6b9d;
+  color: white;
+   }
+/* Contact Card – Gruppierte Ansicht */
+.contact-card {
+  background: var(--card2);
+  border: 1px solid var(--bord);
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 10px;
+}
+
+.contact-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--bord);
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.contact-code {
+  font-size: 0.7rem;
+  color: var(--muted2);
+}
+
+.contact-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.row-tag {
+  min-width: 70px;
+  padding: 3px 6px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.row-content {
+  flex: 1;
+}
+
+.row-preview {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-time {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.row-btn {
+  padding: 5px 12px;
+  border-radius: 15px;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+   }

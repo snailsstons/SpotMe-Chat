@@ -1,12 +1,13 @@
 'use strict';
 
-console.log('✅ main.js v2.4 geladen – Online-Event + AutoFlush + Heartbeat + Status-Init');
+console.log('✅ main.js v2.7 geladen – Hub-Final mit Sofort-Render');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
 // API‑Version – keine PeerJS‑Abhängigkeiten mehr
 // + Heartbeat für Render.com
 // + Echter Online-Status vom Heartbeat
+// + Communication Hub Integration
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
@@ -15,7 +16,14 @@ window.addEventListener('load', () => {
   document.getElementById('mycode').textContent = myCode.slice(0, 3) + ' · ' + myCode.slice(3, 6);
 
   initDigits();
-  renderPrev();
+  
+  // 🆕 SOFORT rendern mit lokalen Daten!
+  if (typeof renderUnifiedHub === 'function') {
+    renderUnifiedHub();
+  } else {
+    renderPrev();
+  }
+  
   renderMissed();
 
   initDB();
@@ -38,7 +46,6 @@ window.addEventListener('load', () => {
   }
 
   window.addEventListener('online', () => {
-    // Nicht mehr hart setzen – Heartbeat entscheidet
     if (typeof checkServerConnection === 'function') {
       checkServerConnection().then(isOnline => {
         if (isOnline) {
@@ -111,14 +118,10 @@ window.addEventListener('load', () => {
     }, 500);
   }
 
-  // 🆕 SOFORT rendern mit lokalen Daten
-  renderPrev();
-
-  // 🆕 Dann Server-Daten laden und erneut rendern
+  // 🆕 Dann Server-Daten laden und Hub NOCHMAL rendern
   setTimeout(async () => {
     if (myToken) {
-      const offlineMsgs = await fetchOfflineMessages();
-      if (offlineMsgs.length) renderOfflineMessages(offlineMsgs);
+      await fetchOfflineMessages();
       if (typeof startGlobalPolling === 'function') startGlobalPolling();
     }
     const remoteMissed = await fetchRemoteMissedCalls();
@@ -133,9 +136,13 @@ window.addEventListener('load', () => {
       }
     }
 
-    // 🆕 Nach Server-Daten erneut rendern
-    renderPrev();
-  }, 500);
+    // 🆕 Nach Server-Daten Hub erneut rendern
+    if (typeof renderUnifiedHub === 'function') {
+      renderUnifiedHub();
+    } else {
+      renderPrev();
+    }
+  }, 300);
 
   if (typeof Traffic !== 'undefined') Traffic.updateUI();
 

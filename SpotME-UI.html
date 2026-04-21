@@ -3,286 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOTME UI - Neo-Brutalism</title>
-    <style>
-        /* --- NEO-BRUTALISMUS VARIABLEN --- */
-        :root {
-            --bg-color: #EFEADD; /* Warmes Off-White */
-            --border-color: #000000;
-            --card-yellow: #FFE600;
-            --card-cyan: #00E5FF;
-            --card-pink: #FF0066;
-            --card-green: #00FF66;
-            --card-purple: #B200FF;
-            --text-dark: #1A1A1A;
-            --shadow-offset: 6px;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Space Grotesk', 'Arial Black', sans-serif;
-            font-weight: bold;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-dark);
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px 0;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
-
-        /* --- HARTE SCHATTEN & RAHMEN (Kern-Element) --- */
-        .brutal-box {
-            background-color: #ffffff;
-            border: 3px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-            padding: 24px;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-
-        /* Klick-Animation für Buttons */
-        button.brutal-box:active, 
-        .spot-card:active {
-            transform: translate(4px, 4px);
-            box-shadow: 2px 2px 0px var(--border-color);
-        }
-
-        /* --- HEADER --- */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            text-transform: uppercase;
-            letter-spacing: -1px;
-            background: var(--card-cyan);
-            padding: 5px 15px;
-            border: 3px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 4px 4px 0px var(--border-color);
-        }
-
-        .status-pill {
-            background: var(--card-green);
-            padding: 6px 14px;
-            border: 2px solid var(--border-color);
-            border-radius: 20px;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 3px 3px 0px var(--border-color);
-        }
-
-        .dot {
-            width: 8px; height: 8px;
-            background-color: #000;
-            border-radius: 50%;
-        }
-
-        /* --- PERSÖNLICHER CODE --- */
-        .code-section {
-            background-color: var(--card-yellow);
-            text-align: center;
-        }
-
-        .section-label {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-            background: #000;
-            color: #fff;
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
-        }
-
-        .code-display {
-            font-size: 3.5rem;
-            letter-spacing: 2px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 0px #fff;
-        }
-
-        .action-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .btn-action {
-            background: #fff;
-            border: 2px solid var(--border-color);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 4px 4px 0px var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-action:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px var(--border-color);
-        }
-
-        /* --- STATS LEISTE --- */
-        .stats-bar {
-            padding: 15px;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            font-size: 1rem;
-        }
-
-        /* --- PARTNER VERBINDEN --- */
-        .input-group {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .digit-input {
-            width: 45px;
-            height: 55px;
-            background: #fff;
-            border: 3px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1.8rem;
-            text-align: center;
-            box-shadow: 3px 3px 0px var(--border-color);
-            outline: none;
-        }
-
-        .digit-input:focus {
-            background: var(--card-cyan);
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0px var(--border-color);
-        }
-
-        .btn-primary {
-            width: 100%;
-            background: var(--card-pink);
-            color: #fff;
-            font-size: 1.2rem;
-            padding: 16px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* --- SPOTS ENTDECKEN --- */
-        .discover-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-        }
-
-        .spot-card {
-            border: 3px solid var(--border-color);
-            border-radius: 12px;
-            padding: 15px 5px;
-            text-align: center;
-            cursor: pointer;
-            box-shadow: 4px 4px 0px var(--border-color);
-            transition: all 0.1s ease;
-        }
-
-        .card-gay { background-color: #FFD1DC; }
-        .card-dates { background-color: #FFB347; }
-        .card-general { background-color: #C1C6FC; }
-
-        .spot-card h3 {
-            font-size: 1rem;
-            margin: 8px 0 4px;
-            text-transform: uppercase;
-        }
-
-        .spot-card p {
-            font-size: 0.65rem;
-        }
-
-    </style>
+    <title>SPOTME 50 Preview</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-
+<body class="main-bg">
     <div class="app-container">
         
-        <header>
-            <div class="logo">SPOTME</div>
-            <div class="status-pill"><div class="dot"></div> ONLINE</div>
+        <!-- Header -->
+        <header class="header-container">
+            <h1 class="logo-text">SPOTME 50</h1>
+            <div class="status-group">
+                <span class="status-pill green">ONLINE • LOKAL</span>
+                <button class="menu-dots">⋮</button>
+            </div>
         </header>
 
-        <div class="brutal-box code-section">
-            <div class="section-label">Dein Code</div>
-            <div class="code-display">405-867</div>
-            <div class="action-buttons">
-                <button class="btn-action">📋 Kopieren</button>
-                <button class="btn-action">↗️ Teilen</button>
+        <!-- Code Bereich -->
+        <section class="code-card">
+            <span class="label">DEIN PERSÖNLICHER CODE</span>
+            <div class="numeric-code">405 · 867</div>
+            <div class="action-row">
+                <button class="btn-outline">📋 Kopieren</button>
+                <button class="btn-outline">↗ Teilen</button>
             </div>
+        </section>
+
+        <!-- Daten-Indikator -->
+        <div class="data-indicator">
+            <span>📊 42.8 KB</span>
+            <span>⬆ 0 B</span>
+            <span>⬇ 0 B</span>
         </div>
 
-        <div class="brutal-box stats-bar">
-            <span>📊 0 B</span>
-            <span>⬆️ 0 B</span>
-            <span>⬇️ 0 B</span>
-        </div>
-
-        <div class="brutal-box">
-            <div class="section-label" style="background: var(--card-cyan); color: #000;">Partner verbinden</div>
-            <div class="input-group">
-                <input type="text" class="digit-input" maxlength="1" value="4">
-                <input type="text" class="digit-input" maxlength="1" value="0">
-                <input type="text" class="digit-input" maxlength="1" value="5">
-                <input type="text" class="digit-input" maxlength="1">
-                <input type="text" class="digit-input" maxlength="1">
-                <input type="text" class="digit-input" maxlength="1">
+        <!-- Partner Verbindung -->
+        <section class="partner-section">
+            <h2>PARTNER VERBINDEN</h2>
+            <div class="slot-container">
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
             </div>
-            <button class="brutal-box btn-primary">💬 Chat starten</button>
-        </div>
+            <button class="button-cyan">💬 Chat starten</button>
+        </section>
 
-        <div>
-            <div class="section-label" style="background: var(--card-purple); margin-bottom: 15px;">Spots entdecken</div>
-            <div class="discover-grid">
-                <div class="spot-card card-gay">
-                    <div style="font-size: 1.8rem;">🏳️‍🌈</div>
-                    <h3>Gay</h3>
-                    <p>Cruising</p>
+        <!-- Communication Hub -->
+        <section class="comm-hub">
+            <div class="hub-header">
+                <h3>COMMUNICATION HUB</h3>
+            </div>
+            <div class="hub-tabs">
+                <button class="tab active">OFFLINE-NACHRICHTEN</button>
+                <button class="tab">LETZTE CHATS</button>
+            </div>
+
+            <div class="horizontal-scroll">
+                <!-- Karte 1 -->
+                <div class="message-card">
+                    <div class="user-info">
+                        <div class="avatar purple">C</div>
+                        <div>
+                            <strong>Chris</strong>
+                            <p class="sub">405 · 867 · 20.04. 17:15</p>
+                        </div>
+                    </div>
+                    <div class="bubble">Hallo vom Spot Gay</div>
+                    <div class="bubble">Hallo vom Spot Dates</div>
+                    <div class="card-footer">
+                        <button class="btn-sm cyan">💬 Chat</button>
+                        <button class="btn-sm outline">✓ Gelesen</button>
+                    </div>
+                    <button class="btn-full">📋 Alle anzeigen</button>
                 </div>
-                <div class="spot-card card-dates">
-                    <div style="font-size: 1.8rem;">💕</div>
-                    <h3>Dates</h3>
-                    <p>Casual</p>
-                </div>
-                <div class="spot-card card-general">
-                    <div style="font-size: 1.8rem;">🌍</div>
-                    <h3>General</h3>
-                    <p>Interessen</p>
+
+                <!-- Karte 2 -->
+                <div class="message-card">
+                    <div class="user-info">
+                        <div class="avatar pink">M</div>
+                        <div>
+                            <strong>Mr. Drag</strong>
+                            <p class="sub">845 · 974 · vor 40 Min</p>
+                        </div>
+                    </div>
+                    <div class="bubble">Verpasster Anruf</div>
+                    <div class="card-footer">
+                        <button class="btn-sm cyan">📞 Zurückrufen</button>
+                    </div>
                 </div>
             </div>
-        </div>
+            
+            <div class="pagination-dots">
+                <span class="dot active"></span>
+                <span class="dot"></span>
+            </div>
+        </section>
+
+        <!-- Discover -->
+        <section class="discover-section">
+            <h3>SPOTS ENTDECKEN</h3>
+            <div class="spot-grid">
+                <div class="spot-item gay">
+                    <span class="icon">🏳️‍🌈</span>
+                    <strong>Gay</strong>
+                    <span>Community</span>
+                </div>
+                <div class="spot-item dates">
+                    <span class="icon">💖</span>
+                    <strong>Dates</strong>
+                    <span>Beziehung</span>
+                </div>
+                <div class="spot-item general">
+                    <span class="icon">🌍</span>
+                    <strong>General</strong>
+                    <span>Interessen</span>
+                </div>
+            </div>
+        </section>
 
     </div>
-
 </body>
 </html>
