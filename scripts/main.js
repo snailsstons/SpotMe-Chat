@@ -1,14 +1,51 @@
 'use strict';
 
-console.log('✅ main.js v2.7 geladen – Hub-Final mit Sofort-Render');
+console.log('✅ main.js v2.8 geladen – Globaler Token + Hub');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – EINSTIEGSPUNKT (main.js)
-// API‑Version – keine PeerJS‑Abhängigkeiten mehr
+// + Globaler Token für alle Module
 // + Heartbeat für Render.com
-// + Echter Online-Status vom Heartbeat
 // + Communication Hub Integration
 // ══════════════════════════════════════════════════════════════════════════════
+
+// 🆕 Globalen Token sicherstellen
+async function ensureGlobalToken() {
+  const GLOBAL_TOKEN_KEY = 'sm_token';
+  
+  if (localStorage.getItem(GLOBAL_TOKEN_KEY)) {
+    console.log('✅ Globaler Token vorhanden');
+    return;
+  }
+  
+  console.log('🆕 Erstelle globalen Token...');
+  
+  const name = localStorage.getItem('sm_name') || 'Nutzer_' + myCode.slice(0, 4);
+  
+  try {
+    const res = await fetch(API_BASE + '/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: myCode,
+        name: name,
+        region: 'Valencia (Region)',
+        spot: 'gay'
+      })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem(GLOBAL_TOKEN_KEY, data.token);
+        myToken = data.token;
+        console.log('✅ Globaler Token erstellt');
+      }
+    }
+  } catch(e) {
+    console.warn('Token-Erstellung fehlgeschlagen:', e);
+  }
+}
 
 window.addEventListener('load', () => {
   if (typeof Usage !== 'undefined') Usage.recordAppOpen();
@@ -17,7 +54,7 @@ window.addEventListener('load', () => {
 
   initDigits();
   
-  // 🆕 SOFORT rendern mit lokalen Daten!
+  // 🆕 SOFORT rendern mit lokalen Daten (Hub)
   if (typeof renderUnifiedHub === 'function') {
     renderUnifiedHub();
   } else {
@@ -173,6 +210,9 @@ window.addEventListener('load', () => {
       console.log('🌐 Initialer Status:', reallyOnline ? 'ONLINE' : 'OFFLINE');
     }, 1500);
   }, 1000);
+
+  // 🆕 Globalen Token sicherstellen (nach 1 Sekunde)
+  setTimeout(() => ensureGlobalToken(), 1000);
 });
 
 window.addEventListener('beforeunload', () => {
