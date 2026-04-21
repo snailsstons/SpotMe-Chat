@@ -1,3 +1,38 @@
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOT – EIGENES PROFIL (spot-profile.js)
+// Token wird GLOBAL gespeichert!
+// ══════════════════════════════════════════════════════════════════════════════
+
+function loadMyProfile() {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) { document.getElementById('profile-bar').style.display = 'none'; return; }
+  try { myProfile = JSON.parse(raw); } catch { return; }
+  document.getElementById('profile-bar').style.display = 'flex';
+  const av = document.getElementById('my-avatar-small');
+  if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
+  document.getElementById('my-name-small').textContent = myProfile.name || '—';
+  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
+  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
+  document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
+  isPublished = localStorage.getItem('sm_spot_published_' + SPOT) === '1';
+  updatePublishUI();
+}
+
+function updatePublishUI() {
+  const btn = document.getElementById('publish-toggle-small');
+  btn.classList.toggle('active', isPublished);
+  btn.title = isPublished ? 'In Community sichtbar' : 'Nicht sichtbar';
+}
+
+function updateLocationUI() {
+  const btn = document.getElementById('location-toggle-small');
+  btn.classList.toggle('active', isSharingLocation);
+  btn.title = isSharingLocation ? 'Standort wird geteilt' : 'Standort teilen';
+}
+
 async function togglePublish() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
   if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
@@ -57,7 +92,7 @@ async function togglePublish() {
       const data = await res.json();
       if (data.token) {
         myToken = data.token;
-        localStorage.setItem(TOKEN_KEY, myToken);  // 🆕 GLOBAL speichern!
+        localStorage.setItem(TOKEN_KEY, myToken);
       }
       isPublished = true;
       localStorage.setItem('sm_spot_published_' + SPOT, '1');
@@ -68,4 +103,17 @@ async function togglePublish() {
     renderAll();
   } catch(e) { toast('⚠️ Fehler: ' + e.message); }
   finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
-          }
+}
+
+async function resetToken() {
+  myToken = '';
+  localStorage.removeItem(TOKEN_KEY);
+  if (isPublished && myProfile) {
+    isPublished = false;
+    localStorage.setItem('sm_spot_published_' + SPOT, '0');
+    await togglePublish();
+    toast('🔑 Token erneuert — bitte Sichtbarkeit nochmal schalten');
+  } else {
+    toast('🔑 Token gelöscht — beim nächsten Veröffentlichen wird ein neuer vergeben');
+  }
+}
