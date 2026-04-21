@@ -1,12 +1,13 @@
 'use strict';
 
-console.log('✅ storage.js v2.2 geladen – API Pending-Flush + AutoFlush + Spot-Messages');
+console.log('✅ storage.js v2.3 geladen – API Pending-Flush + AutoFlush + Spot-Messages + Sofort-Render');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – STORAGE (storage.js)
 // localStorage-Wrapper für Kontakte, Missed Calls, Pending Messages, Chat-Verlauf
 // + AutoFlush für Pending-Nachrichten
 // + Spot-Kurznachrichten (separat vom Chat)
+// + Sofort-Render nach addSpotMessage
 // ══════════════════════════════════════════════════════════════════════════════
 
 function getContacts() {
@@ -229,10 +230,8 @@ function startPendingAutoFlush() {
   if (autoFlushInterval) clearInterval(autoFlushInterval);
 
   autoFlushInterval = setInterval(async () => {
-    // Nur wenn online und Token vorhanden
     if (!navigator.onLine || !myToken) return;
 
-    // Alle Pending-Keys durchgehen
     const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
     if (keys.length === 0) return;
 
@@ -249,7 +248,6 @@ function startPendingAutoFlush() {
           continue;
         }
 
-        // Partner-Code aus Key extrahieren
         const chatIdFromKey = key.replace('sm_pending_', '');
         const parts = chatIdFromKey.split('_');
         const partner = parts.find(p => p !== myCode);
@@ -282,7 +280,6 @@ function startPendingAutoFlush() {
           }
         }
 
-        // Update Storage
         if (remaining.length === 0) {
           localStorage.removeItem(key);
         } else {
@@ -293,10 +290,9 @@ function startPendingAutoFlush() {
 
     if (totalSent > 0) {
       console.log(`✅ AutoFlush: ${totalSent} Nachricht(en) gesendet`);
-      // Badge aktualisieren falls nötig
       if (typeof updatePendingBadge === 'function') updatePendingBadge();
     }
-  }, 30000); // Alle 30 Sekunden
+  }, 30000);
 
   console.log('🔄 Pending AutoFlush gestartet (30s Intervall)');
 }
@@ -390,7 +386,6 @@ function updatePendingBadge() {
   const btn = document.getElementById('sbtn');
   if (!btn) return;
 
-  // Zähle ALLE Pending-Nachrichten
   let totalCount = 0;
   const keys = Object.keys(localStorage).filter(k => k.startsWith('sm_pending_'));
   for (let key of keys) {
@@ -442,20 +437,27 @@ function saveSpotMessages(msgs) {
   localStorage.setItem('sm_spot_messages', JSON.stringify(msgs));
 }
 
-
 function addSpotMessage(senderCode, senderName, message, spotType = 'SPOT', ts = Date.now()) {
   const msgs = getSpotMessages();
   msgs.push({
     code: senderCode,
     name: senderName,
     message: message,
-    spotType: spotType,  // 🆕 Für spätere Filterung (Gay, Dates, General etc.)
+    spotType: spotType,
     ts: ts,
     read: false
   });
   saveSpotMessages(msgs);
+  
+  // 🆕 Hub SOFORT aktualisieren, wenn auf Home-Screen!
+  if (document.getElementById('s-home')?.classList.contains('active')) {
+    if (typeof renderUnifiedHub === 'function') {
+      setTimeout(() => renderUnifiedHub(), 50); // Kleine Verzögerung für DOM
+    }
+  }
+  
+  console.log('📟 Spot-Nachricht gespeichert:', senderCode, message);
 }
-
 
 function getUnreadSpotCount(code) {
   const msgs = getSpotMessages();
