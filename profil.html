@@ -218,6 +218,16 @@ textarea.finp { resize:none; min-height:90px; }
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 🆕 SPOT ERKENNEN – DYNAMISCHER PROFILE KEY!
+// ═══════════════════════════════════════════════════════════════════════════
+const urlParams = new URLSearchParams(window.location.search);
+const currentSpot = urlParams.get('spot') || 'gay';
+const PROFILE_KEY = 'sm_profile_' + currentSpot;
+
+console.log('📟 Profil wird gespeichert für Spot:', currentSpot);
+console.log('📟 PROFILE_KEY:', PROFILE_KEY);
+
+// ═══════════════════════════════════════════════════════════════════════════
 // GEO DATA (Spanien)
 // ═══════════════════════════════════════════════════════════════════════════
 const GEO = {
@@ -243,7 +253,6 @@ const GEO = {
 // ═══════════════════════════════════════════════════════════════════════════
 // STATE & INIT
 // ═══════════════════════════════════════════════════════════════════════════
-const PROFILE_KEY = 'sm_profile';
 let saveTimer = null;
 let avatarData = null;
 
@@ -342,7 +351,7 @@ function updateBioCount() {
   el.classList.toggle('warn', len > 450);
   let val = document.getElementById('f-bio').value;
   if (/https?:\/\/|www\.|@[^\s]+\.[a-z]/i.test(val)) {
-    toast('⚠️ Links und E-Mail-Adressen sind nicht erlaubt');
+    toast('⚠️ Links and E-Mail-Adressen sind nicht erlaubt');
     document.getElementById('f-bio').value = val.replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/@[^\s]+\.[a-z]{2,}/gi, '');
     updateBioCount();
   }
@@ -461,7 +470,10 @@ function showSavedBadge() {
   b.classList.add('show');
   setTimeout(() => b.classList.remove('show'), 3000);
 }
-function goBack() { window.location.href = 'index.html'; }
+function goBack() { 
+  // 🆕 Zurück zum richtigen Spot!
+  window.location.href = 'spot.html?spot=' + currentSpot; 
+}
 let tTimer;
 function toast(msg, ms=2600) {
   const t = document.getElementById('toast');
