@@ -7,7 +7,7 @@
 const API  = 'https://spotme-pg-test.onrender.com/api';
 
 // 🆕 GLOBALER Token – EIN Token für ALLE Spots und den Chat!
-const TOKEN_KEY = 'sm_token';
+let TOKEN_KEY   = 'sm_token'; // let, damit spot-init.js es überschreiben kann
 
 // 🆕 Profil ist Spot-spezifisch – wird in spot-init.js gesetzt!
 let PROFILE_KEY = 'sm_profile_temp';
