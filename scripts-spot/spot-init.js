@@ -1,8 +1,20 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – INITIALISIERUNG (spot-init.js)
+// + Dynamische Keys pro Spot
 // + Flush von Offline-Kurznachrichten nach erfolgreichem Community-Load
 // ══════════════════════════════════════════════════════════════════════════════
+
+// 🆕 SOFORT nach dem Laden: Keys mit SPOT setzen!
+PROFILE_KEY = 'sm_profile_' + SPOT;
+TOKEN_KEY   = 'sm_token_' + SPOT;
+
+console.log('📟 Spot initialisiert:', SPOT);
+console.log('📟 PROFILE_KEY:', PROFILE_KEY);
+console.log('📟 TOKEN_KEY:', TOKEN_KEY);
+
+// 🆕 Cache-Key für diesen Spot
+const CACHE_KEY = 'spot_cache_' + SPOT;
 
 window.addEventListener('load', async () => {
   buildRegionFilter();
