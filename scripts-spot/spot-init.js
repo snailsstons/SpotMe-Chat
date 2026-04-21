@@ -4,6 +4,7 @@
 // + Dynamische Keys pro Spot (nur Profil!)
 // + Globaler Token für alle Spots
 // + Flush von Offline-Kurznachrichten
+// + Profil-Dialog wenn kein Profil existiert
 // ══════════════════════════════════════════════════════════════════════════════
 
 // 🆕 NUR Profil-Key ist Spot-spezifisch!
@@ -11,9 +12,6 @@ PROFILE_KEY = 'sm_profile_' + SPOT;
 
 // 🆕 Token aus GLOBALEM Key laden
 myToken = localStorage.getItem(TOKEN_KEY);
-
-// Cache-Key für diesen Spot
-// const CACHE_KEY = 'spot_cache_' + SPOT; //
 
 console.log('📟 Spot initialisiert:', SPOT);
 console.log('📟 PROFILE_KEY:', PROFILE_KEY);
@@ -58,12 +56,41 @@ async function ensureGlobalToken() {
   return false;
 }
 
+// 🆕 Profil-Dialog anzeigen, wenn kein Profil existiert
+function showProfileDialog() {
+  // Namen aus globalem Speicher holen
+  const globalName = localStorage.getItem('sm_name') || 'Nutzer';
+  
+  const message = `Du hast noch kein Profil für den ${SPOT.toUpperCase()} Spot.\n\n` +
+                  `Möchtest du jetzt ein Profil erstellen?\n\n` +
+                  `(Du kannst auch ohne Profil die Community sehen.)`;
+  
+  const shouldCreate = confirm(message);
+  
+  if (shouldCreate) {
+    // Zum Profil-Editor mit Spot-Parameter
+    window.location.href = 'profil.html?spot=' + SPOT;
+  } else {
+    // Toast-Feedback
+    if (typeof toast === 'function') {
+      toast('📟 Du kannst später über "PROFIL" ein Profil anlegen');
+    }
+    console.log('📟 Nutzer hat Profil-Erstellung abgelehnt');
+  }
+}
+
 window.addEventListener('load', async () => {
   // 🆕 SICHERSTELLEN, dass Token existiert!
   await ensureGlobalToken();
   
   buildRegionFilter();
   loadMyProfile();
+
+  // 🆕 Wenn kein Profil existiert → Dialog anzeigen!
+  if (!myProfile) {
+    // Kurze Verzögerung, damit die Seite geladen ist
+    setTimeout(() => showProfileDialog(), 500);
+  }
 
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
@@ -126,8 +153,7 @@ async function refreshSpot() {
   } finally {
     btn.classList.remove('spinning');
   }
-                        }
-// ... Ende der Datei ...
+}
 
 // 🆕 Globale Exports
 window.goHome = goHome;
