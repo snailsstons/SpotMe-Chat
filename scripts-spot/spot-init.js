@@ -127,3 +127,7 @@ async function refreshSpot() {
     btn.classList.remove('spinning');
   }
                         }
+// ... Ende der Datei ...
+
+// 🆕 Globale Exports
+window.goHome = goHome;
