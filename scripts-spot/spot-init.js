@@ -1,19 +1,67 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – INITIALISIERUNG (spot-init.js)
-// + Dynamische Keys pro Spot
-// + Flush von Offline-Kurznachrichten nach erfolgreichem Community-Load
+// + Dynamische Keys pro Spot (nur Profil!)
+// + Globaler Token für alle Spots
+// + Flush von Offline-Kurznachrichten
 // ══════════════════════════════════════════════════════════════════════════════
 
-// 🆕 SOFORT nach dem Laden: Keys mit SPOT setzen!
+// 🆕 NUR Profil-Key ist Spot-spezifisch!
 PROFILE_KEY = 'sm_profile_' + SPOT;
-TOKEN_KEY   = 'sm_token_' + SPOT;
+
+// 🆕 Token aus GLOBALEM Key laden
+myToken = localStorage.getItem(TOKEN_KEY);
+
+// Cache-Key für diesen Spot
+const CACHE_KEY = 'spot_cache_' + SPOT;
 
 console.log('📟 Spot initialisiert:', SPOT);
 console.log('📟 PROFILE_KEY:', PROFILE_KEY);
-console.log('📟 TOKEN_KEY:', TOKEN_KEY);
+console.log('📟 TOKEN_KEY (global):', TOKEN_KEY);
+console.log('📟 Token vorhanden:', myToken ? '✅ Ja' : '❌ Nein');
+
+// 🆕 Token erstellen, falls NICHT vorhanden!
+async function ensureGlobalToken() {
+  if (myToken) return true;
+  
+  console.log('🆕 Erstelle globalen Token...');
+  
+  const minimalProfile = {
+    name: localStorage.getItem('sm_name') || 'Nutzer_' + myCode.slice(0, 4),
+    region: 'Valencia (Region)'
+  };
+  
+  try {
+    const res = await fetch(API + '/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: myCode,
+        name: minimalProfile.name,
+        region: minimalProfile.region,
+        spot: SPOT
+      })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+        myToken = data.token;
+        console.log('✅ Globaler Token erstellt');
+        return true;
+      }
+    }
+  } catch(e) {
+    console.warn('Token-Erstellung fehlgeschlagen:', e);
+  }
+  return false;
+}
 
 window.addEventListener('load', async () => {
+  // 🆕 SICHERSTELLEN, dass Token existiert!
+  await ensureGlobalToken();
+  
   buildRegionFilter();
   loadMyProfile();
 
@@ -27,7 +75,7 @@ window.addEventListener('load', async () => {
 
   await loadCommunity();
 
-  // 🆕 Offline-Kurznachrichten senden, sobald wir online sind
+  // 🆕 Offline-Kurznachrichten senden
   if (typeof flushPendingKurznachrichten === 'function') {
     flushPendingKurznachrichten();
   }
@@ -68,7 +116,6 @@ async function refreshSpot() {
   btn.classList.add('spinning');
   try {
     await loadCommunity();
-    // Auch beim manuellen Refresh flushen
     if (typeof flushPendingKurznachrichten === 'function') {
       flushPendingKurznachrichten();
     }
@@ -79,4 +126,4 @@ async function refreshSpot() {
   } finally {
     btn.classList.remove('spinning');
   }
-}
+                        }
