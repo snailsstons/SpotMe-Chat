@@ -87,6 +87,7 @@ function toggleChip(el) {
   applyFilters();
 }
 
+
 function applyFilters() {
   const region = document.getElementById('f-region').value;
   const ageRange = document.getElementById('f-age').value;
@@ -99,16 +100,28 @@ function applyFilters() {
       const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
       if (p.age < lo || p.age > hi) return false;
     }
+    
+    // 🆕 DATES-FILTER: Beziehung, Freundschaft, Casual
+    const dateChips = chips.filter(f => ['beziehung', 'freundschaft', 'casual'].includes(f));
+    if (dateChips.length) {
+      if (!p.lookingFor || !dateChips.includes(p.lookingFor)) {
+        return false;
+      }
+    }
+    
+    // Bestehende Gay-Filter (für Dates ausgeblendet, aber Code bleibt)
     const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
     if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
     const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
     if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
     if (chips.includes('trans') && !p.trans) return false;
     if (chips.includes('crossdresser') && !p.crossdresser) return false;
+    
     return true;
   });
   renderAll();
 }
+
 
 function resetFilters() {
   document.getElementById('f-region').value = '';
