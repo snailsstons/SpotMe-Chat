@@ -93,6 +93,10 @@ function applyFilters() {
   const ageRange = document.getElementById('f-age').value;
   const chips = [...document.querySelectorAll('.filter-chip.active')].map(c => c.dataset.filter);
   
+  // 🆕 Eigenes lookingFor aus localStorage lesen!
+  const ownProfile = JSON.parse(localStorage.getItem('sm_profile_' + SPOT) || '{}');
+  const ownLookingFor = ownProfile.lookingFor;
+  
   filtered = allProfiles.filter(p => {
     if (myCode && p.code === myCode) return false;
     if (region && p.region !== region) return false;
@@ -101,15 +105,14 @@ function applyFilters() {
       if (p.age < lo || p.age > hi) return false;
     }
     
-    // 🆕 DATES-FILTER: Beziehung, Freundschaft, Casual
-    const dateChips = chips.filter(f => ['beziehung', 'freundschaft', 'casual'].includes(f));
-    if (dateChips.length) {
-      if (!p.lookingFor || !dateChips.includes(p.lookingFor)) {
+    // 🆕 DATES-FILTER: Nur Profile mit GLEICHEM lookingFor anzeigen!
+    if (SPOT === 'dates' && ownLookingFor) {
+      if (p.lookingFor !== ownLookingFor) {
         return false;
       }
     }
     
-    // Bestehende Gay-Filter (für Dates ausgeblendet, aber Code bleibt)
+    // Bestehende Gay-Filter
     const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
     if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
     const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
