@@ -1,6 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – EIGENES PROFIL (spot-profile.js)
+// Token wird GLOBAL gespeichert!
 // ══════════════════════════════════════════════════════════════════════════════
 
 function loadMyProfile() {
@@ -16,7 +17,7 @@ function loadMyProfile() {
   const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
   const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
   document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
-  isPublished = localStorage.getItem('sm_spot_published') === '1';
+  isPublished = localStorage.getItem('sm_spot_published_' + SPOT) === '1';
   updatePublishUI();
 }
 
@@ -61,7 +62,7 @@ async function togglePublish() {
       });
       if (!delRes.ok) throw new Error('HTTP ' + delRes.status);
       isPublished = false;
-      localStorage.setItem('sm_spot_published', '0');
+      localStorage.setItem('sm_spot_published_' + SPOT, '0');
       toast('○ Profil aus Community entfernt');
     } else {
       const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
@@ -94,7 +95,7 @@ async function togglePublish() {
         localStorage.setItem(TOKEN_KEY, myToken);
       }
       isPublished = true;
-      localStorage.setItem('sm_spot_published', '1');
+      localStorage.setItem('sm_spot_published_' + SPOT, '1');
       toast('✅ Profil veröffentlicht');
     }
     updatePublishUI();
@@ -109,10 +110,10 @@ async function resetToken() {
   localStorage.removeItem(TOKEN_KEY);
   if (isPublished && myProfile) {
     isPublished = false;
-    localStorage.setItem('sm_spot_published', '0');
+    localStorage.setItem('sm_spot_published_' + SPOT, '0');
     await togglePublish();
     toast('🔑 Token erneuert — bitte Sichtbarkeit nochmal schalten');
   } else {
     toast('🔑 Token gelöscht — beim nächsten Veröffentlichen wird ein neuer vergeben');
   }
-            }
+}

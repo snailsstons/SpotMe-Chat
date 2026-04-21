@@ -87,10 +87,15 @@ function toggleChip(el) {
   applyFilters();
 }
 
+
 function applyFilters() {
   const region = document.getElementById('f-region').value;
   const ageRange = document.getElementById('f-age').value;
   const chips = [...document.querySelectorAll('.filter-chip.active')].map(c => c.dataset.filter);
+  
+  // 🆕 Eigenes lookingFor aus localStorage lesen!
+  const ownProfile = JSON.parse(localStorage.getItem('sm_profile_' + SPOT) || '{}');
+  const ownLookingFor = ownProfile.lookingFor;
   
   filtered = allProfiles.filter(p => {
     if (myCode && p.code === myCode) return false;
@@ -99,16 +104,27 @@ function applyFilters() {
       const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
       if (p.age < lo || p.age > hi) return false;
     }
+    
+    // 🆕 DATES-FILTER: Nur Profile mit GLEICHEM lookingFor anzeigen!
+    if (SPOT === 'dates' && ownLookingFor) {
+      if (p.lookingFor !== ownLookingFor) {
+        return false;
+      }
+    }
+    
+    // Bestehende Gay-Filter
     const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
     if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
     const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
     if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
     if (chips.includes('trans') && !p.trans) return false;
     if (chips.includes('crossdresser') && !p.crossdresser) return false;
+    
     return true;
   });
   renderAll();
 }
+
 
 function resetFilters() {
   document.getElementById('f-region').value = '';

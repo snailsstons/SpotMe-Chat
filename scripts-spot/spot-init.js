@@ -1,12 +1,91 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – INITIALISIERUNG (spot-init.js)
-// + Flush von Offline-Kurznachrichten nach erfolgreichem Community-Load
+// + Dynamische Keys pro Spot (nur Profil!)
+// + Globaler Token für alle Spots
+// + Flush von Offline-Kurznachrichten
+// + Profil-Dialog wenn kein Profil existiert (GLOBAL!)
 // ══════════════════════════════════════════════════════════════════════════════
 
+// 🆕 NUR Profil-Key ist Spot-spezifisch!
+PROFILE_KEY = 'sm_profile_' + SPOT;
+
+// 🆕 Token aus GLOBALEM Key laden
+myToken = localStorage.getItem(TOKEN_KEY);
+
+console.log('📟 Spot initialisiert:', SPOT);
+console.log('📟 PROFILE_KEY:', PROFILE_KEY);
+console.log('📟 TOKEN_KEY (global):', TOKEN_KEY);
+console.log('📟 Token vorhanden:', myToken ? '✅ Ja' : '❌ Nein');
+
+// 🆕 Token erstellen, falls NICHT vorhanden!
+async function ensureGlobalToken() {
+  if (myToken) return true;
+  
+  console.log('🆕 Erstelle globalen Token...');
+  
+  const minimalProfile = {
+    name: localStorage.getItem('sm_name') || 'Nutzer_' + myCode.slice(0, 4),
+    region: 'Valencia (Region)'
+  };
+  
+  try {
+    const res = await fetch(API + '/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: myCode,
+        name: minimalProfile.name,
+        region: minimalProfile.region,
+        spot: SPOT
+      })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+        myToken = data.token;
+        console.log('✅ Globaler Token erstellt');
+        return true;
+      }
+    }
+  } catch(e) {
+    console.warn('Token-Erstellung fehlgeschlagen:', e);
+  }
+  return false;
+}
+
+// 🆕 Profil-Dialog anzeigen (JETZT GLOBAL!)
+window.showProfileDialog = function() {
+  const message = `Du hast noch kein Profil für den ${SPOT.toUpperCase()} Spot.\n\n` +
+                  `Möchtest du jetzt ein Profil erstellen?\n\n` +
+                  `(Du kannst auch ohne Profil die Community sehen.)`;
+  
+  const shouldCreate = confirm(message);
+  
+  if (shouldCreate) {
+    window.location.href = 'profil.html?spot=' + SPOT;
+  } else {
+    if (typeof toast === 'function') {
+      toast('📟 Du kannst später über "PROFIL" ein Profil anlegen');
+    }
+    console.log('📟 Nutzer hat Profil-Erstellung abgelehnt');
+  }
+};
+
 window.addEventListener('load', async () => {
+  // 🆕 SICHERSTELLEN, dass Token existiert!
+  await ensureGlobalToken();
+  
   buildRegionFilter();
   loadMyProfile();
+
+  // 🆕 Wenn kein Profil im localStorage → Dialog anzeigen!
+  const profileExists = localStorage.getItem(PROFILE_KEY);
+  if (!profileExists) {
+    setTimeout(() => window.showProfileDialog(), 500);
+  }
 
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
@@ -18,7 +97,7 @@ window.addEventListener('load', async () => {
 
   await loadCommunity();
 
-  // 🆕 Offline-Kurznachrichten senden, sobald wir online sind
+  // 🆕 Offline-Kurznachrichten senden
   if (typeof flushPendingKurznachrichten === 'function') {
     flushPendingKurznachrichten();
   }
@@ -59,7 +138,6 @@ async function refreshSpot() {
   btn.classList.add('spinning');
   try {
     await loadCommunity();
-    // Auch beim manuellen Refresh flushen
     if (typeof flushPendingKurznachrichten === 'function') {
       flushPendingKurznachrichten();
     }
@@ -71,3 +149,6 @@ async function refreshSpot() {
     btn.classList.remove('spinning');
   }
 }
+
+// 🆕 Globale Exports
+window.goHome = goHome;

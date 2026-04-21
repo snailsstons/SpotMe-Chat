@@ -25,8 +25,12 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <!-- Spot Scripts – Reihenfolge wichtig! -->
+
+  
+<!-- Spot Scripts – Reihenfolge wichtig! -->
 <script src="scripts-spot/spot-config.js"></script>
+
+<!-- 2. Alle Scripts, die SPOT NICHT brauchen -->
 <script src="scripts-spot/spot-state.js"></script>
 <script src="scripts-spot/spot-utils.js"></script>
 <script src="scripts-spot/spot-profile.js"></script>
@@ -35,11 +39,15 @@
 <script src="scripts-spot/spot-render.js"></script>
 <script src="scripts-spot/spot-messages.js"></script>
 <script src="scripts-spot/spot-verify.js"></script>
-<script src="scripts-spot/spot-kurznachricht.js"></script>
 <script src="scripts-spot/spot-keepalive.js"></script>
+
+<!-- 3. SPOT definieren -->
+<script src="scripts-spot/spot-dates.js"></script>
+
+<!-- 4. Scripts, die SPOT BRAUCHEN -->
+<script src="scripts-spot/spot-kurznachricht.js"></script>
 <script src="scripts-spot/spot-init.js"></script>
-<!-- Spot‑Konfiguration als letztes -->
-<script src="scripts-spot/spot-dates.js"></script
+
 
 <link rel="stylesheet" href="styles.css">
 <!-- Zusätzlich spot.css für die Spots-Grid laden -->
@@ -114,9 +122,8 @@
   </div>
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
-    <!-- 👇 ANGEPASST: Link zur Dates-Profilseite -->
-    <button class="icon-btn" onclick="window.location.href='dates-profil.html'" title="Profil bearbeiten">✎</button>
   </div>
 </div>
 
@@ -214,7 +221,7 @@
   </div>
 </div>
 
-<!-- Kurznachricht-Modal -->
+<!-- Kurznachricht Modal -->
 <div class="modal-overlay" id="kurznachricht-modal" onclick="if(event.target===this) closeKurznachrichtModal()">
   <div class="modal-content" style="max-width:340px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeKurznachrichtModal()">✕</button>
@@ -244,7 +251,9 @@
   </div>
 </div>
 
+
 <div class="toast" id="toast"></div>
+
 
 </body>
 </html>

@@ -1,13 +1,10 @@
 'use strict';
 
-console.log('✅ spot-kurznachricht.js v2.1 geladen – mit Debug');
+console.log('✅ spot-kurznachricht.js v2.2 geladen – mit globalem Token');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KURZNACHRICHT (spot-kurznachricht.js)
-// + Local‑First: Offline‑Nachrichten werden gespeichert und später gesendet
-// + Usage‑Zähler für Achtsamkeits‑Seite
-// + Spot-Typ wird mitgesendet (Gay, Dates, General)
-// + Debug-Ausgaben für Fehlersuche
+// + Globaler Token für alle Spots
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _kurznachrichtTarget = null;
@@ -50,13 +47,15 @@ async function flushPendingKurznachrichten() {
 
   console.log('📤 Flushe', msgs.length, 'Pending-Nachrichten...');
   
+  const token = localStorage.getItem('sm_token');
+  
   let successCount = 0;
   for (const msg of msgs) {
     try {
       const res = await fetch(API + '/offline-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msg)
+        body: JSON.stringify({ ...msg, token })
       });
       if (res.ok) successCount++;
     } catch (e) {
@@ -74,6 +73,12 @@ async function flushPendingKurznachrichten() {
 }
 
 function showKurznachrichtModal(code, name) {
+  const token = localStorage.getItem('sm_token');
+  if (!token) {
+    toast('⚠️ Bitte zuerst dein Profil veröffentlichen');
+    return;
+  }
+  
   console.log('📟 Modal öffnen für:', code, name);
   _kurznachrichtTarget = { code, name };
   document.getElementById('kurznachr-name').textContent = name;
@@ -103,12 +108,20 @@ async function submitKurznachricht() {
     return; 
   }
 
+  const token = localStorage.getItem('sm_token');
+  
+  if (!token) {
+    toast('⚠️ Kein Token – bitte Profil veröffentlichen');
+    return;
+  }
+
   const btn = document.getElementById('kurznachr-btn');
-  const senderName = myProfile?.name || myCode;
+  const senderName = myProfile?.name || localStorage.getItem('sm_name') || myCode;
 
   console.log('📟 Ziel:', _kurznachrichtTarget.code, _kurznachrichtTarget.name);
   console.log('📟 Text:', text);
   console.log('📟 SPOT:', SPOT);
+  console.log('📟 Token:', token ? 'vorhanden' : 'FEHLT!');
 
   const online = navigator.onLine;
   console.log('📟 Online?', online);
@@ -131,7 +144,8 @@ async function submitKurznachricht() {
       message: text,
       type: 'spot_message',
       source: 'spot',
-      spotType: SPOT || 'SPOT'
+      spotType: SPOT || 'SPOT',
+      token: token
     };
     
     console.log('📤 Sende Payload:', payload);
@@ -168,7 +182,7 @@ async function submitKurznachricht() {
   }
 }
 
-// Debug: Zeige aktuelle Konfiguration
+// Debug
 console.log('📟 spot-kurznachricht.js geladen');
 console.log('📟 SPOT:', typeof SPOT !== 'undefined' ? SPOT : 'NICHT DEFINIERT!');
 console.log('📟 API:', typeof API !== 'undefined' ? API : 'NICHT DEFINIERT!');

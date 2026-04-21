@@ -20,8 +20,13 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <!-- Spot Scripts – Reihenfolge wichtig! -->
+
+    
+<!-- Spot Scripts – Reihenfolge wichtig! -->
+<!-- 1. Konfiguration -->
 <script src="scripts-spot/spot-config.js"></script>
+
+<!-- 2. Alle Scripts, die SPOT NICHT brauchen -->
 <script src="scripts-spot/spot-state.js"></script>
 <script src="scripts-spot/spot-utils.js"></script>
 <script src="scripts-spot/spot-profile.js"></script>
@@ -30,12 +35,16 @@
 <script src="scripts-spot/spot-render.js"></script>
 <script src="scripts-spot/spot-messages.js"></script>
 <script src="scripts-spot/spot-verify.js"></script>
-<script src="scripts-spot/spot-kurznachricht.js"></script>
 <script src="scripts-spot/spot-keepalive.js"></script>
+
+<!-- 3. SPOT definieren -->
+<script src="scripts-spot/spot-general.js"></script>
+
+<!-- 4. Scripts, die SPOT BRAUCHEN -->
+<script src="scripts-spot/spot-kurznachricht.js"></script>
 <script src="scripts-spot/spot-init.js"></script>
-<!-- Spot‑Konfiguration als letztes -->
-<script src="scripts-spot/spot-general.js"></script
-  
+
+
 <link rel="stylesheet" href="styles.css">
 <!-- Zusätzlich spot.css für die Spots-Grid laden -->
 <link rel="stylesheet" href="spot.css">
@@ -69,8 +78,8 @@
   </div>
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
-    <button class="icon-btn" onclick="window.location.href='profil.html'" title="Profil bearbeiten">✎</button>
   </div>
 </div>
 
@@ -159,6 +168,36 @@
     <p style="font-size:0.8rem; color:var(--muted2);">Alternativ Code eingeben:</p>
     <input type="text" id="verify-code-input" class="minp" placeholder="6‑stelligen Code" maxlength="6" inputmode="numeric" style="margin-bottom:0.5rem;">
     <button class="detail-btn btn-primary" onclick="verifyByCode()">Verifizieren</button>
+  </div>
+</div>
+
+<!-- Kurznachricht Modal -->
+<div class="modal-overlay" id="kurznachricht-modal" onclick="if(event.target===this) closeKurznachrichtModal()">
+  <div class="modal-content" style="max-width:340px;" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeKurznachrichtModal()">✕</button>
+    <div style="font-size:1.5rem;text-align:center;margin-bottom:0.5rem;">✉️</div>
+    <h3 style="font-family:'Syne';text-align:center;margin-bottom:0.25rem;color:var(--acc);" id="kurznachr-name"></h3>
+    <p style="font-size:0.85rem;color:var(--muted2);text-align:center;margin-bottom:1rem;">Kurznachricht hinterlassen</p>
+    <textarea id="kurznachr-input" class="minp"
+      placeholder="Deine Nachricht..."
+      rows="4" maxlength="280"
+      oninput="document.getElementById('kurznachr-chars').textContent=280-this.value.length"
+      style="width:100%;margin-bottom:0.4rem;"></textarea>
+    <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+      <span style="font-size:0.75rem;color:var(--muted2);">Max. 280 Zeichen</span>
+      <span id="kurznachr-chars" style="font-size:0.75rem;color:var(--acc);font-weight:700;">280</span>
+    </div>
+    <button id="kurznachr-btn" onclick="submitKurznachricht()"
+      style="width:100%;padding:0.9rem;background:var(--acc);color:var(--bg);
+             border:none;border-radius:14px;font-size:1rem;font-weight:700;
+             cursor:pointer;margin-bottom:0.6rem;">
+      📨 Senden
+    </button>
+    <button onclick="closeKurznachrichtModal()"
+      style="width:100%;padding:0.75rem;background:transparent;color:var(--muted2);
+             border:1px solid var(--bord);border-radius:14px;font-size:0.9rem;cursor:pointer;">
+      Abbrechen
+    </button>
   </div>
 </div>
 
