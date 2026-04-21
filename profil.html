@@ -470,10 +470,10 @@ function showSavedBadge() {
   b.classList.add('show');
   setTimeout(() => b.classList.remove('show'), 3000);
 }
-function goBack() { 
-  // 🆕 Zurück zum richtigen Spot!
-  window.location.href = 'spot.html?spot=' + currentSpot; 
-}
+// 🆕 Zurück zum richtigen Spot!
+  function goBack() { 
+  window.history.back(); 
+  }
 let tTimer;
 function toast(msg, ms=2600) {
   const t = document.getElementById('toast');
