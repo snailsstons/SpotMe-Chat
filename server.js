@@ -7,6 +7,7 @@
 //   • Dialog-Erkennung          → Sobald Antwort erfolgt, kein Stundenlimit mehr
 //   • Ping-Endpunkt             → Für Heartbeat (Render Free Tier)
 //   • Spot-Nachrichten          → type, source, spot_type Felder
+//   • Dates-Spot                → looking_for Feld
 //
 // Setup:
 //   npm install pg
@@ -70,7 +71,8 @@ async function initDB() {
       orientation   TEXT,
       role          TEXT,
       trans         BOOLEAN DEFAULT FALSE,
-      crossdresser         BOOLEAN DEFAULT FALSE,
+      crossdresser  BOOLEAN DEFAULT FALSE,
+      looking_for   TEXT,
       category      TEXT,
       bio           TEXT,
       token         TEXT NOT NULL,
@@ -107,7 +109,7 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_missed_created   ON missed_calls(created_at);
   `);
 
-  // Offline-Nachrichten – 🆕 MIT type, source, spot_type
+  // Offline-Nachrichten – MIT type, source, spot_type
   await pool.query(`
     CREATE TABLE IF NOT EXISTS offline_messages (
       id          SERIAL PRIMARY KEY,
@@ -125,12 +127,13 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_offmsg_created   ON offline_messages(created_at);
   `);
 
-  // 🆕 Falls Tabelle schon existiert, Spalten nachträglich hinzufügen
+  // Falls Tabelle schon existiert, Spalten nachträglich hinzufügen
   try {
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
-    console.log('✅ Spalten type, source, spot_type bereit');
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
+    console.log('✅ Spalten type, source, spot_type, looking_for bereit');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
@@ -190,7 +193,9 @@ app.get('/api/profiles', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
-              orientation, role, trans, crossdresser, category, bio,
+              orientation, role, trans, crossdresser,
+              looking_for AS "lookingFor",
+              category, bio,
               last_seen, updated_at AS ts, visible_until,
               (COALESCE(last_seen, 0) > $2) AS is_online
        FROM profiles
@@ -209,6 +214,7 @@ app.post('/api/profile', async (req, res) => {
   const {
     code, name, age, region, province, city,
     orientation, role, trans, crossdresser, category, bio,
+    lookingFor,
     token, spot = 'gay'
   } = req.body;
 
@@ -242,11 +248,13 @@ app.post('/api/profile', async (req, res) => {
         `UPDATE profiles SET
           name=$1, age=$2, region=$3, province=$4, city=$5,
           orientation=$6, role=$7, trans=$8, crossdresser=$9,
-          category=$10, bio=$11, updated_at=$12, visible_until=$13
-         WHERE code=$14 AND spot=$15`,
+          looking_for=$10,
+          category=$11, bio=$12, updated_at=$13, visible_until=$14
+         WHERE code=$15 AND spot=$16`,
         [
           name, age || null, region, province || null, city || null,
           orientation || null, role || null, !!trans, !!crossdresser,
+          lookingFor || null,
           category || null, bio || null, now, visibleUntil, code, spot
         ]
       );
@@ -255,13 +263,14 @@ app.post('/api/profile', async (req, res) => {
       await pool.query(
         `INSERT INTO profiles
           (code, spot, name, age, region, province, city,
-           orientation, role, trans, crossdresser, category, bio,
+           orientation, role, trans, crossdresser, looking_for, category, bio,
            token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
         [
           code, spot, name, age || null, region,
           province || null, city || null,
           orientation || null, role || null, !!trans, !!crossdresser,
+          lookingFor || null,
           category || null, bio || null,
           profileToken, now, visibleUntil
         ]
@@ -306,7 +315,9 @@ app.get('/api/profile/:code', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
-              orientation, role, trans, crossdresser, category, bio,
+              orientation, role, trans, crossdresser,
+              looking_for AS "lookingFor",
+              category, bio,
               updated_at AS ts, visible_until
        FROM profiles WHERE code = $1 AND spot = $2`,
       [code, spot]
@@ -515,7 +526,6 @@ app.post('/api/offline-message', async (req, res) => {
       return res.status(429).json({ error: 'Postfach des Empfängers voll' });
     }
 
-    // 🆕 INSERT mit type, source, spot_type
     await pool.query(
       `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -545,7 +555,6 @@ app.get('/api/offline-messages/:code', async (req, res) => {
       return res.status(403).json({ error: 'Ungültiger Token' });
     }
 
-    // 🆕 SELECT mit type, source, spot_type
     const { rows } = await pool.query(
       `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
               message, type, source, spot_type AS "spotType",
