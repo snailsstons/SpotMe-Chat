@@ -13,9 +13,6 @@ console.log('📟 Spot initialisiert:', SPOT);
 console.log('📟 PROFILE_KEY:', PROFILE_KEY);
 console.log('📟 TOKEN_KEY:', TOKEN_KEY);
 
-// 🆕 Cache-Key für diesen Spot
-const CACHE_KEY = 'spot_cache_' + SPOT;
-
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
