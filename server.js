@@ -6,6 +6,7 @@
 //   • Offline-Nachrichten       → Nachricht hinterlassen wenn Nutzer offline
 //   • Dialog-Erkennung          → Sobald Antwort erfolgt, kein Stundenlimit mehr
 //   • Ping-Endpunkt             → Für Heartbeat (Render Free Tier)
+//   • Spot-Nachrichten          → type, source, spot_type Felder
 //
 // Setup:
 //   npm install pg
@@ -51,7 +52,7 @@ const pool = new Pool({
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
 const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
-const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde (wird für erste Nachricht genutzt)
+const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
 
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
@@ -106,7 +107,7 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_missed_created   ON missed_calls(created_at);
   `);
 
-  // Offline-Nachrichten
+  // Offline-Nachrichten – 🆕 MIT type, source, spot_type
   await pool.query(`
     CREATE TABLE IF NOT EXISTS offline_messages (
       id          SERIAL PRIMARY KEY,
@@ -114,12 +115,25 @@ async function initDB() {
       sender_code TEXT NOT NULL,
       sender_name TEXT NOT NULL,
       message     TEXT NOT NULL,
+      type        TEXT,
+      source      TEXT,
+      spot_type   TEXT,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       read        BOOLEAN NOT NULL DEFAULT FALSE
     );
     CREATE INDEX IF NOT EXISTS idx_offmsg_recipient ON offline_messages(recipient);
     CREATE INDEX IF NOT EXISTS idx_offmsg_created   ON offline_messages(created_at);
   `);
+
+  // 🆕 Falls Tabelle schon existiert, Spalten nachträglich hinzufügen
+  try {
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
+    console.log('✅ Spalten type, source, spot_type bereit');
+  } catch (e) {
+    console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
+  }
 
   console.log('✅ Datenbank-Tabellen bereit');
 }
@@ -131,24 +145,20 @@ const locationCache = new Map();
 setInterval(async () => {
   const now = Date.now();
 
-  // Standort-Cache
   for (const [key, data] of locationCache.entries()) {
     if (now - data.ts > 120000) locationCache.delete(key);
   }
 
-  // Missed Calls älter als 7 Tage
   try {
     const r = await pool.query(`DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`);
     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Missed Calls gelöscht`);
   } catch (e) { console.error('Cleanup missed_calls:', e.message); }
 
-  // Offline-Nachrichten älter als 7 Tage
   try {
     const r = await pool.query(`DELETE FROM offline_messages WHERE created_at < NOW() - INTERVAL '7 days'`);
     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
   } catch (e) { console.error('Cleanup offline_messages:', e.message); }
 
-  // Profile: visible_until abgelaufen UND last_seen > 30 Tage → löschen
   const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
   try {
     const r = await pool.query(
@@ -174,8 +184,6 @@ function sanitizeMessage(text) {
 // COMMUNITY PROFILE
 // ══════════════════════════════════════════════════════════════════════════════
 
-// GET /api/profiles?spot=gay
-// Nur Profile mit visible_until > jetzt werden zurückgegeben
 app.get('/api/profiles', async (req, res) => {
   const spot = req.query.spot || 'gay';
   const now  = Date.now();
@@ -197,7 +205,6 @@ app.get('/api/profiles', async (req, res) => {
   }
 });
 
-// POST /api/profile → anlegen oder updaten, setzt visible_until auf +24h
 app.post('/api/profile', async (req, res) => {
   const {
     code, name, age, region, province, city,
@@ -222,7 +229,6 @@ app.post('/api/profile', async (req, res) => {
 
     if (existing.rows.length > 0) {
       if (!token) {
-        // Kein Token → altes Profil löschen, neu anlegen (z.B. nach Cache-Clear)
         await pool.query('DELETE FROM profiles WHERE code = $1 AND spot = $2', [code, spot]);
         existing.rows = [];
       } else if (existing.rows[0].token !== token) {
@@ -269,8 +275,6 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
-// DELETE /api/profile/:code → sofort unsichtbar (visible_until = 0)
-// Datensatz bleibt für Verifikationen erhalten
 app.delete('/api/profile/:code', async (req, res) => {
   const { code } = req.params;
   const token = req.body?.token || req.headers['x-spotme-token'];
@@ -296,7 +300,6 @@ app.delete('/api/profile/:code', async (req, res) => {
   }
 });
 
-// GET /api/profile/:code
 app.get('/api/profile/:code', async (req, res) => {
   const { code } = req.params;
   const spot = req.query.spot || 'gay';
@@ -340,7 +343,6 @@ app.get('/api/location/:code', (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HEARTBEAT & ONLINE-STATUS
-// Heartbeat verlängert visible_until automatisch (GREATEST = nie verkürzen)
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.post('/api/heartbeat', async (req, res) => {
@@ -362,7 +364,6 @@ app.post('/api/heartbeat', async (req, res) => {
   }
 });
 
-// Online = last_seen < 2 Minuten; visible = visible_until > jetzt
 app.get('/api/online/:code', async (req, res) => {
   const { code } = req.params;
   const spot = req.query.spot || 'gay';
@@ -466,27 +467,11 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE-NACHRICHTEN
-//
-// Ablauf:
-//   1. Anruf läuft ins Leere (Nutzer offline)
-//   2. Client zeigt "Nachricht hinterlassen?" Dialog
-//   3. POST /api/offline-message speichert die Nachricht
-//   4. Empfänger sieht beim nächsten Login ein Badge + Liste
-//   5. GET /api/offline-messages/:code (mit Token) gibt die Nachrichten zurück
-//   6. Als gelesen markieren via DELETE
-//
-// Antispam:
-//   • Max 280 Zeichen, Links/E-Mails werden gefiltert
-//   • Für die erste Kontaktaufnahme: max 1 Nachricht pro Sender/Empfänger/Stunde
-//   • Sobald eine Antwort erfolgt ist (Dialog), entfällt das Limit
-//   • Max 50 ungelesene Nachrichten pro Empfänger
-//   • 7-Tage TTL (Cleanup-Intervall)
+// OFFLINE-NACHRICHTEN (MIT SPOT-FELDERN)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// POST /api/offline-message
 app.post('/api/offline-message', async (req, res) => {
-  const { recipient, senderCode, senderName, message } = req.body;
+  const { recipient, senderCode, senderName, message, type, source, spotType } = req.body;
 
   if (!recipient || !senderCode || !senderName || !message) {
     return res.status(400).json({ error: 'Fehlende Felder' });
@@ -501,15 +486,13 @@ app.post('/api/offline-message', async (req, res) => {
   }
 
   try {
-    // Prüfen, ob bereits ein Dialog besteht (mind. eine Nachricht vom Empfänger an den Sender)
     const dialogCheck = await pool.query(
       `SELECT id FROM offline_messages 
        WHERE sender_code = $1 AND recipient = $2
        LIMIT 1`,
-      [recipient, senderCode]  // umgekehrte Richtung: Empfänger hat schon mal geantwortet?
+      [recipient, senderCode]
     );
 
-    // Nur wenn KEIN Dialog besteht, das Zeitlimit anwenden
     if (dialogCheck.rows.length === 0) {
       const rateMinutes = Math.ceil(OFFLINE_MSG_RATE_MS / 60000);
       const rateCheck = await pool.query(
@@ -524,7 +507,6 @@ app.post('/api/offline-message', async (req, res) => {
       }
     }
 
-    // Max 50 ungelesene pro Empfänger
     const countCheck = await pool.query(
       `SELECT COUNT(*) AS cnt FROM offline_messages WHERE recipient = $1 AND read = FALSE`,
       [recipient]
@@ -533,10 +515,11 @@ app.post('/api/offline-message', async (req, res) => {
       return res.status(429).json({ error: 'Postfach des Empfängers voll' });
     }
 
+    // 🆕 INSERT mit type, source, spot_type
     await pool.query(
-      `INSERT INTO offline_messages (recipient, sender_code, sender_name, message)
-       VALUES ($1, $2, $3, $4)`,
-      [recipient, senderCode, senderName.slice(0, 50), clean]
+      `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [recipient, senderCode, senderName.slice(0, 50), clean, type || null, source || null, spotType || null]
     );
 
     res.json({ success: true });
@@ -546,7 +529,6 @@ app.post('/api/offline-message', async (req, res) => {
   }
 });
 
-// GET /api/offline-messages/:code?token=...&spot=...
 app.get('/api/offline-messages/:code', async (req, res) => {
   const { code } = req.params;
   const token = req.query.token || req.headers['x-spotme-token'];
@@ -563,9 +545,11 @@ app.get('/api/offline-messages/:code', async (req, res) => {
       return res.status(403).json({ error: 'Ungültiger Token' });
     }
 
+    // 🆕 SELECT mit type, source, spot_type
     const { rows } = await pool.query(
       `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
-              message, created_at AS timestamp, read
+              message, type, source, spot_type AS "spotType",
+              created_at AS timestamp, read
        FROM offline_messages
        WHERE recipient = $1
        ORDER BY created_at DESC
@@ -579,7 +563,6 @@ app.get('/api/offline-messages/:code', async (req, res) => {
   }
 });
 
-// DELETE /api/offline-message/:id → einzelne Nachricht als gelesen markieren
 app.delete('/api/offline-message/:id', async (req, res) => {
   const { id } = req.params;
   const { code, token, spot = 'gay' } = req.body;
@@ -604,7 +587,6 @@ app.delete('/api/offline-message/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/offline-messages/:code → alle als gelesen markieren
 app.delete('/api/offline-messages/:code', async (req, res) => {
   const { code } = req.params;
   const token = req.body?.token || req.headers['x-spotme-token'];
