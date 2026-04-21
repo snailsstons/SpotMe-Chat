@@ -1,13 +1,13 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.2 geladen – Final + Spot-Integration');
+console.log('✅ chat-api.js v3.3 geladen – Final + Sofort-Render');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
 // + Robuster Klingelton (HTML5 Audio Fallback)
 // + Automatisches Senden von Pending-Nachrichten
-// + Spot-Nachrichten Erkennung
+// + Spot-Nachrichten Erkennung mit Sofort-Render
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
@@ -121,7 +121,6 @@ async function sendMsg() {
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  // 🆕 ECHTE Verbindung prüfen
   let isReallyOnline = navigator.onLine;
   if (typeof ensureConnection === 'function') {
     isReallyOnline = await ensureConnection();
@@ -131,7 +130,6 @@ async function sendMsg() {
     addPendingMessageSilent(text);
     toast('📴 Server nicht erreichbar – lokal gespeichert');
   } else if (myToken) {
-    // 🆕 Source mitgeben (chat oder spot)
     const source = window.chatSource || 'chat';
     sendToServer(partnerCode, text, source);
   } else {
@@ -180,7 +178,7 @@ function removePendingMessageByText(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING (MIT SPOT-ERKENNUNG)
+// GLOBALES POLLING (MIT SPOT-ERKENNUNG + SOFORT-RENDER)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -198,21 +196,22 @@ function startGlobalPolling() {
           markOfflineMsgRead(m.id);
           return;
         }
-        // 🆕 Spot-Nachricht → in spot_messages speichern!
-           if (m.type === 'spot_message' || m.source === 'spot') {
-           console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
-           if (typeof addSpotMessage === 'function') {
-    const spotType = m.spotType || 'SPOT';
-    addSpotMessage(m.senderCode, m.senderName, m.message, spotType);
-  }
-  markOfflineMsgRead(m.id);
-  
-  // 🆕 Hub SOFORT aktualisieren!
-  if (typeof renderUnifiedHub === 'function') {
-    renderUnifiedHub();  // ← DIREKT aufrufen, kein setTimeout!
-  }
-  return;
-}
+
+        // 🆕 Spot-Nachricht → in spot_messages speichern + SOFORT rendern!
+        if (m.type === 'spot_message' || m.source === 'spot') {
+          console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
+          if (typeof addSpotMessage === 'function') {
+            const spotType = m.spotType || 'SPOT';
+            addSpotMessage(m.senderCode, m.senderName, m.message, spotType);
+          }
+          markOfflineMsgRead(m.id);
+          
+          // 🆕 Hub SOFORT aktualisieren (kein setTimeout!)
+          if (typeof renderUnifiedHub === 'function') {
+            renderUnifiedHub();
+          }
+          return;
+        }
 
         // Normale Chat-Nachricht
         if (partnerCode && m.senderCode === partnerCode) {
