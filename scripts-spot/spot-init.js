@@ -13,7 +13,7 @@ PROFILE_KEY = 'sm_profile_' + SPOT;
 myToken = localStorage.getItem(TOKEN_KEY);
 
 // Cache-Key für diesen Spot
-const CACHE_KEY = 'spot_cache_' + SPOT;
+// const CACHE_KEY = 'spot_cache_' + SPOT; //
 
 console.log('📟 Spot initialisiert:', SPOT);
 console.log('📟 PROFILE_KEY:', PROFILE_KEY);
