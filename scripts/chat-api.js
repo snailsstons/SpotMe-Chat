@@ -198,22 +198,21 @@ function startGlobalPolling() {
           markOfflineMsgRead(m.id);
           return;
         }
-
         // 🆕 Spot-Nachricht → in spot_messages speichern!
-        if (m.type === 'spot_message' || m.source === 'spot') {
-          console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
-          if (typeof addSpotMessage === 'function') {
-            const spotType = m.spotType || 'SPOT';
-            addSpotMessage(m.senderCode, m.senderName, m.message, spotType);
-          }
-          markOfflineMsgRead(m.id);
-          
-          // Hub aktualisieren
-          if (typeof renderUnifiedHub === 'function') {
-            setTimeout(() => renderUnifiedHub(), 100);
-          }
-          return;
-        }
+           if (m.type === 'spot_message' || m.source === 'spot') {
+           console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
+           if (typeof addSpotMessage === 'function') {
+    const spotType = m.spotType || 'SPOT';
+    addSpotMessage(m.senderCode, m.senderName, m.message, spotType);
+  }
+  markOfflineMsgRead(m.id);
+  
+  // 🆕 Hub SOFORT aktualisieren!
+  if (typeof renderUnifiedHub === 'function') {
+    renderUnifiedHub();  // ← DIREKT aufrufen, kein setTimeout!
+  }
+  return;
+}
 
         // Normale Chat-Nachricht
         if (partnerCode && m.senderCode === partnerCode) {
