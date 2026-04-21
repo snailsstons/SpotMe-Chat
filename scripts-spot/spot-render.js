@@ -2,6 +2,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – RENDERING (spot-render.js)
 // + Fallback für fehlende Bio
+// + Dates-Badges (Beziehung, Freundschaft, Casual)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderAll() {
@@ -65,6 +66,8 @@ function renderList() {
     const isOnline = onlineStatus && onlineStatus.online;
     
     let badges = '';
+    
+    // Gay-Spot Badges
     if (p.orientation) {
       const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
       badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
@@ -75,6 +78,18 @@ function renderList() {
     }
     if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
     if (p.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+    
+    // 🆕 DATES-BADGES: Beziehung, Freundschaft, Casual
+    if (p.lookingFor) {
+      const lookingLabels = {
+        'beziehung': '💕 Beziehung',
+        'freundschaft': '👥 Freundschaft',
+        'casual': '🍸 Casual'
+      };
+      const label = lookingLabels[p.lookingFor] || p.lookingFor;
+      badges += `<span class="badge" style="background:rgba(255,79,123,.12);color:#ff4f7b;">${esc(label)}</span>`;
+    }
+    
     if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
     
     const verifications = verificationCache.get(p.code) || [];
@@ -133,6 +148,8 @@ function showProfileDetail(profile) {
   const verifications = verificationCache.get(profile.code) || [];
   
   let badges = '';
+  
+  // Gay-Spot Badges
   if (profile.orientation) {
     const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[profile.orientation] || profile.orientation;
     badges += `<span class="badge badge-${profile.orientation}">${esc(lbl)}</span>`;
@@ -143,6 +160,17 @@ function showProfileDetail(profile) {
   }
   if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
   if (profile.crossdresser) badges += `<span class="badge badge-cross">Crossdresser</span>`;
+  
+  // 🆕 DATES-BADGES für Detailansicht
+  if (profile.lookingFor) {
+    const lookingLabels = {
+      'beziehung': '💕 Beziehung',
+      'freundschaft': '👥 Freundschaft',
+      'casual': '🍸 Casual'
+    };
+    const label = lookingLabels[profile.lookingFor] || profile.lookingFor;
+    badges += `<span class="badge" style="background:rgba(255,79,123,.12);color:#ff4f7b;">${esc(label)}</span>`;
+  }
   
   // Bio mit Fallback
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
@@ -176,4 +204,4 @@ function showProfileDetail(profile) {
 
 function closeProfileDetail() {
   document.getElementById('profile-detail-modal').style.display = 'none';
-          }
+  }
