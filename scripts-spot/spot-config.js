@@ -4,8 +4,11 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API  = 'https://spotme-pg-test.onrender.com/api';
-const PROFILE_KEY = 'sm_profile';
-const TOKEN_KEY   = 'sm_token';
+
+// 🆕 Werden in spot-init.js dynamisch gesetzt!
+let PROFILE_KEY = 'sm_profile_temp';
+let TOKEN_KEY   = 'sm_token_temp';
+
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
 const LOCATION_UPDATE_INTERVAL = 30000;
 const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
