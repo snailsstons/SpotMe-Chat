@@ -1,13 +1,13 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.2 geladen – Final + Spot-Integration');
+console.log('✅ chat-api.js v3.3 geladen – Final + Sofort-Render');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
 // + Gemeinsamer Chat-Verlauf für Lokal- und Live-Modus
 // + Robuster Klingelton (HTML5 Audio Fallback)
 // + Automatisches Senden von Pending-Nachrichten
-// + Spot-Nachrichten Erkennung
+// + Spot-Nachrichten Erkennung mit Sofort-Render
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
@@ -121,7 +121,6 @@ async function sendMsg() {
   persistMsg(m);
   if (typeof updateIdx === 'function') updateIdx(text);
 
-  // 🆕 ECHTE Verbindung prüfen
   let isReallyOnline = navigator.onLine;
   if (typeof ensureConnection === 'function') {
     isReallyOnline = await ensureConnection();
@@ -131,7 +130,6 @@ async function sendMsg() {
     addPendingMessageSilent(text);
     toast('📴 Server nicht erreichbar – lokal gespeichert');
   } else if (myToken) {
-    // 🆕 Source mitgeben (chat oder spot)
     const source = window.chatSource || 'chat';
     sendToServer(partnerCode, text, source);
   } else {
@@ -180,7 +178,7 @@ function removePendingMessageByText(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING (MIT SPOT-ERKENNUNG)
+// GLOBALES POLLING (MIT SPOT-ERKENNUNG + SOFORT-RENDER)
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -199,7 +197,7 @@ function startGlobalPolling() {
           return;
         }
 
-        // 🆕 Spot-Nachricht → in spot_messages speichern!
+        // 🆕 Spot-Nachricht → in spot_messages speichern + SOFORT rendern!
         if (m.type === 'spot_message' || m.source === 'spot') {
           console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
           if (typeof addSpotMessage === 'function') {
@@ -208,9 +206,9 @@ function startGlobalPolling() {
           }
           markOfflineMsgRead(m.id);
           
-          // Hub aktualisieren
+          // 🆕 Hub SOFORT aktualisieren (kein setTimeout!)
           if (typeof renderUnifiedHub === 'function') {
-            setTimeout(() => renderUnifiedHub(), 100);
+            renderUnifiedHub();
           }
           return;
         }

@@ -1,12 +1,13 @@
 'use strict';
 
-console.log('✅ spot-kurznachricht.js v2.0 geladen – mit Spot-Typ');
+console.log('✅ spot-kurznachricht.js v2.1 geladen – mit Debug');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – KURZNACHRICHT (spot-kurznachricht.js)
 // + Local‑First: Offline‑Nachrichten werden gespeichert und später gesendet
 // + Usage‑Zähler für Achtsamkeits‑Seite
 // + Spot-Typ wird mitgesendet (Gay, Dates, General)
+// + Debug-Ausgaben für Fehlersuche
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _kurznachrichtTarget = null;
@@ -35,17 +36,20 @@ function addPendingMessage(recipient, text, senderName) {
     senderName,
     message: text,
     ts: Date.now(),
-    type: 'spot_message',           // 🆕
-    source: 'spot',                 // 🆕
-    spotType: SPOT || 'SPOT'        // 🆕
+    type: 'spot_message',
+    source: 'spot',
+    spotType: SPOT || 'SPOT'
   });
   savePendingMessages(msgs);
+  console.log('📦 Pending gespeichert:', msgs.length, 'in Warteschlange');
 }
 
 async function flushPendingKurznachrichten() {
   const msgs = loadPendingMessages();
   if (msgs.length === 0) return;
 
+  console.log('📤 Flushe', msgs.length, 'Pending-Nachrichten...');
+  
   let successCount = 0;
   for (const msg of msgs) {
     try {
@@ -55,7 +59,9 @@ async function flushPendingKurznachrichten() {
         body: JSON.stringify(msg)
       });
       if (res.ok) successCount++;
-    } catch (e) {}
+    } catch (e) {
+      console.warn('❌ Pending-Fehler:', e.message);
+    }
   }
 
   if (successCount > 0) {
@@ -68,6 +74,7 @@ async function flushPendingKurznachrichten() {
 }
 
 function showKurznachrichtModal(code, name) {
+  console.log('📟 Modal öffnen für:', code, name);
   _kurznachrichtTarget = { code, name };
   document.getElementById('kurznachr-name').textContent = name;
   document.getElementById('kurznachr-input').value = '';
@@ -83,14 +90,28 @@ function closeKurznachrichtModal() {
 }
 
 async function submitKurznachricht() {
-  if (!_kurznachrichtTarget) return;
+  console.log('📟 submitKurznachricht aufgerufen');
+  
+  if (!_kurznachrichtTarget) {
+    console.warn('⚠️ Kein Ziel!');
+    return;
+  }
+  
   const text = document.getElementById('kurznachr-input').value.trim();
-  if (!text) { toast('⚠️ Bitte eine Nachricht eingeben'); return; }
+  if (!text) { 
+    toast('⚠️ Bitte eine Nachricht eingeben'); 
+    return; 
+  }
 
   const btn = document.getElementById('kurznachr-btn');
   const senderName = myProfile?.name || myCode;
 
+  console.log('📟 Ziel:', _kurznachrichtTarget.code, _kurznachrichtTarget.name);
+  console.log('📟 Text:', text);
+  console.log('📟 SPOT:', SPOT);
+
   const online = navigator.onLine;
+  console.log('📟 Online?', online);
 
   if (!online) {
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
@@ -101,22 +122,32 @@ async function submitKurznachricht() {
 
   btn.disabled = true;
   btn.textContent = '⏳ Senden...';
+  
   try {
     const payload = {
       recipient: _kurznachrichtTarget.code,
       senderCode: myCode,
       senderName: senderName,
       message: text,
-      type: 'spot_message',      // 🆕 WICHTIG für Empfänger!
-      source: 'spot',            // 🆕 WICHTIG für Empfänger!
-      spotType: SPOT || 'SPOT'   // 🆕 Gay, Dates, General
+      type: 'spot_message',
+      source: 'spot',
+      spotType: SPOT || 'SPOT'
     };
+    
+    console.log('📤 Sende Payload:', payload);
+    console.log('📤 API-URL:', API + '/offline-message');
+    
     const res = await fetch(API + '/offline-message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    
+    console.log('📥 Server-Status:', res.status);
+    
     const data = await res.json();
+    console.log('📥 Server-Antwort:', data);
+    
     if (res.ok) {
       toast(`📨 Nachricht an ${_kurznachrichtTarget.name} gesendet`);
       closeKurznachrichtModal();
@@ -127,6 +158,7 @@ async function submitKurznachricht() {
       toast('⚠️ ' + (data.error || 'Fehler beim Senden'));
     }
   } catch (e) {
+    console.error('❌ Sende-Fehler:', e.message);
     addPendingMessage(_kurznachrichtTarget.code, text, senderName);
     toast(`📦 Nachricht gespeichert (wird später gesendet)`);
     closeKurznachrichtModal();
@@ -134,4 +166,10 @@ async function submitKurznachricht() {
     btn.disabled = false;
     btn.textContent = '📨 Senden';
   }
-  }
+}
+
+// Debug: Zeige aktuelle Konfiguration
+console.log('📟 spot-kurznachricht.js geladen');
+console.log('📟 SPOT:', typeof SPOT !== 'undefined' ? SPOT : 'NICHT DEFINIERT!');
+console.log('📟 API:', typeof API !== 'undefined' ? API : 'NICHT DEFINIERT!');
+console.log('📟 myCode:', typeof myCode !== 'undefined' ? myCode : 'NICHT DEFINIERT!');

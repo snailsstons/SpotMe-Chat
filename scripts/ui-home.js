@@ -263,10 +263,10 @@ async function renderUnifiedHub() {
   }).join('');
 }
 
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT-NACHRICHTEN – ANTWORTEN (LOKAL-MODUS)
 // ══════════════════════════════════════════════════════════════════════════════
-
 function answerSpotMessage(code, name) {
   console.log('📟 answerSpotMessage →', code, name);
   
@@ -277,12 +277,14 @@ function answerSpotMessage(code, name) {
   
   partnerCode = code;
   partnerName = name;
-  const chatId = buildCID(myCode, code);
-  window.chatId = chatId;
-  chatId = chatId;
+  
+  // 🆕 chatId ohne const – ist bereits als Parameter deklariert!
+  let newChatId = buildCID(myCode, code);
+  window.chatId = newChatId;
+  chatId = newChatId;
   
   loadPendingMessages();
-  migratePendingMessages(chatId);
+  migratePendingMessages(newChatId);
   
   if (typeof openApiChat === 'function') {
     openApiChat();
@@ -291,6 +293,7 @@ function answerSpotMessage(code, name) {
     toast('⚠️ Fehler beim Öffnen des Chats');
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // KURZNACHRICHTEN (SPOT) – HILFSFUNKTIONEN
