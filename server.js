@@ -259,7 +259,9 @@ app.post('/api/profile', async (req, res) => {
         ]
       );
     } else {
-      profileToken = crypto.randomBytes(32).toString('hex');
+      // Mitgeschickten Token übernehmen (globaler Account-Token),
+      // sonst neuen generieren
+      profileToken = token || crypto.randomBytes(32).toString('hex');
       await pool.query(
         `INSERT INTO profiles
           (code, spot, name, age, region, province, city,
