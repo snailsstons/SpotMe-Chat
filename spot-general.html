@@ -1,125 +1,153 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <!-- Eruda – Mobile Console (nur für Debugging, vor allen anderen Scripts) -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-  
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>SpotMe · General Radar Community</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#060a0f">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>SpotMe · Marktplatz</title>
     
-<!-- Spot Scripts – Reihenfolge wichtig! -->
-<!-- 1. Konfiguration -->
-<script src="scripts-spot/spot-config.js"></script>
-
-<!-- 2. Alle Scripts, die SPOT NICHT brauchen -->
-<script src="scripts-spot/spot-state.js"></script>
-<script src="scripts-spot/spot-utils.js"></script>
-<script src="scripts-spot/spot-profile.js"></script>
-<script src="scripts-spot/spot-location.js"></script>
-<script src="scripts-spot/spot-community.js"></script>
-<script src="scripts-spot/spot-render.js"></script>
-<script src="scripts-spot/spot-messages.js"></script>
-<script src="scripts-spot/spot-verify.js"></script>
-<script src="scripts-spot/spot-keepalive.js"></script>
-
-<!-- 3. SPOT definieren -->
-<script src="scripts-spot/spot-general.js"></script>
-
-<!-- 4. Scripts, die SPOT BRAUCHEN -->
-<script src="scripts-spot/spot-kurznachricht.js"></script>
-<script src="scripts-spot/spot-init.js"></script>
-
-
-<link rel="stylesheet" href="styles.css">
-<!-- Zusätzlich spot.css für die Spots-Grid laden -->
-<link rel="stylesheet" href="spot.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2ecc71">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- Spot Scripts – Reihenfolge wichtig! -->
+    <script src="scripts-spot/spot-config.js"></script>
+    <script src="scripts-spot/spot-state.js"></script>
+    <script src="scripts-spot/spot-utils.js"></script>
+    <script src="scripts-spot/spot-profile.js"></script>
+    <script src="scripts-spot/spot-location.js"></script>
+    <script src="scripts-spot/spot-community.js"></script>
+    <script src="scripts-spot/spot-render.js"></script>
+    <script src="scripts-spot/spot-messages.js"></script>
+    <script src="scripts-spot/spot-verify.js"></script>
+    <script src="scripts-spot/spot-keepalive.js"></script>
+
+    <!-- General Spot Konfiguration -->
+    <script src="scripts-spot/spot-general.js"></script>
+
+    <!-- Scripts die SPOT brauchen -->
+    <script src="scripts-spot/spot-kurznachricht.js"></script>
+    <script src="scripts-spot/spot-init.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="spot.css">
+
+    <style>
+        /* ════════════════════════════════════════════════════
+           GENERAL SPOT – KLEINANZEIGEN (GRÜN)
+           ════════════════════════════════════════════════════ */
+        :root {
+            --spot-acc:        #2ecc71;
+            --spot-acc2:       #27ae60;
+            --spot-acc-dim:    rgba(46, 204, 113, 0.12);
+            --spot-acc-border: rgba(46, 204, 113, 0.25);
+            --acc:     var(--spot-acc);
+            --acc-dim: var(--spot-acc-dim);
+            --p2:      var(--spot-acc2);
+        }
+
+        .radar-sweep {
+            background: conic-gradient(from 0deg, transparent 0%, var(--spot-acc-dim) 100%);
+        }
+
+        .status-badge {
+            color: var(--spot-acc);
+            background: var(--spot-acc-dim);
+            border-color: var(--spot-acc-border);
+        }
+
+        .nav-btn.active {
+            color: var(--spot-acc);
+            background: var(--spot-acc-dim);
+        }
+        
+        /* Kategorie-Badges */
+        .badge-kategorie {
+            background: var(--spot-acc-dim);
+            color: var(--spot-acc);
+            border: 1px solid var(--spot-acc-border);
+        }
+    </style>
 </head>
 <body>
 
+<!-- ═══════════ HEADER ═══════════ -->
 <header class="app-header">
   <div class="header-left">
     <button class="back-btn" onclick="goHome()" title="Zurück zum Chat">‹</button>
   </div>
-  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">GENERAL</span></div>
+  <div class="logo">
+    SPOT<b>ME</b>
+    <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">MARKT</span>
+  </div>
   <div class="header-right">
     <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
-    <div class="status-badge" id="status-indicator">● DISCOVERY</div>
+    <div class="status-badge" id="status-indicator">● MARKTPLATZ</div>
   </div>
 </header>
-    
+
 <!-- Traffic‑Anzeige -->
 <div id="traffic-display" class="traffic-panel" style="display: flex; gap: 12px; justify-content: center; font-size: 0.8rem; padding: 8px; background: var(--card); border-radius: 40px; margin: 8px 16px;">
-  <span>📊 0 B</span>
-  <span>⬆️ 0 B</span>
-  <span>⬇️ 0 B</span>
+  <span>📊 <span id="traffic-total">0 B</span></span>
+  <span>⬆️ <span id="traffic-sent">0 B</span></span>
+  <span>⬇️ <span id="traffic-recv">0 B</span></span>
 </div>
-    
+
+<!-- ═══════════ PROFIL-BAR ═══════════ -->
 <div class="profile-bar" id="profile-bar" style="display:none;">
-  <div class="profile-avatar" id="my-avatar-small">🧑</div>
+  <div class="profile-avatar" id="my-avatar-small">📦</div>
   <div class="profile-info">
     <div class="profile-name" id="my-name-small">—</div>
     <div class="profile-meta" id="my-meta-small">—</div>
   </div>
   <div class="profile-actions">
-    <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
-    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
+    <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Anzeige schalten">👁️</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Anzeige bearbeiten">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
   </div>
 </div>
 
-<!-- Community-Liste (zuerst) -->
+<!-- ═══════════ COMMUNITY-LISTE ═══════════ -->
 <div class="community-list-section">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; margin-bottom:0.25rem;">
-    <div class="section-label">Community Profile</div>
+    <div class="section-label">📦 Anzeigen</div>
     <div class="community-count" id="community-count"></div>
   </div>
   <div id="community-list" class="horizontal-scroll"></div>
 </div>
 
-<!-- Filter (Suchmaske) -->
+<!-- ═══════════ FILTER ═══════════ -->
 <div class="filter-drawer">
-  <div class="filter-title">Community Filter</div>
+  <div class="filter-title">🔍 Filter</div>
   <div class="filter-select-row">
-    <select class="filter-select" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
-    <select class="filter-select" id="f-age" onchange="applyFilters()">
+    <select class="filter-select" id="f-region" onchange="applyFilters()">
+      <option value="">Alle Regionen</option>
+    </select>
+    <select class="filter-select" id="f-age" onchange="applyFilters()" style="display:none;">
       <option value="">Alle Altersgruppen</option>
-      <option value="18-29">18–29</option>
-      <option value="30-39">30–39</option>
-      <option value="40-49">40–49</option>
-      <option value="50+">50+</option>
     </select>
   </div>
+
+  <!-- KLEINANZEIGEN KATEGORIEN -->
   <div class="filter-row" id="filter-chips">
-    <div class="filter-chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</div>
-    <div class="filter-chip" data-filter="bi" onclick="toggleChip(this)">Bi</div>
-    <div class="filter-chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</div>
-    <div class="filter-chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</div>
-    <div class="filter-chip" data-filter="top" onclick="toggleChip(this)">Top</div>
-    <div class="filter-chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</div>
-    <div class="filter-chip" data-filter="trans" onclick="toggleChip(this)">Trans</div>
-    <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
+    <div class="filter-chip" data-filter="biete" onclick="toggleChip(this)">📦 Biete</div>
+    <div class="filter-chip" data-filter="suche" onclick="toggleChip(this)">🔍 Suche</div>
+    <div class="filter-chip" data-filter="verschenke" onclick="toggleChip(this)">🎁 Verschenke</div>
+    <div class="filter-chip" data-filter="event" onclick="toggleChip(this)">📅 Event</div>
   </div>
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
 </div>
 
-<!-- Radar (jetzt unterhalb der Filter) -->
+<!-- ═══════════ RADAR ═══════════ -->
 <div class="radar-viewport">
+  <div style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0.75rem 1.25rem 0;">📍 In der Nähe</div>
   <div class="radar-canvas" id="radar-field">
     <div class="radar-bg"></div>
     <div class="ring" style="inset: 0;"></div><span class="ring-label" style="top:2%;">5 km</span>
@@ -131,11 +159,14 @@
   </div>
 </div>
 
+<!-- ═══════════ NAVIGATION ═══════════ -->
 <nav>
-  <button class="nav-btn active">RADAR</button>
-  <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
-  <button class="nav-btn" onclick="location.href='profil.html'">PROFIL</button>
+  <button class="nav-btn active">📦 MARKT</button>
+  <button class="nav-btn" onclick="location.href='index.html'">💬 CHAT</button>
+  <button class="nav-btn" onclick="location.href='profil.html?spot=' + SPOT">👤 ANZEIGE</button>
 </nav>
+
+<!-- ═══════════ MODALS ═══════════ -->
 
 <!-- Standort-Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
@@ -158,7 +189,7 @@
   </div>
 </div>
 
-<!-- QR-Code Modal für persönliche Verifikation -->
+<!-- QR-Verifikations-Modal -->
 <div class="modal-overlay" id="qr-verify-modal" onclick="closeQrVerifyModal()">
   <div class="modal-content" style="max-width:320px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeQrVerifyModal()">✕</button>
@@ -175,9 +206,9 @@
 <div class="modal-overlay" id="kurznachricht-modal" onclick="if(event.target===this) closeKurznachrichtModal()">
   <div class="modal-content" style="max-width:340px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeKurznachrichtModal()">✕</button>
-    <div style="font-size:1.5rem;text-align:center;margin-bottom:0.5rem;">✉️</div>
+    <div style="font-size:1.5rem;text-align:center;margin-bottom:0.5rem;">📩</div>
     <h3 style="font-family:'Syne';text-align:center;margin-bottom:0.25rem;color:var(--acc);" id="kurznachr-name"></h3>
-    <p style="font-size:0.85rem;color:var(--muted2);text-align:center;margin-bottom:1rem;">Kurznachricht hinterlassen</p>
+    <p style="font-size:0.85rem;color:var(--muted2);text-align:center;margin-bottom:1rem;">Nachricht senden</p>
     <textarea id="kurznachr-input" class="minp"
       placeholder="Deine Nachricht..."
       rows="4" maxlength="280"
@@ -204,4 +235,4 @@
 <div class="toast" id="toast"></div>
 
 </body>
-</html>
+    </html>
