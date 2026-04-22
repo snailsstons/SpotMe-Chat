@@ -18,6 +18,7 @@ function newCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Globale Variablen (let, nicht const!)
 let myCode  = localStorage.getItem('sm_code') || newCode();
 let myName  = localStorage.getItem('sm_name') || 'User_' + myCode.slice(0, 4);
 let myToken = localStorage.getItem(TOKEN_KEY) || '';
@@ -30,7 +31,7 @@ let peer = null;
 let conn = null;
 let pendingConn = null;
 let isOffline = false;
-let peerReady = false;       // ← NEU: zeigt an, ob Peer vollständig bereit ist
+let peerReady = false;
 
 // Partner-Daten
 let partnerCode = '';
@@ -70,3 +71,24 @@ let currentRadius = 500;
 
 // Backup
 let pendingRestoreFile = null;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 SUPABASE INTEGRATION (wenn vorhanden)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Supabase Client wird in supabase-config.js erstellt und hier referenziert
+let supabase = null;
+
+// Warte auf Supabase-Initialisierung
+document.addEventListener('supabase-ready', (e) => {
+  supabase = e.detail.client;
+  console.log('✅ Supabase in config.js verfügbar');
+});
+
+// Fallback: Direkt aus window holen
+setTimeout(() => {
+  if (window.supabase && !supabase) {
+    supabase = window.supabase;
+    console.log('✅ Supabase aus window geladen');
+  }
+}, 500);

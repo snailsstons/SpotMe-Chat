@@ -135,3 +135,106 @@ function checkBackupOnStart() {
     }
   }
 }
+// ══════════════════════════════════════════════════════════════════════════════
+// 🧹 GEHEIMER CLEANUP (Langer Druck auf Status-Badge)
+// ══════════════════════════════════════════════════════════════════════════════
+
+let statusPressTimer = null;
+
+function initSecretCleanup() {
+  const statusBadge = document.getElementById('header-status');
+  if (!statusBadge) return;
+
+  // Touch-Events für Mobile
+  statusBadge.addEventListener('touchstart', (e) => {
+    statusPressTimer = setTimeout(() => {
+      statusBadge.style.background = 'var(--p3)';
+      statusBadge.style.color = 'white';
+      
+      if (confirm('🧹 Lokalen Speicher bereinigen?\n\nCode, Name & Token bleiben erhalten.\nAlle anderen Daten werden gelöscht.')) {
+        cleanupLocalStorage();
+      }
+      
+      statusBadge.style.background = '';
+      statusBadge.style.color = '';
+      statusPressTimer = null;
+    }, 1500);
+  });
+  
+  statusBadge.addEventListener('touchend', () => {
+    if (statusPressTimer) {
+      clearTimeout(statusPressTimer);
+      statusPressTimer = null;
+    }
+    statusBadge.style.background = '';
+    statusBadge.style.color = '';
+  });
+  
+  statusBadge.addEventListener('touchmove', () => {
+    if (statusPressTimer) {
+      clearTimeout(statusPressTimer);
+      statusPressTimer = null;
+    }
+    statusBadge.style.background = '';
+    statusBadge.style.color = '';
+  });
+
+  // Mouse-Events für Desktop-Tests
+  statusBadge.addEventListener('mousedown', (e) => {
+    statusPressTimer = setTimeout(() => {
+      statusBadge.style.background = 'var(--p3)';
+      statusBadge.style.color = 'white';
+      
+      if (confirm('🧹 Lokalen Speicher bereinigen?\n\nCode, Name & Token bleiben erhalten.\nAlle anderen Daten werden gelöscht.')) {
+        cleanupLocalStorage();
+      }
+      
+      statusBadge.style.background = '';
+      statusBadge.style.color = '';
+      statusPressTimer = null;
+    }, 1500);
+  });
+  
+  statusBadge.addEventListener('mouseup', () => {
+    if (statusPressTimer) {
+      clearTimeout(statusPressTimer);
+      statusPressTimer = null;
+    }
+    statusBadge.style.background = '';
+    statusBadge.style.color = '';
+  });
+  
+  statusBadge.addEventListener('mouseleave', () => {
+    if (statusPressTimer) {
+      clearTimeout(statusPressTimer);
+      statusPressTimer = null;
+    }
+    statusBadge.style.background = '';
+    statusBadge.style.color = '';
+  });
+}
+
+// 🧹 Die Cleanup-Funktion
+function cleanupLocalStorage() {
+  console.log('🧹 Starte Cleanup...');
+  
+  const keep = ['sm_code', 'sm_name', 'sm_token'];
+  const allKeys = Object.keys(localStorage).filter(k => k.startsWith('sm_'));
+  const toDelete = allKeys.filter(k => !keep.includes(k));
+  
+  console.log('📋 Behalten:', keep.map(k => `${k}=${localStorage.getItem(k)?.substring(0, 20)}...`));
+  console.log('🗑️ Gelöscht:', toDelete.length, 'Einträge');
+  
+  toDelete.forEach(k => localStorage.removeItem(k));
+  
+  if (typeof toast === 'function') {
+    toast('🧹 Lokaler Speicher bereinigt!');
+  }
+  
+  setTimeout(() => location.reload(), 1000);
+}
+
+// 🆕 Initialisierung aufrufen
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initSecretCleanup, 500);
+});

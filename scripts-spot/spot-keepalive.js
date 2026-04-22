@@ -29,7 +29,7 @@ function startKeepalive() {
 
 async function verifyAndRepublish() {
   try {
-    const res = await fetch(API + '/profile/' + myCode);
+    const res = await fetch(API + '/profile/' + myCode + '?spot=' + SPOT);
     if (res.status === 404) await togglePublish();
   } catch(e) {}
 }
