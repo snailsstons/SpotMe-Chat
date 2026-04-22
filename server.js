@@ -192,7 +192,7 @@ app.get('/api/profiles', async (req, res) => {
   const now  = Date.now();
   try {
     const { rows } = await pool.query(
-      `SELECT code, name, age, region, province, city,
+      `SELECT code, spot, name, age, region, province, city,
               orientation, role, trans, crossdresser,
               looking_for AS "lookingFor",
               category, bio,
