@@ -1,21 +1,34 @@
 'use strict';
+console.log('--- loading supabase-config.js');
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SUPABASE KONFIGURATION
-// ══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// SUPABASE KONFIGURATION (MIT WARTESCHLEIFE)
+// ═══════════════════════════════════════════════════════════════════════════
 
-const SUPABASE_URL = 'https://SpotME-Projekt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_secret_i-RGqpry6MynZvpZ563NBQ_KwELnowF';
-
-// Client erstellen, wenn Supabase CDN geladen ist
-if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  window.supabase = client;
-  
-  // Event auslösen, damit andere Scripts es nutzen können
-  document.dispatchEvent(new CustomEvent('supabase-ready', { detail: { client } }));
-  
-  console.log('✅ Supabase Client initialisiert');
-} else {
-  console.error('❌ Supabase CDN nicht geladen!');
-}
+(function() {
+    const SUPABASE_URL = 'https://SpotME-Projekt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_secret_i-RGqpry6MynZvpZ563NBQ_KwELnowF';
+    
+    let attempts = 0;
+    const maxAttempts = 20; // 10 Sekunden warten
+    
+    function tryInit() {
+        attempts++;
+        
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ Supabase Client bereit nach', attempts, 'Versuchen');
+            return true;
+        }
+        
+        if (attempts < maxAttempts) {
+            setTimeout(tryInit, 500);
+        } else {
+            console.error('❌ Supabase CDN nicht geladen nach', maxAttempts, 'Versuchen');
+        }
+        return false;
+    }
+    
+    // Starte die Prüfung
+    tryInit();
+})();
