@@ -29,8 +29,7 @@ async function ensureGlobalToken() {
       body: JSON.stringify({
         code: myCode,
         name: name,
-        region: 'Valencia (Region)',
-        spot: 'gay'
+        region: 'Valencia (Region)'
       })
     });
     
