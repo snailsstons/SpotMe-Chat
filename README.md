@@ -1,4 +1,4 @@
-# SpotMe – Die komplette Projektdokumentation 1
+# SpotMe – Die komplette Projektdokumentation
 
 **P2P‑Chat & Community‑Radar · Dezentral, verschlüsselt, offline‑fähig**
 
