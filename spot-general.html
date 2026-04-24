@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
-<!-- Eruda – Mobile Console (nur für Debugging) -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -114,7 +109,7 @@
   </div>
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Anzeige schalten">👁️</button>
-    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Anzeige bearbeiten">✎</button>
+    <button class="icon-btn" onclick="window.location.href='profil-general.html'" title="Anzeige bearbeiten">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
   </div>
 </div>
@@ -180,7 +175,7 @@
 <nav>
   <button class="nav-btn active">📦 MARKT</button>
   <button class="nav-btn" onclick="location.href='index.html'">💬 CHAT</button>
-  <button class="nav-btn" onclick="location.href='profil.html?spot=' + SPOT">👤 ANZEIGE</button>
+  <button class="nav-btn" onclick="location.href='profil-general.html'">👤 ANZEIGE</button>
 </nav>
 
 <!-- ═══════════ MODALS ═══════════ -->
