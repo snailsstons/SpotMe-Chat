@@ -65,6 +65,12 @@ const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfän
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
 
+// 🆕 General-Spot Spalten
+await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
+await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
+console.log('✅ Spalten help_mode, help_category bereit');
+
+  
   // Profiles — composite PK (code, spot) + visible_until
   await pool.query(`
     CREATE TABLE IF NOT EXISTS profiles (
