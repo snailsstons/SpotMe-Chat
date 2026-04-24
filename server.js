@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME SERVER – PostgreSQL Version
 //
+//
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
 //   • Offline-Nachrichten       → Nachricht hinterlassen wenn Nutzer offline
