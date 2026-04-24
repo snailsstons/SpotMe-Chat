@@ -12,13 +12,13 @@ let heartbeatTimer = null;
 let serverOnline = false;
 let lastPing = 0;
 
-// 🆕 Heartbeat: Alle 5 Sekunden prüfen
+// 🆕 Heartbeat: Alle 2 Minuten prüfen
 function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
 
   heartbeatTimer = setInterval(async () => {
     await checkServerConnection();
-  }, 5000); // Alle 5 Sekunden
+  }, 1200000); // Alle 2 Minuten
 
   console.log('💓 Heartbeat gestartet (5s Intervall)');
 }
