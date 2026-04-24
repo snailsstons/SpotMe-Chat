@@ -42,22 +42,20 @@ const peerServer = ExpressPeerServer(server, {
 });
 app.use('/peerjs', peerServer);
 
+
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: (process.env.DATABASE_URL?.includes('neon.tech') || 
         process.env.DATABASE_URL?.includes('render.com'))
     ? { rejectUnauthorized: false }
-    : false
+    : false,
+  // 🆕 Neon-optimierte Pool-Einstellungen
+  max: 3,                           // max 3 Verbindungen
+  idleTimeoutMillis: 30000,         // Verbindung nach 30s schließen
+  connectionTimeoutMillis: 5000     // 5s Timeout
 });
 
-// ---------- PostgreSQL Pool ----------
-// const pool = new Pool({
-//  connectionString: process.env.DATABASE_URL,
-//  ssl: process.env.DATABASE_URL?.includes('render.com')
-//    ? { rejectUnauthorized: false }
-//    : false
-// });
 
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
@@ -150,16 +148,11 @@ async function initDB() {
   console.log('✅ Datenbank-Tabellen bereit');
 }
 
-// ---------- Standort-Cache (RAM, 2-Min TTL) ----------
-const locationCache = new Map();
 
-// ---------- Cleanup (alle 2 Minuten) ----------
+// ---------- DB-Cleanup (alle 24 Stunden) ----------
 setInterval(async () => {
   const now = Date.now();
-
-  for (const [key, data] of locationCache.entries()) {
-    if (now - data.ts > 120000) locationCache.delete(key);
-  }
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
   try {
     const r = await pool.query(`DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`);
@@ -171,7 +164,6 @@ setInterval(async () => {
     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
   } catch (e) { console.error('Cleanup offline_messages:', e.message); }
 
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
   try {
     const r = await pool.query(
       `DELETE FROM profiles WHERE visible_until < $1 AND COALESCE(last_seen, updated_at) < $2`,
@@ -180,7 +172,8 @@ setInterval(async () => {
     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
   } catch (e) { console.error('Cleanup profiles:', e.message); }
 
-}, 120000);
+}, 86400000); // 🆕 24 Stunden (24 * 60 * 60 * 1000)
+
 
 // ---------- Antispam: Links + E-Mails aus Nachrichten entfernen ----------
 function sanitizeMessage(text) {
