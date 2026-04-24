@@ -51,15 +51,9 @@
 // ── Bild & Datei senden ─────────────────────────────────────────────────────
 let imgReceiveBuffer = {};
 
-async function handleFileOrImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-  if (file.type.startsWith('image/')) {
-    await sendImage(file);
-  } else {
-    if (typeof sendFile === 'function') sendFile({ files: [file] });
-  }
+function handleFileOrImage(input) {
+  // sendFile in p2p-file.js erkennt Bilder jetzt selbst → alles darüber
+  if (typeof sendFile === 'function') sendFile(input);
 }
 
 async function sendImage(file) {
