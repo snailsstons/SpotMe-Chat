@@ -42,22 +42,20 @@ const peerServer = ExpressPeerServer(server, {
 });
 app.use('/peerjs', peerServer);
 
+
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: (process.env.DATABASE_URL?.includes('neon.tech') || 
         process.env.DATABASE_URL?.includes('render.com'))
     ? { rejectUnauthorized: false }
-    : false
+    : false,
+  // 🆕 Neon-optimierte Pool-Einstellungen
+  max: 3,                           // max 3 Verbindungen
+  idleTimeoutMillis: 30000,         // Verbindung nach 30s schließen
+  connectionTimeoutMillis: 5000     // 5s Timeout
 });
 
-// ---------- PostgreSQL Pool ----------
-// const pool = new Pool({
-//  connectionString: process.env.DATABASE_URL,
-//  ssl: process.env.DATABASE_URL?.includes('render.com')
-//    ? { rejectUnauthorized: false }
-//    : false
-// });
 
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
