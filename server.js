@@ -243,8 +243,8 @@ app.post('/api/profile', async (req, res) => {
 
     if (existing.rows.length > 0) {
       if (!token) {
-        await pool.query('DELETE FROM profiles WHERE code = $1 AND spot = $2', [code, spot]);
-        existing.rows = [];
+        // Kein Token mitgeschickt → neuen Token vergeben (Altprofil)
+        profileToken = crypto.randomBytes(32).toString('hex');
       } else if (existing.rows[0].token !== token) {
         return res.status(403).json({ error: 'Ungültiger Token' });
       } else {
@@ -276,7 +276,7 @@ app.post('/api/profile', async (req, res) => {
            orientation, role, trans, crossdresser, looking_for,
            help_mode, help_category, category, bio,
            token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [
           code, spot, name, age || null, region,
           province || null, city || null,
