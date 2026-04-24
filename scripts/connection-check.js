@@ -18,7 +18,7 @@ function startHeartbeat() {
 
   heartbeatTimer = setInterval(async () => {
     await checkServerConnection();
-  }, 5000); // Alle 5 Sekunden
+  }, 1200000); // Alle 2 Minuten
 
   console.log('💓 Heartbeat gestartet (5s Intervall)');
 }
