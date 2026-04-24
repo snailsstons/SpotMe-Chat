@@ -34,7 +34,7 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// ---------- PeerJS ----------
+// ---------- PeerJS -----------
 const server = require('http').createServer(app);
 const peerServer = ExpressPeerServer(server, {
   path: '/',
