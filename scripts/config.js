@@ -5,10 +5,15 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Server & API
-const SERVER_HOST = 'spotme-pg-test.onrender.com';
+// const SERVER_HOST = 'spotme-pg-test.onrender.com';
+const SERVER_Host = 'spotme-chat-obom.onrender.com';
 const SERVER_PATH = '/peerjs';
-const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
-const API_BASE    = 'https://spotme-pg-test.onrender.com/api';
+
+// const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
+// const API_BASE    = 'https://spotme-pg-test.onrender.com/api';
+const API_MISSED = 'spotme-chat-obom.onrender.com';
+const API_BASE = 'spotme-chat-obom.onrender.com';
+
 const TOKEN_KEY   = 'sm_token';
 
 // Chunk-Größe
