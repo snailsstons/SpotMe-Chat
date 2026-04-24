@@ -8,6 +8,7 @@
 //   • Ping-Endpunkt             → Für Heartbeat (Render Free Tier)
 //   • Spot-Nachrichten          → type, source, spot_type Felder
 //   • Dates-Spot                → looking_for Feld
+//   • General-Spot              → help_mode, help_category Felder
 //
 // Setup:
 //   npm install pg
@@ -42,7 +43,6 @@ const peerServer = ExpressPeerServer(server, {
 });
 app.use('/peerjs', peerServer);
 
-
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -51,27 +51,20 @@ const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
   // 🆕 Neon-optimierte Pool-Einstellungen
-  max: 3,                           // max 3 Verbindungen
-  idleTimeoutMillis: 30000,         // Verbindung nach 30s schließen
-  connectionTimeoutMillis: 5000     // 5s Timeout
+  max: 3,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000
 });
 
-
 // ---------- Konstanten ----------
-const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
-const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
-const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
+const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000;
+const OFFLINE_MSG_MAX     = 280;
+const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;
 
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
 
-// 🆕 General-Spot Spalten
-await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
-await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
-console.log('✅ Spalten help_mode, help_category bereit');
-
-  
-  // Profiles — composite PK (code, spot) + visible_until
+  // Profiles
   await pool.query(`
     CREATE TABLE IF NOT EXISTS profiles (
       code          TEXT NOT NULL,
@@ -86,6 +79,8 @@ console.log('✅ Spalten help_mode, help_category bereit');
       trans         BOOLEAN DEFAULT FALSE,
       crossdresser  BOOLEAN DEFAULT FALSE,
       looking_for   TEXT,
+      help_mode     TEXT,
+      help_category TEXT,
       category      TEXT,
       bio           TEXT,
       token         TEXT NOT NULL,
@@ -122,7 +117,7 @@ console.log('✅ Spalten help_mode, help_category bereit');
     CREATE INDEX IF NOT EXISTS idx_missed_created   ON missed_calls(created_at);
   `);
 
-  // Offline-Nachrichten – MIT type, source, spot_type
+  // Offline-Nachrichten
   await pool.query(`
     CREATE TABLE IF NOT EXISTS offline_messages (
       id          SERIAL PRIMARY KEY,
@@ -140,13 +135,15 @@ console.log('✅ Spalten help_mode, help_category bereit');
     CREATE INDEX IF NOT EXISTS idx_offmsg_created   ON offline_messages(created_at);
   `);
 
-  // Falls Tabelle schon existiert, Spalten nachträglich hinzufügen
+  // Nachträgliche Spalten
   try {
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-    console.log('✅ Spalten type, source, spot_type, looking_for bereit');
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
+    console.log('✅ Spalten type, source, spot_type, looking_for, help_mode, help_category bereit');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
@@ -154,6 +151,8 @@ console.log('✅ Spalten help_mode, help_category bereit');
   console.log('✅ Datenbank-Tabellen bereit');
 }
 
+// ---------- Standort-Cache (RAM, 2-Min TTL) ----------
+const locationCache = new Map();
 
 // ---------- DB-Cleanup (alle 24 Stunden) ----------
 setInterval(async () => {
@@ -178,10 +177,9 @@ setInterval(async () => {
     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
   } catch (e) { console.error('Cleanup profiles:', e.message); }
 
-}, 86400000); // 🆕 24 Stunden (24 * 60 * 60 * 1000)
+}, 86400000);
 
-
-// ---------- Antispam: Links + E-Mails aus Nachrichten entfernen ----------
+// ---------- Antispam ----------
 function sanitizeMessage(text) {
   if (!text || typeof text !== 'string') return '';
   return text
@@ -203,6 +201,8 @@ app.get('/api/profiles', async (req, res) => {
       `SELECT code, spot, name, age, region, province, city,
               orientation, role, trans, crossdresser,
               looking_for AS "lookingFor",
+              help_mode AS "helpMode",
+              help_category AS "helpCategory",
               category, bio,
               last_seen, updated_at AS ts, visible_until,
               (COALESCE(last_seen, 0) > $2) AS is_online
@@ -222,7 +222,7 @@ app.post('/api/profile', async (req, res) => {
   const {
     code, name, age, region, province, city,
     orientation, role, trans, crossdresser, category, bio,
-    lookingFor,
+    lookingFor, helpMode, helpCategory,
     token, spot = 'gay'
   } = req.body;
 
@@ -256,31 +256,29 @@ app.post('/api/profile', async (req, res) => {
         `UPDATE profiles SET
           name=$1, age=$2, region=$3, province=$4, city=$5,
           orientation=$6, role=$7, trans=$8, crossdresser=$9,
-          looking_for=$10,
-          category=$11, bio=$12, updated_at=$13, visible_until=$14
-         WHERE code=$15 AND spot=$16`,
+          looking_for=$10, help_mode=$11, help_category=$12,
+          category=$13, bio=$14, updated_at=$15, visible_until=$16
+         WHERE code=$17 AND spot=$18`,
         [
           name, age || null, region, province || null, city || null,
           orientation || null, role || null, !!trans, !!crossdresser,
-          lookingFor || null,
+          lookingFor || null, helpMode || null, helpCategory || null,
           category || null, bio || null, now, visibleUntil, code, spot
         ]
       );
     } else {
-      // Mitgeschickten Token übernehmen (globaler Account-Token),
-      // sonst neuen generieren
       profileToken = token || crypto.randomBytes(32).toString('hex');
       await pool.query(
         `INSERT INTO profiles
           (code, spot, name, age, region, province, city,
-           orientation, role, trans, crossdresser, looking_for, category, bio,
-           token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+           orientation, role, trans, crossdresser, looking_for, help_mode, help_category,
+           category, bio, token, updated_at, visible_until)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [
           code, spot, name, age || null, region,
           province || null, city || null,
           orientation || null, role || null, !!trans, !!crossdresser,
-          lookingFor || null,
+          lookingFor || null, helpMode || null, helpCategory || null,
           category || null, bio || null,
           profileToken, now, visibleUntil
         ]
@@ -327,6 +325,8 @@ app.get('/api/profile/:code', async (req, res) => {
       `SELECT code, name, age, region, province, city,
               orientation, role, trans, crossdresser,
               looking_for AS "lookingFor",
+              help_mode AS "helpMode",
+              help_category AS "helpCategory",
               category, bio,
               updated_at AS ts, visible_until
        FROM profiles WHERE code = $1 AND spot = $2`,
