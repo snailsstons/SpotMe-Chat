@@ -148,37 +148,47 @@ async function initDB() {
   console.log('✅ Datenbank-Tabellen bereit');
 }
 
-// ---------- Standort-Cache (RAM, 2-Min TTL) ----------
-const locationCache = new Map();
-
-// ---------- Cleanup (alle 2 Minuten) ----------
-setInterval(async () => {
+// ---------- Standort-Cache Cleanup (RAM, 2-Min TTL) – BLEIBT AKTIV!
+setInterval(() => {
   const now = Date.now();
-
   for (const [key, data] of locationCache.entries()) {
     if (now - data.ts > 120000) locationCache.delete(key);
   }
-
-  try {
-    const r = await pool.query(`DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`);
-    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Missed Calls gelöscht`);
-  } catch (e) { console.error('Cleanup missed_calls:', e.message); }
-
-  try {
-    const r = await pool.query(`DELETE FROM offline_messages WHERE created_at < NOW() - INTERVAL '7 days'`);
-    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
-  } catch (e) { console.error('Cleanup offline_messages:', e.message); }
-
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  try {
-    const r = await pool.query(
-      `DELETE FROM profiles WHERE visible_until < $1 AND COALESCE(last_seen, updated_at) < $2`,
-      [now, thirtyDaysAgo]
-    );
-    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
-  } catch (e) { console.error('Cleanup profiles:', e.message); }
-
 }, 120000);
+
+// ---------- Standort-Cache (RAM, 2-Min TTL) ----------
+//const locationCache = new Map();
+//
+// ---------- Cleanup (alle 2 Minuten) ----------
+// setInterval(async () => {
+//  const now = Date.now();
+//
+//  for (const [key, data] of locationCache.entries()) {/
+//;if (now - data.ts > 120000) locationCache.delete(key);
+//  }
+// }, 120000);
+//
+//  try {
+//    const r = await pool.query(`DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`);
+//    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Missed Calls gelöscht`);
+//  } catch (e) { console.error('Cleanup missed_calls:', e.message); }
+//
+//  try {
+//    const r = await pool.query(`DELETE FROM offline_messages WHERE created_at < NOW() - INTERVAL '7 days'`);
+//    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
+//  } catch (e) { console.error('Cleanup offline_messages:', e.message); }
+//
+//  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+//  try {
+//    const r = await pool.query(
+//      `DELETE FROM profiles WHERE visible_until < $1 AND COALESCE(last_seen, updated_at) < $2`,
+//      [now, thirtyDaysAgo]
+//    );
+//    if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
+//  } catch (e) { console.error('Cleanup profiles:', e.message); }
+//
+//  }
+// }, 120000);
 
 // ---------- Antispam: Links + E-Mails aus Nachrichten entfernen ----------
 function sanitizeMessage(text) {
