@@ -6,7 +6,7 @@
 
 // Server & API
 // const SERVER_HOST = 'spotme-pg-test.onrender.com';
-const SERVER_Host = 'spotme-chat-obom.onrender.com';
+const SERVER_HOST = 'spotme-chat-obom.onrender.com';
 const SERVER_PATH = '/peerjs';
 
 // const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
