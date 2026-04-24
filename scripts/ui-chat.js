@@ -87,6 +87,11 @@ function appendMsg(m) {
       </a>
       <div class="btime">${ts}${m.own ? ' ✓✓' : ''}</div>`;
     }
+  } else if (m.t === 'image') {
+    w.innerHTML = `<div class="imgbbl" onclick="bigImg('${m.url}')">
+      <img src="${m.url}" loading="lazy">
+    </div>
+    <div class="btime">${ts}${m.own ? ' ✓✓' : ''}</div>`;
   } else if (m.t === 'audio') {
     const duration = m.duration || 0;
     const mins = Math.floor(duration / 60);
@@ -165,7 +170,10 @@ function persistMsg(m) {
   arr.push(m);
   if (arr.length > 200) arr.splice(0, arr.length - 200);
   localStorage.setItem(k, JSON.stringify(arr));
-  updateIdx(m.text || (m.t === 'audio' ? '🎤 Sprachnachricht' : '📎 ' + (m.name || '')));
+  updateIdx(m.text ||
+    (m.t === 'audio'  ? '🎤 Sprachnachricht' :
+     m.t === 'image'  ? '🖼️ Bild' :
+     m.t === 'file'   ? '📎 ' + (m.name || '') : ''));
 }
 
 function loadHistory() {
