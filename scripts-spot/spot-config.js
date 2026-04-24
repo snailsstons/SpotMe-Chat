@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // const API  = 'https://spotme-pg-test.onrender.com/api';
-const API = 'spotme-chat-obom.onrender.com';
+const API = 'https://spotme-chat-obom.onrender.com';
 
 // 🆕 GLOBALER Token – EIN Token für ALLE Spots und den Chat!
 let TOKEN_KEY   = 'sm_token'; // let, damit spot-init.js es überschreiben kann
