@@ -4,7 +4,7 @@
 // Globaler Token für ALLE Spots!
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API  = 'https://spotme-pg-test.onrender.com/api';
+const API  = 'https://spotme-chat-obom.onrender.com/api';
 
 // 🆕 GLOBALER Token – EIN Token für ALLE Spots und den Chat!
 const TOKEN_KEY = 'sm_token';

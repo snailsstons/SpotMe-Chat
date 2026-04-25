@@ -1,12 +1,11 @@
 'use strict';
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME RADAR – DATES SPOT
+// SPOT ME RADAR – JAVASCRIPT (vollständig, mit Radar, Verifikation & QR)
 // ══════════════════════════════════════════════════════════════════════════════
 
 const API  = 'https://spotme-pg-test.onrender.com/api';
-const SPOT = 'dates';
-
+const SPOT = 'gay'; // Spot-Namespace für diesen Radar
 const PROFILE_KEY = 'sm_profile';
 const TOKEN_KEY   = 'sm_token';
 const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
@@ -39,9 +38,6 @@ const REGIONS = [
   'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
 ];
 
-// ══════════════════════════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════════════════════════
 window.addEventListener('load', async () => {
   buildRegionFilter();
   loadMyProfile();
@@ -51,6 +47,7 @@ window.addEventListener('load', async () => {
   startAutoRefresh();
   startHeartbeat();
   if (myToken) fetchAndRenderOfflineMsgs();
+  // Polling alle 60s — Empfänger bekommt neue Nachrichten ohne Reload
   setInterval(() => { if (myToken) fetchAndRenderOfflineMsgsSilent(); }, 60000);
   isSharingLocation = localStorage.getItem('sm_spot_location') === '1';
   updateLocationUI();
@@ -69,131 +66,6 @@ window.addEventListener('load', async () => {
   checkDeepLink();
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// HILFSFUNKTIONEN
-// ══════════════════════════════════════════════════════════════════════════════
-function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-
-function toast(msg, ms = 2800) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(window.toastTimer);
-  window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
-}
-
-function timeAgo(ts) {
-  if (!ts) return '';
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 2) return 'gerade aktiv';
-  if (min < 60) return `vor ${min} Min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `vor ${h} Std`;
-  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
-}
-
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
-  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function formatDistance(m) {
-  if (m < 1000) return Math.round(m) + ' m';
-  return (m/1000).toFixed(1) + ' km';
-}
-
-function playRadarPing() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 1200;
-    gain.gain.value = 0.08;
-    osc.type = 'sine';
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
-    osc.stop(ctx.currentTime + 0.15);
-    if (ctx.state === 'suspended') ctx.resume();
-  } catch(e) {}
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PROFIL LADEN & UI
-// ══════════════════════════════════════════════════════════════════════════════
-function buildRegionFilter() {
-  const sel = document.getElementById('f-region');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Alle Regionen</option>';
-  REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
-}
-
-function loadMyProfile() {
-  const raw = localStorage.getItem(PROFILE_KEY);
-  if (!raw) {
-    document.getElementById('profile-bar').style.display = 'none';
-    return;
-  }
-  try { myProfile = JSON.parse(raw); } catch {
-    document.getElementById('profile-bar').style.display = 'none';
-    return;
-  }
-
-  document.getElementById('profile-bar').style.display = 'flex';
-
-  const av = document.getElementById('my-avatar-small');
-  if (myProfile.avatar) {
-    av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
-  } else {
-    av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
-  }
-
-  document.getElementById('my-name-small').textContent = myProfile.name || '—';
-
-  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-  const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
-  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
-  document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
-
-  // Optional: "Ich suche"-Badge
-  const looking = myProfile.lookingFor;
-  if (looking) {
-    const labels = { beziehung: '💕 Beziehung', freundschaft: '👥 Freundschaft', casual: '🍸 Casual' };
-    const badgeLabel = labels[looking] || looking;
-    const oldBadge = document.getElementById('my-looking-badge');
-    if (oldBadge) oldBadge.remove();
-    const badge = document.createElement('span');
-    badge.id = 'my-looking-badge';
-    badge.style.cssText = 'display:inline-block;font-size:0.7rem;background:var(--acc-dim);color:var(--acc);padding:0.15rem 0.6rem;border-radius:100px;margin-left:0.5rem;border:1px solid var(--spot-acc-border);white-space:nowrap;';
-    badge.textContent = badgeLabel;
-    document.querySelector('.profile-info').appendChild(badge);
-  }
-
-  isPublished = localStorage.getItem('sm_spot_published') === '1';
-  updatePublishUI();
-}
-
-function updatePublishUI() {
-  const btn = document.getElementById('publish-toggle-small');
-  if (btn) {
-    btn.classList.toggle('active', isPublished);
-    btn.title = isPublished ? 'In Community sichtbar' : 'Nicht sichtbar';
-  }
-}
-
-function updateLocationUI() {
-  const btn = document.getElementById('location-toggle-small');
-  if (btn) {
-    btn.classList.toggle('active', isSharingLocation);
-    btn.title = isSharingLocation ? 'Standort wird geteilt' : 'Standort teilen';
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DEEPLINK & NAVIGATION
-// ══════════════════════════════════════════════════════════════════════════════
 function checkDeepLink() {
   const hash = window.location.hash;
   if (hash.startsWith('#spotme:verify:')) {
@@ -209,23 +81,18 @@ function goHome() { window.location.href = 'index.html'; }
 
 async function refreshSpot() {
   const btn = document.getElementById('refresh-btn');
-  if (btn) {
-    btn.classList.add('spinning');
-    try {
-      await loadCommunity();
-      renderAll();
-      toast('🔄 Community aktualisiert');
-    } catch (e) {
-      toast('⚠️ Aktualisierung fehlgeschlagen');
-    } finally {
-      btn.classList.remove('spinning');
-    }
+  btn.classList.add('spinning');
+  try {
+    await loadCommunity();
+    renderAll();
+    toast('🔄 Community aktualisiert');
+  } catch (e) {
+    toast('⚠️ Aktualisierung fehlgeschlagen');
+  } finally {
+    btn.classList.remove('spinning');
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// TIMER & HEARTBEAT
-// ══════════════════════════════════════════════════════════════════════════════
 function startAutoRefresh() {
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   autoRefreshTimer = setInterval(() => {
@@ -236,7 +103,7 @@ function startAutoRefresh() {
 function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   const sendHeartbeat = () => {
-    if (!myCode) return;
+    if (!myCode || !isPublished) return; // Kein Heartbeat wenn unsichtbar
     fetch(API + '/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -247,39 +114,103 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
 }
 
-function startKeepalive() {
-  if (keepaliveTimer) clearInterval(keepaliveTimer);
-  keepaliveTimer = setInterval(async () => {
-    if (isPublished && myProfile) {
-      try {
+function buildRegionFilter() {
+  const sel = document.getElementById('f-region');
+  REGIONS.forEach(r => { const o = document.createElement('option'); o.value = o.textContent = r; sel.appendChild(o); });
+}
+
+function loadMyProfile() {
+  const raw = localStorage.getItem(PROFILE_KEY);
+  if (!raw) { document.getElementById('profile-bar').style.display = 'none'; return; }
+  try { myProfile = JSON.parse(raw); } catch { return; }
+  document.getElementById('profile-bar').style.display = 'flex';
+  const av = document.getElementById('my-avatar-small');
+  if (myProfile.avatar) av.innerHTML = `<img src="${myProfile.avatar}" alt="Avatar">`;
+  else av.textContent = myProfile.name ? myProfile.name[0].toUpperCase() : '🧑';
+  document.getElementById('my-name-small').textContent = myProfile.name || '—';
+  const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+  const loc = [myProfile.city, myProfile.region].filter(Boolean).join(', ');
+  const meta = [age ? age + ' J.' : null, loc].filter(Boolean).join(' · ');
+  document.getElementById('my-meta-small').textContent = meta || 'Kein Ort angegeben';
+  isPublished = localStorage.getItem('sm_spot_published') === '1';
+  updatePublishUI();
+}
+
+function updatePublishUI() {
+  const btn = document.getElementById('publish-toggle-small');
+  btn.classList.toggle('active', isPublished);
+  btn.title = isPublished ? 'In Community sichtbar' : 'Nicht sichtbar';
+}
+
+function updateLocationUI() {
+  const btn = document.getElementById('location-toggle-small');
+  btn.classList.toggle('active', isSharingLocation);
+  btn.title = isSharingLocation ? 'Standort wird geteilt' : 'Standort teilen';
+}
+
+async function togglePublish() {
+  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
+  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
+  const btn = document.getElementById('publish-toggle-small');
+  btn.style.opacity = '.5'; btn.style.pointerEvents = 'none';
+  try {
+    if (isPublished) {
+      // Kein Token? Erst neu publishen um Token zu holen, dann löschen
+      if (!myToken) {
         const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-        await fetch(API + '/profile', {
+        const r = await fetch(API + '/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-            lookingFor: myProfile.lookingFor || null,
-            bio: myProfile.bio || null,
-            token: myToken, spot: SPOT
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            spot: SPOT
           })
         });
-      } catch(e) {}
+        if (r.ok) { const d = await r.json(); if (d.token) { myToken = d.token; localStorage.setItem(TOKEN_KEY, myToken); } }
+      }
+      const delRes = await fetch(API + '/profile/' + myCode, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: myToken, spot: SPOT })
+      });
+      if (!delRes.ok) throw new Error('HTTP ' + delRes.status);
+      isPublished = false;
+      localStorage.setItem('sm_spot_published', '0');
+      toast('○ Profil aus Community entfernt');
+    } else {
+      const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+      const payload = {
+        code: myCode, name: myProfile.name, age,
+        region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+        orientation: myProfile.orientation || null, role: myProfile.role || null,
+        trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+        token: myToken || undefined, spot: SPOT
+      };
+      const res = await fetch(API + '/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.token) {
+        myToken = data.token;
+        localStorage.setItem(TOKEN_KEY, myToken);
+      }
+      isPublished = true;
+      localStorage.setItem('sm_spot_published', '1');
+      toast('✅ Profil veröffentlicht');
     }
+    updatePublishUI();
     await loadCommunity();
-  }, KEEPALIVE_INTERVAL);
+    renderAll();
+  } catch(e) { toast('⚠️ Fehler: ' + e.message); }
+  finally { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
 }
 
-async function verifyAndRepublish() {
-  try {
-    const res = await fetch(API + '/profile/' + myCode);
-    if (res.status === 404) await togglePublish();
-  } catch(e) {}
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// STANDORT
-// ══════════════════════════════════════════════════════════════════════════════
 async function toggleLocationSharing() {
   if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
   if (isSharingLocation) {
@@ -346,9 +277,6 @@ async function sendLocationToServer(lat, lng) {
   } catch(e) {}
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// COMMUNITY LADEN
-// ══════════════════════════════════════════════════════════════════════════════
 async function loadCommunity() {
   locationCache.clear();
   onlineStatusCache.clear();
@@ -406,19 +334,16 @@ async function fetchVerifications(code) {
   return [];
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// FILTER
-// ══════════════════════════════════════════════════════════════════════════════
 function toggleChip(el) {
   el.classList.toggle('active');
   applyFilters();
 }
 
 function applyFilters() {
-  const region = document.getElementById('f-region')?.value || '';
-  const ageRange = document.getElementById('f-age')?.value || '';
+  const region = document.getElementById('f-region').value;
+  const ageRange = document.getElementById('f-age').value;
   const chips = [...document.querySelectorAll('.filter-chip.active')].map(c => c.dataset.filter);
-
+  
   filtered = allProfiles.filter(p => {
     if (myCode && p.code === myCode) return false;
     if (region && p.region !== region) return false;
@@ -426,28 +351,24 @@ function applyFilters() {
       const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
       if (p.age < lo || p.age > hi) return false;
     }
-
-    // Dates-spezifische Filter
-    const lookingChips = chips.filter(f => ['beziehung','freundschaft','casual'].includes(f));
-    if (lookingChips.length && (!p.lookingFor || !lookingChips.includes(p.lookingFor))) return false;
-
+    const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
+    if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
+    const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
+    if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
+    if (chips.includes('trans') && !p.trans) return false;
+    if (chips.includes('cross') && !p.cross) return false;
     return true;
   });
   renderAll();
 }
 
 function resetFilters() {
-  const region = document.getElementById('f-region');
-  const age = document.getElementById('f-age');
-  if (region) region.value = '';
-  if (age) age.value = '';
+  document.getElementById('f-region').value = '';
+  document.getElementById('f-age').value = '';
   document.querySelectorAll('.filter-chip.active').forEach(c => c.classList.remove('active'));
   applyFilters();
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// RENDERING
-// ══════════════════════════════════════════════════════════════════════════════
 function renderAll() {
   renderRadar();
   renderList();
@@ -455,7 +376,6 @@ function renderAll() {
 
 function renderRadar() {
   const field = document.getElementById('radar-field');
-  if (!field) return;
   field.querySelectorAll('.peer-node').forEach(n => n.remove());
   const maxDist = 5000;
   const profilesWithLocation = filtered.filter(p => locationCache.get(p.code) != null);
@@ -483,16 +403,14 @@ function renderRadar() {
     field.appendChild(node);
   });
   
-  const indicator = document.getElementById('status-indicator');
-  if (indicator) indicator.textContent = `● ${profilesWithLocation.length} RADAR`;
+  document.getElementById('status-indicator').textContent = `● ${profilesWithLocation.length} RADAR`;
 }
 
 function renderList() {
   const listEl = document.getElementById('community-list');
   const countEl = document.getElementById('community-count');
-  if (!listEl) return;
   const n = filtered.length;
-  if (countEl) countEl.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
+  countEl.innerHTML = `<b>${n}</b> ${n === 1 ? 'Profil' : 'Profile'} gefunden`;
   
   if (!n) {
     listEl.innerHTML = `<div style="width:100%; text-align:center; padding:1.5rem; color:var(--muted);">Keine Profile gefunden</div>`;
@@ -512,11 +430,16 @@ function renderList() {
     const isOnline = onlineStatus && onlineStatus.online;
     
     let badges = '';
-    if (p.lookingFor) {
-      const labels = { beziehung: '💕 Beziehung', freundschaft: '👥 Freundschaft', casual: '🍸 Casual' };
-      const lbl = labels[p.lookingFor] || p.lookingFor;
-      badges += `<span class="badge badge-${p.lookingFor}">${esc(lbl)}</span>`;
+    if (p.orientation) {
+      const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[p.orientation] || p.orientation;
+      badges += `<span class="badge badge-${p.orientation}">${esc(lbl)}</span>`;
     }
+    if (p.role) {
+      const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[p.role] || p.role;
+      badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+    }
+    if (p.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+    if (p.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
     if (isOwn) badges += `<span class="badge" style="background:rgba(0,229,192,.08);color:var(--acc);border-color:rgba(0,229,192,.2)">● Du</span>`;
     
     const verifications = verificationCache.get(p.code) || [];
@@ -535,9 +458,10 @@ function renderList() {
     }
     
     const bio = p.bio ? `<div class="card-bio">${esc(p.bio)}</div>` : '';
+    const cardClass = p.orientation ? ` ${p.orientation}` : '';
     const chatBtn = isOwn ? `<span style="font-size:.75rem;color:var(--muted)">Dein Profil</span>` : `<button class="btn-chat" onclick="startChat('${esc(p.code)}','${esc(name)}')">💬 Chat</button>`;
     
-    return `<div class="profile-card" data-code="${p.code}">
+    return `<div class="profile-card${cardClass}" data-code="${p.code}">
       <div class="card-top"><div class="card-av">${esc(initial)}</div><div class="card-info"><div class="card-name">${esc(name)}${locationBadge}</div><div class="card-age-loc">${esc(age)} · <b>${esc(loc)}</b></div></div><div class="online-dot" style="background:${isOnline ? 'var(--green)' : 'var(--muted)'}; box-shadow:0 0 8px ${isOnline ? 'var(--green)' : 'transparent'};" title="${isOnline ? 'Online' : 'Offline'}"></div></div>
       ${badges ? `<div class="card-badges">${badges}</div>` : ''}
       ${bio}
@@ -561,7 +485,6 @@ function showProfileDetail(profile) {
   if (!profile) return;
   const modal = document.getElementById('profile-detail-modal');
   const content = document.getElementById('profile-detail-content');
-  if (!modal || !content) return;
   const name = profile.name || '?';
   const initial = name[0].toUpperCase();
   const age = profile.age ? `${profile.age} J.` : '? J.';
@@ -574,11 +497,16 @@ function showProfileDetail(profile) {
   const verifications = verificationCache.get(profile.code) || [];
   
   let badges = '';
-  if (profile.lookingFor) {
-    const labels = { beziehung: '💕 Beziehung', freundschaft: '👥 Freundschaft', casual: '🍸 Casual' };
-    const lbl = labels[profile.lookingFor] || profile.lookingFor;
-    badges += `<span class="badge badge-${profile.lookingFor}">${esc(lbl)}</span>`;
+  if (profile.orientation) {
+    const lbl = { homo:'🏳️‍🌈 Homo', bi:'Bi', hetero:'Hetero' }[profile.orientation] || profile.orientation;
+    badges += `<span class="badge badge-${profile.orientation}">${esc(lbl)}</span>`;
   }
+  if (profile.role) {
+    const lbl = { bottom:'Bottom', top:'Top', versatile:'Versatile' }[profile.role] || profile.role;
+    badges += `<span class="badge badge-role">${esc(lbl)}</span>`;
+  }
+  if (profile.trans) badges += `<span class="badge badge-trans">Trans</span>`;
+  if (profile.cross) badges += `<span class="badge badge-cross">Crossdresser</span>`;
   
   const bio = profile.bio ? `<div class="detail-bio">${esc(profile.bio)}</div>` : '<div class="detail-bio" style="color:var(--muted);font-style:italic;">Keine Beschreibung vorhanden</div>';
   const locData = locationCache.get(profile.code);
@@ -609,166 +537,16 @@ function showProfileDetail(profile) {
   modal.style.display = 'flex';
 }
 
-function closeProfileDetail() {
-  const modal = document.getElementById('profile-detail-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// VERIFIKATION
-// ══════════════════════════════════════════════════════════════════════════════
-let pendingVerifyCode = null;
-
-function showVerifyOptions(code) {
-  pendingVerifyCode = code;
-  const modal = document.getElementById('qr-verify-modal');
-  const input = document.getElementById('verify-code-input');
-  if (input) input.value = '';
-  const container = document.getElementById('qr-code-container');
-  if (container) {
-    container.innerHTML = '';
-    new QRCode(container, {
-      text: `spotme:verify:${myCode}`,
-      width: 180,
-      height: 180,
-      colorDark: '#ff4f7b',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.H
-    });
-  }
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeQrVerifyModal() {
-  const modal = document.getElementById('qr-verify-modal');
-  if (modal) modal.style.display = 'none';
-  pendingVerifyCode = null;
-}
-
-async function verifyByCode() {
-  const input = document.getElementById('verify-code-input');
-  const code = input?.value.trim();
-  if (!code || code.length !== 6 || !pendingVerifyCode) {
-    toast('⚠️ Bitte gültigen 6‑stelligen Code eingeben');
-    return;
-  }
-  await submitVerification(pendingVerifyCode, 'chat');
-  closeQrVerifyModal();
-}
-
-async function submitVerification(targetCode, type) {
-  try {
-    const res = await fetch(API + '/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromCode: myCode, toCode: targetCode, type })
-    });
-    if (!res.ok) throw new Error('Fehler');
-    toast(type === 'personal' ? '✅ Persönliche Verifikation gespeichert' : '✅ Chat‑Verifikation gespeichert');
-    await loadCommunity();
-    renderAll();
-  } catch (e) {
-    toast('❌ Verifikation fehlgeschlagen');
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// STANDORT-MODAL
-// ══════════════════════════════════════════════════════════════════════════════
-function showLocationOnMap(code, name, lat, lng) {
-  currentTargetCode = code;
-  currentTargetLat = lat;
-  currentTargetLng = lng;
-  const modal = document.getElementById('location-modal');
-  const modalContent = document.getElementById('location-modal-content');
-  const nameEl = document.getElementById('location-modal-name');
-  if (nameEl) nameEl.textContent = name;
-  if (modal) modal.style.display = 'flex';
-  if (modalContent) modalContent.classList.remove('inside');
-  const distEl = document.getElementById('location-distance');
-  if (distEl) distEl.classList.remove('inside');
-  setTimeout(() => {
-    if (!currentMap) {
-      currentMap = L.map('location-map-small').setView([lat, lng], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
-    } else { currentMap.setView([lat, lng], 14); }
-    if (targetMarker) currentMap.removeLayer(targetMarker);
-    targetMarker = L.marker([lat, lng], {
-      icon: L.divIcon({ html: '<div style="background:#ff4f7b;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-    }).addTo(currentMap).bindPopup(name).openPopup();
-    updateModalDistance();
-    if (!userPosition) {
-      const distEl = document.getElementById('location-distance');
-      if (distEl) distEl.textContent = 'Tippe auf "Einchecken" für deine Position';
-    }
-  }, 100);
-}
-
-async function performCheckIn() {
-  const btn = document.getElementById('checkin-btn');
-  if (btn) {
-    btn.textContent = '⏳ Position wird ermittelt...';
-    btn.disabled = true;
-  }
-  if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); if (btn) { btn.textContent = '📍 Hier einchecken'; btn.disabled = false; } return; }
-  try {
-    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
-    userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    if (myCode) {
-      await sendLocationToServer(userPosition.lat, userPosition.lng);
-      if (!isSharingLocation) {
-        isSharingLocation = true;
-        localStorage.setItem('sm_spot_location', '1');
-        updateLocationUI();
-        startLocationSharing();
-      }
-    }
-    if (userMarker) currentMap.removeLayer(userMarker);
-    userMarker = L.marker([userPosition.lat, userPosition.lng], {
-      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-    }).addTo(currentMap).bindPopup('Du').openPopup();
-    updateModalDistance();
-    toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
-    renderAll();
-  } catch (e) { toast('❌ Standort konnte nicht ermittelt werden'); }
-  finally { if (btn) { btn.textContent = '📍 Hier einchecken'; btn.disabled = false; } }
-}
-
-function updateModalDistance() {
-  if (!userPosition || !currentTargetLat || !currentTargetLng) return;
-  const dist = getDistance(userPosition.lat, userPosition.lng, currentTargetLat, currentTargetLng);
-  const inside = dist <= DEFAULT_RADIUS;
-  const distEl = document.getElementById('location-distance');
-  if (distEl) {
-    distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
-    distEl.classList.toggle('inside', inside);
-  }
-  const modalContent = document.getElementById('location-modal-content');
-  if (modalContent) modalContent.classList.toggle('inside', inside);
-}
-
-function closeLocationModal(e) {
-  if (e && e.target !== document.getElementById('location-modal')) return;
-  const modal = document.getElementById('location-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// KURZNACHRICHT
-// ══════════════════════════════════════════════════════════════════════════════
+// ── Kurznachricht an Profil ──
 let _kurznachrichtTarget = null;
 
 function showKurznachrichtModal(code, name) {
   _kurznachrichtTarget = { code, name };
-  const nameEl = document.getElementById('kurznachr-name');
-  const input = document.getElementById('kurznachr-input');
-  const chars = document.getElementById('kurznachr-chars');
-  const modal = document.getElementById('kurznachricht-modal');
-  if (nameEl) nameEl.textContent = name;
-  if (input) input.value = '';
-  if (chars) chars.textContent = '280';
-  if (modal) modal.style.display = 'flex';
-  setTimeout(() => input?.focus(), 100);
+  document.getElementById('kurznachr-name').textContent = name;
+  document.getElementById('kurznachr-input').value = '';
+  document.getElementById('kurznachr-chars').textContent = '280';
+  document.getElementById('kurznachricht-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('kurznachr-input').focus(), 100);
 }
 
 function closeKurznachrichtModal() {
@@ -779,11 +557,10 @@ function closeKurznachrichtModal() {
 
 async function submitKurznachricht() {
   if (!_kurznachrichtTarget) return;
-  const input = document.getElementById('kurznachr-input');
-  const text = input?.value.trim();
+  const text = document.getElementById('kurznachr-input').value.trim();
   if (!text) { toast('⚠️ Bitte eine Nachricht eingeben'); return; }
   const btn = document.getElementById('kurznachr-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Senden...'; }
+  btn.disabled = true; btn.textContent = '⏳ Senden...';
   try {
     const res = await fetch(API + '/offline-message', {
       method: 'POST',
@@ -807,15 +584,148 @@ async function submitKurznachricht() {
   } catch (e) {
     toast('⚠️ Keine Verbindung zum Server');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📨 Senden'; }
+    btn.disabled = false; btn.textContent = '📨 Senden';
   }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE NACHRICHTEN
-// ══════════════════════════════════════════════════════════════════════════════
-let _lastUnreadCount = 0;
+function closeProfileDetail() {
+  document.getElementById('profile-detail-modal').style.display = 'none';
+}
 
+let pendingVerifyCode = null;
+
+function showVerifyOptions(code) {
+  pendingVerifyCode = code;
+  const modal = document.getElementById('qr-verify-modal');
+  document.getElementById('verify-code-input').value = '';
+  const container = document.getElementById('qr-code-container');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: `spotme:verify:${myCode}`,
+    width: 180,
+    height: 180,
+    colorDark: '#00e5c0',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  modal.style.display = 'flex';
+}
+
+function closeQrVerifyModal() {
+  document.getElementById('qr-verify-modal').style.display = 'none';
+  pendingVerifyCode = null;
+}
+
+async function verifyByCode() {
+  const input = document.getElementById('verify-code-input');
+  const code = input.value.trim();
+  if (code.length !== 6 || !pendingVerifyCode) {
+    toast('⚠️ Bitte gültigen 6‑stelligen Code eingeben');
+    return;
+  }
+  await submitVerification(pendingVerifyCode, 'chat');
+  closeQrVerifyModal();
+}
+
+async function submitVerification(targetCode, type) {
+  try {
+    const res = await fetch(API + '/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromCode: myCode, toCode: targetCode, type })
+    });
+    if (!res.ok) throw new Error('Fehler');
+    toast(type === 'personal' ? '✅ Persönliche Verifikation gespeichert' : '✅ Chat‑Verifikation gespeichert');
+    await loadCommunity();
+    renderAll();
+  } catch (e) {
+    toast('❌ Verifikation fehlgeschlagen');
+  }
+}
+
+function showLocationOnMap(code, name, lat, lng) {
+  currentTargetCode = code;
+  currentTargetLat = lat;
+  currentTargetLng = lng;
+  const modal = document.getElementById('location-modal');
+  const modalContent = document.getElementById('location-modal-content');
+  document.getElementById('location-modal-name').textContent = name;
+  modal.style.display = 'flex';
+  modalContent.classList.remove('inside');
+  document.getElementById('location-distance').classList.remove('inside');
+  setTimeout(() => {
+    if (!currentMap) {
+      currentMap = L.map('location-map-small').setView([lat, lng], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
+    } else { currentMap.setView([lat, lng], 14); }
+    if (targetMarker) currentMap.removeLayer(targetMarker);
+    targetMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ html: '<div style="background:#00e5c0;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup(name).openPopup();
+    updateModalDistance();
+    if (!userPosition) document.getElementById('location-distance').textContent = 'Tippe auf "Einchecken" für deine Position';
+  }, 100);
+}
+
+async function performCheckIn() {
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '⏳ Position wird ermittelt...';
+  btn.disabled = true;
+  if (!navigator.geolocation) { toast('❌ Geolocation nicht unterstützt'); btn.textContent = '📍 Hier einchecken'; btn.disabled = false; return; }
+  try {
+    const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 }));
+    userPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    if (myCode) {
+      await sendLocationToServer(userPosition.lat, userPosition.lng);
+      if (!isSharingLocation) {
+        isSharingLocation = true;
+        localStorage.setItem('sm_spot_location', '1');
+        updateLocationUI();
+        startLocationSharing();
+      }
+    }
+    if (userMarker) currentMap.removeLayer(userMarker);
+    userMarker = L.marker([userPosition.lat, userPosition.lng], {
+      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+    }).addTo(currentMap).bindPopup('Du').openPopup();
+    updateModalDistance();
+    toast('✅ Eingecheckt! Deine Position ist jetzt sichtbar.');
+    renderAll();
+  } catch (e) { toast('❌ Standort konnte nicht ermittelt werden'); }
+  finally { btn.textContent = '📍 Hier einchecken'; btn.disabled = false; }
+}
+
+function updateModalDistance() {
+  if (!userPosition || !currentTargetLat || !currentTargetLng) return;
+  const dist = getDistance(userPosition.lat, userPosition.lng, currentTargetLat, currentTargetLng);
+  const inside = dist <= DEFAULT_RADIUS;
+  const distEl = document.getElementById('location-distance');
+  distEl.textContent = `Entfernung: ${formatDistance(dist)} ${inside ? '– Ihr seid im Radius! 🎉' : ''}`;
+  const modalContent = document.getElementById('location-modal-content');
+  if (inside) { distEl.classList.add('inside'); modalContent.classList.add('inside'); }
+  else { distEl.classList.remove('inside'); modalContent.classList.remove('inside'); }
+}
+
+function closeLocationModal(e) {
+  if (e && e.target !== document.getElementById('location-modal')) return;
+  document.getElementById('location-modal').style.display = 'none';
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3, φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatDistance(m) {
+  if (m < 1000) return Math.round(m) + ' m';
+  return (m/1000).toFixed(1) + ' km';
+}
+
+// ── Offline-Nachrichten ──
+// Beim Polling: nur benachrichtigen wenn sich etwas geändert hat
+let _lastUnreadCount = 0;
 async function fetchAndRenderOfflineMsgsSilent() {
   if (!myToken || !myCode) return;
   try {
@@ -824,6 +734,7 @@ async function fetchAndRenderOfflineMsgsSilent() {
     const msgs = await res.json();
     const unread = msgs.filter(m => !m.read);
     if (unread.length > _lastUnreadCount) {
+      // Neue Nachricht(en) seit letztem Check
       toast(`✉️ ${unread.length} neue Nachricht${unread.length > 1 ? 'en' : ''}`);
       playRadarPing();
       renderOfflineMsgBadge(unread);
@@ -843,11 +754,14 @@ async function fetchAndRenderOfflineMsgs() {
 }
 
 function renderOfflineMsgBadge(unread) {
+  // Badge auf dem Profil-Bar
   let badge = document.getElementById('offmsg-badge');
   if (!badge) {
     badge = document.createElement('span');
     badge.id = 'offmsg-badge';
-    badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:var(--p3);color:#fff;font-size:.65rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+    badge.style.cssText = 'position:absolute;top:-4px;right:-4px;background:var(--p3);color:#fff;'
+      + 'font-size:.65rem;font-weight:700;width:16px;height:16px;border-radius:50%;'
+      + 'display:flex;align-items:center;justify-content:center;pointer-events:none;';
     const btn = document.getElementById('publish-toggle-small');
     if (btn) { btn.style.position = 'relative'; btn.appendChild(badge); }
   }
@@ -862,32 +776,88 @@ function showOfflineMsgPanel(msgs) {
   if (!panel) {
     panel = document.createElement('div');
     panel.id = 'offmsg-panel';
-    panel.style.cssText = 'margin:0.5rem 1.25rem;background:var(--card2);border:1px solid rgba(255,79,123,.3);border-radius:16px;padding:1rem;flex-shrink:0;';
+    panel.style.cssText = 'margin:0.5rem 0;background:var(--card2);border-top:1px solid rgba(255,79,123,.25);'
+      + 'border-bottom:1px solid rgba(255,79,123,.25);padding:0.75rem 0;flex-shrink:0;';
     const bar = document.getElementById('profile-bar');
     if (bar && bar.parentNode) bar.parentNode.insertBefore(panel, bar.nextSibling);
   }
+
+  // Nachrichten nach Absender gruppieren
+  const grouped = {};
+  msgs.forEach(m => {
+    if (!grouped[m.senderCode]) grouped[m.senderCode] = { name: m.senderName, code: m.senderCode, msgs: [] };
+    grouped[m.senderCode].msgs.push(m);
+  });
+
+  const senders = Object.values(grouped);
+
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--p3);">✉️ Neue Nachrichten (${msgs.length})</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 1rem;margin-bottom:0.6rem;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;color:var(--p3);">
+        ✉️ Nachrichten · ${senders.length} ${senders.length === 1 ? 'Absender' : 'Absender'}
+      </div>
       <button onclick="dismissAllOfflineMsgs()" style="background:none;border:none;color:var(--muted2);font-size:0.8rem;cursor:pointer;">✓ Alle gelesen</button>
     </div>
-    ${msgs.map(m => {
-      const d = new Date(m.timestamp);
-      const time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-      return `<div id="spot-offmsg-${m.id}" style="background:var(--sur);border:1px solid var(--bord);border-radius:12px;padding:0.75rem;margin-bottom:0.5rem;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;">
-          <span style="font-weight:600;font-size:0.85rem;">${esc(m.senderName)}</span>
-          <span style="font-size:0.7rem;color:var(--muted2);">${time}</span>
-        </div>
-        <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.5rem;">${esc(m.message)}</div>
-        <div style="display:flex;gap:0.5rem;">
-          <button onclick="startChat('${m.senderCode}','${esc(m.senderName)}')" style="flex:1;padding:0.4rem;background:var(--acc);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">💬 Chat</button>
-          <button onclick="dismissSpotOfflineMsg(${m.id})" style="padding:0.4rem 0.75rem;background:rgba(255,255,255,.06);color:var(--muted2);border:1px solid var(--bord);border-radius:8px;font-size:0.8rem;cursor:pointer;">✓</button>
-        </div>
-      </div>`;
-    }).join('')}
+    <div style="display:flex;gap:0.75rem;overflow-x:auto;padding:0 1rem 0.5rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+      ${senders.map(s => {
+        const lastMsg = s.msgs[s.msgs.length - 1];
+        const allIds = s.msgs.map(m => m.id);
+        const d = new Date(lastMsg.timestamp);
+        const time = d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})
+                   + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+        const initial = s.name ? s.name[0].toUpperCase() : '?';
+        const msgList = s.msgs.map(m => `
+          <div style="background:var(--bg);border-radius:10px;padding:0.5rem 0.65rem;margin-bottom:0.4rem;font-size:0.85rem;color:var(--text);line-height:1.4;">
+            ${esc(m.message)}
+          </div>`).join('');
+        return `<div style="flex:0 0 260px;background:var(--sur);border:1px solid rgba(255,79,123,.2);
+                            border-radius:14px;padding:0.85rem;display:flex;flex-direction:column;gap:0;">
+          <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.6rem;">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--p2),var(--p3));
+                        display:flex;align-items:center;justify-content:center;font-size:0.9rem;
+                        font-weight:700;flex-shrink:0;">${esc(initial)}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
+              <div style="font-size:0.7rem;color:var(--muted2);">${time}</div>
+            </div>
+            <button onclick="dismissSenderOfflineMsgs('${s.code}',[${allIds.join(',')}])"
+              style="background:none;border:none;color:var(--muted2);font-size:1rem;cursor:pointer;padding:0 0.2rem;" title="Als gelesen markieren">✓</button>
+          </div>
+          <div style="flex:1;max-height:140px;overflow-y:auto;scrollbar-width:none;margin-bottom:0.6rem;">
+            ${msgList}
+          </div>
+          <div style="display:flex;gap:0.4rem;margin-top:auto;">
+            <button onclick="startChat('${s.code}','${esc(s.name)}')"
+              style="flex:1;padding:0.45rem;background:var(--acc);color:var(--bg);border:none;
+                     border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">💬 Chat</button>
+            <button onclick="showKurznachrichtModal('${s.code}','${esc(s.name)}')"
+              style="flex:1;padding:0.45rem;background:rgba(123,92,250,.15);color:var(--p2);
+                     border:1px solid rgba(123,92,250,.3);border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">↩️ Antworten</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
   `;
   panel.style.display = 'block';
+}
+
+// Alle Nachrichten eines Absenders als gelesen markieren
+async function dismissSenderOfflineMsgs(senderCode, ids) {
+  for (const id of ids) {
+    try {
+      await fetch(`${API}/offline-message/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
+      });
+    } catch (e) {}
+  }
+  // Panel neu rendern ohne diesen Absender
+  const panel = document.getElementById('offmsg-panel');
+  if (!panel) return;
+  const cards = panel.querySelectorAll('[data-sender]');
+  // Einfachster Weg: neu fetchen
+  fetchAndRenderOfflineMsgs();
 }
 
 async function dismissSpotOfflineMsg(id) {
@@ -898,14 +868,7 @@ async function dismissSpotOfflineMsg(id) {
       body: JSON.stringify({ code: myCode, token: myToken, spot: SPOT })
     });
   } catch (e) {}
-  const el = document.getElementById('spot-offmsg-' + id);
-  if (el) el.remove();
-  const panel = document.getElementById('offmsg-panel');
-  if (panel && !panel.querySelector('[id^=spot-offmsg-]')) {
-    panel.style.display = 'none';
-    const badge = document.getElementById('offmsg-badge');
-    if (badge) badge.style.display = 'none';
-  }
+  fetchAndRenderOfflineMsgs();
 }
 
 async function dismissAllOfflineMsgs() {
@@ -922,57 +885,74 @@ async function dismissAllOfflineMsgs() {
   if (badge) badge.style.display = 'none';
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// PUBLISH & CHAT
-// ══════════════════════════════════════════════════════════════════════════════
-async function togglePublish() {
-  if (!myProfile || !myCode) { toast('⚠️ Profil unvollständig'); return; }
-  if (!myProfile.name || !myProfile.region) { toast('⚠️ Profilname und Region sind Pflicht'); return; }
-  const btn = document.getElementById('publish-toggle-small');
-  if (btn) { btn.style.opacity = '.5'; btn.style.pointerEvents = 'none'; }
-  try {
-    if (isPublished) {
-      await fetch(API + '/profile/' + myCode, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: myToken, spot: SPOT })
-      });
-      isPublished = false;
-      localStorage.setItem('sm_spot_published', '0');
-      toast('○ Profil aus Community entfernt');
-    } else {
-      const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-      const payload = {
-        code: myCode, name: myProfile.name, age,
-        region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-        lookingFor: myProfile.lookingFor || null,
-        bio: myProfile.bio || null,
-        token: myToken || undefined, spot: SPOT
-      };
-      const res = await fetch(API + '/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if (data.token) {
-        myToken = data.token;
-        localStorage.setItem(TOKEN_KEY, myToken);
-      }
-      isPublished = true;
-      localStorage.setItem('sm_spot_published', '1');
-      toast('✅ Profil veröffentlicht');
+function startKeepalive() {
+  if (keepaliveTimer) clearInterval(keepaliveTimer);
+  keepaliveTimer = setInterval(async () => {
+    if (isPublished && myProfile) {
+      try { 
+        const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
+        await fetch(API + '/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: myCode, name: myProfile.name, age,
+            region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, cross: myProfile.cross || false, bio: myProfile.bio || null,
+            token: myToken, spot: SPOT
+          })
+        });
+      } catch(e) {}
     }
-    updatePublishUI();
     await loadCommunity();
-    renderAll();
-  } catch(e) { toast('⚠️ Fehler: ' + e.message); }
-  finally { if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; } }
+  }, KEEPALIVE_INTERVAL);
+}
+
+async function verifyAndRepublish() {
+  try {
+    const res = await fetch(API + '/profile/' + myCode);
+    if (res.status === 404) await togglePublish();
+  } catch(e) {}
 }
 
 function startChat(code, name) {
   sessionStorage.setItem('sm_connect_to', code);
   sessionStorage.setItem('sm_connect_name', name);
   window.location.href = 'index.html';
+}
+
+function timeAgo(ts) {
+  if (!ts) return '';
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2) return 'gerade aktiv';
+  if (min < 60) return `vor ${min} Min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `vor ${h} Std`;
+  return `vor ${Math.floor(h/24)} Tag${Math.floor(h/24)>1?'en':''}`;
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+function toast(msg, ms = 2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(window.toastTimer);
+  window.toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function playRadarPing() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 1200;
+    gain.gain.value = 0.08;
+    osc.type = 'sine';
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+    osc.stop(ctx.currentTime + 0.15);
+    if (ctx.state === 'suspended') ctx.resume();
+  } catch(e) {}
 }
