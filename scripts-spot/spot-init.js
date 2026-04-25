@@ -66,10 +66,12 @@ window.showProfileDialog = function() {
   
   if (shouldCreate) {
     // Spot-spezifische Profilseite
+
     const profilUrl = SPOT === 'general' ? 'profil-general.html'
                     : SPOT === 'dates'   ? 'profil-dates.html'
-                    : 'profil.html?spot=' + SPOT;
-    window.location.href = profilUrl;
+                    : SPOT === 'gay'     ? 'profil-gay.html'    // ← ergänzen
+                : 'profil.html?spot=' + SPOT;
+        window.location.href = profilUrl;
   } else {
     if (typeof toast === 'function') {
       toast('📟 Du kannst später über "PROFIL" ein Profil anlegen');
