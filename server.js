@@ -1,7 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME SERVER – PostgreSQL Version
 //
-//
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
 //   • Offline-Nachrichten       → Nachricht hinterlassen wenn Nutzer offline
@@ -34,7 +33,7 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// ---------- PeerJS -----------
+// ---------- PeerJS ----------
 const server = require('http').createServer(app);
 const peerServer = ExpressPeerServer(server, {
   path: '/',
@@ -46,14 +45,13 @@ app.use('/peerjs', peerServer);
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: (process.env.DATABASE_URL?.includes('neon.tech') || 
-        process.env.DATABASE_URL?.includes('render.com'))
+  ssl: process.env.DATABASE_URL?.includes('render.com')
     ? { rejectUnauthorized: false }
     : false
 });
 
 // ---------- Konstanten ----------
-const OFFLINE_VISIBLE_MS  = 6 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
+const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
 const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
 const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
 
@@ -241,16 +239,26 @@ app.post('/api/profile', async (req, res) => {
       [code, spot]
     );
 
+    // Globaler Token: auch in anderen Spots des Nutzers suchen
+    let globalToken = null;
+    if (!existing.rows.length || !existing.rows[0]?.token) {
+      const gc = await pool.query(
+        'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
+        [code]
+      );
+      if (gc.rows.length > 0) globalToken = gc.rows[0].token;
+    }
+
     let profileToken;
 
     if (existing.rows.length > 0) {
+      const storedToken = existing.rows[0].token || globalToken;
       if (!token) {
-        // Kein Token mitgeschickt → neuen Token vergeben (Altprofil)
-        profileToken = crypto.randomBytes(32).toString('hex');
-      } else if (existing.rows[0].token !== token) {
+        profileToken = storedToken || crypto.randomBytes(32).toString('hex');
+      } else if (storedToken && storedToken !== token) {
         return res.status(403).json({ error: 'Ungültiger Token' });
       } else {
-        profileToken = token;
+        profileToken = token || storedToken || crypto.randomBytes(32).toString('hex');
       }
     }
     if (existing.rows.length > 0) {
@@ -309,7 +317,16 @@ app.delete('/api/profile/:code', async (req, res) => {
       [code, spot]
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (!token || existing.rows[0].token !== token) return res.status(403).json({ error: 'Ungültiger Token' });
+    // Globaler Token: auch in anderen Spots suchen
+    let validToken = existing.rows[0].token;
+    if (!validToken) {
+      const globalCheck = await pool.query(
+        'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
+        [code]
+      );
+      if (globalCheck.rows.length > 0) validToken = globalCheck.rows[0].token;
+    }
+    if (!token || (validToken && validToken !== token)) return res.status(403).json({ error: 'Ungültiger Token' });
 
     await pool.query(
       'UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2',
