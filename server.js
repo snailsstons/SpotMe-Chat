@@ -137,7 +137,7 @@ async function initDB() {
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-    console.log('✅ Spalten type, source, spot_type, looking_for bereit');
+    console.log('✅ v2.1 – Spalten bereit inkl. help_mode, help_category');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
