@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <!-- Eruda – Mobile Console (nur für Debugging) -->
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
+  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>SpotMe · Chat</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#060a0f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SpotMe">
+
+  <!-- Bibliotheken -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- Eigene Styles -->
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="spot.css">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════════
+     MODULARE SCRIPTS – REIHENFOLGE ENTSCHEIDEND!
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script src="scripts/config.js"></script>
+<script src="scripts/utils.js"></script>
+<script src="scripts/usage-stats.js"></script>
+<script src="scripts/storage.js"></script>
+<script src="scripts/ui-core.js"></script>
+<script src="scripts/audio.js"></script>
+<script src="scripts/traffic.js"></script>
+<script src="scripts/connection-check.js"></script>
+<script src="scripts/chat-api.js"></script>
+<script src="scripts/p2p-call.js"></script>
+<script src="scripts/ui-home.js"></script>
+<script src="scripts/albums.js"></script>
+<script src="scripts/backup.js"></script>
+<script src="scripts/voice.js"></script>
+<script src="scripts/ui-chat.js"></script>
+<script src="scripts/main.js"></script>
+<script>
+// ── Bild & Datei senden ─────────────────────────────────────────────────────
+let imgReceiveBuffer = {};
+
+function handleFileOrImage(input) {
+  // sendFile in p2p-file.js erkennt Bilder jetzt selbst → alles darüber
+  if (typeof sendFile === 'function') sendFile(input);
+}
+
+async function sendImage(file) {
+  if (!conn || !conn.open) { toast('⚠️ Keine Verbindung'); return; }
+  if (file.size > 10 * 1024 * 1024) { toast('⚠️ Max. 10 MB'); return; }
+
+  const CHUNK = 16384; // 16KB Chunks
+  const buffer = await file.arrayBuffer();
+  const total  = Math.ceil(buffer.byteLength / CHUNK);
+  const imgId  = Date.now() + '_' + Math.random().toString(36).slice(2);
+
+  // Vorschau sofort im eigenen Chat anzeigen
+  const objectUrl = URL.createObjectURL(file);
+  appendImageMsg(objectUrl, file.name, 'out');
+
+  // Start-Paket
+  conn.send({ t: 'img_start', id: imgId, name: file.name, total, size: buffer.byteLength });
+
+  // Chunks mit kurzen Pausen senden
+  for (let i = 0; i < total; i++) {
+    if (!conn || !conn.open) break;
+    const chunk = buffer.slice(i * CHUNK, (i + 1) * CHUNK);
+    conn.send({ t: 'img_chunk', id: imgId, idx: i, total, chunk });
+    if (i % 5 === 4) await new Promise(r => setTimeout(r, 10));
+  }
+}
+
+function handleIncomingImageData(d) {
+  if (d.t === 'img_start') {
+    imgReceiveBuffer[d.id] = { chunks: new Array(d.total), received: 0, total: d.total, name: d.name };
+    return true;
+  }
+  if (d.t === 'img_chunk') {
+    const buf = imgReceiveBuffer[d.id];
+    if (!buf) return true;
+    buf.chunks[d.idx] = d.chunk;
+    buf.received++;
+    if (buf.received === buf.total) {
+      const blob = new Blob(buf.chunks);
+      const url  = URL.createObjectURL(blob);
+      appendImageMsg(url, buf.name, 'in');
+      delete imgReceiveBuffer[d.id];
+    }
+    return true;
+  }
+  return false; // kein Bild-Paket
+}
+
+function appendImageMsg(url, name, dir) {
+  const msgs = document.getElementById('messages');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (dir === 'out' ? 'msg-out' : 'msg-in');
+  wrap.innerHTML = `
+    <div class="msg-img-wrap">
+      <img src="${url}" alt="${name}" style="max-width:220px;max-height:300px;border-radius:12px;cursor:pointer;display:block;"
+           onclick="this.style.maxWidth=this.style.maxWidth==='100%'?'220px':'100%'">
+      <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">${name}</div>
+    </div>`;
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  // In Verlauf speichern (als Marker, kein Base64)
+  if (typeof persistMsg === 'function') {
+    persistMsg({ type: 'image', name, dir, ts: Date.now() });
+  }
+}
+
+// Eingehende Bild-Pakete in bestehenden handleData einhängen
+const _origHandleData = typeof handleData === 'function' ? handleData : null;
+if (typeof window !== 'undefined') {
+  window._handleImageData = handleIncomingImageData;
+}
+</script>
+
+</head>
+<body>
+
+<!-- LOCAL‑MODE BANNER -->
+<div id="local-mode-banner" class="local-banner" style="display: none;">
+  <span>📴</span>
+  <span>Lokaler Modus – Nachrichten werden gespeichert und später gesendet</span>
+</div>
+
+<!-- SCREEN 1 – HOME -->
+<div id="s-home" class="screen active">
+  <header class="app-header">
+    <div class="header-left"></div>
+    <div class="logo">SPOT<b>ME 56</b></div>
+    <div class="header-right">
+      <div class="status-badge" id="header-status">● ONLINE</div>
+      <button class="home-menu-btn" onclick="toggleHomeMenu(event)">⋮</button>
+      <div class="home-drop" id="home-drop">
+        <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
+        <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
+        <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil-home.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='awareness.html'">
+          <div class="sico si-g">🧘</div>
+          <div class="slab"><div>Achtsamkeit</div><div class="sdesc">Deine Nutzung & Balance</div></div>
+        </button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='portfolio.html'"><div class="sico si-g">🖼️</div><div class="slab"><div>Mein Portfolio</div><div class="sdesc">Eigene Alben verwalten</div></div></button>
+        <div class="ssep"></div>
+        <button class="sitem" onclick="manualFlushAll(); closeSheet();">
+          <div class="sico" style="background:var(--p2);">📤</div>
+          <div class="slab"><div>Nachrichten senden</div><div class="sdesc">Gespeicherte Nachrichten jetzt zustellen</div></div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="home-content">
+    <div class="code-card-new">
+      <div class="code-label">Dein persönlicher Code</div>
+      <div class="code-value" id="mycode">--- ---</div>
+      <div class="code-actions">
+        <button class="csbtn-new" onclick="copyCode()"><span class="btn-icon">📋</span> Kopieren</button>
+        <button class="csbtn-new csbtn-primary" onclick="shareCode()"><span class="btn-icon">↗️</span> Teilen</button>
+      </div>
+    </div>
+
+    <!-- Traffic-Anzeige -->
+    <div id="traffic-display" class="traffic-panel" style="display: flex; gap: 16px; justify-content: center; font-size: 0.75rem; padding: 6px 12px; background: var(--bg2); border-radius: 30px; margin-bottom: 16px; border: 1px solid var(--bord);">
+      <span>📊 <span id="traffic-total">0 B</span></span>
+      <span>⬆️ <span id="traffic-sent">0 B</span></span>
+      <span>⬇️ <span id="traffic-recv">0 B</span></span>
+    </div>
+
+    <div class="conn-box-new">
+      <div class="conn-label">Partner verbinden</div>
+      <div class="drow-new">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+        <input class="dinp-new" maxlength="1" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="btn-main-new" id="cbtn" onclick="connectToPeer()" disabled>💬 Chat starten</button>
+    </div>
+
+    <!-- COMMUNICATION HUB -->
+    <div class="hub-section">
+      <div class="hub-header">COMMUNICATION HUB</div>
+      <div id="hub-list" class="vertical-list">
+        <!-- Wird dynamisch von renderUnifiedHub() gefüllt -->
+      </div>
+    </div>
+
+    <!-- SPOTS -->
+    <div class="section-header" style="margin-top:0.5rem;">
+      <span class="section-label">Spots entdecken</span>
+    </div>
+    <div class="spots-grid">
+      <a href="spot.html" class="spot-tile" style="--tile-acc:#00e5c0;">
+        <div class="spot-tile-icon">🏳️‍🌈</div>
+        <div class="spot-tile-name">Gay</div>
+        <div class="spot-tile-desc">Community · Cruising</div>
+      </a>
+      <a href="spot-dates.html" class="spot-tile" style="--tile-acc:#ff4f7b;">
+        <div class="spot-tile-icon">💕</div>
+        <div class="spot-tile-name">Dates</div>
+        <div class="spot-tile-desc">Beziehung · Casual</div>
+      </a>
+      <a href="spot-general.html" class="spot-tile" style="--tile-acc:#7b5cfa;">
+        <div class="spot-tile-icon">🌍</div>
+        <div class="spot-tile-name">General</div>
+        <div class="spot-tile-desc">Alle Interessen</div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2 – INCOMING CALL -->
+<div id="s-in" class="screen">
+  <div class="call-wrap">
+    <div class="caller-ring">🧑</div>
+    <div class="caller-name" id="in-name">...</div>
+    <div class="caller-code" id="in-code">Code: ---</div>
+    <div class="caller-hint">möchte mit dir chatten</div>
+    <div class="call-btns">
+      <button class="call-btn btn-decline" onclick="declineCall()">✕ Ablehnen</button>
+      <button class="call-btn btn-accept" onclick="acceptCall()">✓ Annehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 3 – CHAT -->
+<div id="s-chat" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="goHome()">‹</button>
+    <div class="peer-wrap">
+      <div class="pav offline" id="pav">🧑</div>
+      <div class="pinfo">
+        <div class="pname" id="pname">...</div>
+        <div class="pstatus dim" id="pstatus">○ Verbinde...</div>
+      </div>
+    </div>
+    <button class="album-btn" onclick="showAlbumMenu()" title="Alben">🖼️</button>
+    <button class="location-btn" onclick="openLocationScreen()" title="Treffpunkt">📍</button>
+    <button class="menu-btn" onclick="openSheet()">☰</button>
+  </div>
+  <div class="rcbar" id="rcbar">
+    <span>○ Verbindung unterbrochen</span>
+    <button class="rc-btn" onclick="tryReconnect()">↺ Erneut verbinden</button>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty-chat" id="ehint">
+      <div class="empty-icon">💬</div>
+      <div class="empty-txt">Verbindung wird aufgebaut...</div>
+      <div class="empty-hint"><span class="spin"></span></div>
+    </div>
+  </div>
+  <div class="icont">
+    <div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div>
+    <div class="ibar">
+      <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei/Bild">📎</button>
+      <input type="file" id="finp" style="display:none" accept="image/*,*/*" onchange="handleFileOrImage(this)">
+      <button class="voice-btn" id="voice-btn" onclick="toggleVoiceRecording()" title="Sprachnachricht" style="display:none;">🎤</button>
+      <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
+      <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 6 – LOCATION -->
+<div id="s-location" class="screen">
+  <div class="chat-bar">
+    <button class="back-btn" onclick="closeLocationScreen()">‹</button>
+    <div class="peer-wrap">
+      <div class="pinfo">
+        <div class="pname">📍 Treffpunkt</div>
+        <div class="pstatus dim" id="location-status-text">Warte auf Standort...</div>
+      </div>
+    </div>
+    <div style="width:52px"></div>
+  </div>
+  <div id="location-map"></div>
+  <div class="location-controls">
+    <div class="location-radius-row">
+      <label>Radius</label>
+      <input type="range" id="radius-slider" min="50" max="5000" step="10" value="500">
+      <span class="radius-value" id="radius-value">500 m</span>
+    </div>
+    <div class="distance-info" id="distance-info">--</div>
+    <div class="location-status" id="location-status">Teilen aktiv – Position wird alle 5s gesendet</div>
+  </div>
+</div>
+
+<!-- VAULT PLACEHOLDER -->
+<div id="s-vault" class="screen"></div>
+<div id="s-partner-vault" class="screen"></div>
+
+<!-- SHEETS & MODALS -->
+<div class="sheet-ovl" id="sovl" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Chat-Optionen</div>
+  <div class="sheet-body">
+    <button class="sitem si-g" onclick="renamePartner()"><div class="sico">✏️</div><div class="slab"><div>Partner umbenennen</div><div class="sdesc">Lokaler Spitzname · nur bei dir sichtbar</div></div></button>
+    <div class="ssep"></div>
+    <div class="sitem" onclick="toggleVoiceButton()">
+      <div class="sico si-g" id="voice-toggle-icon">🎤</div>
+      <div class="slab"><div>Mikrofon‑Button</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Button in Chatleiste</div></div>
+    </div>
+    <div class="ssep"></div>
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil-home.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button>
+    <button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem si-y warning" onclick="closeSheet(); goOffline()"><div class="sico">🔌</div><div class="slab"><div>Offline gehen</div><div class="sdesc">Vom Server trennen</div></div></button>
+    <button class="sitem si-r danger" onclick="closeSheet(); clearChat()"><div class="sico">🗑️</div><div class="slab"><div>Verlauf löschen</div><div class="sdesc">Nur auf diesem Gerät</div></div></button>
+    <div class="ssep"></div>
+    <button class="sitem" onclick="closeSheet(); goHome()"><div class="sico" style="background:rgba(255,255,255,.05)">✕</div><div class="slab"><div>Chat beenden</div><div class="sdesc">Verbindung trennen & zurück</div></div></button>
+  </div>
+</div>
+
+<!-- Album Menü -->
+<div class="sheet-ovl" id="album-menu-ovl" onclick="closeAlbumMenu()"></div>
+<div class="sheet" id="album-menu-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Alben</div>
+  <div class="sheet-body" id="album-menu-body"></div>
+</div>
+
+<!-- Partner Alben -->
+<div class="sheet-ovl" id="partner-albums-ovl" onclick="closePartnerAlbumsSheet()"></div>
+<div class="sheet" id="partner-albums-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="partner-albums-title">Alben von ...</div>
+  <div class="sheet-body" id="partner-albums-body"></div>
+</div>
+
+<!-- Nachricht hinterlassen -->
+<div class="sheet-ovl" id="leave-message-ovl" onclick="closeLeaveMessageSheet()"></div>
+<div class="sheet" id="leave-message-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Nachricht hinterlassen</div>
+  <div class="sheet-body">
+    <textarea id="leave-message-input" class="minp" placeholder="Deine Nachricht..." rows="3" maxlength="280" oninput="document.getElementById('lm-chars').textContent=280-this.value.length" style="width:100%; margin-bottom:0.4rem;"></textarea>
+    <div id="lm-chars" style="font-size:0.75rem;color:var(--text-dim);text-align:right;margin-bottom:0.75rem;">280</div>
+    <button id="leave-msg-send-btn" onclick="submitLeaveMessage()" style="width:100%;padding:1rem;background:var(--acc);color:var(--bg);border:none;border-radius:14px;font-size:1.05rem;font-weight:700;cursor:pointer;margin-bottom:0.75rem;">📨 Nachricht senden</button>
+    <button onclick="closeLeaveMessageSheet()" style="width:100%;padding:0.8rem;background:transparent;color:var(--text-dim);border:1px solid var(--bord);border-radius:14px;font-size:0.95rem;cursor:pointer;">Überspringen</button>
+  </div>
+</div>
+
+<!-- Backup Passwort -->
+<div class="sheet-ovl" id="backup-password-ovl" onclick="closeBackupPasswordModal()"></div>
+<div class="sheet" id="backup-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup verschlüsseln?</div>
+  <div class="sheet-body">
+    <input type="password" id="backup-password-input" class="minp" placeholder="Passwort (leer = unverschlüsselt)" style="width:100%;">
+    <div class="password-hint">⚡ Empfohlen, wenn du sensible Daten sicherst.</div>
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeBackupPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="performBackupWithPassword()">Backup erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Passwort -->
+<div class="sheet-ovl" id="import-password-ovl" onclick="closeImportPasswordModal()"></div>
+<div class="sheet" id="import-password-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Backup entschlüsseln</div>
+  <div class="sheet-body">
+    <input type="password" id="import-password-input" class="minp" placeholder="Passwort" style="width:100%; margin-bottom:1rem;">
+    <div style="display:flex; gap:0.8rem;">
+      <button class="btn" onclick="closeImportPasswordModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="submitImportPassword()">Entschlüsseln</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pflicht-Backup Modal (Container) -->
+<div id="mandatory-backup-modal" class="modal" style="display:none;"></div>
+
+<!-- Backup-Erinnerung Modal -->
+<div id="backup-reminder-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <h3>💾 Backup empfohlen</h3>
+    <p>Deine Daten werden <strong>nur lokal</strong> auf diesem Gerät gespeichert. Ein Backup schützt dich vor Verlust.</p>
+    <p>Letztes Backup: <span id="backup-reminder-last">nie</span></p>
+    <div style="display:flex; gap:0.8rem; margin-top:1.5rem;">
+      <button class="btn-primary" onclick="performBackupWithPassword(); document.getElementById('backup-reminder-modal').style.display='none';">Jetzt sichern</button>
+      <button class="btn-secondary" onclick="document.getElementById('backup-reminder-modal').style.display='none';">Später</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fimp" accept=".json" style="display:none" onchange="importChat(this)">
+<div class="in-notif" id="in-notif" onclick="switchToChat()">
+  <div class="in-ico">💬</div>
+  <div style="flex:1;min-width:0">
+    <div class="in-from" id="in-from">...</div>
+    <div class="in-msg" id="in-msg">...</div>
+  </div>
+</div>
+
+</body>
+</html>
