@@ -14,6 +14,8 @@
 //   Render: DATABASE_URL wird automatisch gesetzt wenn du eine Postgres-DB
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
+// SpotMe Server v2.1  ← einfach die Versionsnummer ändern
+
 
 'use strict';
 
@@ -135,7 +137,7 @@ async function initDB() {
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-    console.log('✅ Spalten type, source, spot_type, looking_for bereit');
+    console.log('✅ v2.1 – Spalten bereit inkl. help_mode, help_category');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
@@ -255,10 +257,17 @@ app.post('/api/profile', async (req, res) => {
       const storedToken = existing.rows[0].token || globalToken;
       if (!token) {
         profileToken = storedToken || crypto.randomBytes(32).toString('hex');
-      } else if (storedToken && storedToken !== token) {
-        return res.status(403).json({ error: 'Ungültiger Token' });
       } else {
-        profileToken = token || storedToken || crypto.randomBytes(32).toString('hex');
+        // Token gegen ALLE Spot-Profile prüfen
+        const allTok = await pool.query(
+          'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
+          [code]
+        );
+        const tokenOk = allTok.rows.some(r => r.token === token);
+        if (storedToken && !tokenOk) {
+          return res.status(403).json({ error: 'Ungültiger Token' });
+        }
+        profileToken = token;
       }
     }
     if (existing.rows.length > 0) {
@@ -318,16 +327,13 @@ app.delete('/api/profile/:code', async (req, res) => {
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
 
-    // Globaler Token: im aktuellen Spot prüfen, sonst in anderen Spots suchen
-    let validToken = existing.rows[0].token;
-    if (!validToken) {
-      const gc = await pool.query(
-        'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
-        [code]
-      );
-      if (gc.rows.length > 0) validToken = gc.rows[0].token;
-    }
-    if (!token || (validToken && validToken !== token)) {
+    // Globaler Token: mitgeschickten Token gegen ALLE Spot-Profile prüfen
+    const allTokens = await pool.query(
+      'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
+      [code]
+    );
+    const tokenValid = allTokens.rows.some(r => r.token === token);
+    if (!token || !tokenValid) {
       return res.status(403).json({ error: 'Ungültiger Token' });
     }
 
