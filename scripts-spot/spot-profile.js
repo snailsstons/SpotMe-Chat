@@ -1,6 +1,8 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOT – EIGENES PROFIL (spot-profile.js)
+// TOKEN_KEY ist spot-spezifisch → verhindert Token-Kollisionen zwischen Spots
+const TOKEN_KEY = 'sm_token_' + (typeof SPOT !== 'undefined' ? SPOT : 'default');
 // Token wird GLOBAL gespeichert!
 // ══════════════════════════════════════════════════════════════════════════════
 
