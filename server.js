@@ -14,6 +14,8 @@
 //   Render: DATABASE_URL wird automatisch gesetzt wenn du eine Postgres-DB
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
+// SpotMe Server v2.1  ← einfach die Versionsnummer ändern
+
 
 'use strict';
 
