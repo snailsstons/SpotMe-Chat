@@ -6,13 +6,13 @@
 
 // Server & API
 // const SERVER_HOST = 'spotme-pg-test.onrender.com';
-const SERVER_HOST = 'spotme-chat-obom.onrender.com';
+var SERVER_HOST = 'spotme-chat-obom.onrender.com';
 const SERVER_PATH = '/peerjs';
 
 // const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
 // const API_BASE    = 'https://spotme-pg-test.onrender.com/api';
-const API_MISSED = 'https://spotme-chat-obom.onrender.com/api/missed-call';
-const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+var API_MISSED = 'https://spotme-chat-obom.onrender.com/api/missed-call';
+var API_BASE = 'https://spotme-chat-obom.onrender.com/api';
 
 const TOKEN_KEY   = 'sm_token';
 
