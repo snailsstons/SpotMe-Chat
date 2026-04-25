@@ -239,7 +239,7 @@ app.post('/api/profile', async (req, res) => {
       [code, spot]
     );
 
-    // Globaler Token: auch in anderen Spots des Nutzers suchen
+    // Globaler Token: in anderen Spots suchen wenn nötig
     let globalToken = null;
     if (!existing.rows.length || !existing.rows[0]?.token) {
       const gc = await pool.query(
@@ -317,16 +317,19 @@ app.delete('/api/profile/:code', async (req, res) => {
       [code, spot]
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    // Globaler Token: auch in anderen Spots suchen
+
+    // Globaler Token: im aktuellen Spot prüfen, sonst in anderen Spots suchen
     let validToken = existing.rows[0].token;
     if (!validToken) {
-      const globalCheck = await pool.query(
+      const gc = await pool.query(
         'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
         [code]
       );
-      if (globalCheck.rows.length > 0) validToken = globalCheck.rows[0].token;
+      if (gc.rows.length > 0) validToken = gc.rows[0].token;
     }
-    if (!token || (validToken && validToken !== token)) return res.status(403).json({ error: 'Ungültiger Token' });
+    if (!token || (validToken && validToken !== token)) {
+      return res.status(403).json({ error: 'Ungültiger Token' });
+    }
 
     await pool.query(
       'UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2',
