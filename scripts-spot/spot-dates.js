@@ -5,7 +5,8 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 // API kommt aus spot-config.js
-const SPOT = 'dates';
+const SPOT      = 'dates';
+const CACHE_KEY = 'spot_cache_dates';
 
 
 
