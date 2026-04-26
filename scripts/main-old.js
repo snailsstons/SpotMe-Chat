@@ -142,27 +142,17 @@ window.addEventListener('load', () => {
   const autoConnect = sessionStorage.getItem('sm_connect_to');
   if (autoConnect && autoConnect.length === 6) {
     sessionStorage.removeItem('sm_connect_to');
-    // Warten bis peer bereit ist, dann verbinden
-    const tryConnect = (attempts = 0) => {
-      if (window.peer && window.peer.open) {
-        const inps = document.querySelectorAll('.dinp-new');
-        autoConnect.split('').forEach((ch, i) => {
-          if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); }
-        });
-        document.getElementById('cbtn').disabled = false;
-        connectToPeer();
-      } else if (attempts < 20) {
-        setTimeout(() => tryConnect(attempts + 1), 500);
-      } else {
-        // Fallback: einfach Felder füllen
-        const inps = document.querySelectorAll('.dinp-new');
-        autoConnect.split('').forEach((ch, i) => {
-          if (inps[i]) { inps[i].value = ch; inps[i].classList.add('filled'); }
-        });
-        document.getElementById('cbtn').disabled = false;
-      }
-    };
-    setTimeout(() => tryConnect(), 800);
+    setTimeout(() => {
+      const inps = document.querySelectorAll('.dinp-new');
+      autoConnect.split('').forEach((ch, i) => {
+        if (inps[i]) {
+          inps[i].value = ch;
+          inps[i].classList.add('filled');
+        }
+      });
+      document.getElementById('cbtn').disabled = false;
+      connectToPeer();
+    }, 500);
   }
 
   // 🆕 Dann Server-Daten laden und Hub NOCHMAL rendern

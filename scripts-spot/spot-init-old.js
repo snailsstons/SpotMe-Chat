@@ -21,38 +21,9 @@ console.log('📟 Token vorhanden:', myToken ? '✅ Ja' : '❌ Nein');
 // 🆕 Token erstellen, falls NICHT vorhanden!
 async function ensureGlobalToken() {
   if (myToken) return true;
-  
-  console.log('🆕 Erstelle globalen Token...');
-  
-  const minimalProfile = {
-    name: localStorage.getItem('sm_name') || 'Nutzer_' + myCode.slice(0, 4),
-    region: 'Valencia (Region)'
-  };
-  
-  try {
-    const res = await fetch(API + '/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: myCode,
-        name: minimalProfile.name,
-        region: minimalProfile.region,
-        spot: SPOT
-      })
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      if (data.token) {
-        localStorage.setItem(TOKEN_KEY, data.token);
-        myToken = data.token;
-        console.log('✅ Globaler Token erstellt');
-        return true;
-      }
-    }
-  } catch(e) {
-    console.warn('Token-Erstellung fehlgeschlagen:', e);
-  }
+  // Token noch nicht vorhanden — wird beim ersten Veröffentlichen vergeben.
+  // Kein Dummy-Profil erstellen! Nutzer muss erst richtiges Profil anlegen.
+  console.log('📟 Kein Token — wird beim ersten Veröffentlichen gesetzt');
   return false;
 }
 
@@ -65,11 +36,7 @@ window.showProfileDialog = function() {
   const shouldCreate = confirm(message);
   
   if (shouldCreate) {
-    const profilUrl = SPOT === 'general' ? 'profil-general.html'
-                    : SPOT === 'dates'   ? 'profil-dates.html'
-                    : SPOT === 'gay'     ? 'profil-gay.html'
-                    : 'profil-home.html';
-    window.location.href = profilUrl;
+    window.location.href = 'profil.html?spot=' + SPOT;
   } else {
     if (typeof toast === 'function') {
       toast('📟 Du kannst später über "PROFIL" ein Profil anlegen');

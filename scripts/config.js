@@ -6,15 +6,19 @@
 
 // Server & API
 // const SERVER_HOST = 'spotme-pg-test.onrender.com';
-const SERVER_HOST = 'spotme-chat-obom.onrender.com';
+var SERVER_HOST = 'spotme-chat-obom.onrender.com';
 const SERVER_PATH = '/peerjs';
 
 // const API_MISSED  = 'https://spotme-pg-test.onrender.com/api/missed-call';
 // const API_BASE    = 'https://spotme-pg-test.onrender.com/api';
-const API_MISSED = 'https://spotme-chat-obom.onrender.com/api/missed-call';
-const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+var API_MISSED = 'https://spotme-chat-obom.onrender.com/api/missed-call';
+var API_BASE = 'https://spotme-chat-obom.onrender.com/api';
 
-const TOKEN_KEY   = 'sm_token';
+// TOKEN_KEY pro Spot → kein Token-Konflikt zwischen verschiedenen Spots
+// SPOT aus URL-Dateiname lesen bevor spot-*.js geladen ist
+// z.B. spot-gay.html → 'gay' | spot-general.html → 'general'
+const _spotId   = (location.pathname.split('/').pop().match(/spot[-_](\w+)\.html$/) || [,'default'])[1];
+const TOKEN_KEY = 'sm_token'; // global für alle Spots
 
 // Chunk-Größe
 const CHUNK = 16384;
@@ -26,7 +30,7 @@ function newCode() {
 // Globale Variablen (let, nicht const!)
 let myCode  = localStorage.getItem('sm_code') || newCode();
 let myName  = localStorage.getItem('sm_name') || 'User_' + myCode.slice(0, 4);
-let myToken = localStorage.getItem(TOKEN_KEY) || '';
+let myToken = localStorage.getItem(TOKEN_KEY) || ''; // wird nach SPOT-Definition geladen
 
 localStorage.setItem('sm_code', myCode);
 localStorage.setItem('sm_name', myName);

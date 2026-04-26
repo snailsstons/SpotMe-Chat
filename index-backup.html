@@ -40,7 +40,6 @@
 <script src="scripts/traffic.js"></script>
 <script src="scripts/connection-check.js"></script>
 <script src="scripts/chat-api.js"></script>
-<script src="scripts/p2p-core.js"></script>
 <script src="scripts/p2p-call.js"></script>
 <script src="scripts/ui-home.js"></script>
 <script src="scripts/albums.js"></script>
@@ -150,7 +149,7 @@ if (typeof window !== 'undefined') {
         <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
         <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
         <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
-        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil-home.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='awareness.html'">
           <div class="sico si-g">🧘</div>
           <div class="slab"><div>Achtsamkeit</div><div class="sdesc">Deine Nutzung & Balance</div></div>
@@ -320,7 +319,7 @@ if (typeof window !== 'undefined') {
       <div class="slab"><div>Mikrofon‑Button</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Button in Chatleiste</div></div>
     </div>
     <div class="ssep"></div>
-    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil-home.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
     <div class="ssep"></div>
     <button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button>
     <button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button>

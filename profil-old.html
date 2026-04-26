@@ -1,12 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
-  <!-- Eruda – Mobile Console (nur für Debugging) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-
-  
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SpotMe · Profil</title>
@@ -205,29 +199,9 @@ textarea.finp { resize:none; min-height:90px; }
 
     <!-- General Spot -->
     <details class="spot-details spot-general" id="spot-general-details">
-      <summary class="spot-summary"><span class="spot-icon">🌍</span> General · Nachbarschaftshilfe</summary>
+      <summary class="spot-summary"><span class="spot-icon">🌍</span> General Spot</summary>
       <div class="spot-content">
-        <div class="field">
-          <label>Ich möchte</label>
-          <div class="radio-group" id="rg-helpmode">
-            <button type="button" class="radio-opt" data-val="biete" onclick="pick(this,'rg-helpmode')">🤝 Hilfe anbieten</button>
-            <button type="button" class="radio-opt" data-val="suche" onclick="pick(this,'rg-helpmode')">🙋 Hilfe suchen</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>Kategorie</label>
-          <div class="radio-group" id="rg-helpcat">
-            <button type="button" class="radio-opt" data-val="einkaufen"  onclick="pick(this,'rg-helpcat')">🛒 Einkaufen</button>
-            <button type="button" class="radio-opt" data-val="fahrdienst" onclick="pick(this,'rg-helpcat')">🚗 Fahrdienst</button>
-            <button type="button" class="radio-opt" data-val="haushalt"   onclick="pick(this,'rg-helpcat')">🏠 Haushalt</button>
-            <button type="button" class="radio-opt" data-val="apotheke"   onclick="pick(this,'rg-helpcat')">💊 Apotheke</button>
-            <button type="button" class="radio-opt" data-val="gassi"      onclick="pick(this,'rg-helpcat')">🐕 Gassi</button>
-            <button type="button" class="radio-opt" data-val="handwerk"   onclick="pick(this,'rg-helpcat')">🔧 Handwerk</button>
-            <button type="button" class="radio-opt" data-val="gespraech"  onclick="pick(this,'rg-helpcat')">💬 Gespräch</button>
-            <button type="button" class="radio-opt" data-val="lieferung"  onclick="pick(this,'rg-helpcat')">📦 Lieferung</button>
-            <button type="button" class="radio-opt" data-val="sonstiges"  onclick="pick(this,'rg-helpcat')">✏️ Sonstiges</button>
-          </div>
-        </div>
+        <p style="color:var(--muted2); font-size:0.9rem;">Keine zusätzlichen Einstellungen erforderlich.</p>
       </div>
     </details>
   </div>
@@ -387,11 +361,9 @@ function updateBioCount() {
 // LOAD / SAVE (MIT AKKORDEON-ÖFFNUNG)
 // ═══════════════════════════════════════════════════════════════════════════
 function loadProfile() {
-  // Akkordeons öffnen damit Radio-Buttons im DOM sind
-  const datesDetails   = document.getElementById('spot-dates-details');
+  // 🆕 Dates-Akkordeon öffnen, damit die Radio-Buttons im DOM sind!
+  const datesDetails = document.getElementById('spot-dates-details');
   if (datesDetails) datesDetails.open = true;
-  const generalDetails = document.getElementById('spot-general-details');
-  if (generalDetails) generalDetails.open = true;
   
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) return;
@@ -421,20 +393,16 @@ function loadProfile() {
     if (p.role)        setRadio('rg-role', p.role);
     if (p.trans !== undefined) setToggle('tg-trans', p.trans);
     if (p.cross !== undefined) setToggle('tg-cross', p.cross);
-    if (p.lookingFor)    setRadio('rg-looking',  p.lookingFor);
-    if (p.helpMode)      setRadio('rg-helpmode', p.helpMode);
-    if (p.helpCategory)  setRadio('rg-helpcat',  p.helpCategory);
+    if (p.lookingFor)  setRadio('rg-looking', p.lookingFor);
     if (p.avatar) { avatarData = p.avatar; renderAvatar(); }
     showSavedBadge();
   } catch(e) { console.warn('Ladefehler', e); }
 }
 
 function saveProfile() {
-  // Akkordeons öffnen damit Radio-Buttons im DOM sind
-  const datesDetails   = document.getElementById('spot-dates-details');
+  // 🆕 Dates-Akkordeon öffnen, damit die Radio-Buttons im DOM sind!
+  const datesDetails = document.getElementById('spot-dates-details');
   if (datesDetails) datesDetails.open = true;
-  const generalDetails = document.getElementById('spot-general-details');
-  if (generalDetails) generalDetails.open = true;
   
   const name = document.getElementById('f-name').value.trim();
   if (!name) { toast('⚠️ Profilname ist Pflicht'); return; }
@@ -459,10 +427,8 @@ function saveProfile() {
     role:        getRadio('rg-role') || null,
     trans:       getToggle('tg-trans'),
     cross:       getToggle('tg-cross'),
-    lookingFor:   getRadio('rg-looking')  || null,
-    helpMode:     getRadio('rg-helpmode') || null,
-    helpCategory: getRadio('rg-helpcat')  || null,
-    updated:      Date.now()
+    lookingFor:  getRadio('rg-looking') || null,
+    updated:     Date.now()
   };
   if (profile.year) {
     document.getElementById('f-year').readOnly = true;
@@ -504,10 +470,8 @@ function saveProfile_silent() {
     role:        getRadio('rg-role') || null,
     trans:       getToggle('tg-trans'),
     cross:       getToggle('tg-cross'),
-    lookingFor:   getRadio('rg-looking')  || null,
-    helpMode:     getRadio('rg-helpmode') || null,
-    helpCategory: getRadio('rg-helpcat')  || null,
-    updated:      Date.now()
+    lookingFor:  getRadio('rg-looking') || null,
+    updated:     Date.now()
   };
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   localStorage.setItem('sm_name', name);

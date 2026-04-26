@@ -50,9 +50,11 @@ async function sendFile(inp) {
       conn.send(endMsg);
       showUP(false);
       toast(`✅ "${f.name}" gesendet!`);
-      const url = await fileToB64(f);
+      // Bilder: ObjectURL für sofortige Anzeige, kein teures Base64 im Speicher
+      const isImage = f.type.startsWith('image/');
+      const url = isImage ? URL.createObjectURL(f) : await fileToB64(f);
       const msg = {
-        t: 'file',
+        t: isImage ? 'image' : 'file',
         url,
         name: f.name,
         ftype: f.type,
@@ -111,10 +113,13 @@ function handleFileEnd(d) {
   }
   const blob = new Blob(valid, { type: b.meta.type });
   const rd = new FileReader();
-  rd.onload = e => {
+  const isImage = b.meta.type.startsWith('image/');
+  if (isImage) {
+    // Bilder: ObjectURL direkt aus Blob — kein Base64 nötig
+    const url = URL.createObjectURL(blob);
     const msg = {
-      t: 'file',
-      url: e.target.result,
+      t: 'image',
+      url,
       name: b.meta.name,
       ftype: b.meta.type,
       size: b.meta.size,
@@ -123,12 +128,30 @@ function handleFileEnd(d) {
     };
     appendMsg(msg);
     persistMsg(msg);
-    notify('📎 Datei: ' + b.meta.name);
+    notify('🖼️ Bild: ' + b.meta.name);
     playNotificationSound();
     triggerHaptic();
     delete fileBufs[d.id];
-  };
-  rd.readAsDataURL(blob);
+  } else {
+    rd.onload = e => {
+      const msg = {
+        t: 'file',
+        url: e.target.result,
+        name: b.meta.name,
+        ftype: b.meta.type,
+        size: b.meta.size,
+        ts: Date.now(),
+        own: false
+      };
+      appendMsg(msg);
+      persistMsg(msg);
+      notify('📎 Datei: ' + b.meta.name);
+      playNotificationSound();
+      triggerHaptic();
+      delete fileBufs[d.id];
+    };
+    rd.readAsDataURL(blob);
+  }
 }
 
 function handleAudioStart(d) {

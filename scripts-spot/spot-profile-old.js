@@ -42,26 +42,14 @@ async function togglePublish() {
     if (isPublished) {
       if (!myToken) {
         const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-        const recoveryFields = {};
-        if (SPOT === 'gay') {
-          recoveryFields.orientation  = myProfile.orientation  || null;
-          recoveryFields.role         = myProfile.role         || null;
-          recoveryFields.trans        = myProfile.trans        || false;
-          recoveryFields.crossdresser = myProfile.crossdresser || false;
-        } else if (SPOT === 'dates') {
-          recoveryFields.lookingFor   = myProfile.lookingFor   || null;
-        } else if (SPOT === 'general') {
-          recoveryFields.helpMode     = myProfile.helpMode     || null;
-          recoveryFields.helpCategory = myProfile.helpCategory || null;
-        }
         const r = await fetch(API + '/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: myCode, name: myProfile.name, age,
             region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-            bio: myProfile.bio || null,
-            ...recoveryFields,
+            orientation: myProfile.orientation || null, role: myProfile.role || null,
+            trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
             spot: SPOT
           })
         });
@@ -78,24 +66,11 @@ async function togglePublish() {
       toast('○ Profil aus Community entfernt');
     } else {
       const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-      // Spot-spezifische Felder je nach Spot
-      const spotFields = {};
-      if (SPOT === 'gay') {
-        spotFields.orientation  = myProfile.orientation  || null;
-        spotFields.role         = myProfile.role         || null;
-        spotFields.trans        = myProfile.trans        || false;
-        spotFields.crossdresser = myProfile.crossdresser || false;
-      } else if (SPOT === 'dates') {
-        spotFields.lookingFor   = myProfile.lookingFor   || null;
-      } else if (SPOT === 'general') {
-        spotFields.helpMode     = myProfile.helpMode     || null;
-        spotFields.helpCategory = myProfile.helpCategory || null;
-      }
       const payload = {
         code: myCode, name: myProfile.name, age,
         region: myProfile.region, province: myProfile.province || null, city: myProfile.city || null,
-        bio: myProfile.bio || null,
-        ...spotFields,
+        orientation: myProfile.orientation || null, role: myProfile.role || null,
+        trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false, bio: myProfile.bio || null,
         token: myToken || undefined, spot: SPOT
       };
       let res = await fetch(API + '/profile', {

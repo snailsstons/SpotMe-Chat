@@ -104,22 +104,33 @@ function applyFilters() {
       const [lo, hi] = ageRange === '50+' ? [50,999] : ageRange.split('-').map(Number);
       if (p.age < lo || p.age > hi) return false;
     }
-    
-    // 🆕 DATES-FILTER: Nur Profile mit GLEICHEM lookingFor anzeigen!
+
+    // ── Dates-Filter ──────────────────────────────────────────
     if (SPOT === 'dates' && ownLookingFor) {
-      if (p.lookingFor !== ownLookingFor) {
-        return false;
-      }
+      if (p.lookingFor !== ownLookingFor) return false;
     }
-    
-    // Bestehende Gay-Filter
-    const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
-    if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
-    const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
-    if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
-    if (chips.includes('trans') && !p.trans) return false;
-    if (chips.includes('crossdresser') && !p.crossdresser) return false;
-    
+
+    // ── Gay-Filter ────────────────────────────────────────────
+    if (SPOT === 'gay') {
+      const oCh = chips.filter(f => ['homo','bi','hetero'].includes(f));
+      if (oCh.length && (!p.orientation || !oCh.includes(p.orientation))) return false;
+      const rCh = chips.filter(f => ['bottom','top','versatile'].includes(f));
+      if (rCh.length && (!p.role || !rCh.includes(p.role))) return false;
+      if (chips.includes('trans') && !p.trans) return false;
+      if (chips.includes('crossdresser') && !p.crossdresser) return false;
+    }
+
+    // ── General-Filter (Nachbarschaftshilfe) ─────────────────
+    if (SPOT === 'general') {
+      const MODE_CHIPS = ['biete','suche'];
+      const CAT_CHIPS  = ['einkaufen','fahrdienst','haushalt','apotheke',
+                          'gassi','handwerk','gespraech','lieferung','sonstiges'];
+      const modeChips = chips.filter(f => MODE_CHIPS.includes(f));
+      if (modeChips.length && (!p.helpMode || !modeChips.includes(p.helpMode))) return false;
+      const catChips = chips.filter(f => CAT_CHIPS.includes(f));
+      if (catChips.length && (!p.helpCategory || !catChips.includes(p.helpCategory))) return false;
+    }
+
     return true;
   });
   renderAll();

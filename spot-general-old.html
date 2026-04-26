@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
-      <!-- Eruda – Mobile Console (nur für Debugging) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -114,7 +109,7 @@
   </div>
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Anzeige schalten">👁️</button>
-    <button class="icon-btn" onclick="window.location.href='profil-general.html'" title="Anzeige bearbeiten">✎</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Anzeige bearbeiten">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
   </div>
 </div>
@@ -122,7 +117,7 @@
 <!-- ═══════════ COMMUNITY-LISTE ═══════════ -->
 <div class="community-list-section">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; margin-bottom:0.25rem;">
-    <div class="section-label">🤝 Nachbarschaftshilfe</div>
+    <div class="section-label">📦 Anzeigen</div>
     <div class="community-count" id="community-count"></div>
   </div>
   <div id="community-list" class="horizontal-scroll"></div>
@@ -140,24 +135,12 @@
     </select>
   </div>
 
-  <!-- MODUS: Biete / Suche -->
-  <div style="font-size:0.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;padding:0 0 0.4rem;">Ich möchte</div>
+  <!-- KLEINANZEIGEN KATEGORIEN -->
   <div class="filter-row" id="filter-chips">
-    <div class="filter-chip" data-filter="biete" onclick="toggleChip(this)">🤝 Hilfe anbieten</div>
-    <div class="filter-chip" data-filter="suche" onclick="toggleChip(this)">🙋 Hilfe suchen</div>
-  </div>
-  <!-- KATEGORIEN -->
-  <div style="font-size:0.7rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;padding:0.5rem 0 0.4rem;">Kategorie</div>
-  <div class="filter-row">
-    <div class="filter-chip" data-filter="einkaufen"  onclick="toggleChip(this)">🛒 Einkaufen</div>
-    <div class="filter-chip" data-filter="fahrdienst" onclick="toggleChip(this)">🚗 Fahrdienst</div>
-    <div class="filter-chip" data-filter="haushalt"   onclick="toggleChip(this)">🏠 Haushalt</div>
-    <div class="filter-chip" data-filter="apotheke"   onclick="toggleChip(this)">💊 Apotheke</div>
-    <div class="filter-chip" data-filter="gassi"      onclick="toggleChip(this)">🐕 Gassi</div>
-    <div class="filter-chip" data-filter="handwerk"   onclick="toggleChip(this)">🔧 Handwerk</div>
-    <div class="filter-chip" data-filter="gespraech"  onclick="toggleChip(this)">💬 Gespräch</div>
-    <div class="filter-chip" data-filter="lieferung"  onclick="toggleChip(this)">📦 Lieferung</div>
-    <div class="filter-chip" data-filter="sonstiges"  onclick="toggleChip(this)">✏️ Sonstiges</div>
+    <div class="filter-chip" data-filter="biete" onclick="toggleChip(this)">📦 Biete</div>
+    <div class="filter-chip" data-filter="suche" onclick="toggleChip(this)">🔍 Suche</div>
+    <div class="filter-chip" data-filter="verschenke" onclick="toggleChip(this)">🎁 Verschenke</div>
+    <div class="filter-chip" data-filter="event" onclick="toggleChip(this)">📅 Event</div>
   </div>
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
 </div>
@@ -180,7 +163,7 @@
 <nav>
   <button class="nav-btn active">📦 MARKT</button>
   <button class="nav-btn" onclick="location.href='index.html'">💬 CHAT</button>
-  <button class="nav-btn" onclick="location.href='profil-general.html'">👤 ANZEIGE</button>
+  <button class="nav-btn" onclick="location.href='profil.html?spot=' + SPOT">👤 ANZEIGE</button>
 </nav>
 
 <!-- ═══════════ MODALS ═══════════ -->

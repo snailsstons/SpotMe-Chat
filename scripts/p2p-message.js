@@ -88,6 +88,8 @@ function handleData(d) {
       partnerTypingTimer = null;
       refreshStatusText();
     }
+  } else if (d.t === 'image') {
+    appendMsg({ ...d, own: false });
   } else if (d.t === 'f-start') {
     handleFileStart(d);
   } else if (d.t === 'f-chunk') {

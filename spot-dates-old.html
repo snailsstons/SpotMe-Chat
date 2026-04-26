@@ -1,28 +1,33 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <!-- Eruda – Mobile Console (nur für Debugging, vor allen anderen Scripts) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
+  
+    <!-- Eruda – Mobile Console (nur für Debugging, vor allen anderen Scripts) -->
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
   
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>SpotMe · Radar Community</title>
+
+  <!-- ════════════════════════════════════════════════════
+       DATES SPOT – TITEL & THEME
+       ════════════════════════════════════════════════════ -->
+  <title>SpotMe · Dates Community</title>
+  <meta name="theme-color" content="#ff4f7b">
+
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#060a0f">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
+
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <link rel="stylesheet" href="spot.css">
 
-  <!-- Spot Scripts – Reihenfolge wichtig! -->
+  
+<!-- Spot Scripts – Reihenfolge wichtig! -->
 <script src="scripts-spot/spot-config.js"></script>
 
 <!-- 2. Alle Scripts, die SPOT NICHT brauchen -->
@@ -37,34 +42,76 @@
 <script src="scripts-spot/spot-keepalive.js"></script>
 
 <!-- 3. SPOT definieren -->
-<script src="scripts-spot/spot-gay.js"></script>
+<script src="scripts-spot/spot-dates.js"></script>
 
 <!-- 4. Scripts, die SPOT BRAUCHEN -->
 <script src="scripts-spot/spot-kurznachricht.js"></script>
 <script src="scripts-spot/spot-init.js"></script>
 
 
+<link rel="stylesheet" href="styles.css">
+<!-- Zusätzlich spot.css für die Spots-Grid laden -->
+<link rel="stylesheet" href="spot.css">
+
+  <style>
+    /* ════════════════════════════════════════════════════
+       DATES SPOT – FARBVARIABLEN
+       Pink/Rot als Hauptakzent, Gold/Orange als Sekundär
+       ════════════════════════════════════════════════════ */
+    :root {
+      --spot-acc:        #ff4f7b;   /* Haupt: Pink/Rot */
+      --spot-acc2:       #ff9a00;   /* Sekundär: Gold/Orange */
+      --spot-acc-dim:    rgba(255, 79, 123, 0.12);
+      --spot-acc-border: rgba(255, 79, 123, 0.25);
+
+      --acc:     var(--spot-acc);
+      --acc-dim: var(--spot-acc-dim);
+      --p2:      var(--spot-acc2);
+    }
+
+    .radar-sweep {
+      background: conic-gradient(from 0deg, transparent 0%, var(--spot-acc-dim) 100%);
+    }
+
+    .status-badge {
+      color: var(--spot-acc);
+      background: var(--spot-acc-dim);
+      border-color: var(--spot-acc-border);
+    }
+
+    .nav-btn.active {
+      color: var(--spot-acc);
+      background: var(--spot-acc-dim);
+    }
+  </style>
+
 </head>
 <body>
 
+<!-- ═══════════ HEADER ═══════════ -->
 <header class="app-header">
   <div class="header-left">
     <button class="back-btn" onclick="goHome()" title="Zurück zum Chat">‹</button>
   </div>
-  <div class="logo">SPOT<b>ME</b> <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">RADAR</span></div>
+
+  <div class="logo">
+    SPOT<b>ME</b>
+    <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">Dates</span>
+  </div>
+
   <div class="header-right">
     <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
     <div class="status-badge" id="status-indicator">● DISCOVERY</div>
   </div>
 </header>
-
 <!-- Traffic‑Anzeige -->
 <div id="traffic-display" class="traffic-panel" style="display: flex; gap: 12px; justify-content: center; font-size: 0.8rem; padding: 8px; background: var(--card); border-radius: 40px; margin: 8px 16px;">
   <span>📊 0 B</span>
   <span>⬆️ 0 B</span>
   <span>⬇️ 0 B</span>
 </div>
-
+  
+<!-- ═══════════ PROFIL-BAR ═══════════ -->
 <div class="profile-bar" id="profile-bar" style="display:none;">
   <div class="profile-avatar" id="my-avatar-small">🧑</div>
   <div class="profile-info">
@@ -73,11 +120,12 @@
   </div>
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+    <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
-    <button class="icon-btn" onclick="window.location.href='profil-gay.html'" title="Profil bearbeiten" oncontextmenu="event.preventDefault();resetToken();" id="edit-btn">✎</button>
   </div>
 </div>
 
+<!-- ═══════════ COMMUNITY-LISTE ═══════════ -->
 <div class="community-list-section">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; margin-bottom:0.25rem;">
     <div class="section-label">Community Profile</div>
@@ -86,10 +134,13 @@
   <div id="community-list" class="horizontal-scroll"></div>
 </div>
 
+<!-- ═══════════ FILTER ═══════════ -->
 <div class="filter-drawer">
   <div class="filter-title">Community Filter</div>
   <div class="filter-select-row">
-    <select class="filter-select" id="f-region" onchange="applyFilters()"><option value="">Alle Regionen</option></select>
+    <select class="filter-select" id="f-region" onchange="applyFilters()">
+      <option value="">Alle Regionen</option>
+    </select>
     <select class="filter-select" id="f-age" onchange="applyFilters()">
       <option value="">Alle Altersgruppen</option>
       <option value="18-29">18–29</option>
@@ -98,19 +149,19 @@
       <option value="50+">50+</option>
     </select>
   </div>
+
+  <!-- ════════════════════════════════════════════════════
+       DATES – FILTER CHIPS
+       ════════════════════════════════════════════════════ -->
   <div class="filter-row" id="filter-chips">
-    <div class="filter-chip" data-filter="homo" onclick="toggleChip(this)">🏳️‍🌈 Homo</div>
-    <div class="filter-chip" data-filter="bi" onclick="toggleChip(this)">Bi</div>
-    <div class="filter-chip" data-filter="hetero" onclick="toggleChip(this)">Hetero</div>
-    <div class="filter-chip" data-filter="bottom" onclick="toggleChip(this)">Bottom</div>
-    <div class="filter-chip" data-filter="top" onclick="toggleChip(this)">Top</div>
-    <div class="filter-chip" data-filter="versatile" onclick="toggleChip(this)">Versatile</div>
-    <div class="filter-chip" data-filter="trans" onclick="toggleChip(this)">Trans</div>
-    <div class="filter-chip" data-filter="cross" onclick="toggleChip(this)">Cross</div>
+    <div class="filter-chip" data-filter="beziehung" onclick="toggleChip(this)">💕 Beziehung</div>
+    <div class="filter-chip" data-filter="freundschaft" onclick="toggleChip(this)">👥 Freundschaft</div>
+    <div class="filter-chip" data-filter="casual" onclick="toggleChip(this)">🍸 Casual</div>
   </div>
   <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
 </div>
 
+<!-- ═══════════ RADAR ═══════════ -->
 <div class="radar-viewport">
   <div style="font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0.75rem 1.25rem 0;">Radar</div>
   <div class="radar-canvas" id="radar-field">
@@ -124,11 +175,15 @@
   </div>
 </div>
 
+<!-- ═══════════ NAVIGATION ═══════════ -->
 <nav>
   <button class="nav-btn active">RADAR</button>
   <button class="nav-btn" onclick="location.href='index.html'">CHAT</button>
-  <button class="nav-btn" onclick="location.href='profil-gay.html'">PROFIL</button>
+  <!-- 👇 Link zur Dates-Info-Seite (kann später erstellt werden) -->
+  <button class="nav-btn" onclick="location.href='spot-dates-info.html'">INFO</button>
 </nav>
+
+<!-- ═══════════ MODALS (unverändert) ═══════════ -->
 
 <!-- Standort-Modal -->
 <div class="location-modal-overlay" id="location-modal" onclick="closeLocationModal(event)">
@@ -151,7 +206,7 @@
   </div>
 </div>
 
-<!-- QR-Code Modal für persönliche Verifikation -->
+<!-- QR-Verifikations-Modal -->
 <div class="modal-overlay" id="qr-verify-modal" onclick="closeQrVerifyModal()">
   <div class="modal-content" style="max-width:320px;" onclick="event.stopPropagation()">
     <button class="modal-close" onclick="closeQrVerifyModal()">✕</button>
@@ -194,21 +249,9 @@
   </div>
 </div>
 
+
 <div class="toast" id="toast"></div>
-<script>
-// Versteckter Token-Reset: 1.5s langer Druck auf Stift-Button
-(function(){
-  let t;
-  const btn = document.getElementById ? null : null;
-  document.addEventListener('DOMContentLoaded', () => {
-    const b = document.getElementById('edit-btn');
-    if (!b) return;
-    b.addEventListener('touchstart', () => { t = setTimeout(() => resetToken(), 1500); }, { passive: true });
-    b.addEventListener('touchend', () => clearTimeout(t));
-    b.addEventListener('touchmove', () => clearTimeout(t));
-  });
-})();
-</script>
+
 
 </body>
-      </html>
+</html>

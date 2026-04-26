@@ -37,10 +37,9 @@
 <script src="scripts/storage.js"></script>
 <script src="scripts/ui-core.js"></script>
 <script src="scripts/audio.js"></script>
-<script src="scripts/traffic.js"></script>
+<script srcscripts/traffic.js"></script>
 <script src="scripts/connection-check.js"></script>
 <script src="scripts/chat-api.js"></script>
-<script src="scripts/p2p-core.js"></script>
 <script src="scripts/p2p-call.js"></script>
 <script src="scripts/ui-home.js"></script>
 <script src="scripts/albums.js"></script>
@@ -48,86 +47,6 @@
 <script src="scripts/voice.js"></script>
 <script src="scripts/ui-chat.js"></script>
 <script src="scripts/main.js"></script>
-<script>
-// ── Bild & Datei senden ─────────────────────────────────────────────────────
-let imgReceiveBuffer = {};
-
-function handleFileOrImage(input) {
-  // sendFile in p2p-file.js erkennt Bilder jetzt selbst → alles darüber
-  if (typeof sendFile === 'function') sendFile(input);
-}
-
-async function sendImage(file) {
-  if (!conn || !conn.open) { toast('⚠️ Keine Verbindung'); return; }
-  if (file.size > 10 * 1024 * 1024) { toast('⚠️ Max. 10 MB'); return; }
-
-  const CHUNK = 16384; // 16KB Chunks
-  const buffer = await file.arrayBuffer();
-  const total  = Math.ceil(buffer.byteLength / CHUNK);
-  const imgId  = Date.now() + '_' + Math.random().toString(36).slice(2);
-
-  // Vorschau sofort im eigenen Chat anzeigen
-  const objectUrl = URL.createObjectURL(file);
-  appendImageMsg(objectUrl, file.name, 'out');
-
-  // Start-Paket
-  conn.send({ t: 'img_start', id: imgId, name: file.name, total, size: buffer.byteLength });
-
-  // Chunks mit kurzen Pausen senden
-  for (let i = 0; i < total; i++) {
-    if (!conn || !conn.open) break;
-    const chunk = buffer.slice(i * CHUNK, (i + 1) * CHUNK);
-    conn.send({ t: 'img_chunk', id: imgId, idx: i, total, chunk });
-    if (i % 5 === 4) await new Promise(r => setTimeout(r, 10));
-  }
-}
-
-function handleIncomingImageData(d) {
-  if (d.t === 'img_start') {
-    imgReceiveBuffer[d.id] = { chunks: new Array(d.total), received: 0, total: d.total, name: d.name };
-    return true;
-  }
-  if (d.t === 'img_chunk') {
-    const buf = imgReceiveBuffer[d.id];
-    if (!buf) return true;
-    buf.chunks[d.idx] = d.chunk;
-    buf.received++;
-    if (buf.received === buf.total) {
-      const blob = new Blob(buf.chunks);
-      const url  = URL.createObjectURL(blob);
-      appendImageMsg(url, buf.name, 'in');
-      delete imgReceiveBuffer[d.id];
-    }
-    return true;
-  }
-  return false; // kein Bild-Paket
-}
-
-function appendImageMsg(url, name, dir) {
-  const msgs = document.getElementById('messages');
-  const wrap = document.createElement('div');
-  wrap.className = 'msg ' + (dir === 'out' ? 'msg-out' : 'msg-in');
-  wrap.innerHTML = `
-    <div class="msg-img-wrap">
-      <img src="${url}" alt="${name}" style="max-width:220px;max-height:300px;border-radius:12px;cursor:pointer;display:block;"
-           onclick="this.style.maxWidth=this.style.maxWidth==='100%'?'220px':'100%'">
-      <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">${name}</div>
-    </div>`;
-  msgs.appendChild(wrap);
-  msgs.scrollTop = msgs.scrollHeight;
-
-  // In Verlauf speichern (als Marker, kein Base64)
-  if (typeof persistMsg === 'function') {
-    persistMsg({ type: 'image', name, dir, ts: Date.now() });
-  }
-}
-
-// Eingehende Bild-Pakete in bestehenden handleData einhängen
-const _origHandleData = typeof handleData === 'function' ? handleData : null;
-if (typeof window !== 'undefined') {
-  window._handleImageData = handleIncomingImageData;
-}
-</script>
 
 </head>
 <body>
@@ -150,7 +69,7 @@ if (typeof window !== 'undefined') {
         <button class="sitem" onclick="showBackupPasswordModal()"><div class="sico si-g">💾</div><div class="slab"><div>Profil sichern</div><div class="sdesc">Code · Kontakte · Chatverlauf · Alben</div></div></button>
         <button class="sitem" onclick="document.getElementById('restore-inp').click()"><div class="sico si-g">📂</div><div class="slab"><div>Profil wiederherstellen</div><div class="sdesc">Backup-Datei einlesen</div></div></button>
         <input type="file" id="restore-inp" accept=".json" style="display:none" onchange="restoreProfile(this)">
-        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil-home.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+        <button class="sitem" onclick="closeHomeMenu(); window.location.href='profil.html'"><div class="sico si-g">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
         <button class="sitem" onclick="closeHomeMenu(); window.location.href='awareness.html'">
           <div class="sico si-g">🧘</div>
           <div class="slab"><div>Achtsamkeit</div><div class="sdesc">Deine Nutzung & Balance</div></div>
@@ -270,8 +189,8 @@ if (typeof window !== 'undefined') {
   <div class="icont">
     <div class="upbar-wrap" id="upw"><div class="upbar" id="upb"></div></div>
     <div class="ibar">
-      <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei/Bild">📎</button>
-      <input type="file" id="finp" style="display:none" accept="image/*,*/*" onchange="handleFileOrImage(this)">
+      <button class="attach-btn" onclick="document.getElementById('finp').click()" title="Datei">📎</button>
+      <input type="file" id="finp" style="display:none" onchange="sendFile(this)">
       <button class="voice-btn" id="voice-btn" onclick="toggleVoiceRecording()" title="Sprachnachricht" style="display:none;">🎤</button>
       <textarea class="minp" id="minp" placeholder="Nachricht..." rows="1" oninput="autoH(this)" onkeydown="hkey(event)"></textarea>
       <button class="send-btn" id="sbtn" onclick="sendMsg()" disabled>➤</button>
@@ -320,7 +239,7 @@ if (typeof window !== 'undefined') {
       <div class="slab"><div>Mikrofon‑Button</div><div class="sdesc" id="voice-toggle-desc">Aktiviert · Button in Chatleiste</div></div>
     </div>
     <div class="ssep"></div>
-    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil-home.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
+    <button class="sitem si-g" onclick="closeSheet(); window.location.href='profil.html'"><div class="sico">👤</div><div class="slab"><div>Mein Profil</div><div class="sdesc">Persönliche Daten & Bild</div></div></button>
     <div class="ssep"></div>
     <button class="sitem si-g" onclick="exportChat()"><div class="sico">💾</div><div class="slab"><div>Chat exportieren</div><div class="sdesc">Als JSON-Backup speichern</div></div></button>
     <button class="sitem si-b" onclick="triggerImport()"><div class="sico">📂</div><div class="slab"><div>Chat importieren</div><div class="sdesc">JSON-Backup wiederherstellen</div></div></button>
