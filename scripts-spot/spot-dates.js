@@ -11,12 +11,6 @@ const SPOT = 'dates';
 
 
 
-const REGIONS = [
-  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
-  'Extremadura','Galicien','Kanaren','Kantabrien',
-  'Kastilien-La Mancha','Kastilien-León','Katalonien',
-  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
-];
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
