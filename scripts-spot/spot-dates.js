@@ -4,16 +4,10 @@
 // SPOTME RADAR – DATES SPOT
 // ══════════════════════════════════════════════════════════════════════════════
 
-const API  = 'https://spotme-pg-test.onrender.com/api';
+// API kommt aus spot-config.js
 const SPOT = 'dates';
 
-const PROFILE_KEY = 'sm_profile';
-const TOKEN_KEY   = 'sm_token';
-const KEEPALIVE_INTERVAL = 8 * 60 * 1000;
-const LOCATION_UPDATE_INTERVAL = 30000;
-const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
-const HEARTBEAT_INTERVAL = 30000;
-const DEFAULT_RADIUS = 500;
+// PROFILE_KEY wird in spot-init.js gesetzt
 
 let myProfile = null;
 let myCode  = localStorage.getItem('sm_code')  || '';
@@ -32,12 +26,7 @@ const locationCache = new Map();
 const onlineStatusCache = new Map();
 const verificationCache = new Map();
 
-const REGIONS = [
-  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
-  'Extremadura','Galicien','Kanaren','Kantabrien',
-  'Kastilien-La Mancha','Kastilien-León','Katalonien',
-  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
-];
+// REGIONS kommt aus spot-config.js
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
