@@ -18,7 +18,7 @@ var API_BASE = 'https://spotme-chat-obom.onrender.com/api';
 // SPOT aus URL-Dateiname lesen bevor spot-*.js geladen ist
 // z.B. spot-gay.html → 'gay' | spot-general.html → 'general'
 const _spotId   = (location.pathname.split('/').pop().match(/spot[-_](\w+)\.html$/) || [,'default'])[1];
-const TOKEN_KEY = 'sm_token_' + _spotId;
+const TOKEN_KEY = 'sm_token'; // global für alle Spots
 
 // Chunk-Größe
 const CHUNK = 16384;

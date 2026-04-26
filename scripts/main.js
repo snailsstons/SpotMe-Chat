@@ -63,6 +63,7 @@ window.addEventListener('load', () => {
   renderMissed();
 
   initDB();
+  if (typeof initPeer === 'function') initPeer();
 
   if (typeof ensureRingingToneCached === 'function') ensureRingingToneCached();
 
