@@ -107,7 +107,7 @@ function showOfflineMsgPanel(msgs) {
               <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.name)}</div>
               <div style="font-size:0.7rem;color:var(--muted2);">${time}</div>
             </div>
-            <button onclick="dismissSenderOfflineMsgs('${s.code}',[${allIds.join(',')}])" style="background:none;border:none;color:var(--muted2);font-size:1rem;cursor:pointer;" title="Gelesen">✓</button>
+            <button onclick="dismissSenderOfflineMsgs('${s.code}',[${allIds.join(',')}],'${esc(s.name)}')"  style="background:none;border:none;color:var(--muted2);font-size:1rem;cursor:pointer;" title="Gelesen">✓</button>
           </div>
           <div style="flex:1;max-height:140px;overflow-y:auto;scrollbar-width:none;margin-bottom:0.6rem;">${msgList}</div>
           <div style="display:flex;gap:0.4rem;">
@@ -122,7 +122,9 @@ function showOfflineMsgPanel(msgs) {
 }
 
 // ── Einzelnen Absender als gelesen markieren ──────────────────────────────
-async function dismissSenderOfflineMsgs(senderCode, ids) {
+async function dismissSenderOfflineMsgs(senderCode, ids, senderName) {
+  const confirmed = confirm(`Nachrichten von ${senderName || senderCode} als gelesen markieren?`);
+  if (!confirmed) return;
   for (const id of ids) {
     try {
       await fetch(`${API}/offline-message/${id}`, {
@@ -137,6 +139,10 @@ async function dismissSenderOfflineMsgs(senderCode, ids) {
 
 // ── Alle als gelesen markieren ────────────────────────────────────────────
 async function dismissAllOfflineMsgs() {
+  // Bestätigung vor dem Löschen
+  const count = document.querySelectorAll('[id^="spot-offmsg-sender-"]').length || _lastUnreadCount;
+  const confirmed = confirm(`Alle ${count > 0 ? count + ' ' : ''}Nachrichten als gelesen markieren?\nSie bleiben noch 7 Tage gespeichert.`);
+  if (!confirmed) return;
   try {
     await fetch(`${API}/offline-messages/${myCode}`, {
       method: 'DELETE',
