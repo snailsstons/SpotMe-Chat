@@ -1,6 +1,6 @@
 'use strict';
 
-console.log('✅ chat-api.js v3.3 geladen – Final + Sofort-Render');
+console.log('✅ chat-api.js v3.4 geladen – Final + Benachrichtigungen');
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SPOTME – CHAT API (chat-api.js)
@@ -8,14 +8,76 @@ console.log('✅ chat-api.js v3.3 geladen – Final + Sofort-Render');
 // + Robuster Klingelton (HTML5 Audio Fallback)
 // + Automatisches Senden von Pending-Nachrichten
 // + Spot-Nachrichten Erkennung mit Sofort-Render
+// + 🆕 Browser-Benachrichtigungen für neue Nachrichten
 // ══════════════════════════════════════════════════════════════════════════════
 
 let pollingTimer = null;
 let isRequestInProgress = false;
 let audioElement = null;
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 BENACHRICHTIGUNGEN
+// ══════════════════════════════════════════════════════════════════════════════
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.log('ℹ️ Browser unterstützt keine Benachrichtigungen');
+    return;
+  }
+  
+  if (Notification.permission === 'granted') {
+    console.log('✅ Benachrichtigungen bereits erlaubt');
+    return;
+  }
+  
+  if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        console.log('✅ Benachrichtigungen erlaubt');
+      } else {
+        console.log('ℹ️ Benachrichtigungen abgelehnt');
+      }
+    });
+  }
+}
+
+function sendNotification(title, body, icon = '🧑') {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  
+  // Nicht benachrichtigen, wenn der Chat-Tab fokussiert ist
+  if (document.visibilityState === 'visible') return;
+  
+  try {
+    const notification = new Notification(title, {
+      body: body,
+      icon: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`,
+      tag: 'spotme-message',  // Gruppiert mehrere Benachrichtigungen
+      requireInteraction: false // Verschwindet automatisch
+    });
+    
+    // Bei Klick auf die Benachrichtigung → Chat öffnen
+    notification.onclick = function() {
+      window.focus();
+      if (typeof showScreen === 'function') {
+        showScreen('s-chat');
+      }
+      notification.close();
+    };
+    
+    // Automatisch schließen nach 5 Sekunden
+    setTimeout(() => notification.close(), 5000);
+    
+    console.log('🔔 Benachrichtigung gesendet:', title);
+  } catch (e) {
+    console.warn('⚠️ Benachrichtigung fehlgeschlagen:', e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ROBUSTER KLINGELTON
+// ══════════════════════════════════════════════════════════════════════════════
+
 function initAudioElement() {
   if (audioElement) return;
   audioElement = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YToAAACAgICAgICAgICAgICAgICAf39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/AAAAAAAAAAAAAAAAAAAAAA==');
@@ -69,8 +131,10 @@ function triggerChatHaptic() {
   if (navigator.vibrate) navigator.vibrate(200);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 // EINGEHENDE CHAT-ANFRAGE
+// ══════════════════════════════════════════════════════════════════════════════
+
 function handleIncomingChatRequest(senderCode, senderName) {
   console.log('📞 handleIncomingChatRequest', senderCode, senderName);
 
@@ -94,6 +158,9 @@ function handleIncomingChatRequest(senderCode, senderName) {
 
   playChatNotificationSound();
   triggerChatHaptic();
+  
+  // 🆕 Benachrichtigung für eingehenden Anruf
+  sendNotification('📞 Eingehender Anruf', `${senderName} möchte mit dir chatten`, '📞');
 }
 
 function resetIncomingRequestState() {
@@ -103,8 +170,10 @@ function resetIncomingRequestState() {
   stopChatNotificationSound();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHTEN SENDEN
+// ══════════════════════════════════════════════════════════════════════════════
+
 async function sendMsg() {
   const inp = document.getElementById('minp');
   const text = inp.value.trim();
@@ -177,8 +246,10 @@ function removePendingMessageByText(text) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GLOBALES POLLING (MIT SPOT-ERKENNUNG + SOFORT-RENDER)
+// ══════════════════════════════════════════════════════════════════════════════
+// GLOBALES POLLING (MIT SPOT-ERKENNUNG + BENACHRICHTIGUNGEN)
+// ══════════════════════════════════════════════════════════════════════════════
+
 function startGlobalPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
@@ -197,7 +268,7 @@ function startGlobalPolling() {
           return;
         }
 
-        // 🆕 Spot-Nachricht → in spot_messages speichern + SOFORT rendern!
+        // Spot-Nachricht → in spot_messages speichern + SOFORT rendern!
         if (m.type === 'spot_message' || m.source === 'spot') {
           console.log('📟 Spot-Nachricht empfangen:', m.senderCode, m.message);
           if (typeof addSpotMessage === 'function') {
@@ -206,10 +277,13 @@ function startGlobalPolling() {
           }
           markOfflineMsgRead(m.id);
           
-          // 🆕 Hub SOFORT aktualisieren (kein setTimeout!)
           if (typeof renderUnifiedHub === 'function') {
             renderUnifiedHub();
           }
+          
+          // 🆕 Benachrichtigung für Spot-Nachricht
+          const senderName = m.senderName || formatCode(m.senderCode);
+          sendNotification('📟 Neue Spot-Nachricht', `${senderName}: ${m.message.slice(0, 50)}`, '📟');
           return;
         }
 
@@ -220,6 +294,10 @@ function startGlobalPolling() {
             appendMsg({ t: 'text', text: m.message, ts, own: false });
             persistMsg({ t: 'text', text: m.message, ts, own: false });
             if (typeof notify === 'function') notify(m.message);
+            
+            // 🆕 Benachrichtigung für neue Chat-Nachricht
+            const senderName = m.senderName || formatCode(m.senderCode);
+            sendNotification('💬 Neue Nachricht', `${senderName}: ${m.message.slice(0, 50)}`, '💬');
           }
           markOfflineMsgRead(m.id);
         }
@@ -235,8 +313,10 @@ function isMessageAlreadyStored(ts, own) {
   return msgs.some(m => m.ts === ts && m.own === own);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 // CHAT ÖFFNEN
+// ══════════════════════════════════════════════════════════════════════════════
+
 function openApiChat() {
   const id = window.chatId || chatId;
   
@@ -282,6 +362,9 @@ function openApiChat() {
   setSpill(reallyOnline ? 'online' : 'offline', reallyOnline ? '● ONLINE' : '○ LOCAL');
   if (typeof updateConnectionStatus === 'function') updateConnectionStatus();
   
+  // 🆕 Benachrichtigungs-Erlaubnis einholen
+  requestNotificationPermission();
+  
   if (reallyOnline) {
     startGlobalPolling();
     if (typeof flushPendingMessages === 'function') {
@@ -297,11 +380,15 @@ function stopChatPolling() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
 // GLOBALE EXPORTS
+// ══════════════════════════════════════════════════════════════════════════════
+
 window.openChat = openApiChat;
 window.openApiChat = openApiChat;
 window.resetIncomingRequestState = resetIncomingRequestState;
 window.startGlobalPolling = startGlobalPolling;
 window.stopChatPolling = stopChatPolling;
 window.sendMsg = sendMsg;
+window.sendNotification = sendNotification;
+window.requestNotificationPermission = requestNotificationPermission;
