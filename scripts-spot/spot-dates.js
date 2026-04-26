@@ -7,26 +7,17 @@
 // API kommt aus spot-config.js
 const SPOT = 'dates';
 
-// PROFILE_KEY wird in spot-init.js gesetzt
+const PROFILE_KEY = 'sm_profile';
 
-let myProfile = null;
-let myCode  = localStorage.getItem('sm_code')  || '';
-let myToken = localStorage.getItem(TOKEN_KEY)  || '';
-let isPublished = false;
-let allProfiles = [];
-let filtered = [];
-let keepaliveTimer = null;
-let autoRefreshTimer = null;
-let heartbeatTimer = null;
 
-let currentTargetLat = null, currentTargetLng = null;
-let currentMap = null, userMarker = null, targetMarker = null;
 
-const locationCache = new Map();
-const onlineStatusCache = new Map();
-const verificationCache = new Map();
 
-// REGIONS kommt aus spot-config.js
+const REGIONS = [
+  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
+  'Extremadura','Galicien','Kanaren','Kantabrien',
+  'Kastilien-La Mancha','Kastilien-León','Katalonien',
+  'La Rioja','Madrid','Murcia','Navarra','Valencia (Region)'
+];
 
 // ══════════════════════════════════════════════════════════════════════════════
 // INIT
@@ -606,7 +597,6 @@ function closeProfileDetail() {
 // ══════════════════════════════════════════════════════════════════════════════
 // VERIFIKATION
 // ══════════════════════════════════════════════════════════════════════════════
-let pendingVerifyCode = null;
 
 function showVerifyOptions(code) {
   pendingVerifyCode = code;
