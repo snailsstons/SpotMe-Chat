@@ -7,7 +7,6 @@
 // API kommt aus spot-config.js
 const SPOT = 'dates';
 
-const PROFILE_KEY = 'sm_profile';
 
 
 
