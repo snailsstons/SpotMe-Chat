@@ -14,7 +14,7 @@
 //   Render: DATABASE_URL wird automatisch gesetzt wenn du eine Postgres-DB
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
-// SpotMe Server v2.1  ← einfach die Versionsnummer ändern
+// SpotMe Server v3.0 – AES-256 Verschlüsselung  ← einfach die Versionsnummer ändern
 
 
 'use strict';
@@ -24,6 +24,51 @@ const cors     = require('cors');
 const crypto   = require('crypto');
 const { ExpressPeerServer } = require('peer');
 const { Pool } = require('pg');
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VERSCHLÜSSELUNG (AES-256-CBC via Node.js crypto)
+// CRYPTO_KEY = 64-stelliger Hex-String in Render Environment Variables setzen
+// openssl rand -hex 32  →  erzeugt einen sicheren Key
+// ══════════════════════════════════════════════════════════════════════════════
+const CRYPTO_KEY = process.env.CRYPTO_KEY || null;
+const CRYPTO_ALGO = 'aes-256-cbc';
+
+function encrypt(text) {
+  if (text == null || !CRYPTO_KEY) return text;
+  try {
+    const iv  = crypto.randomBytes(16);
+    const key = Buffer.from(CRYPTO_KEY, 'hex');
+    const cipher = crypto.createCipheriv(CRYPTO_ALGO, key, iv);
+    const enc = Buffer.concat([cipher.update(String(text)), cipher.final()]);
+    return iv.toString('hex') + ':' + enc.toString('hex');
+  } catch (e) { console.error('encrypt error:', e.message); return text; }
+}
+
+function decrypt(text) {
+  if (text == null || !CRYPTO_KEY || !String(text).includes(':')) return text;
+  try {
+    const [ivHex, encHex] = String(text).split(':');
+    const key = Buffer.from(CRYPTO_KEY, 'hex');
+    const decipher = crypto.createDecipheriv(CRYPTO_ALGO, key, Buffer.from(ivHex, 'hex'));
+    return Buffer.concat([decipher.update(Buffer.from(encHex, 'hex')), decipher.final()]).toString();
+  } catch (e) { return text; } // Fallback: Klartext (Migration alter Daten)
+}
+
+// Verschlüsselt ein ganzes Profil-Objekt (DB-Row → Client)
+function decryptProfile(p) {
+  if (!p) return p;
+  return {
+    ...p,
+    name:         decrypt(p.name),
+    bio:          decrypt(p.bio),
+    orientation:  decrypt(p.orientation),
+    role:         decrypt(p.role),
+    lookingFor:   decrypt(p.lookingFor),
+    helpMode:     decrypt(p.helpMode),
+    helpCategory: decrypt(p.helpCategory),
+    category:     decrypt(p.category),
+  };
+}
 
 const app = express();
 
@@ -213,7 +258,7 @@ app.get('/api/profiles', async (req, res) => {
        ORDER BY is_online DESC, updated_at DESC`,
       [spot, now]
     );
-    res.json(rows);
+    res.json(rows.map(decryptProfile));
   } catch (e) {
     console.error('GET /api/profiles:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
@@ -280,11 +325,11 @@ app.post('/api/profile', async (req, res) => {
           category=$13, bio=$14, updated_at=$15, visible_until=$16
          WHERE code=$17 AND spot=$18`,
         [
-          name, age || null, region, province || null, city || null,
-          orientation || null, role || null, !!trans, !!crossdresser,
-          lookingFor || null,
-          helpMode || null, helpCategory || null,
-          category || null, bio || null, now, visibleUntil, code, spot
+          encrypt(name), age || null, region, province || null, city || null,
+          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
+          encrypt(lookingFor) || null,
+          encrypt(helpMode) || null, encrypt(helpCategory) || null,
+          encrypt(category) || null, encrypt(bio) || null, now, visibleUntil, code, spot
         ]
       );
     } else {
@@ -297,12 +342,12 @@ app.post('/api/profile', async (req, res) => {
            token, updated_at, visible_until)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [
-          code, spot, name, age || null, region,
+          code, spot, encrypt(name), age || null, region,
           province || null, city || null,
-          orientation || null, role || null, !!trans, !!crossdresser,
-          lookingFor || null,
-          helpMode || null, helpCategory || null,
-          category || null, bio || null,
+          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
+          encrypt(lookingFor) || null,
+          encrypt(helpMode) || null, encrypt(helpCategory) || null,
+          encrypt(category) || null, encrypt(bio) || null,
           profileToken, now, visibleUntil
         ]
       );
@@ -363,7 +408,7 @@ app.get('/api/profile/:code', async (req, res) => {
       [code, spot]
     );
     if (!rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    res.json(rows[0]);
+    res.json(decryptProfile(rows[0]));
   } catch (e) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
@@ -485,7 +530,7 @@ app.post('/api/missed-call', async (req, res) => {
   try {
     await pool.query(
       `INSERT INTO missed_calls (recipient, caller_id, caller_name) VALUES ($1, $2, $3)`,
-      [recipient, callerId, callerName]
+      [recipient, callerId, encrypt(callerName)]
     );
     await pool.query(
       `DELETE FROM missed_calls WHERE id IN (
@@ -511,7 +556,7 @@ app.get('/api/missed-calls/:code', async (req, res) => {
        ORDER BY created_at DESC LIMIT 50`,
       [code]
     );
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, callerName: decrypt(r.callerName) })));
   } catch (e) {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
@@ -569,7 +614,7 @@ app.post('/api/offline-message', async (req, res) => {
     await pool.query(
       `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [recipient, senderCode, senderName.slice(0, 50), clean, type || null, source || null, spotType || null]
+      [recipient, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), type || null, source || null, spotType || null]
     );
 
     res.json({ success: true });
@@ -605,7 +650,11 @@ app.get('/api/offline-messages/:code', async (req, res) => {
        LIMIT 50`,
       [code]
     );
-    res.json(rows);
+    res.json(rows.map(r => ({
+      ...r,
+      senderName: decrypt(r.senderName),
+      message:    decrypt(r.message),
+    })));
   } catch (e) {
     console.error('GET /api/offline-messages:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
