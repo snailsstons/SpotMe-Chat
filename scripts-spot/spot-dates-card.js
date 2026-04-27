@@ -1,47 +1,48 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT (autark) v2.0
-// Flip, Swipe, Notieren, Stack-System – komplett isoliert vom Live-System
+// SPOT DATES – CARD ANSICHT v3.0 – Einfach Vor/Zurück
+// Flip, Swipe, Notieren – Profil für Profil
 // ══════════════════════════════════════════════════════════════════════════════
 
 const NOTED_KEY = 'sm_noted_dates';
 let notedProfiles = [];
-let profileStack = [];  // 🆕 Stapel für einmalige Anzeige
-
-// 🆕 Stapel zurücksetzen (Fisher-Yates Shuffle)
-function resetStack() {
-  profileStack = [...filtered];
-  for (let i = profileStack.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [profileStack[i], profileStack[j]] = [profileStack[j], profileStack[i]];
-  }
-}
-
-// 🆕 Nächstes Profil vom Stapel holen
-function getNextProfile() {
-  if (profileStack.length === 0) {
-    resetStack();
-  }
-  return profileStack.pop();
-}
+let currentIndex = 0;  // 🆕 Einfacher Index!
 
 // Überschreibt die globale renderList-Funktion
 window.renderList = function() {
   const container = document.getElementById('community-list');
   if (!container) return;
   
-  // Container für die Card-Ansicht umbauen
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
+      <div class="card-nav">
+        <button class="card-nav-btn" id="prevBtn" ${currentIndex === 0 ? 'disabled' : ''}>◀</button>
+        <span class="card-nav-info">${currentIndex + 1} / ${filtered.length}</span>
+        <button class="card-nav-btn" id="nextBtn" ${currentIndex >= filtered.length - 1 ? 'disabled' : ''}>▶</button>
+      </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
     <div class="noted-section" id="notedSection"></div>
   `;
   
+  // Nav-Buttons
+  document.getElementById('prevBtn')?.addEventListener('click', () => {
+    if (currentIndex > 0) {
+      currentIndex--;
+      renderCurrentCard();
+    }
+  });
+  document.getElementById('nextBtn')?.addEventListener('click', () => {
+    if (currentIndex < filtered.length - 1) {
+      currentIndex++;
+      renderCurrentCard();
+    }
+  });
+  
   notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
   
   if (filtered.length > 0) {
-    resetStack(); // 🆕 Stapel initial mischen
+    currentIndex = 0;
     renderCurrentCard();
   } else {
     document.getElementById('cardWrapper').innerHTML = `
@@ -54,14 +55,18 @@ window.renderList = function() {
 
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
-  if (!wrapper) return;
+  if (!wrapper || filtered.length === 0) return;
   
-  // 🆕 Vom Stapel nehmen
-  const p = getNextProfile();
-  if (!p) {
-    wrapper.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--muted);">Keine weiteren Profile</div>`;
-    return;
-  }
+  // Nav-Buttons updaten
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const navInfo = document.querySelector('.card-nav-info');
+  if (prevBtn) prevBtn.disabled = currentIndex === 0;
+  if (nextBtn) nextBtn.disabled = currentIndex >= filtered.length - 1;
+  if (navInfo) navInfo.textContent = `${currentIndex + 1} / ${filtered.length}`;
+  
+  const p = filtered[currentIndex];
+  if (!p) return;
   
   const name = p.name || '?';
   const initial = name[0]?.toUpperCase() || '?';
@@ -74,22 +79,14 @@ function renderCurrentCard() {
   const onlineStatus = onlineStatusCache.get(p.code);
   const isOnline = onlineStatus && onlineStatus.online;
   
-  // Badges
   let badges = '';
   if (p.lookingFor) {
     const labels = { 'beziehung': '💕 Beziehung', 'freundschaft': '👥 Freundschaft', 'casual': '🍸 Casual' };
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
   
-  // Stack-Anzeige
-  const stackInfo = profileStack.length > 0 
-    ? `<div class="stack-counter">${profileStack.length + 1} Profile im Stapel</div>` 
-    : '<div class="stack-counter">Letztes Profil – Stapel wird neu gemischt</div>';
-  
   wrapper.innerHTML = `
-    ${stackInfo}
     <div class="card-inner" id="cardInner">
-      <!-- VORDERSEITE -->
       <div class="card-front">
         <div class="card-image-container">
           <div class="card-avatar-large">${initial}</div>
@@ -110,7 +107,6 @@ function renderCurrentCard() {
         </div>
       </div>
       
-      <!-- RÜCKSEITE -->
       <div class="card-back">
         <div class="back-header">Mehr über ${name}</div>
         <div class="back-section">
@@ -178,26 +174,31 @@ function initCardSwipe() {
     
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
-    const duration = Date.now() - startTime;
-    
     if (!isDragging) {
       // Kurzer Klick → Flip
       inner.classList.toggle('is-flipped');
-    } else if (Math.abs(moveX) > 100) {
-      // Swipe → nächstes Profil vom Stapel
-      const direction = moveX > 0 ? 1 : -1;
-      const endX = direction * 600;
-      wrapper.style.transform = `translateX(${endX}px) rotate(${moveX/5}deg)`;
-      wrapper.style.opacity = '0';
+    } else if (Math.abs(moveX) > 80) {
+      // Swipe → Vor/Zurück
+      const direction = moveX > 0 ? -1 : 1; // Links = nächstes
+      const newIndex = currentIndex + direction;
       
-      setTimeout(() => {
-        wrapper.style.transition = 'none';
+      if (newIndex >= 0 && newIndex < filtered.length) {
+        const endX = direction * 600;
+        wrapper.style.transform = `translateX(${endX}px) rotate(${moveX/5}deg)`;
+        wrapper.style.opacity = '0';
+        
+        setTimeout(() => {
+          currentIndex = newIndex;
+          wrapper.style.transition = 'none';
+          wrapper.style.transform = 'translateX(0) rotate(0deg)';
+          wrapper.style.opacity = '1';
+          inner.classList.remove('is-flipped');
+          renderCurrentCard();
+          setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
+        }, 200);
+      } else {
         wrapper.style.transform = 'translateX(0) rotate(0deg)';
-        wrapper.style.opacity = '1';
-        inner.classList.remove('is-flipped');
-        renderCurrentCard(); // 🆕 Nächstes vom Stapel!
-        setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
-      }, 300);
+      }
     } else {
       wrapper.style.transform = 'translateX(0) rotate(0deg)';
     }
@@ -253,28 +254,36 @@ function renderNotedSection() {
   `;
 }
 
-// 🆕 Notiertes Profil WIEDER auf den Stapel legen
 function showNotedProfile(code) {
-  const profile = allProfiles.find(p => p.code === code);
-  if (profile) {
-    profileStack.push(profile); // Zurück auf den Stapel!
+  const index = filtered.findIndex(p => p.code === code);
+  if (index >= 0) {
+    currentIndex = index;
     renderCurrentCard();
   }
 }
 
-// CSS für die Card-Ansicht dynamisch einfügen
+// CSS (unverändert, aber mit Nav-Buttons)
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
   .card-swipe-container {
-    position: relative; width: 100%; height: 450px;
+    position: relative; width: 100%; height: 480px;
     perspective: 1000px; margin-bottom: 1rem;
   }
-  .stack-counter {
-    text-align: center; font-size: .7rem; color: var(--muted);
-    padding: .3rem; margin-bottom: .3rem;
+  .card-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .5rem 0; margin-bottom: .3rem;
   }
+  .card-nav-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--btn-bg); border: 1px solid var(--bord);
+    color: var(--text); font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card-nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .card-nav-info { font-size: .85rem; color: var(--muted2); font-weight: 600; }
+  
   .card-wrapper {
-    position: absolute; width: 100%; height: calc(100% - 25px);
+    position: absolute; width: 100%; height: calc(100% - 50px);
     cursor: grab; user-select: none; touch-action: none;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
@@ -305,9 +314,7 @@ cardStyles.textContent = `
     display: flex; align-items: center; justify-content: center;
     position: relative;
   }
-  .card-avatar-large {
-    font-size: 4rem; color: white; opacity: .8;
-  }
+  .card-avatar-large { font-size: 4rem; color: white; opacity: .8; }
   .card-heart {
     position: absolute; top: 10px; right: 10px;
     width: 40px; height: 40px; border-radius: 10px;
@@ -370,4 +377,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v2.0 geladen – Stack-System aktiv');
+console.log('✅ spot-dates-card.js v3.0 geladen – Einfach Vor/Zurück');
