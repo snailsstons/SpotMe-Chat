@@ -56,7 +56,7 @@ function preloadNextProfiles() {
   }
   
   const toPreload = [];
-  for (let i = 1; i <= 50; i++) {
+  for (let i = 1; i <= 10; i++) {
     const nextIndex = (currentIndex + i) % filtered.length;
     const prevIndex = (currentIndex - i + filtered.length) % filtered.length;
     
