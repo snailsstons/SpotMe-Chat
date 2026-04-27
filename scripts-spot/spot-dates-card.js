@@ -1,7 +1,40 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.3 – FINAL
-// Alle Filter funktionieren, Notierte klickbar, Loop, Speicherung
+// SPOT DATES – CARD ANSICHT v3.4 – FINAL mit PRELOAD
+// Flip, Swipe, Notieren, Filter, Preload für sofortige Anzeige
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 PERFORMANCE-BOOST: API-Calls für Card-Ansicht optimieren
+// ══════════════════════════════════════════════════════════════════════════════
+
+const originalFetchLocation = window.fetchLocationForProfile;
+window.fetchLocationForProfile = function(code) {
+  if (locationCache && locationCache.has(code)) {
+    return Promise.resolve(locationCache.get(code));
+  }
+  return Promise.resolve(null);
+};
+window.fetchLocationForProfile._original = originalFetchLocation;
+
+const originalFetchOnline = window.fetchOnlineStatus;
+window.fetchOnlineStatus = function(code) {
+  if (onlineStatusCache && onlineStatusCache.has(code)) {
+    return Promise.resolve(onlineStatusCache.get(code));
+  }
+  return Promise.resolve({ online: false });
+};
+
+const originalFetchVerifications = window.fetchVerifications;
+window.fetchVerifications = function(code) {
+  if (verificationCache && verificationCache.has(code)) {
+    return Promise.resolve(verificationCache.get(code));
+  }
+  return Promise.resolve([]);
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KONSTANTEN & STATE
 // ══════════════════════════════════════════════════════════════════════════════
 
 const NOTED_KEY = 'sm_noted_dates';
@@ -10,36 +43,40 @@ let notedProfiles = [];
 let currentIndex = 0;
 let filtersInitialized = false;
 
-// 🆕 PERFORMANCE-BOOST: API-Calls für die Card-Ansicht optimieren!
-// Überschreibe die langsame fetchLocationForProfile
-const originalFetchLocation = window.fetchLocationForProfile;
-window.fetchLocationForProfile = function(code) {
-  // Nur aufrufen, wenn nicht schon gecached
-  if (locationCache && locationCache.has(code)) {
-    return Promise.resolve(locationCache.get(code));
-  }
-  // Sonst NICHT laden (spart API-Calls!)
-  return Promise.resolve(null);
-};
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 PRELOAD: Nächste Profile im Hintergrund laden
+// ══════════════════════════════════════════════════════════════════════════════
 
-// Überschreibe die langsame fetchOnlineStatus
-const originalFetchOnline = window.fetchOnlineStatus;
-window.fetchOnlineStatus = function(code) {
-  if (onlineStatusCache && onlineStatusCache.has(code)) {
-    return Promise.resolve(onlineStatusCache.get(code));
+function preloadNextProfiles() {
+  if (filtered.length === 0) return;
+  
+  const toPreload = [];
+  for (let i = 1; i <= 3; i++) {
+    const nextIndex = (currentIndex + i) % filtered.length;
+    const prevIndex = (currentIndex - i + filtered.length) % filtered.length;
+    if (nextIndex !== currentIndex) toPreload.push(filtered[nextIndex]);
+    if (prevIndex !== currentIndex && prevIndex !== nextIndex) toPreload.push(filtered[prevIndex]);
   }
-  // Standard: offline (spart API-Calls!)
-  return Promise.resolve({ online: false });
-};
-
-// Überschreibe die langsame fetchVerifications
-const originalFetchVerifications = window.fetchVerifications;
-window.fetchVerifications = function(code) {
-  if (verificationCache && verificationCache.has(code)) {
-    return Promise.resolve(verificationCache.get(code));
-  }
-  return Promise.resolve([]);
-};
+  
+  const unique = [...new Set(toPreload.map(p => p.code))];
+  
+  console.log('🔄 Preload:', unique.length, 'Profile im Hintergrund');
+  
+  unique.forEach(code => {
+    setTimeout(() => {
+      if (window.fetchLocationForProfile._original) {
+        window.fetchLocationForProfile._original(code).then(loc => {
+          if (loc && locationCache) locationCache.set(code, loc);
+        }).catch(() => {});
+      }
+      if (originalFetchOnline) {
+        originalFetchOnline(code).then(status => {
+          if (status && onlineStatusCache) onlineStatusCache.set(code, status);
+        }).catch(() => {});
+      }
+    }, 100);
+  });
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER SPEICHERN & LADEN
@@ -65,19 +102,16 @@ function loadFilterState() {
   try {
     const state = JSON.parse(saved);
     
-    // Region setzen
     const regionSelect = document.getElementById('f-region');
     if (regionSelect && state.region) {
       regionSelect.value = state.region;
     }
     
-    // Alter setzen
     const ageSelect = document.getElementById('f-age');
     if (ageSelect && state.age) {
       ageSelect.value = state.age;
     }
     
-    // Chips aktivieren
     if (state.chips && state.chips.length > 0) {
       const chips = document.querySelectorAll('#filter-chips .filter-chip');
       chips.forEach(chip => {
@@ -126,7 +160,6 @@ function renderFilterSection() {
   
   container.insertAdjacentHTML('beforeend', filterHTML);
   
-  // Region-Filter befüllen
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
     while (regionSelect.options.length > 1) regionSelect.remove(1);
@@ -138,10 +171,8 @@ function renderFilterSection() {
     });
   }
   
-  // Gespeicherten Filter laden
   loadFilterState();
   
-  // applyFilters auslösen, damit die Liste stimmt
   if (typeof window.applyFilters === 'function') {
     window.applyFilters();
   }
@@ -150,7 +181,7 @@ function renderFilterSection() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FILTER HANDLER (rufen applyFilters auf UND speichern)
+// FILTER HANDLER
 // ══════════════════════════════════════════════════════════════════════════════
 
 function handleFilterChange() {
@@ -169,16 +200,12 @@ function handleChipClick(chip) {
 }
 
 function handleFilterReset() {
-  // Alle Chips deaktivieren
   document.querySelectorAll('#filter-chips .filter-chip').forEach(c => c.classList.remove('active'));
-  // Dropdowns zurücksetzen
   const regionSelect = document.getElementById('f-region');
   const ageSelect = document.getElementById('f-age');
   if (regionSelect) regionSelect.value = '';
   if (ageSelect) ageSelect.value = '';
-  // Speicher löschen
   localStorage.removeItem(FILTER_KEY);
-  // Filter anwenden
   if (typeof window.applyFilters === 'function') {
     window.applyFilters();
   }
@@ -188,25 +215,22 @@ function handleFilterReset() {
 // GLOBALE FUNKTIONEN ÜBERSCHREIBEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-// toggleChip überschreiben
 window.toggleChip = function(chip) {
   handleChipClick(chip);
 };
 
-// resetFilters überschreiben
 window.resetFilters = function() {
   handleFilterReset();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// RENDER LIST (überschreibt Original)
+// RENDER LIST
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.renderList = function() {
   const container = document.getElementById('community-list');
   if (!container) return;
   
-  // Count aktualisieren
   const countEl = document.getElementById('community-count');
   if (countEl) {
     countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Profil' : 'Profile'} gefunden`;
@@ -224,7 +248,6 @@ window.renderList = function() {
     <div class="noted-section" id="notedSection"></div>
   `;
   
-  // Nav-Buttons
   document.getElementById('prevBtn')?.addEventListener('click', () => {
     if (filtered.length === 0) return;
     currentIndex = currentIndex > 0 ? currentIndex - 1 : filtered.length - 1;
@@ -242,14 +265,11 @@ window.renderList = function() {
     if (currentIndex >= filtered.length) currentIndex = 0;
     renderCurrentCard();
   } else {
-    document.getElementById('cardWrapper').innerHTML = `
-      <div class="card-empty">Keine Profile gefunden</div>
-    `;
+    document.getElementById('cardWrapper').innerHTML = `<div class="card-empty">Keine Profile gefunden</div>`;
   }
   
   renderNotedSection();
   
-  // Filter NUR beim ersten Mal rendern
   if (!filtersInitialized) {
     renderFilterSection();
   }
@@ -325,6 +345,9 @@ function renderCurrentCard() {
   `;
   
   initCardSwipe();
+  
+  // 🆕 Preload starten!
+  preloadNextProfiles();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -508,4 +531,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.3 geladen – FINAL');
+console.log('✅ spot-dates-card.js v3.4 geladen – FINAL mit PRELOAD');
