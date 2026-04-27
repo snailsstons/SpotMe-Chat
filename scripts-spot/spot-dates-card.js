@@ -212,6 +212,35 @@ function handleFilterReset() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 🆕 HIER EINFÜGEN: Lokales Filtern (ohne Server-Request!)
+// ══════════════════════════════════════════════════════════════════════════════
+
+const originalApplyFilters = window.applyFilters;
+window.applyFilters = function() {
+  const region = document.getElementById('f-region')?.value || '';
+  const ageRange = document.getElementById('f-age')?.value || '';
+  const chips = [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter);
+  
+  filtered = allProfiles.filter(p => {
+    if (myCode && p.code === myCode) return false;
+    if (region && p.region !== region) return false;
+    if (ageRange && p.age) {
+      const [lo, hi] = ageRange === '50+' ? [50, 999] : ageRange.split('-').map(Number);
+      if (p.age < lo || p.age > hi) return false;
+    }
+    const dateChips = chips.filter(f => ['beziehung', 'freundschaft', 'casual'].includes(f));
+    if (dateChips.length && (!p.lookingFor || !dateChips.includes(p.lookingFor))) {
+      return false;
+    }
+    return true;
+  });
+  
+  saveFilterState();
+  currentIndex = 0;
+  renderList();
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // GLOBALE FUNKTIONEN ÜBERSCHREIBEN
 // ══════════════════════════════════════════════════════════════════════════════
 
