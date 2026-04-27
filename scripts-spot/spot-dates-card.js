@@ -57,7 +57,7 @@ window.renderList = function() {
   renderNotedSection();
   renderFilterSection(); // 🆕 Filter unterhalb!
 };
-
+//
 // 🆕 Filter-Sektion rendern (unterhalb der Cards)
 function renderFilterSection() {
   const container = document.getElementById('community-list');
@@ -92,12 +92,25 @@ function renderFilterSection() {
   
   container.insertAdjacentHTML('beforeend', filterHTML);
   
-  // Region-Filter bauen (wie im Original)
-  if (typeof buildRegionFilter === 'function') {
-    buildRegionFilter();
+  // 🆕 WICHTIG: Region-Filter DIREKT nach dem Einfügen befüllen!
+  const regionSelect = document.getElementById('f-region');
+  if (regionSelect && typeof REGIONS !== 'undefined') {
+    // Bestehende Optionen leeren (außer "Alle Regionen")
+    while (regionSelect.options.length > 1) {
+      regionSelect.remove(1);
+    }
+    // Alle Regionen aus der REGIONS-Liste einfügen
+    REGIONS.forEach(r => {
+      const option = document.createElement('option');
+      option.value = r;
+      option.textContent = r;
+      regionSelect.appendChild(option);
+    });
+    console.log('✅ Region-Filter befüllt mit', REGIONS.length, 'Regionen');
   }
 }
 
+//
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
   if (!wrapper || filtered.length === 0) return;
