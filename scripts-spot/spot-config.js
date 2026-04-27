@@ -21,8 +21,8 @@ const DEFAULT_RADIUS = 500;
 const CACHE_VERSION = 1;
 
 const REGIONS = [
-  'Andalusien','Aragón','Asturien','Balearen','Baskenland',
-  'Extremadura','Galicien','Kanaren','Kantabrien',
-  'Kastilien-La Mancha','Kastilien-León','Katalonien',
-  'La Rioja','Madrid','Murcia','Navarra','Valencia'
+  'Andalusien', 'Aragon', 'Asturien', 'Balearen', 'Baskenland',
+  'Extremadura', 'Galicien', 'Kanaren', 'Kantabrien',
+  'Kastilien-La Mancha', 'Kastilien-Leon', 'Katalonien',
+  'La Rioja', 'Madrid', 'Murcia', 'Navarra', 'Valencia'
 ];
