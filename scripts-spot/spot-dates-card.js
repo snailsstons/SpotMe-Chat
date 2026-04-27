@@ -1,12 +1,12 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.0 – Einfach Vor/Zurück
-// Flip, Swipe, Notieren – Profil für Profil
+// SPOT DATES – CARD ANSICHT v3.1 – Filter unterhalb + Loop
+// Flip, Swipe, Notieren, Filter integriert
 // ══════════════════════════════════════════════════════════════════════════════
 
 const NOTED_KEY = 'sm_noted_dates';
 let notedProfiles = [];
-let currentIndex = 0;  // 🆕 Einfacher Index!
+let currentIndex = 0;
 
 // Überschreibt die globale renderList-Funktion
 window.renderList = function() {
@@ -17,7 +17,7 @@ window.renderList = function() {
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
         <button class="card-nav-btn" id="prevBtn" ${currentIndex === 0 ? 'disabled' : ''}>◀</button>
-        <span class="card-nav-info">${currentIndex + 1} / ${filtered.length}</span>
+        <span class="card-nav-info">${filtered.length > 0 ? currentIndex + 1 : 0} / ${filtered.length}</span>
         <button class="card-nav-btn" id="nextBtn" ${currentIndex >= filtered.length - 1 ? 'disabled' : ''}>▶</button>
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
@@ -29,29 +29,74 @@ window.renderList = function() {
   document.getElementById('prevBtn')?.addEventListener('click', () => {
     if (currentIndex > 0) {
       currentIndex--;
-      renderCurrentCard();
+    } else {
+      currentIndex = filtered.length - 1; // 🆕 Loop!
     }
+    renderCurrentCard();
   });
   document.getElementById('nextBtn')?.addEventListener('click', () => {
     if (currentIndex < filtered.length - 1) {
       currentIndex++;
-      renderCurrentCard();
+    } else {
+      currentIndex = 0; // 🆕 Loop!
     }
+    renderCurrentCard();
   });
   
   notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
   
   if (filtered.length > 0) {
-    currentIndex = 0;
+    if (currentIndex >= filtered.length) currentIndex = 0;
     renderCurrentCard();
   } else {
     document.getElementById('cardWrapper').innerHTML = `
-      <div style="text-align:center; padding:2rem; color:var(--muted);">Keine Profile gefunden</div>
+      <div class="card-empty">Keine Profile gefunden</div>
     `;
   }
   
   renderNotedSection();
+  renderFilterSection(); // 🆕 Filter unterhalb!
 };
+
+// 🆕 Filter-Sektion rendern (unterhalb der Cards)
+function renderFilterSection() {
+  const container = document.getElementById('community-list');
+  if (!container) return;
+  
+  // Prüfen ob Filter bereits existiert
+  if (document.getElementById('filterDrawer')) return;
+  
+  const filterHTML = `
+    <div class="filter-drawer" id="filterDrawer">
+      <div class="filter-title">Community Filter</div>
+      <div class="filter-select-row">
+        <select class="filter-select" id="f-region" onchange="applyFilters()">
+          <option value="">Alle Regionen</option>
+        </select>
+        <select class="filter-select" id="f-age" onchange="applyFilters()">
+          <option value="">Alle Altersgruppen</option>
+          <option value="18-29">18–29</option>
+          <option value="30-39">30–39</option>
+          <option value="40-49">40–49</option>
+          <option value="50+">50+</option>
+        </select>
+      </div>
+      <div class="filter-row" id="filter-chips">
+        <div class="filter-chip" data-filter="beziehung" onclick="toggleChip(this)">💕 Beziehung</div>
+        <div class="filter-chip" data-filter="freundschaft" onclick="toggleChip(this)">👥 Freundschaft</div>
+        <div class="filter-chip" data-filter="casual" onclick="toggleChip(this)">🍸 Casual</div>
+      </div>
+      <button class="reset-link" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', filterHTML);
+  
+  // Region-Filter bauen (wie im Original)
+  if (typeof buildRegionFilter === 'function') {
+    buildRegionFilter();
+  }
+}
 
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
@@ -61,8 +106,6 @@ function renderCurrentCard() {
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const navInfo = document.querySelector('.card-nav-info');
-  if (prevBtn) prevBtn.disabled = currentIndex === 0;
-  if (nextBtn) nextBtn.disabled = currentIndex >= filtered.length - 1;
   if (navInfo) navInfo.textContent = `${currentIndex + 1} / ${filtered.length}`;
   
   const p = filtered[currentIndex];
@@ -175,30 +218,28 @@ function initCardSwipe() {
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
     if (!isDragging) {
-      // Kurzer Klick → Flip
       inner.classList.toggle('is-flipped');
     } else if (Math.abs(moveX) > 80) {
-      // Swipe → Vor/Zurück
-      const direction = moveX > 0 ? -1 : 1; // Links = nächstes
-      const newIndex = currentIndex + direction;
+      const direction = moveX > 0 ? -1 : 1;
+      let newIndex = currentIndex + direction;
       
-      if (newIndex >= 0 && newIndex < filtered.length) {
-        const endX = direction * 600;
-        wrapper.style.transform = `translateX(${endX}px) rotate(${moveX/5}deg)`;
-        wrapper.style.opacity = '0';
-        
-        setTimeout(() => {
-          currentIndex = newIndex;
-          wrapper.style.transition = 'none';
-          wrapper.style.transform = 'translateX(0) rotate(0deg)';
-          wrapper.style.opacity = '1';
-          inner.classList.remove('is-flipped');
-          renderCurrentCard();
-          setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
-        }, 200);
-      } else {
+      // 🆕 LOOP!
+      if (newIndex < 0) newIndex = filtered.length - 1;
+      else if (newIndex >= filtered.length) newIndex = 0;
+      
+      const endX = direction * 600;
+      wrapper.style.transform = `translateX(${endX}px) rotate(${moveX/5}deg)`;
+      wrapper.style.opacity = '0';
+      
+      setTimeout(() => {
+        currentIndex = newIndex;
+        wrapper.style.transition = 'none';
         wrapper.style.transform = 'translateX(0) rotate(0deg)';
-      }
+        wrapper.style.opacity = '1';
+        inner.classList.remove('is-flipped');
+        renderCurrentCard();
+        setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
+      }, 200);
     } else {
       wrapper.style.transform = 'translateX(0) rotate(0deg)';
     }
@@ -262,11 +303,15 @@ function showNotedProfile(code) {
   }
 }
 
-// CSS (unverändert, aber mit Nav-Buttons)
+// CSS
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
+  .card-empty {
+    text-align: center; padding: 2rem; color: var(--muted);
+    background: var(--card); border-radius: 16px;
+  }
   .card-swipe-container {
-    position: relative; width: 100%; height: 480px;
+    position: relative; width: 100%; height: 460px;
     perspective: 1000px; margin-bottom: 1rem;
   }
   .card-nav {
@@ -275,11 +320,11 @@ cardStyles.textContent = `
   }
   .card-nav-btn {
     width: 44px; height: 44px; border-radius: 50%;
-    background: var(--btn-bg); border: 1px solid var(--bord);
+    background: var(--card); border: 1px solid var(--bord);
     color: var(--text); font-size: 1.2rem; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
-  .card-nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .card-nav-btn:active { background: var(--bord); }
   .card-nav-info { font-size: .85rem; color: var(--muted2); font-weight: 600; }
   
   .card-wrapper {
@@ -360,7 +405,7 @@ cardStyles.textContent = `
   }
   .back-hint { text-align: center; font-size: .75rem; color: var(--muted); margin-top: auto; font-style: italic; }
   
-  .noted-section { margin-top: 1rem; }
+  .noted-section { margin: 1rem 0; }
   .noted-header { font-size: .8rem; font-weight: 600; color: var(--p3); margin-bottom: .5rem; }
   .noted-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: .5rem; }
   .noted-item {
@@ -374,7 +419,31 @@ cardStyles.textContent = `
     font-size: 1.1rem; color: white;
   }
   .noted-name { font-size: .65rem; color: var(--muted2); text-align: center; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  
+  /* Filter-Styles (unterhalb) */
+  .filter-drawer {
+    margin-top: 1rem; padding: 1rem;
+    background: var(--card); border: 1px solid var(--bord);
+    border-radius: 16px;
+  }
+  .filter-title { font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: .8rem; text-transform: uppercase; letter-spacing: 1px; }
+  .filter-select-row { display: flex; gap: .5rem; margin-bottom: .8rem; }
+  .filter-select {
+    flex: 1; padding: .6rem .8rem; background: var(--bg); border: 1px solid var(--bord);
+    border-radius: 10px; color: var(--text); font-size: .85rem; outline: none;
+  }
+  .filter-row { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .5rem; }
+  .filter-chip {
+    padding: .4rem .8rem; border-radius: 20px; font-size: .75rem; cursor: pointer;
+    background: rgba(255,255,255,.04); border: 1px solid var(--bord);
+    color: var(--muted2); transition: all .2s;
+  }
+  .filter-chip.active { border-color: var(--acc); color: var(--acc); background: var(--acc-dim); }
+  .reset-link {
+    background: none; border: none; color: var(--muted); font-size: .75rem;
+    cursor: pointer; padding: .3rem 0; display: flex; align-items: center; gap: .3rem;
+  }
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.0 geladen – Einfach Vor/Zurück');
+console.log('✅ spot-dates-card.js v3.1 geladen – Filter unterhalb + Loop');
