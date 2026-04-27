@@ -420,19 +420,38 @@ function renderCurrentCard() {
       </div>
     </div>
   `;
+  //
   
-  // 🆕 Avatar asynchron laden – ersetzt Initial-Buchstabe durch Bild
-  const avatarContainer = document.getElementById(`cardAv-${p.code}`);
-  const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
-  if (avatarContainer && imgContainer) {
-    loadCardAvatar(p.code).then(avatarBase64 => {
-      if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
-        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:cover;object-position:top;">`;
-        avatarContainer.style.fontSize = '0';
-        imgContainer.style.background = 'none';
-      }
-    });
-  }
+  // 🆕 Avatar asynchron laden – dynamisches object-fit
+const avatarContainer = document.getElementById(`cardAv-${p.code}`);
+const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
+if (avatarContainer && imgContainer) {
+  loadCardAvatar(p.code).then(avatarBase64 => {
+    if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
+      // Bildformat prüfen
+      const testImg = new Image();
+      testImg.onload = function() {
+        const ratio = testImg.width / testImg.height;
+        let fit, pos;
+        if (ratio > 1.1) {
+          // Querformat → füllen
+          fit = 'cover'; pos = 'center';
+        } else if (ratio < 0.9) {
+          // Hochformat → cover + top (Gesicht zeigen)
+          fit = 'cover'; pos = 'top';
+        } else {
+          // Quadrat → cover
+          fit = 'cover'; pos = 'center';
+        }
+        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" 
+          style="width:100%;height:100%;object-fit:${fit};object-position:${pos};">`;
+      };
+      testImg.src = avatarBase64;
+      avatarContainer.style.fontSize = '0';
+      imgContainer.style.background = 'none';
+    }
+  });
+}
   
   initCardSwipe();
   preloadNextProfiles();
