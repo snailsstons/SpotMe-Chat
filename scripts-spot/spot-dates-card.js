@@ -1,7 +1,8 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.6 – Valencia-Fix + alle Optimierungen
+// SPOT DATES – CARD ANSICHT v3.7 – Avatar-Integration
 // Flip, Swipe, Notieren, Preload, Filter bleiben, Notierte unter Filter
+// 🆕 Avatare vom Server laden & cachen (inkl. Preload)
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -37,20 +38,49 @@ window.fetchVerifications = function(code) {
 // KONSTANTEN & STATE
 // ══════════════════════════════════════════════════════════════════════════════
 
-const NOTED_KEY = 'sm_noted_dates';
+const API_BASE   = 'https://spotme-chat-obom.onrender.com/api';
+const NOTED_KEY  = 'sm_noted_dates';
 const FILTER_KEY = 'sm_filter_dates';
 let notedProfiles = [];
 let currentIndex = 0;
 let filtersInitialized = false;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 PRELOAD: Nächste Profile im Hintergrund laden
+// 🆕 AVATAR CACHE
+// ══════════════════════════════════════════════════════════════════════════════
+
+const avatarCache = new Map();
+
+async function loadCardAvatar(code) {
+  if (avatarCache.has(code)) return avatarCache.get(code);
+  
+  try {
+    const res = await fetch(`${API_BASE}/avatar/${code}?spot=dates`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.avatar) {
+      avatarCache.set(code, data.avatar);
+      return data.avatar;
+    }
+  } catch(e) { /* Server offline – Fallback: Initial-Buchstabe */ }
+  return null;
+}
+
+function preloadAvatar(code) {
+  if (avatarCache.has(code)) return;
+  fetch(`${API_BASE}/avatar/${code}?spot=dates`)
+    .then(r => r.json())
+    .then(d => { if (d.avatar) avatarCache.set(code, d.avatar); })
+    .catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 PRELOAD: Nächste Profile + Avatare im Hintergrund laden
 // ══════════════════════════════════════════════════════════════════════════════
 
 function preloadNextProfiles() {
   if (filtered.length === 0) return;
   
-  // 🆕 currentIndex absichern!
   if (currentIndex >= filtered.length) {
     currentIndex = 0;
   }
@@ -60,7 +90,6 @@ function preloadNextProfiles() {
     const nextIndex = (currentIndex + i) % filtered.length;
     const prevIndex = (currentIndex - i + filtered.length) % filtered.length;
     
-    // 🆕 NULL-Check!
     if (filtered[nextIndex] && nextIndex !== currentIndex) {
       toPreload.push(filtered[nextIndex]);
     }
@@ -73,6 +102,7 @@ function preloadNextProfiles() {
   console.log('🔄 Preload:', unique.length, 'Profile');
   
   unique.forEach(code => {
+    // Location + Online Status
     setTimeout(() => {
       if (window.fetchLocationForProfile._original) {
         window.fetchLocationForProfile._original(code).then(loc => {
@@ -85,8 +115,14 @@ function preloadNextProfiles() {
         }).catch(() => {});
       }
     }, 100);
+    
+    // 🆕 Avatar mit-preloaden
+    setTimeout(() => {
+      preloadAvatar(code);
+    }, 200);
   });
 }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER SPEICHERN & LADEN
 // ══════════════════════════════════════════════════════════════════════════════
@@ -151,7 +187,6 @@ function renderFilterSection(savedState = null) {
   
   anchor.insertAdjacentHTML('beforeend', filterHTML);
   
-  // 🆕 1. ERST die Regionen-Befüllen!
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
     while (regionSelect.options.length > 1) regionSelect.remove(1);
@@ -163,11 +198,9 @@ function renderFilterSection(savedState = null) {
     });
   }
   
-  // 🆕 2. DANN den gespeicherten Zustand setzen!
   const state = savedState || loadFilterState();
   if (state) {
     if (state.region && regionSelect) {
-      // Prüfen, ob die Option existiert
       const optionExists = [...regionSelect.options].some(o => o.value === state.region);
       if (optionExists) {
         regionSelect.value = state.region;
@@ -237,7 +270,6 @@ function applyFiltersLocal() {
     return true;
   });
   
-  // 🆕 Index absichern – niemals außerhalb des gültigen Bereichs!
   if (filtered.length === 0) {
     currentIndex = 0;
   } else if (currentIndex >= filtered.length) {
@@ -283,7 +315,6 @@ window.renderList = function() {
     chips: [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter)
   };
   
-  // 🆕 Reihenfolge: Cards → Filter → Notierte
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
@@ -317,14 +348,12 @@ window.renderList = function() {
     document.getElementById('cardWrapper').innerHTML = `<div class="card-empty">Keine Profile gefunden</div>`;
   }
   
-  // Filter NACH Cards rendern
   renderFilterSection(filterState);
-  // Notierte NACH Filter rendern
   renderNotedSection();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CARD RENDERING
+// CARD RENDERING (MIT AVATAR)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderCurrentCard() {
@@ -357,8 +386,8 @@ function renderCurrentCard() {
   wrapper.innerHTML = `
     <div class="card-inner" id="cardInner">
       <div class="card-front">
-        <div class="card-image-container">
-          <div class="card-avatar-large">${initial}</div>
+        <div class="card-image-container" id="cardImgContainer-${p.code}">
+          <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
           <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
             <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
           </div>
@@ -391,6 +420,19 @@ function renderCurrentCard() {
       </div>
     </div>
   `;
+  
+  // 🆕 Avatar asynchron laden – ersetzt Initial-Buchstabe durch Bild
+  const avatarContainer = document.getElementById(`cardAv-${p.code}`);
+  const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
+  if (avatarContainer && imgContainer) {
+    loadCardAvatar(p.code).then(avatarBase64 => {
+      if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
+        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:cover;">`;
+        avatarContainer.style.fontSize = '0';
+        imgContainer.style.background = 'none';
+      }
+    });
+  }
   
   initCardSwipe();
   preloadNextProfiles();
@@ -538,7 +580,8 @@ cardStyles.textContent = `
   .card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; background:var(--card,#1c222b); border:1px solid var(--bord); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; }
   .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; }
   .card-image-container { height:45%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
-  .card-avatar-large { font-size:4rem; color:white; opacity:.8; }
+  .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  .card-avatar-large img { width:100%; height:100%; object-fit:cover; }
   .card-heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-heart svg { width:20px; height:20px; fill:transparent; stroke:white; stroke-width:2; }
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
@@ -577,4 +620,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.6 geladen – Valencia-Fix + Layout final');
+console.log('✅ spot-dates-card.js v3.7 geladen – Avatar-Integration aktiv');
