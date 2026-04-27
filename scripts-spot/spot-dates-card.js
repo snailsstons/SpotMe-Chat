@@ -264,7 +264,8 @@ window.renderList = function() {
     chips: [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter)
   };
   
-  // NUR Cards + Notierte + Filter-Anker rendern
+// NUR Cards + Notierte + Filter-Anker rendern
+  
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
@@ -274,8 +275,8 @@ window.renderList = function() {
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
-    <div class="noted-section" id="notedSection"></div>
-    <div id="filterAnchor"></div>
+    <div id="filterAnchor"></div>           <!-- 🆕 Filter NACH Cards -->
+    <div class="noted-section" id="notedSection"></div>  <!-- 🆕 Notierte NACH Filter -->
   `;
   
   document.getElementById('prevBtn')?.addEventListener('click', () => {
