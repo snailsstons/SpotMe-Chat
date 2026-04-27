@@ -427,7 +427,7 @@ function renderCurrentCard() {
   if (avatarContainer && imgContainer) {
     loadCardAvatar(p.code).then(avatarBase64 => {
       if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
-        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:contain;">`;
+        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:cover;object-position:top;">`;
         avatarContainer.style.fontSize = '0';
         imgContainer.style.background = 'none';
       }
@@ -581,7 +581,7 @@ cardStyles.textContent = `
   .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; }
   .card-image-container { height:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
   .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-  .card-avatar-large img { width:100%; height:100%; object-fit:contain; background:#0a0e14; }
+  .card-avatar-large img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
   .card-heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-heart svg { width:20px; height:20px; fill:transparent; stroke:white; stroke-width:2; }
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
