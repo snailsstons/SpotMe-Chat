@@ -579,7 +579,7 @@ cardStyles.textContent = `
   .card-inner.is-flipped { transform:rotateY(180deg); }
   .card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; background:var(--card,#1c222b); border:1px solid var(--bord); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; }
   .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; }
-  .card-image-container { height:45%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
+  .card-image-container { height:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
   .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
   .card-avatar-large img { width:100%; height:100%; object-fit:cover; }
   .card-heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
