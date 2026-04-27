@@ -146,6 +146,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   <div class="avatar-wrap">
     <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">💕</div>
     <div class="avatar-hint">Tippe zum Ändern</div>
+    <div class="avatar-hint" id="avatar-status">Tippe zum Ändern</div>
     <div class="avatar-btns">
       <button class="av-btn" onclick="document.getElementById('avatar-input').click()">📷 Foto wählen</button>
       <button class="av-btn" onclick="clearAvatar()">✕ Entfernen</button>
@@ -373,12 +374,14 @@ function handleAvatar(input) {
   if (!file) return;
   if (file.size > 1 * 1024 * 1024) { toast('⚠️ Max. 1 MB'); return; }
 
-  // Bild einlesen → komprimieren → Vorschau zeigen → hochladen
+  // Status zurücksetzen
+  const statusEl = document.getElementById('avatar-status');
+  if (statusEl) statusEl.textContent = '⏳ Komprimiere…';
+  
   const reader = new FileReader();
   reader.onload = function(e) {
     const img = new Image();
     img.onload = function() {
-      // Komprimieren: max 600px breit, JPEG 75%
       const canvas = document.createElement('canvas');
       const maxW = 600;
       let w = img.width, h = img.height;
@@ -388,14 +391,11 @@ function handleAvatar(input) {
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       avatarData = canvas.toDataURL('image/jpeg', 0.75);
       
-      // Vorschau zeigen
       renderAvatar();
       
-      // Sofort auf Server hochladen
+      // Hochladen mit Status-Anzeige
+      if (statusEl) statusEl.textContent = '⏳ Speichere auf Server…';
       uploadAvatarToServer();
-      
-      // Profil lokal speichern (für Offline-Fallback)
-      autoSave();
     };
     img.src = e.target.result;
   };
@@ -405,8 +405,15 @@ function handleAvatar(input) {
 async function uploadAvatarToServer() {
   const token = localStorage.getItem('sm_token');
   const code  = localStorage.getItem('sm_code');
+  const statusEl = document.getElementById('avatar-status');
   
-  if (!token || !code || !avatarData) return;
+  // Lokal immer schonmal speichern
+  autoSave();
+  
+  if (!token || !code || !avatarData) {
+    if (statusEl) statusEl.textContent = '⚠️ Kein Token – nur lokal gespeichert';
+    return;
+  }
   
   try {
     const res = await fetch(`${API_BASE}/avatar`, {
@@ -417,15 +424,15 @@ async function uploadAvatarToServer() {
     const data = await res.json();
     
     if (data.success) {
-      console.log('✅ Avatar auf Server gespeichert');
+      if (statusEl) statusEl.textContent = '✅ Auf Server gespeichert';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
     } else {
-      console.warn('⚠️ Server-Ablehnung:', data.error);
-      toast('⚠️ Bild nur lokal gespeichert');
-      // avatarData bleibt erhalten → wird weiterhin im localStorage gesichert
+      if (statusEl) statusEl.textContent = '⚠️ ' + (data.error || 'Server abgelehnt');
+      console.warn('Server-Ablehnung:', data.error);
     }
   } catch (e) {
-    console.warn('⚠️ Server nicht erreichbar – Avatar nur lokal');
-    // Kein Toast hier, sonst nervt es bei schlechtem Netz
+    if (statusEl) statusEl.textContent = '⚠️ Server nicht erreichbar – nur lokal';
+    console.warn('Upload fehlgeschlagen:', e.message);
   }
 }
 
@@ -435,16 +442,15 @@ async function loadAvatarFromServer() {
   
   try {
     const res = await fetch(`${API_BASE}/avatar/${code}?spot=${SPOT}`);
-    if (!res.ok) return; // 404 = kein Avatar, okay
+    if (!res.ok) return;
     const data = await res.json();
     if (data.avatar) {
       avatarData = data.avatar;
       renderAvatar();
-      // Auch lokal speichern als Cache
-      autoSave();
+      autoSave(); // Auch lokal cachen
     }
   } catch (e) {
-    // Server offline – lokalen Avatar nutzen (wird unten in loadProfile geladen)
+    // Server offline – lokaler Avatar bleibt
   }
 }
 
@@ -459,7 +465,7 @@ async function clearAvatarFromServer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, spot: SPOT })
       });
-    } catch (e) { /* Server offline – egal */ }
+    } catch (e) { /* Egal */ }
   }
 }
 
@@ -470,13 +476,16 @@ function renderAvatar() {
 }
 
 async function clearAvatar() {
+  const statusEl = document.getElementById('avatar-status');
+  
   avatarData = null;
   renderAvatar();
   await clearAvatarFromServer();
   autoSave();
-  toast('✅ Bild entfernt');
+  
+  if (statusEl) statusEl.textContent = '✅ Gelöscht';
+  setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
 }
-
 // ── Load / Save ───────────────────────────────────────────────────────────
 function loadProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
