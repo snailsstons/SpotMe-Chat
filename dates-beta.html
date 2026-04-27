@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOTME - Profile Swipe Demo</title>
+    <title>SPOTME - Profile Swipe & Header Demo</title>
     <style>
         :root {
             --bg-dark: #0a0c10;
             --card-bg: #161b22;
             --accent-pink: #ff3366;
+            --accent-pink-dark: rgba(255, 51, 102, 0.2);
             --text-main: #ffffff;
             --text-muted: #8b92a5;
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --btn-bg: rgba(255, 255, 255, 0.03);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -30,25 +32,127 @@
             flex-direction: column;
             align-items: center;
             overflow: hidden;
-            padding-top: 20px;
+            padding-top: 15px;
         }
 
-        /* --- HEADER --- */
-        .app-header {
+        .app-container {
             width: 100%;
             max-width: 400px;
-            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+
+        /* --- HEADER BEREICH --- */
+        .top-nav {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            margin-bottom: 15px;
+        }
+
+        /* Kleine quadratische Buttons (Zurück & Refresh) */
+        .icon-btn {
+            background: var(--btn-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
             display: flex;
             justify-content: center;
             align-items: center;
-            position: relative;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .logo {
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Logo Mitte */
+        .brand-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.1;
+        }
+
+        .logo-text {
             font-weight: 900;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             letter-spacing: 2px;
             color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        /* Highlight im Logo (SPOTME) */
+        .logo-text span {
+            color: var(--accent-pink);
+        }
+
+        .logo-subtitle {
+            color: var(--accent-pink);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        /* Rechte Header-Gruppe */
+        .right-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Radar Button */
+        .radar-btn {
+            background: var(--accent-pink-dark);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            color: var(--accent-pink);
+            padding: 0 12px;
+            height: 40px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .radar-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-pink);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-pink);
+        }
+
+        /* --- STATS LEISTE --- */
+        .stats-bar {
+            width: calc(100% - 30px);
+            background: var(--btn-bg);
+            border: 1px solid var(--glass-border);
+            padding: 10px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .stats-bar span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         /* --- SWIPE CONTAINER --- */
@@ -56,8 +160,8 @@
             position: relative;
             width: 90vw;
             max-width: 380px;
-            height: 70vh;
-            margin-top: 20px;
+            flex-grow: 1;
+            max-height: 60vh;
             perspective: 1000px;
         }
 
@@ -73,18 +177,21 @@
             display: flex;
             flex-direction: column;
             cursor: grab;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
             user-select: none;
             transition: transform 0.1s ease-out;
-            touch-action: none; /* Verhindert Scrolling beim Swipen */
+            touch-action: none;
         }
 
-        /* Profilbild Bereich */
+        .profile-card:active {
+            cursor: grabbing;
+        }
+
         .image-container {
             position: relative;
             width: 100%;
             height: 60%;
-            background: linear-gradient(to bottom, transparent 60%, var(--card-bg)),
+            background: linear-gradient(to bottom, transparent 50%, var(--card-bg) 100%),
                         url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600') center/cover;
         }
 
@@ -93,12 +200,12 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             background: rgba(22, 27, 34, 0.7);
             backdrop-filter: blur(10px);
             border: 2px solid var(--accent-pink);
-            border-radius: 18px;
+            border-radius: 16px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -113,18 +220,21 @@
         }
 
         .heart-badge svg {
-            width: 30px;
-            height: 30px;
-            fill: var(--accent-pink);
-            transition: fill 0.2s ease;
+            width: 24px;
+            height: 24px;
+            fill: transparent;
+            stroke: var(--accent-pink);
+            stroke-width: 2;
+            transition: all 0.2s ease;
         }
 
         .heart-badge.active svg {
             fill: white;
+            stroke: white;
         }
 
         .heart-badge span {
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             color: var(--accent-pink);
             margin-top: 4px;
             font-weight: bold;
@@ -134,7 +244,6 @@
             color: white;
         }
 
-        /* Profil Info */
         .profile-content {
             padding: 0 24px 24px 24px;
             flex-grow: 1;
@@ -143,25 +252,24 @@
         }
 
         .name-age {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: bold;
             margin-bottom: 4px;
         }
 
         .location {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             margin-bottom: 15px;
         }
 
         .bio {
-            font-size: 1rem;
+            font-size: 0.95rem;
             line-height: 1.4;
             color: #d1d5db;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
-        /* Status & Chat Button */
         .bottom-actions {
             margin-top: auto;
             display: flex;
@@ -203,69 +311,81 @@
             transform: scale(0.95);
         }
 
-        /* Info Text */
-        .info-hint {
-            position: absolute;
-            bottom: 40px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
     </style>
 </head>
 <body>
 
-    <div class="app-header">
-        <div class="logo">SPOTME</div>
-    </div>
-
-    <div class="swipe-container" id="swipeContainer">
-        <div class="profile-card" id="profileCard">
-            <div class="image-container">
-                <div class="heart-badge" id="heartBtn" onclick="toggleNotiert(event)">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                    <span>NOTIERT</span>
-                </div>
+    <div class="app-container">
+        
+        <header class="top-nav">
+            <button class="icon-btn">‹</button>
+            
+            <div class="brand-container">
+                <div class="logo-text">SPOTME</div>
+                <div class="logo-subtitle">Dates</div>
             </div>
+            
+            <div class="right-actions">
+                <button class="icon-btn">↺</button>
+                <button class="radar-btn">
+                    <span class="radar-dot"></span>
+                    O RADAR
+                </button>
+            </div>
+        </header>
 
-            <div class="profile-content">
-                <div class="name-age">Estella, 24</div>
-                <div class="location">Gandía, Valencia</div>
-                <div class="bio">
-                    Suche Fotografen und Studios für Zusammenarbeit im Bereich Fetish Fotografie.
+        <div class="stats-bar">
+            <span>📊 0 B</span>
+            <span>⬆️ 0 B</span>
+            <span>⬇️ 0 B</span>
+        </div>
+
+        <div class="swipe-container" id="swipeContainer">
+            <div class="profile-card" id="profileCard">
+                <div class="image-container">
+                    <div class="heart-badge" id="heartBtn" onclick="toggleNotiert(event)">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                        <span>NOTIERT</span>
+                    </div>
                 </div>
 
-                <div class="bottom-actions">
-                    <div class="status">gerade aktiv</div>
-                    <button class="chat-btn">
-                        <span>💬</span> Chat
-                    </button>
+                <div class="profile-content">
+                    <div class="name-age">Estella, 24</div>
+                    <div class="location">Gandía, Valencia</div>
+                    <div class="bio">
+                        Suche Fotografen und Studios für Zusammenarbeit im Bereich Fetish Fotografie.
+                    </div>
+
+                    <div class="bottom-actions">
+                        <div class="status">gerade aktiv</div>
+                        <button class="chat-btn">
+                            <span>💬</span> Chat
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="info-hint">Karte zum Testen ziehen oder wischen</div>
+    </div>
 
     <script>
         const card = document.getElementById('profileCard');
         let startX, startY, moveX, moveY;
 
-        // Herz Button Logik
         function toggleNotiert(e) {
-            e.stopPropagation(); // Verhindert, dass Swipen ausgelöst wird
+            e.stopPropagation(); 
             const btn = document.getElementById('heartBtn');
             btn.classList.toggle('active');
         }
 
-        // Swipe Logik (Touch & Mouse)
         const initDrag = (e) => {
             startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
             
             document.addEventListener('mousemove', drag);
-            document.addEventListener('touchmove', drag);
+            document.addEventListener('touchmove', drag, {passive: false});
             document.addEventListener('mouseup', endDrag);
             document.addEventListener('touchend', endDrag);
             
@@ -273,10 +393,15 @@
         };
 
         const drag = (e) => {
+            // Verhindert Scrollen beim Wischen am Handy
+            if(e.type.includes('touch')) {
+                e.preventDefault(); 
+            }
+            
             moveX = (e.type.includes('touch') ? e.touches[0].clientX : e.clientX) - startX;
             moveY = (e.type.includes('touch') ? e.touches[0].clientY : e.clientY) - startY;
             
-            let rotation = moveX / 10;
+            let rotation = moveX / 15;
             card.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotation}deg)`;
         };
 
@@ -284,28 +409,25 @@
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('touchmove', drag);
             
-            card.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            card.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
             
-            // Wenn weit genug gewischt wurde: "Rauswerfen" Animation
-            if (Math.abs(moveX) > 150) {
-                let endX = moveX > 0 ? 1000 : -1000;
+            if (Math.abs(moveX) > 120) {
+                let endX = moveX > 0 ? 800 : -800;
                 card.style.transform = `translate(${endX}px, ${moveY}px) rotate(${moveX/5}deg)`;
                 
-                // Nach 1 Sekunde zurücksetzen (für die Demo)
                 setTimeout(() => {
                     card.style.transition = 'none';
                     card.style.transform = 'translate(0,0) rotate(0deg)';
-                    setTimeout(() => card.style.transition = 'transform 0.5s ease', 50);
-                }, 1000);
+                    setTimeout(() => card.style.transition = 'transform 0.4s ease', 50);
+                }, 800);
             } else {
-                // Zurück in die Mitte
                 card.style.transform = `translate(0, 0) rotate(0deg)`;
             }
         };
 
         card.addEventListener('mousedown', initDrag);
-        card.addEventListener('touchstart', initDrag);
+        card.addEventListener('touchstart', initDrag, {passive: false});
     </script>
 </body>
-  </html>
-                                                                 
+                                                            </html>
+    
