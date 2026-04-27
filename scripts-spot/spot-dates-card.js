@@ -1,7 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.5 – Filter bleiben immer sichtbar!
-// Flip, Swipe, Notieren, Preload, Filter bleiben erhalten
+// SPOT DATES – CARD ANSICHT v3.6 – Valencia-Fix + alle Optimierungen
+// Flip, Swipe, Notieren, Preload, Filter bleiben, Notierte unter Filter
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ function preloadNextProfiles() {
   }
   
   const unique = [...new Set(toPreload.map(p => p.code))];
-  console.log('🔄 Preload:', unique.length, 'Profile im Hintergrund');
+  console.log('🔄 Preload:', unique.length, 'Profile');
   
   unique.forEach(code => {
     setTimeout(() => {
@@ -105,7 +105,7 @@ function loadFilterState() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FILTER SEKTION RENDERN (MIT ZUSTANDS-WIEDERHERSTELLUNG!)
+// FILTER SEKTION RENDERN (ERST OPTIONEN, DANN ZUSTAND!)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderFilterSection(savedState = null) {
@@ -141,9 +141,10 @@ function renderFilterSection(savedState = null) {
   
   anchor.insertAdjacentHTML('beforeend', filterHTML);
   
-  // 🆕 1. ERST die Regionen befüllen!
+  // 🆕 1. ERST die Regionen-Befüllen!
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
+    while (regionSelect.options.length > 1) regionSelect.remove(1);
     REGIONS.forEach(r => {
       const option = document.createElement('option');
       option.value = r;
@@ -156,7 +157,11 @@ function renderFilterSection(savedState = null) {
   const state = savedState || loadFilterState();
   if (state) {
     if (state.region && regionSelect) {
-      regionSelect.value = state.region;  // Jetzt existiert die Option!
+      // Prüfen, ob die Option existiert
+      const optionExists = [...regionSelect.options].some(o => o.value === state.region);
+      if (optionExists) {
+        regionSelect.value = state.region;
+      }
     }
     if (state.age) {
       const ageSelect = document.getElementById('f-age');
@@ -173,6 +178,7 @@ function renderFilterSection(savedState = null) {
   
   filtersInitialized = true;
 }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER HANDLER
 // ══════════════════════════════════════════════════════════════════════════════
@@ -243,7 +249,7 @@ window.applyFilters = function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// RENDER LIST (mit Filter-Erhalt!)
+// RENDER LIST (Cards → Filter → Notierte)
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.renderList = function() {
@@ -255,15 +261,13 @@ window.renderList = function() {
     countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Profil' : 'Profile'} gefunden`;
   }
   
-  // 🆕 Filter-Zustand merken!
   const filterState = {
     region: document.getElementById('f-region')?.value || '',
     age: document.getElementById('f-age')?.value || '',
     chips: [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter)
   };
   
-// NUR Cards + Notierte + Filter-Anker rendern
-  
+  // 🆕 Reihenfolge: Cards → Filter → Notierte
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
@@ -273,8 +277,8 @@ window.renderList = function() {
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
-    <div id="filterAnchor"></div>           <!-- 🆕 Filter NACH Cards -->
-    <div class="noted-section" id="notedSection"></div>  <!-- 🆕 Notierte NACH Filter -->
+    <div id="filterAnchor"></div>
+    <div class="noted-section" id="notedSection"></div>
   `;
   
   document.getElementById('prevBtn')?.addEventListener('click', () => {
@@ -297,10 +301,10 @@ window.renderList = function() {
     document.getElementById('cardWrapper').innerHTML = `<div class="card-empty">Keine Profile gefunden</div>`;
   }
   
-  renderNotedSection();
-  
-  // 🆕 Filter IMMER NEU rendern – mit gespeichertem Zustand!
+  // Filter NACH Cards rendern
   renderFilterSection(filterState);
+  // Notierte NACH Filter rendern
+  renderNotedSection();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -506,7 +510,7 @@ function showNotedProfile(code) {
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
-  .card-swipe-container { position:relative; width:100%; height:460px; perspective:1000px; margin-bottom:2rem; }
+  .card-swipe-container { position:relative; width:100%; height:460px; perspective:1000px; margin-bottom:1.5rem; }
   .card-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; margin-bottom:.3rem; }
   .card-nav-btn { width:44px; height:44px; border-radius:50%; background:var(--card); border:1px solid var(--bord); color:var(--text); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .card-nav-btn:active { background:var(--bord); }
@@ -557,4 +561,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.5 geladen – Filter bleiben IMMER sichtbar!');
+console.log('✅ spot-dates-card.js v3.6 geladen – Valencia-Fix + Layout final');
