@@ -1,12 +1,58 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.1 – Filter unterhalb + Loop
-// Flip, Swipe, Notieren, Filter integriert
+// SPOT DATES – CARD ANSICHT v3.2 – Filter unterhalb + Loop + Filter-Speicherung
+// Flip, Swipe, Notieren, Filter mit localStorage
 // ══════════════════════════════════════════════════════════════════════════════
 
 const NOTED_KEY = 'sm_noted_dates';
+const FILTER_KEY = 'sm_filter_dates'; // 🆕 Filter-Speicherung
 let notedProfiles = [];
 let currentIndex = 0;
+
+// 🆕 Filter-Zustand speichern
+function saveFilterState() {
+  const state = {
+    region: document.getElementById('f-region')?.value || '',
+    age: document.getElementById('f-age')?.value || '',
+    chips: [...document.querySelectorAll('.filter-chip.active')].map(c => c.dataset.filter)
+  };
+  localStorage.setItem(FILTER_KEY, JSON.stringify(state));
+}
+
+// 🆕 Filter-Zustand laden
+function loadFilterState() {
+  const saved = localStorage.getItem(FILTER_KEY);
+  if (!saved) return;
+  
+  try {
+    const state = JSON.parse(saved);
+    
+    // Region setzen
+    const regionSelect = document.getElementById('f-region');
+    if (regionSelect && state.region) {
+      regionSelect.value = state.region;
+    }
+    
+    // Alter setzen
+    const ageSelect = document.getElementById('f-age');
+    if (ageSelect && state.age) {
+      ageSelect.value = state.age;
+    }
+    
+    // Chips setzen
+    if (state.chips && state.chips.length > 0) {
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        if (state.chips.includes(chip.dataset.filter)) {
+          chip.classList.add('active');
+        }
+      });
+    }
+    
+    console.log('✅ Filter geladen:', state);
+  } catch(e) {
+    console.warn('Filter laden fehlgeschlagen:', e);
+  }
+}
 
 // Überschreibt die globale renderList-Funktion
 window.renderList = function() {
@@ -16,9 +62,9 @@ window.renderList = function() {
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
-        <button class="card-nav-btn" id="prevBtn" ${currentIndex === 0 ? 'disabled' : ''}>◀</button>
+        <button class="card-nav-btn" id="prevBtn">◀</button>
         <span class="card-nav-info">${filtered.length > 0 ? currentIndex + 1 : 0} / ${filtered.length}</span>
-        <button class="card-nav-btn" id="nextBtn" ${currentIndex >= filtered.length - 1 ? 'disabled' : ''}>▶</button>
+        <button class="card-nav-btn" id="nextBtn">▶</button>
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
@@ -27,18 +73,20 @@ window.renderList = function() {
   
   // Nav-Buttons
   document.getElementById('prevBtn')?.addEventListener('click', () => {
+    if (filtered.length === 0) return;
     if (currentIndex > 0) {
       currentIndex--;
     } else {
-      currentIndex = filtered.length - 1; // 🆕 Loop!
+      currentIndex = filtered.length - 1;
     }
     renderCurrentCard();
   });
   document.getElementById('nextBtn')?.addEventListener('click', () => {
+    if (filtered.length === 0) return;
     if (currentIndex < filtered.length - 1) {
       currentIndex++;
     } else {
-      currentIndex = 0; // 🆕 Loop!
+      currentIndex = 0;
     }
     renderCurrentCard();
   });
@@ -55,15 +103,14 @@ window.renderList = function() {
   }
   
   renderNotedSection();
-  renderFilterSection(); // 🆕 Filter unterhalb!
+  renderFilterSection();
 };
-//
+
 // 🆕 Filter-Sektion rendern (unterhalb der Cards)
 function renderFilterSection() {
   const container = document.getElementById('community-list');
   if (!container) return;
   
-  // Prüfen ob Filter bereits existiert
   if (document.getElementById('filterDrawer')) return;
   
   const filterHTML = `
@@ -92,14 +139,12 @@ function renderFilterSection() {
   
   container.insertAdjacentHTML('beforeend', filterHTML);
   
-  // 🆕 WICHTIG: Region-Filter DIREKT nach dem Einfügen befüllen!
+  // Region-Filter befüllen
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
-    // Bestehende Optionen leeren (außer "Alle Regionen")
     while (regionSelect.options.length > 1) {
       regionSelect.remove(1);
     }
-    // Alle Regionen aus der REGIONS-Liste einfügen
     REGIONS.forEach(r => {
       const option = document.createElement('option');
       option.value = r;
@@ -108,16 +153,47 @@ function renderFilterSection() {
     });
     console.log('✅ Region-Filter befüllt mit', REGIONS.length, 'Regionen');
   }
+  
+  // 🆕 Gespeicherten Filter laden und anwenden
+  setTimeout(() => {
+    loadFilterState();
+    // applyFilters() wird durch loadFilterState indirekt ausgelöst (onchange)
+    if (typeof applyFilters === 'function') {
+      applyFilters();
+    }
+  }, 200);
 }
 
-//
+// 🆕 applyFilters überschreiben, damit es speichert
+(function() {
+  const originalApplyFilters = window.applyFilters;
+  window.applyFilters = function() {
+    saveFilterState();
+    if (originalApplyFilters) {
+      originalApplyFilters();
+    } else {
+      // Fallback: renderList direkt aufrufen
+      if (typeof window.renderList === 'function') {
+        window.renderList();
+      }
+    }
+  };
+  
+  // Auch resetFilters überschreiben
+  const originalResetFilters = window.resetFilters;
+  window.resetFilters = function() {
+    if (originalResetFilters) {
+      originalResetFilters();
+    }
+    // Filter-Speicher löschen
+    localStorage.removeItem(FILTER_KEY);
+  };
+})();
+
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
   if (!wrapper || filtered.length === 0) return;
   
-  // Nav-Buttons updaten
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
   const navInfo = document.querySelector('.card-nav-info');
   if (navInfo) navInfo.textContent = `${currentIndex + 1} / ${filtered.length}`;
   
@@ -236,7 +312,6 @@ function initCardSwipe() {
       const direction = moveX > 0 ? -1 : 1;
       let newIndex = currentIndex + direction;
       
-      // 🆕 LOOP!
       if (newIndex < 0) newIndex = filtered.length - 1;
       else if (newIndex >= filtered.length) newIndex = 0;
       
@@ -433,7 +508,6 @@ cardStyles.textContent = `
   }
   .noted-name { font-size: .65rem; color: var(--muted2); text-align: center; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   
-  /* Filter-Styles (unterhalb) */
   .filter-drawer {
     margin-top: 1rem; padding: 1rem;
     background: var(--card); border: 1px solid var(--bord);
@@ -459,4 +533,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.1 geladen – Filter unterhalb + Loop');
+console.log('✅ spot-dates-card.js v3.2 geladen – Filter-Speicherung aktiv');
