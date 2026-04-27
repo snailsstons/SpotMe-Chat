@@ -427,7 +427,7 @@ function renderCurrentCard() {
   if (avatarContainer && imgContainer) {
     loadCardAvatar(p.code).then(avatarBase64 => {
       if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
-        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:cover;">`;
+        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:contain;">`;
         avatarContainer.style.fontSize = '0';
         imgContainer.style.background = 'none';
       }
