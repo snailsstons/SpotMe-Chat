@@ -368,10 +368,16 @@ function renderNotedSection() {
     return;
   }
   
+  // 🆕 Aus ALLEN Profilen suchen (nicht nur filtered!)
   const profiles = allProfiles.filter(p => notedProfiles.includes(p.code));
   
+  if (profiles.length === 0) {
+    section.innerHTML = '<div class="noted-header">❤️ Notierte Profile (0 sichtbar)</div>';
+    return;
+  }
+  
   section.innerHTML = `
-    <div class="noted-header">❤️ Notierte Profile (${notedProfiles.length})</div>
+    <div class="noted-header">❤️ Notierte Profile (${profiles.length})</div>
     <div class="noted-list">
       ${profiles.map(p => `
         <div class="noted-item" onclick="showNotedProfile('${p.code}')">
@@ -384,10 +390,26 @@ function renderNotedSection() {
 }
 
 function showNotedProfile(code) {
-  const index = filtered.findIndex(p => p.code === code);
+  // 🆕 Erst in filtered suchen, dann in allProfiles
+  let index = filtered.findIndex(p => p.code === code);
+  
   if (index >= 0) {
+    // In aktuellen Filtern enthalten → direkt anzeigen
     currentIndex = index;
     renderCurrentCard();
+  } else {
+    // Nicht in aktuellen Filtern → Filter zurücksetzen und dann anzeigen
+    if (typeof resetFilters === 'function') {
+      resetFilters();
+    }
+    // Nach dem Reset das Profil finden
+    setTimeout(() => {
+      index = filtered.findIndex(p => p.code === code);
+      if (index >= 0) {
+        currentIndex = index;
+        renderCurrentCard();
+      }
+    }, 300);
   }
 }
 
