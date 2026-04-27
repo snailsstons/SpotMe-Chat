@@ -143,17 +143,16 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   </div>
 
   <!-- Avatar -->
-  <div class="avatar-wrap">
-    <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">💕</div>
-    <div class="avatar-hint">Tippe zum Ändern</div>
-    <div class="avatar-hint" id="avatar-status">Tippe zum Ändern</div>
-    <div class="avatar-btns">
-      <button class="av-btn" onclick="document.getElementById('avatar-input').click()">📷 Foto wählen</button>
-      <button class="av-btn" onclick="clearAvatar()">✕ Entfernen</button>
-    </div>
-    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="handleAvatar(this)">
+<div class="avatar-wrap">
+  <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">💕</div>
+  <div class="avatar-hint" id="avatar-status">Tippe zum Ändern</div>
+  <div class="avatar-btns">
+    <button class="av-btn" onclick="document.getElementById('avatar-input').click()">📷 Foto wählen</button>
+    <button class="av-btn" onclick="clearAvatar()">✕ Entfernen</button>
   </div>
-
+  <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="handleAvatar(this)">
+</div>
+  
   <!-- ICH SUCHE -->
   <div class="sec-label">Ich suche</div>
   <div class="mode-group" id="rg-looking">
