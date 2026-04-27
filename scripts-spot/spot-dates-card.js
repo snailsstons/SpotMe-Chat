@@ -1,7 +1,7 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.4 – FINAL mit PRELOAD
-// Flip, Swipe, Notieren, Filter, Preload für sofortige Anzeige
+// SPOT DATES – CARD ANSICHT v3.5 – Filter bleiben immer sichtbar!
+// Flip, Swipe, Notieren, Preload, Filter bleiben erhalten
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -59,7 +59,6 @@ function preloadNextProfiles() {
   }
   
   const unique = [...new Set(toPreload.map(p => p.code))];
-  
   console.log('🔄 Preload:', unique.length, 'Profile im Hintergrund');
   
   unique.forEach(code => {
@@ -97,42 +96,24 @@ function saveFilterState() {
 
 function loadFilterState() {
   const saved = localStorage.getItem(FILTER_KEY);
-  if (!saved) return;
-  
+  if (!saved) return null;
   try {
-    const state = JSON.parse(saved);
-    
-    const regionSelect = document.getElementById('f-region');
-    if (regionSelect && state.region) {
-      regionSelect.value = state.region;
-    }
-    
-    const ageSelect = document.getElementById('f-age');
-    if (ageSelect && state.age) {
-      ageSelect.value = state.age;
-    }
-    
-    if (state.chips && state.chips.length > 0) {
-      const chips = document.querySelectorAll('#filter-chips .filter-chip');
-      chips.forEach(chip => {
-        if (state.chips.includes(chip.dataset.filter)) {
-          chip.classList.add('active');
-        } else {
-          chip.classList.remove('active');
-        }
-      });
-    }
-  } catch(e) {}
+    return JSON.parse(saved);
+  } catch(e) {
+    return null;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FILTER SEKTION RENDERN
+// FILTER SEKTION RENDERN (MIT ZUSTANDS-WIEDERHERSTELLUNG!)
 // ══════════════════════════════════════════════════════════════════════════════
 
-function renderFilterSection() {
-  const container = document.getElementById('community-list');
-  if (!container) return;
-  if (document.getElementById('filterDrawer')) return;
+function renderFilterSection(savedState = null) {
+  const anchor = document.getElementById('filterAnchor');
+  if (!anchor) return;
+  
+  const oldFilter = document.getElementById('filterDrawer');
+  if (oldFilter) oldFilter.remove();
   
   const filterHTML = `
     <div class="filter-drawer" id="filterDrawer">
@@ -158,11 +139,11 @@ function renderFilterSection() {
     </div>
   `;
   
-  container.insertAdjacentHTML('beforeend', filterHTML);
+  anchor.insertAdjacentHTML('beforeend', filterHTML);
   
+  // Regionen befüllen
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
-    while (regionSelect.options.length > 1) regionSelect.remove(1);
     REGIONS.forEach(r => {
       const option = document.createElement('option');
       option.value = r;
@@ -171,10 +152,24 @@ function renderFilterSection() {
     });
   }
   
-  loadFilterState();
-  
-  if (typeof window.applyFilters === 'function') {
-    window.applyFilters();
+  // Zustand wiederherstellen
+  const state = savedState || loadFilterState();
+  if (state) {
+    if (state.region) {
+      const rs = document.getElementById('f-region');
+      if (rs) rs.value = state.region;
+    }
+    if (state.age) {
+      const as = document.getElementById('f-age');
+      if (as) as.value = state.age;
+    }
+    if (state.chips && state.chips.length > 0) {
+      document.querySelectorAll('#filter-chips .filter-chip').forEach(chip => {
+        if (state.chips.includes(chip.dataset.filter)) {
+          chip.classList.add('active');
+        }
+      });
+    }
   }
   
   filtersInitialized = true;
@@ -186,17 +181,13 @@ function renderFilterSection() {
 
 function handleFilterChange() {
   saveFilterState();
-  if (typeof window.applyFilters === 'function') {
-    window.applyFilters();
-  }
+  applyFiltersLocal();
 }
 
 function handleChipClick(chip) {
   chip.classList.toggle('active');
   saveFilterState();
-  if (typeof window.applyFilters === 'function') {
-    window.applyFilters();
-  }
+  applyFiltersLocal();
 }
 
 function handleFilterReset() {
@@ -206,17 +197,14 @@ function handleFilterReset() {
   if (regionSelect) regionSelect.value = '';
   if (ageSelect) ageSelect.value = '';
   localStorage.removeItem(FILTER_KEY);
-  if (typeof window.applyFilters === 'function') {
-    window.applyFilters();
-  }
+  applyFiltersLocal();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 HIER EINFÜGEN: Lokales Filtern (ohne Server-Request!)
+// 🆕 LOKALES FILTERN (ohne Server-Request!)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const originalApplyFilters = window.applyFilters;
-window.applyFilters = function() {
+function applyFiltersLocal() {
   const region = document.getElementById('f-region')?.value || '';
   const ageRange = document.getElementById('f-age')?.value || '';
   const chips = [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter);
@@ -238,7 +226,7 @@ window.applyFilters = function() {
   saveFilterState();
   currentIndex = 0;
   renderList();
-};
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GLOBALE FUNKTIONEN ÜBERSCHREIBEN
@@ -252,8 +240,12 @@ window.resetFilters = function() {
   handleFilterReset();
 };
 
+window.applyFilters = function() {
+  applyFiltersLocal();
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
-// RENDER LIST
+// RENDER LIST (mit Filter-Erhalt!)
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.renderList = function() {
@@ -265,6 +257,14 @@ window.renderList = function() {
     countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Profil' : 'Profile'} gefunden`;
   }
   
+  // 🆕 Filter-Zustand merken!
+  const filterState = {
+    region: document.getElementById('f-region')?.value || '',
+    age: document.getElementById('f-age')?.value || '',
+    chips: [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter)
+  };
+  
+  // NUR Cards + Notierte + Filter-Anker rendern
   container.innerHTML = `
     <div class="card-swipe-container" id="cardSwipeContainer">
       <div class="card-nav">
@@ -275,6 +275,7 @@ window.renderList = function() {
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
     <div class="noted-section" id="notedSection"></div>
+    <div id="filterAnchor"></div>
   `;
   
   document.getElementById('prevBtn')?.addEventListener('click', () => {
@@ -299,9 +300,8 @@ window.renderList = function() {
   
   renderNotedSection();
   
-  if (!filtersInitialized) {
-    renderFilterSection();
-  }
+  // 🆕 Filter IMMER NEU rendern – mit gespeichertem Zustand!
+  renderFilterSection(filterState);
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -374,8 +374,6 @@ function renderCurrentCard() {
   `;
   
   initCardSwipe();
-  
-  // 🆕 Preload starten!
   preloadNextProfiles();
 }
 
@@ -560,4 +558,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.4 geladen – FINAL mit PRELOAD');
+console.log('✅ spot-dates-card.js v3.5 geladen – Filter bleiben IMMER sichtbar!');
