@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOTME - Profile Swipe & Header Demo</title>
+    <title>SPOTME - Full UI Swipe Demo</title>
     <style>
         :root {
             --bg-dark: #0a0c10;
             --card-bg: #161b22;
             --accent-pink: #ff3366;
             --accent-pink-dark: rgba(255, 51, 102, 0.2);
+            --accent-blue: #3399ff;
             --text-main: #ffffff;
             --text-muted: #8b92a5;
             --glass-border: rgba(255, 255, 255, 0.08);
@@ -27,12 +28,12 @@
         body {
             background-color: var(--bg-dark);
             color: var(--text-main);
-            height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow: hidden;
-            padding-top: 15px;
+            justify-content: center;
+            min-height: 100vh;
+            /* Scrollen erlauben, falls der Bildschirm zu klein ist */
+            overflow-x: hidden; 
+            overflow-y: auto;
         }
 
         .app-container {
@@ -41,7 +42,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 100%;
+            padding: 15px 0 30px 0;
         }
 
         /* --- HEADER BEREICH --- */
@@ -54,7 +55,6 @@
             margin-bottom: 15px;
         }
 
-        /* Kleine quadratische Buttons (Zurück & Refresh) */
         .icon-btn {
             background: var(--btn-bg);
             border: 1px solid var(--glass-border);
@@ -67,14 +67,8 @@
             align-items: center;
             font-size: 1.2rem;
             cursor: pointer;
-            transition: background 0.2s;
         }
 
-        .icon-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Logo Mitte */
         .brand-container {
             display: flex;
             flex-direction: column;
@@ -86,30 +80,14 @@
             font-weight: 900;
             font-size: 1.4rem;
             letter-spacing: 2px;
-            color: var(--text-main);
             text-transform: uppercase;
         }
 
-        /* Highlight im Logo (SPOTME) */
-        .logo-text span {
-            color: var(--accent-pink);
-        }
+        .logo-text span { color: var(--accent-pink); }
+        .logo-subtitle { color: var(--accent-pink); font-size: 0.8rem; font-weight: 600; letter-spacing: 1px; }
 
-        .logo-subtitle {
-            color: var(--accent-pink);
-            font-size: 0.8rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
+        .right-actions { display: flex; gap: 10px; align-items: center; }
 
-        /* Rechte Header-Gruppe */
-        .right-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        /* Radar Button */
         .radar-btn {
             background: var(--accent-pink-dark);
             border: 1px solid rgba(255, 51, 102, 0.3);
@@ -127,8 +105,7 @@
         }
 
         .radar-dot {
-            width: 8px;
-            height: 8px;
+            width: 8px; height: 8px;
             background-color: var(--accent-pink);
             border-radius: 50%;
             box-shadow: 0 0 8px var(--accent-pink);
@@ -149,23 +126,15 @@
             margin-bottom: 20px;
         }
 
-        .stats-bar span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
         /* --- SWIPE CONTAINER --- */
         .swipe-container {
             position: relative;
-            width: 90vw;
-            max-width: 380px;
-            flex-grow: 1;
-            max-height: 60vh;
+            width: calc(100% - 30px);
+            height: 420px; /* Feste Höhe, damit unten noch Platz für Filter ist */
             perspective: 1000px;
+            margin-bottom: 25px;
         }
 
-        /* --- PROFIL KARTE --- */
         .profile-card {
             position: absolute;
             width: 100%;
@@ -177,20 +146,19 @@
             display: flex;
             flex-direction: column;
             cursor: grab;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             user-select: none;
             transition: transform 0.1s ease-out;
             touch-action: none;
+            z-index: 2;
         }
 
-        .profile-card:active {
-            cursor: grabbing;
-        }
+        .profile-card:active { cursor: grabbing; }
 
         .image-container {
             position: relative;
             width: 100%;
-            height: 60%;
+            height: 55%;
             background: linear-gradient(to bottom, transparent 50%, var(--card-bg) 100%),
                         url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600') center/cover;
         }
@@ -198,14 +166,12 @@
         /* NOTIERT HERZ */
         .heart-badge {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
+            top: 15px; right: 15px;
+            width: 50px; height: 50px;
             background: rgba(22, 27, 34, 0.7);
             backdrop-filter: blur(10px);
             border: 2px solid var(--accent-pink);
-            border-radius: 16px;
+            border-radius: 14px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -215,100 +181,131 @@
             z-index: 10;
         }
 
-        .heart-badge.active {
-            background: var(--accent-pink);
-        }
-
-        .heart-badge svg {
-            width: 24px;
-            height: 24px;
-            fill: transparent;
-            stroke: var(--accent-pink);
-            stroke-width: 2;
-            transition: all 0.2s ease;
-        }
-
-        .heart-badge.active svg {
-            fill: white;
-            stroke: white;
-        }
-
-        .heart-badge span {
-            font-size: 0.55rem;
-            color: var(--accent-pink);
-            margin-top: 4px;
-            font-weight: bold;
-        }
-
-        .heart-badge.active span {
-            color: white;
-        }
+        .heart-badge.active { background: var(--accent-pink); }
+        .heart-badge svg { width: 20px; height: 20px; fill: transparent; stroke: var(--accent-pink); stroke-width: 2; }
+        .heart-badge.active svg { fill: white; stroke: white; }
+        .heart-badge span { font-size: 0.5rem; color: var(--accent-pink); margin-top: 3px; font-weight: bold; }
+        .heart-badge.active span { color: white; }
 
         .profile-content {
-            padding: 0 24px 24px 24px;
+            padding: 0 20px 20px 20px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
         }
 
-        .name-age {
-            font-size: 1.6rem;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-
-        .location {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 15px;
-        }
-
-        .bio {
-            font-size: 0.95rem;
-            line-height: 1.4;
-            color: #d1d5db;
-            margin-bottom: 15px;
-        }
+        .name-age { font-size: 1.4rem; font-weight: bold; margin-bottom: 2px; }
+        .location { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
+        .bio { font-size: 0.9rem; line-height: 1.4; color: #d1d5db; margin-bottom: auto; }
 
         .bottom-actions {
-            margin-top: auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-top: 10px;
         }
 
-        .status {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status::before {
-            content: '';
-            width: 8px; height: 8px;
-            background-color: #38ef7d;
-            border-radius: 50%;
-            box-shadow: 0 0 5px #38ef7d;
-        }
+        .status { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+        .status::before { content: ''; width: 8px; height: 8px; background-color: #38ef7d; border-radius: 50%; box-shadow: 0 0 5px #38ef7d; }
 
         .chat-btn {
             background: var(--accent-pink);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 12px;
             font-weight: bold;
             display: flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
-            transition: transform 0.2s;
         }
 
-        .chat-btn:active {
-            transform: scale(0.95);
+        /* --- COMMUNITY FILTER (NEU) --- */
+        .filter-section {
+            width: 100%;
+            padding: 0 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .filter-header {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .filter-dropdowns {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .dropdown {
+            flex: 1;
+            background: var(--btn-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 12px 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            appearance: none;
+            /* Custom Arrow Icon für das Dropdown */
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%238b92a5" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            outline: none;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px; /* Platz für Scrollbar falls nötig */
+        }
+        
+        /* Scrollbar für Pills verstecken */
+        .filter-pills::-webkit-scrollbar { display: none; }
+
+        .pill {
+            background: var(--btn-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        /* Aktive Pill-Zustände aus dem Screenshot */
+        .pill.active-pink {
+            border-color: rgba(255, 51, 102, 0.4);
+            color: var(--text-main);
+        }
+        .pill.active-blue {
+            border-color: rgba(51, 153, 255, 0.4);
+            color: var(--text-main);
+        }
+
+        .reset-filter {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            align-self: flex-start;
+            margin-top: 5px;
         }
 
     </style>
@@ -319,17 +316,14 @@
         
         <header class="top-nav">
             <button class="icon-btn">‹</button>
-            
             <div class="brand-container">
                 <div class="logo-text">SPOTME</div>
                 <div class="logo-subtitle">Dates</div>
             </div>
-            
             <div class="right-actions">
                 <button class="icon-btn">↺</button>
                 <button class="radar-btn">
-                    <span class="radar-dot"></span>
-                    O RADAR
+                    <span class="radar-dot"></span> O RADAR
                 </button>
             </div>
         </header>
@@ -350,22 +344,39 @@
                         <span>NOTIERT</span>
                     </div>
                 </div>
-
                 <div class="profile-content">
                     <div class="name-age">Estella, 24</div>
                     <div class="location">Gandía, Valencia</div>
                     <div class="bio">
                         Suche Fotografen und Studios für Zusammenarbeit im Bereich Fetish Fotografie.
                     </div>
-
                     <div class="bottom-actions">
                         <div class="status">gerade aktiv</div>
-                        <button class="chat-btn">
-                            <span>💬</span> Chat
-                        </button>
+                        <button class="chat-btn"><span>💬</span> Chat</button>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-header">Community Filter</div>
+            
+            <div class="filter-dropdowns">
+                <select class="dropdown">
+                    <option>Valencia (Region)</option>
+                </select>
+                <select class="dropdown">
+                    <option>Alle Altersgruppen</option>
+                </select>
+            </div>
+
+            <div class="filter-pills">
+                <button class="pill active-pink">💕 Beziehung</button>
+                <button class="pill active-blue">👥 Freundschaft</button>
+                <button class="pill">🍸 Casual</button>
+            </div>
+
+            <button class="reset-filter">✕ Filter zurücksetzen</button>
         </div>
 
     </div>
@@ -374,12 +385,24 @@
         const card = document.getElementById('profileCard');
         let startX, startY, moveX, moveY;
 
+        // "Notiert"-Herz umschalten
         function toggleNotiert(e) {
             e.stopPropagation(); 
             const btn = document.getElementById('heartBtn');
             btn.classList.toggle('active');
         }
 
+        // Pill-Buttons interaktiv machen (Beispiel)
+        const pills = document.querySelectorAll('.pill');
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                // Einfache Demo: Klick schaltet den Rahmen ein/aus
+                if(pill.innerText.includes('Beziehung')) pill.classList.toggle('active-pink');
+                if(pill.innerText.includes('Freundschaft')) pill.classList.toggle('active-blue');
+            });
+        });
+
+        // Swipe-Logik
         const initDrag = (e) => {
             startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -393,10 +416,7 @@
         };
 
         const drag = (e) => {
-            // Verhindert Scrollen beim Wischen am Handy
-            if(e.type.includes('touch')) {
-                e.preventDefault(); 
-            }
+            if(e.type.includes('touch')) e.preventDefault(); // Stoppt Seiten-Scroll beim Wischen
             
             moveX = (e.type.includes('touch') ? e.touches[0].clientX : e.clientX) - startX;
             moveY = (e.type.includes('touch') ? e.touches[0].clientY : e.clientY) - startY;
@@ -415,6 +435,7 @@
                 let endX = moveX > 0 ? 800 : -800;
                 card.style.transform = `translate(${endX}px, ${moveY}px) rotate(${moveX/5}deg)`;
                 
+                // Karte kommt nach dem Wischen zurück (nur für die Demo)
                 setTimeout(() => {
                     card.style.transition = 'none';
                     card.style.transform = 'translate(0,0) rotate(0deg)';
@@ -429,5 +450,5 @@
         card.addEventListener('touchstart', initDrag, {passive: false});
     </script>
 </body>
-                                                            </html>
+                            </html>
     
