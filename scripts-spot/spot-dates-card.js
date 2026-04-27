@@ -508,7 +508,7 @@ function showNotedProfile(code) {
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
-  .card-swipe-container { position:relative; width:100%; height:460px; perspective:1000px; margin-bottom:1rem; }
+  .card-swipe-container { position:relative; width:100%; height:460px; perspective:1000px; margin-bottom:2rem; }
   .card-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; margin-bottom:.3rem; }
   .card-nav-btn { width:44px; height:44px; border-radius:50%; background:var(--card); border:1px solid var(--bord); color:var(--text); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .card-nav-btn:active { background:var(--bord); }
