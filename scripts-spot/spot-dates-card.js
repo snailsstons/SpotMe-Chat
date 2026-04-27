@@ -1,12 +1,29 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT (autark)
-// Flip, Swipe, Notieren – komplett isoliert vom Live-System
+// SPOT DATES – CARD ANSICHT (autark) v2.0
+// Flip, Swipe, Notieren, Stack-System – komplett isoliert vom Live-System
 // ══════════════════════════════════════════════════════════════════════════════
 
 const NOTED_KEY = 'sm_noted_dates';
-let currentIndex = 0;
 let notedProfiles = [];
+let profileStack = [];  // 🆕 Stapel für einmalige Anzeige
+
+// 🆕 Stapel zurücksetzen (Fisher-Yates Shuffle)
+function resetStack() {
+  profileStack = [...filtered];
+  for (let i = profileStack.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [profileStack[i], profileStack[j]] = [profileStack[j], profileStack[i]];
+  }
+}
+
+// 🆕 Nächstes Profil vom Stapel holen
+function getNextProfile() {
+  if (profileStack.length === 0) {
+    resetStack();
+  }
+  return profileStack.pop();
+}
 
 // Überschreibt die globale renderList-Funktion
 window.renderList = function() {
@@ -24,7 +41,7 @@ window.renderList = function() {
   notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
   
   if (filtered.length > 0) {
-    currentIndex = 0;
+    resetStack(); // 🆕 Stapel initial mischen
     renderCurrentCard();
   } else {
     document.getElementById('cardWrapper').innerHTML = `
@@ -37,9 +54,15 @@ window.renderList = function() {
 
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
-  if (!wrapper || filtered.length === 0) return;
+  if (!wrapper) return;
   
-  const p = filtered[currentIndex];
+  // 🆕 Vom Stapel nehmen
+  const p = getNextProfile();
+  if (!p) {
+    wrapper.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--muted);">Keine weiteren Profile</div>`;
+    return;
+  }
+  
   const name = p.name || '?';
   const initial = name[0]?.toUpperCase() || '?';
   const age = p.age ? `${p.age} J.` : '';
@@ -58,7 +81,13 @@ function renderCurrentCard() {
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
   
+  // Stack-Anzeige
+  const stackInfo = profileStack.length > 0 
+    ? `<div class="stack-counter">${profileStack.length + 1} Profile im Stapel</div>` 
+    : '<div class="stack-counter">Letztes Profil – Stapel wird neu gemischt</div>';
+  
   wrapper.innerHTML = `
+    ${stackInfo}
     <div class="card-inner" id="cardInner">
       <!-- VORDERSEITE -->
       <div class="card-front">
@@ -155,19 +184,18 @@ function initCardSwipe() {
       // Kurzer Klick → Flip
       inner.classList.toggle('is-flipped');
     } else if (Math.abs(moveX) > 100) {
-      // Swipe → nächstes/vorheriges Profil
+      // Swipe → nächstes Profil vom Stapel
       const direction = moveX > 0 ? 1 : -1;
       const endX = direction * 600;
       wrapper.style.transform = `translateX(${endX}px) rotate(${moveX/5}deg)`;
       wrapper.style.opacity = '0';
       
       setTimeout(() => {
-        currentIndex = (currentIndex + (direction > 0 ? -1 : 1) + filtered.length) % filtered.length;
         wrapper.style.transition = 'none';
         wrapper.style.transform = 'translateX(0) rotate(0deg)';
         wrapper.style.opacity = '1';
         inner.classList.remove('is-flipped');
-        renderCurrentCard();
+        renderCurrentCard(); // 🆕 Nächstes vom Stapel!
         setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
       }, 300);
     } else {
@@ -193,11 +221,9 @@ function toggleNote(code) {
   
   localStorage.setItem(NOTED_KEY, JSON.stringify(notedProfiles));
   
-  // Herz-Icon updaten
   const heart = document.getElementById('cardHeart');
   if (heart) heart.classList.toggle('active', index < 0);
   
-  // Notierte Sektion updaten
   renderNotedSection();
 }
 
@@ -227,10 +253,11 @@ function renderNotedSection() {
   `;
 }
 
+// 🆕 Notiertes Profil WIEDER auf den Stapel legen
 function showNotedProfile(code) {
-  const index = filtered.findIndex(p => p.code === code);
-  if (index >= 0) {
-    currentIndex = index;
+  const profile = allProfiles.find(p => p.code === code);
+  if (profile) {
+    profileStack.push(profile); // Zurück auf den Stapel!
     renderCurrentCard();
   }
 }
@@ -239,11 +266,15 @@ function showNotedProfile(code) {
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
   .card-swipe-container {
-    position: relative; width: 100%; height: 420px;
+    position: relative; width: 100%; height: 450px;
     perspective: 1000px; margin-bottom: 1rem;
   }
+  .stack-counter {
+    text-align: center; font-size: .7rem; color: var(--muted);
+    padding: .3rem; margin-bottom: .3rem;
+  }
   .card-wrapper {
-    position: absolute; width: 100%; height: 100%;
+    position: absolute; width: 100%; height: calc(100% - 25px);
     cursor: grab; user-select: none; touch-action: none;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
@@ -339,4 +370,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js geladen – Card-Ansicht aktiv');
+console.log('✅ spot-dates-card.js v2.0 geladen – Stack-System aktiv');
