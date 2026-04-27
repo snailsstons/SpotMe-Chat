@@ -141,7 +141,7 @@ function renderFilterSection(savedState = null) {
   
   anchor.insertAdjacentHTML('beforeend', filterHTML);
   
-  // Regionen befüllen
+  // 🆕 1. ERST die Regionen befüllen!
   const regionSelect = document.getElementById('f-region');
   if (regionSelect && typeof REGIONS !== 'undefined') {
     REGIONS.forEach(r => {
@@ -152,16 +152,15 @@ function renderFilterSection(savedState = null) {
     });
   }
   
-  // Zustand wiederherstellen
+  // 🆕 2. DANN den gespeicherten Zustand setzen!
   const state = savedState || loadFilterState();
   if (state) {
-    if (state.region) {
-      const rs = document.getElementById('f-region');
-      if (rs) rs.value = state.region;
+    if (state.region && regionSelect) {
+      regionSelect.value = state.region;  // Jetzt existiert die Option!
     }
     if (state.age) {
-      const as = document.getElementById('f-age');
-      if (as) as.value = state.age;
+      const ageSelect = document.getElementById('f-age');
+      if (ageSelect) ageSelect.value = state.age;
     }
     if (state.chips && state.chips.length > 0) {
       document.querySelectorAll('#filter-chips .filter-chip').forEach(chip => {
@@ -174,7 +173,6 @@ function renderFilterSection(savedState = null) {
   
   filtersInitialized = true;
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER HANDLER
 // ══════════════════════════════════════════════════════════════════════════════
