@@ -122,7 +122,7 @@ let currentAvatar = null; // Vom Server geladen
 
 // ── Token & Code holen ──────────────────────────────────
 const code  = localStorage.getItem('sm_code')  || '910001';
-const token = localStorage.getItem('sm_token') || 'demo-token';
+const token = localStorage.getItem('sm_token') || 'demo_tok_001';
 
 document.getElementById('infoCode').textContent  = code;
 document.getElementById('infoToken').textContent = token ? token.slice(0,16) + '…' : '—';
