@@ -3,18 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOTME - Full UI Swipe Demo</title>
+    <title>SPOTME - Full UI Sections Demo</title>
     <style>
         :root {
-            --bg-dark: #0a0c10;
-            --card-bg: #161b22;
+            /* Farbpalette für die unterschiedlichen Bereiche */
+            --bg-main: #06080a;        /* Ganz dunkler Hintergrund außen */
+            --bg-header: #0a0c10;      /* Header Hintergrund */
+            --bg-own-profile: #13171e; /* Eigenes Profil Hintergrund */
+            --bg-swipe-area: #0d1117;  /* Swipe-Bereich Hintergrund */
+            --bg-filter: #1a202c;      /* Filter-Bereich Hintergrund */
+            
+            --card-bg: #1c222b;        /* Die Swipe-Karte selbst */
+            
             --accent-pink: #ff3366;
             --accent-pink-dark: rgba(255, 51, 102, 0.2);
             --accent-blue: #3399ff;
             --text-main: #ffffff;
             --text-muted: #8b92a5;
             --glass-border: rgba(255, 255, 255, 0.08);
-            --btn-bg: rgba(255, 255, 255, 0.03);
+            --btn-bg: rgba(255, 255, 255, 0.04);
         }
 
         * {
@@ -26,12 +33,11 @@
         }
 
         body {
-            background-color: var(--bg-dark);
+            background-color: var(--bg-main);
             color: var(--text-main);
             display: flex;
             justify-content: center;
             min-height: 100vh;
-            /* Scrollen erlauben, falls der Bildschirm zu klein ist */
             overflow-x: hidden; 
             overflow-y: auto;
         }
@@ -42,271 +48,193 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 15px 0 30px 0;
+            gap: 12px; /* Abstand zwischen den farbigen Blöcken */
+            padding-bottom: 20px;
         }
 
-        /* --- HEADER BEREICH --- */
-        .top-nav {
+        /* --- 1. HEADER BEREICH --- */
+        .header-section {
             width: 100%;
+            background-color: var(--bg-header);
+            padding: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 15px;
-            margin-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
         }
 
         .icon-btn {
             background: var(--btn-bg);
             border: 1px solid var(--glass-border);
             color: var(--text-muted);
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2rem;
-            cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; cursor: pointer;
         }
 
-        .brand-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            line-height: 1.1;
-        }
-
-        .logo-text {
-            font-weight: 900;
-            font-size: 1.4rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
+        .brand-container { text-align: center; line-height: 1.1; }
+        .logo-text { font-weight: 900; font-size: 1.4rem; letter-spacing: 2px; }
         .logo-text span { color: var(--accent-pink); }
         .logo-subtitle { color: var(--accent-pink); font-size: 0.8rem; font-weight: 600; letter-spacing: 1px; }
 
         .right-actions { display: flex; gap: 10px; align-items: center; }
-
         .radar-btn {
             background: var(--accent-pink-dark);
             border: 1px solid rgba(255, 51, 102, 0.3);
             color: var(--accent-pink);
-            padding: 0 12px;
-            height: 40px;
+            padding: 0 12px; height: 40px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .radar-dot { width: 8px; height: 8px; background-color: var(--accent-pink); border-radius: 50%; box-shadow: 0 0 8px var(--accent-pink); }
+
+        /* --- 2. EIGENES PROFIL BEREICH --- */
+        .own-profile-section {
+            width: calc(100% - 20px);
+            background-color: var(--bg-own-profile);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 800;
-            letter-spacing: 1px;
+            padding: 15px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            cursor: pointer;
+            gap: 12px;
         }
 
-        .radar-dot {
-            width: 8px; height: 8px;
-            background-color: var(--accent-pink);
+        .own-avatar {
+            width: 50px; height: 50px;
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent-pink);
+            object-fit: cover;
+            border: 2px solid #ff9a9e; /* Orange/Pinker Rahmen wie im Screenshot */
+            padding: 2px;
         }
 
-        /* --- STATS LEISTE --- */
-        .stats-bar {
-            width: calc(100% - 30px);
+        .own-info { flex-grow: 1; display: flex; flex-direction: column; gap: 2px; }
+        .own-name { font-weight: bold; font-size: 1.1rem; }
+        .own-meta { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+        .own-tag {
+            align-self: flex-start;
+            background: rgba(255, 51, 102, 0.1);
+            color: var(--accent-pink);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+
+        .own-actions { display: flex; gap: 8px; }
+        .action-circle {
+            width: 32px; height: 32px;
+            border-radius: 50%;
             background: var(--btn-bg);
             border: 1px solid var(--glass-border);
-            padding: 10px;
-            border-radius: 16px;
+            display: flex; justify-content: center; align-items: center;
+            color: var(--text-muted); font-size: 0.9rem; cursor: pointer;
+        }
+        
+        .action-circle.active-pin { color: var(--accent-pink); }
+
+        /* --- 3. SWIPE BEREICH (COMMUNITY PROFILE) --- */
+        .swipe-section {
+            width: calc(100% - 20px);
+            background-color: var(--bg-swipe-area);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 15px;
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 20px;
+            flex-direction: column;
         }
 
-        /* --- SWIPE CONTAINER --- */
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 5px;
+        }
+        .section-title { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
+        .section-count { font-size: 0.9rem; font-weight: bold; color: white; }
+
         .swipe-container {
             position: relative;
-            width: calc(100% - 30px);
-            height: 420px; /* Feste Höhe, damit unten noch Platz für Filter ist */
+            width: 100%;
+            height: 380px; 
             perspective: 1000px;
-            margin-bottom: 25px;
         }
 
         .profile-card {
             position: absolute;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             background-color: var(--card-bg);
-            border-radius: 24px;
+            border-radius: 20px;
             border: 1px solid var(--glass-border);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            cursor: grab;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            user-select: none;
-            transition: transform 0.1s ease-out;
-            touch-action: none;
-            z-index: 2;
+            overflow: hidden; display: flex; flex-direction: column;
+            cursor: grab; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            user-select: none; transition: transform 0.1s ease-out; touch-action: none; z-index: 2;
         }
-
         .profile-card:active { cursor: grabbing; }
 
         .image-container {
-            position: relative;
-            width: 100%;
-            height: 55%;
-            background: linear-gradient(to bottom, transparent 50%, var(--card-bg) 100%),
+            position: relative; width: 100%; height: 50%;
+            background: linear-gradient(to bottom, transparent 40%, var(--card-bg) 100%),
                         url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600') center/cover;
         }
 
-        /* NOTIERT HERZ */
         .heart-badge {
-            position: absolute;
-            top: 15px; right: 15px;
-            width: 50px; height: 50px;
-            background: rgba(22, 27, 34, 0.7);
-            backdrop-filter: blur(10px);
-            border: 2px solid var(--accent-pink);
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            z-index: 10;
+            position: absolute; top: 12px; right: 12px; width: 45px; height: 45px;
+            background: rgba(28, 34, 43, 0.7); backdrop-filter: blur(10px);
+            border: 2px solid var(--accent-pink); border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s ease; z-index: 10;
         }
-
         .heart-badge.active { background: var(--accent-pink); }
-        .heart-badge svg { width: 20px; height: 20px; fill: transparent; stroke: var(--accent-pink); stroke-width: 2; }
+        .heart-badge svg { width: 18px; height: 18px; fill: transparent; stroke: var(--accent-pink); stroke-width: 2; }
         .heart-badge.active svg { fill: white; stroke: white; }
-        .heart-badge span { font-size: 0.5rem; color: var(--accent-pink); margin-top: 3px; font-weight: bold; }
+        .heart-badge span { font-size: 0.45rem; color: var(--accent-pink); margin-top: 2px; font-weight: bold; }
         .heart-badge.active span { color: white; }
 
-        .profile-content {
-            padding: 0 20px 20px 20px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
+        .profile-content { padding: 0 15px 15px 15px; flex-grow: 1; display: flex; flex-direction: column; }
+        .name-age { font-size: 1.3rem; font-weight: bold; margin-bottom: 2px; }
+        .location { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; }
+        .bio { font-size: 0.85rem; line-height: 1.4; color: #d1d5db; margin-bottom: auto; }
 
-        .name-age { font-size: 1.4rem; font-weight: bold; margin-bottom: 2px; }
-        .location { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; }
-        .bio { font-size: 0.9rem; line-height: 1.4; color: #d1d5db; margin-bottom: auto; }
-
-        .bottom-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-        }
-
+        .bottom-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
         .status { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-        .status::before { content: ''; width: 8px; height: 8px; background-color: #38ef7d; border-radius: 50%; box-shadow: 0 0 5px #38ef7d; }
+        .status::before { content: ''; width: 8px; height: 8px; background-color: #38ef7d; border-radius: 50%; }
+        .chat-btn { background: var(--accent-pink); color: white; border: none; padding: 8px 16px; border-radius: 10px; font-weight: bold; display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
-        .chat-btn {
-            background: var(--accent-pink);
-            color: white;
-            border: none;
-            padding: 10px 18px;
-            border-radius: 12px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-        /* --- COMMUNITY FILTER (NEU) --- */
+        /* --- 4. COMMUNITY FILTER BEREICH --- */
         .filter-section {
-            width: 100%;
-            padding: 0 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .filter-header {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-
-        .filter-dropdowns {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-
-        .dropdown {
-            flex: 1;
-            background: var(--btn-bg);
+            width: calc(100% - 20px);
+            background-color: var(--bg-filter);
             border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            padding: 12px 15px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            appearance: none;
-            /* Custom Arrow Icon für das Dropdown */
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%238b92a5" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            outline: none;
-        }
-
-        .filter-pills {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 5px; /* Platz für Scrollbar falls nötig */
-        }
-        
-        /* Scrollbar für Pills verstecken */
-        .filter-pills::-webkit-scrollbar { display: none; }
-
-        .pill {
-            background: var(--btn-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-muted);
-            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: all 0.2s;
+            padding: 15px;
+            display: flex; flex-direction: column; gap: 12px;
         }
 
-        /* Aktive Pill-Zustände aus dem Screenshot */
-        .pill.active-pink {
-            border-color: rgba(255, 51, 102, 0.4);
-            color: var(--text-main);
-        }
-        .pill.active-blue {
-            border-color: rgba(51, 153, 255, 0.4);
-            color: var(--text-main);
+        .filter-header { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
+        
+        .filter-dropdowns { display: flex; gap: 10px; width: 100%; }
+        .dropdown {
+            flex: 1; background: var(--btn-bg); border: 1px solid var(--glass-border); color: var(--text-main);
+            padding: 10px 12px; border-radius: 10px; font-size: 0.8rem; appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%238b92a5" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+            background-repeat: no-repeat; background-position: right 8px center; outline: none;
         }
 
-        .reset-filter {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            cursor: pointer;
-            align-self: flex-start;
-            margin-top: 5px;
+        .filter-pills { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+        .filter-pills::-webkit-scrollbar { display: none; }
+        .pill {
+            background: var(--btn-bg); border: 1px solid var(--glass-border); color: var(--text-muted);
+            padding: 8px 14px; border-radius: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;
+            cursor: pointer; white-space: nowrap; transition: all 0.2s;
         }
+        .pill.active-pink { border-color: rgba(255, 51, 102, 0.4); color: var(--text-main); }
+        .pill.active-blue { border-color: rgba(51, 153, 255, 0.4); color: var(--text-main); }
+
+        .reset-filter { background: none; border: none; color: var(--text-muted); font-size: 0.8rem; display: flex; align-items: center; gap: 5px; cursor: pointer; align-self: flex-start; }
 
     </style>
 </head>
@@ -314,7 +242,7 @@
 
     <div class="app-container">
         
-        <header class="top-nav">
+        <header class="header-section">
             <button class="icon-btn">‹</button>
             <div class="brand-container">
                 <div class="logo-text">SPOTME</div>
@@ -322,62 +250,67 @@
             </div>
             <div class="right-actions">
                 <button class="icon-btn">↺</button>
-                <button class="radar-btn">
-                    <span class="radar-dot"></span> O RADAR
-                </button>
+                <button class="radar-btn"><span class="radar-dot"></span> O RADAR</button>
             </div>
         </header>
 
-        <div class="stats-bar">
-            <span>📊 0 B</span>
-            <span>⬆️ 0 B</span>
-            <span>⬇️ 0 B</span>
-        </div>
-
-        <div class="swipe-container" id="swipeContainer">
-            <div class="profile-card" id="profileCard">
-                <div class="image-container">
-                    <div class="heart-badge" id="heartBtn" onclick="toggleNotiert(event)">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                        </svg>
-                        <span>NOTIERT</span>
-                    </div>
-                </div>
-                <div class="profile-content">
-                    <div class="name-age">Estella, 24</div>
-                    <div class="location">Gandía, Valencia</div>
-                    <div class="bio">
-                        Suche Fotografen und Studios für Zusammenarbeit im Bereich Fetish Fotografie.
-                    </div>
-                    <div class="bottom-actions">
-                        <div class="status">gerade aktiv</div>
-                        <button class="chat-btn"><span>💬</span> Chat</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="filter-section">
-            <div class="filter-header">Community Filter</div>
+        <section class="own-profile-section">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" alt="Stella" class="own-avatar">
             
-            <div class="filter-dropdowns">
-                <select class="dropdown">
-                    <option>Valencia (Region)</option>
-                </select>
-                <select class="dropdown">
-                    <option>Alle Altersgruppen</option>
-                </select>
+            <div class="own-info">
+                <div class="own-name">Stella</div>
+                <div class="own-meta">25 J. · Gandía, Valencia (R...</div>
+                <div class="own-tag">kennenlernen</div>
             </div>
 
+            <div class="own-actions">
+                <div class="action-circle">👁</div>
+                <div class="action-circle">✎</div>
+                <div class="action-circle active-pin">📍</div>
+            </div>
+        </section>
+
+        <section class="swipe-section">
+            <div class="section-header-row">
+                <span class="section-title">Community Profile</span>
+                <span class="section-count">1 Profil gefunden</span>
+            </div>
+
+            <div class="swipe-container" id="swipeContainer">
+                <div class="profile-card" id="profileCard">
+                    <div class="image-container">
+                        <div class="heart-badge" id="heartBtn" onclick="toggleNotiert(event)">
+                            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                            <span>NOTIERT</span>
+                        </div>
+                    </div>
+                    <div class="profile-content">
+                        <div class="name-age">Estella, 24</div>
+                        <div class="location">Gandía, Valencia (Region)</div>
+                        <div class="own-tag" style="margin-bottom: 10px;">kennenlernen</div>
+                        <div class="bio">Suche Fotografen und Studios für Zusammenarbeit im Bereich Fetish Fotografie.</div>
+                        <div class="bottom-actions">
+                            <div class="status">gerade aktiv</div>
+                            <button class="chat-btn"><span>💬</span> Chat</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="filter-section">
+            <div class="filter-header">Community Filter</div>
+            <div class="filter-dropdowns">
+                <select class="dropdown"><option>Valencia (Region)</option></select>
+                <select class="dropdown"><option>Alle Altersgruppen</option></select>
+            </div>
             <div class="filter-pills">
                 <button class="pill active-pink">💕 Beziehung</button>
                 <button class="pill active-blue">👥 Freundschaft</button>
                 <button class="pill">🍸 Casual</button>
             </div>
-
             <button class="reset-filter">✕ Filter zurücksetzen</button>
-        </div>
+        </section>
 
     </div>
 
@@ -385,42 +318,33 @@
         const card = document.getElementById('profileCard');
         let startX, startY, moveX, moveY;
 
-        // "Notiert"-Herz umschalten
         function toggleNotiert(e) {
             e.stopPropagation(); 
-            const btn = document.getElementById('heartBtn');
-            btn.classList.toggle('active');
+            document.getElementById('heartBtn').classList.toggle('active');
         }
 
-        // Pill-Buttons interaktiv machen (Beispiel)
         const pills = document.querySelectorAll('.pill');
         pills.forEach(pill => {
             pill.addEventListener('click', () => {
-                // Einfache Demo: Klick schaltet den Rahmen ein/aus
                 if(pill.innerText.includes('Beziehung')) pill.classList.toggle('active-pink');
                 if(pill.innerText.includes('Freundschaft')) pill.classList.toggle('active-blue');
             });
         });
 
-        // Swipe-Logik
         const initDrag = (e) => {
             startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
             startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-            
             document.addEventListener('mousemove', drag);
             document.addEventListener('touchmove', drag, {passive: false});
             document.addEventListener('mouseup', endDrag);
             document.addEventListener('touchend', endDrag);
-            
             card.style.transition = 'none';
         };
 
         const drag = (e) => {
-            if(e.type.includes('touch')) e.preventDefault(); // Stoppt Seiten-Scroll beim Wischen
-            
+            if(e.type.includes('touch')) e.preventDefault(); 
             moveX = (e.type.includes('touch') ? e.touches[0].clientX : e.clientX) - startX;
             moveY = (e.type.includes('touch') ? e.touches[0].clientY : e.clientY) - startY;
-            
             let rotation = moveX / 15;
             card.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotation}deg)`;
         };
@@ -428,14 +352,11 @@
         const endDrag = () => {
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('touchmove', drag);
-            
             card.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
             
             if (Math.abs(moveX) > 120) {
                 let endX = moveX > 0 ? 800 : -800;
                 card.style.transform = `translate(${endX}px, ${moveY}px) rotate(${moveX/5}deg)`;
-                
-                // Karte kommt nach dem Wischen zurück (nur für die Demo)
                 setTimeout(() => {
                     card.style.transition = 'none';
                     card.style.transform = 'translate(0,0) rotate(0deg)';
@@ -450,5 +371,5 @@
         card.addEventListener('touchstart', initDrag, {passive: false});
     </script>
 </body>
-                            </html>
-    
+                </html>
+                
