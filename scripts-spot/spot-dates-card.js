@@ -50,15 +50,26 @@ let filtersInitialized = false;
 function preloadNextProfiles() {
   if (filtered.length === 0) return;
   
+  // 🆕 currentIndex absichern!
+  if (currentIndex >= filtered.length) {
+    currentIndex = 0;
+  }
+  
   const toPreload = [];
   for (let i = 1; i <= 3; i++) {
     const nextIndex = (currentIndex + i) % filtered.length;
     const prevIndex = (currentIndex - i + filtered.length) % filtered.length;
-    if (nextIndex !== currentIndex) toPreload.push(filtered[nextIndex]);
-    if (prevIndex !== currentIndex && prevIndex !== nextIndex) toPreload.push(filtered[prevIndex]);
+    
+    // 🆕 NULL-Check!
+    if (filtered[nextIndex] && nextIndex !== currentIndex) {
+      toPreload.push(filtered[nextIndex]);
+    }
+    if (filtered[prevIndex] && prevIndex !== currentIndex && prevIndex !== nextIndex) {
+      toPreload.push(filtered[prevIndex]);
+    }
   }
   
-  const unique = [...new Set(toPreload.map(p => p.code))];
+  const unique = [...new Set(toPreload.map(p => p?.code).filter(Boolean))];
   console.log('🔄 Preload:', unique.length, 'Profile');
   
   unique.forEach(code => {
@@ -76,7 +87,6 @@ function preloadNextProfiles() {
     }, 100);
   });
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER SPEICHERN & LADEN
 // ══════════════════════════════════════════════════════════════════════════════
@@ -227,8 +237,14 @@ function applyFiltersLocal() {
     return true;
   });
   
+  // 🆕 Index absichern – niemals außerhalb des gültigen Bereichs!
+  if (filtered.length === 0) {
+    currentIndex = 0;
+  } else if (currentIndex >= filtered.length) {
+    currentIndex = 0;
+  }
+  
   saveFilterState();
-  currentIndex = 0;
   renderList();
 }
 
