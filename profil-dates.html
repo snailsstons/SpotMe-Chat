@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
-  <!-- Eruda – Mobile Console (nur für Debugging) -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-  
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SpotMe · Dates Spot Profil</title>
@@ -388,7 +383,7 @@ function handleAvatar(input) {
       canvas.width = w;
       canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      avatarData = canvas.toDataURL('image/jpeg', 0.75);
+      avatarData = canvas.toDataURL('image/jpeg', 0.55);
       
       renderAvatar();
       
