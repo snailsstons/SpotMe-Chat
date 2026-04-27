@@ -10,6 +10,37 @@ let notedProfiles = [];
 let currentIndex = 0;
 let filtersInitialized = false;
 
+// 🆕 PERFORMANCE-BOOST: API-Calls für die Card-Ansicht optimieren!
+// Überschreibe die langsame fetchLocationForProfile
+const originalFetchLocation = window.fetchLocationForProfile;
+window.fetchLocationForProfile = function(code) {
+  // Nur aufrufen, wenn nicht schon gecached
+  if (locationCache && locationCache.has(code)) {
+    return Promise.resolve(locationCache.get(code));
+  }
+  // Sonst NICHT laden (spart API-Calls!)
+  return Promise.resolve(null);
+};
+
+// Überschreibe die langsame fetchOnlineStatus
+const originalFetchOnline = window.fetchOnlineStatus;
+window.fetchOnlineStatus = function(code) {
+  if (onlineStatusCache && onlineStatusCache.has(code)) {
+    return Promise.resolve(onlineStatusCache.get(code));
+  }
+  // Standard: offline (spart API-Calls!)
+  return Promise.resolve({ online: false });
+};
+
+// Überschreibe die langsame fetchVerifications
+const originalFetchVerifications = window.fetchVerifications;
+window.fetchVerifications = function(code) {
+  if (verificationCache && verificationCache.has(code)) {
+    return Promise.resolve(verificationCache.get(code));
+  }
+  return Promise.resolve([]);
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // FILTER SPEICHERN & LADEN
 // ══════════════════════════════════════════════════════════════════════════════
