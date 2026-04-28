@@ -1,10 +1,9 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.0 – Story & Kommentare
-// Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
-// Pinch (2 Finger) = Kurznachricht | DoubleTap Avatar = Fullscreen
-// Notieren NUR manuell über ❤️ Button
-// 🆕 Card-Rückseite: Story + Kommentare (öffentlich)
+// SPOT DATES – CARD ANSICHT v4.1 – Bereinigte Gesten & Scroll-Fix
+// Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
+// Pinch = Kurznachricht | ❤️ Button = Notieren
+// 🆕 Card-Rückseite: Story + Kommentare (öffentlich) + natives Scrollen
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -105,7 +104,6 @@ function preloadNextProfiles() {
   console.log('🔄 Preload:', unique.length, 'Profile');
   
   unique.forEach(code => {
-    // Location + Online Status
     setTimeout(() => {
       if (window.fetchLocationForProfile._original) {
         window.fetchLocationForProfile._original(code).then(loc => {
@@ -119,7 +117,6 @@ function preloadNextProfiles() {
       }
     }, 100);
     
-    // 🆕 Avatar mit-preloaden
     setTimeout(() => {
       preloadAvatar(code);
     }, 200);
@@ -482,13 +479,12 @@ function renderCurrentCard() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GESTEN-STEUERUNG v4.0
-// Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
-// Pinch (2 Finger zusammen) = Kurznachricht | DoubleTap Avatar = Fullscreen
-// Notieren NUR manuell über ❤️ Button
+// GESTEN-STEUERUNG v4.1
+// Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
+// Pinch = Kurznachricht | Rückseite: natives Scrollen & Tippen
 // ══════════════════════════════════════════════════════════════════════════════
 
-let longPressTimer = null;
+let tapTimer = null;
 let touchMoved = false;
 let initialPinchDistance = 0;
 let isPinching = false;
@@ -509,11 +505,16 @@ function initCardSwipe() {
   let isDragging = false;
   
   const onStart = (e) => {
+    // Wenn Card bereits geflippt ist → keine Gesten, natives Scrollen/Tippen
+    const inner = document.getElementById('cardInner');
+    if (inner && inner.classList.contains('is-flipped')) {
+      return;
+    }
+    
     // Pinch erkennen (2 Finger)
     if (e.touches && e.touches.length === 2) {
       initialPinchDistance = getTouchDistance(e);
       isPinching = true;
-      clearTimeout(longPressTimer);
       return;
     }
     
@@ -524,18 +525,6 @@ function initCardSwipe() {
     isPinching = false;
     wrapper.style.transition = 'none';
     
-    // Long Press Timer (500ms)
-    clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(() => {
-      if (!touchMoved && !isDragging && !isPinching) {
-        const inner = document.getElementById('cardInner');
-        if (inner && !inner.classList.contains('is-flipped')) {
-          inner.classList.add('is-flipped');
-        }
-        if (navigator.vibrate) navigator.vibrate(15);
-      }
-    }, 500);
-    
     document.addEventListener('mousemove', onMove);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', onEnd);
@@ -543,7 +532,6 @@ function initCardSwipe() {
   };
   
   const onMove = (e) => {
-    // Pinch während Bewegung prüfen
     if (isPinching && e.touches && e.touches.length === 2) {
       const currentDistance = getTouchDistance(e);
       if (initialPinchDistance > 0 && currentDistance < initialPinchDistance * 0.6) {
@@ -560,7 +548,6 @@ function initCardSwipe() {
     if (Math.abs(moveX) > 8) {
       touchMoved = true;
       isDragging = true;
-      clearTimeout(longPressTimer);
     }
     if (isDragging) {
       wrapper.style.transform = `translateX(${moveX}px) rotate(${moveX / 15}deg)`;
@@ -573,7 +560,6 @@ function initCardSwipe() {
     document.removeEventListener('mouseup', onEnd);
     document.removeEventListener('touchend', onEnd);
     
-    clearTimeout(longPressTimer);
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
     if (isPinching) {
@@ -582,8 +568,15 @@ function initCardSwipe() {
     }
     
     if (!touchMoved && !isDragging) {
-      const inner = document.getElementById('cardInner');
-      if (inner) inner.classList.toggle('is-flipped');
+      // Doppeltap für Flip
+      if (tapTimer) {
+        clearTimeout(tapTimer);
+        tapTimer = null;
+        const inner = document.getElementById('cardInner');
+        if (inner) inner.classList.toggle('is-flipped');
+      } else {
+        tapTimer = setTimeout(() => { tapTimer = null; }, 300);
+      }
     } else if (Math.abs(moveX) > 80) {
       const direction = moveX > 0 ? -1 : 1;
       let newIndex = currentIndex + direction;
@@ -836,7 +829,6 @@ function renderNotedSection() {
     </div>
   `;
   
-  // 🆕 Avatare für notierte Profile nachladen
   profiles.forEach(p => {
     const avEl = document.getElementById(`notedAv-${p.code}`);
     if (avEl) {
@@ -879,11 +871,9 @@ window.showMyProfile = function() {
     return;
   }
   
-  // Eigenes Profil aus allProfiles suchen
   let myProfile = allProfiles.find(p => p.code === myCode);
   
   if (!myProfile) {
-    // Fallback: Profil aus localStorage bauen
     const localProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
     myProfile = {
       code: myCode,
@@ -897,7 +887,6 @@ window.showMyProfile = function() {
     };
   }
   
-  // Eigenes Profil an erste Stelle, Rest dahinter (gefiltert)
   const rest = allProfiles.filter(p => p.code !== myCode);
   filtered = [myProfile, ...rest];
   currentIndex = 0;
@@ -923,10 +912,10 @@ cardStyles.textContent = `
   .card-inner { position:relative; width:100%; height:100%; transition:transform 0.6s cubic-bezier(0.4,0.2,0.2,1); transform-style:preserve-3d; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.4); }
   .card-inner.is-flipped { transform:rotateY(180deg); }
   .card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; background:var(--card,#1c222b); border:1px solid var(--bord); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; }
-  .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; }
+  .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
   .card-image-container { height:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
   .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-  .card-avatar-large img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .card-avatar-large img { width:100%; height:100%; object-fit:cover; object-position:top; }
   .card-heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-heart svg { width:20px; height:20px; fill:transparent; stroke:white; stroke-width:2; }
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
@@ -940,11 +929,11 @@ cardStyles.textContent = `
   .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:.5rem; }
   .card-time { font-size:.75rem; color:var(--muted); }
   .card-chat-btn { background:var(--acc); color:var(--bg); border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
-  .back-header { font-size:1.2rem; font-weight:700; color:var(--acc); margin-bottom:1rem; }
-  .back-section { margin-bottom:1rem; }
+  .back-header { font-size:1.2rem; font-weight:700; color:var(--acc); margin-bottom:1rem; flex-shrink:0; }
+  .back-section { margin-bottom:1rem; flex-shrink:0; }
   .back-section h4 { font-size:.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:.3rem; letter-spacing:1px; }
   .story-text { font-size:0.9rem; color:var(--text); line-height:1.6; font-style:italic; padding:0.5rem 0; border-left:3px solid var(--acc); padding-left:0.8rem; }
-  .comments-list { max-height:180px; overflow-y:auto; margin-bottom:0.5rem; }
+  .comments-list { overflow-y:visible; margin-bottom:0.5rem; flex-shrink:0; }
   .comments-loading { font-size:0.75rem; color:var(--muted); text-align:center; padding:0.5rem; }
   .comments-empty { font-size:0.75rem; color:var(--muted); text-align:center; padding:0.8rem; font-style:italic; }
   .comment-item { padding:0.4rem 0; border-bottom:1px solid rgba(255,255,255,0.04); }
@@ -954,16 +943,15 @@ cardStyles.textContent = `
   .comment-delete-btn { margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.65rem; padding:2px 4px; }
   .comment-delete-btn:hover { color:#f44; }
   .comment-text { font-size:0.78rem; color:var(--text-dim); line-height:1.4; }
+  .comment-input-row { display:flex; gap:0.3rem; margin-top:0.5rem; flex-shrink:0; }
   .comment-input { flex:1; padding:0.5rem 0.7rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:0.75rem; outline:none; font-family:inherit; resize:none; }
-  .comment-input-row { display:flex; gap:0.3rem; margin-top:0.5rem; }
-  .comment-input { flex:1; padding:0.5rem 0.7rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:0.75rem; outline:none; font-family:inherit; }
   .comment-input:focus { border-color:var(--acc); }
-  .comment-send-btn { width:36px; height:36px; border-radius:10px; background:var(--acc); border:none; color:white; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .comment-send-btn { width:36px; height:36px; border-radius:10px; background:var(--acc); border:none; color:white; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .comment-send-btn:active { transform:scale(0.95); }
-  .comment-status { font-size:0.65rem; text-align:right; margin-top:0.2rem; min-height:1em; }
+  .comment-status { font-size:0.65rem; text-align:right; margin-top:0.2rem; min-height:1em; flex-shrink:0; }
   .back-tags { display:flex; gap:6px; flex-wrap:wrap; }
   .back-tag { padding:4px 10px; background:rgba(255,255,255,.06); border-radius:8px; font-size:.8rem; }
-  .back-actions { display:flex; gap:8px; }
+  .back-actions { display:flex; gap:8px; flex-shrink:0; }
   .back-actions button { flex:1; padding:8px; border-radius:10px; border:1px solid var(--bord); background:rgba(255,255,255,.04); color:var(--text); cursor:pointer; font-size:.8rem; font-weight:600; }
   .noted-section { margin:1rem 0; }
   .noted-header { font-size:.8rem; font-weight:600; color:var(--p3); margin-bottom:.5rem; }
@@ -983,4 +971,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.0 geladen – Story & Kommentare aktiv');
+console.log('✅ spot-dates-card.js v4.1 geladen – Doppeltap-Flip & Scroll-Fix');
