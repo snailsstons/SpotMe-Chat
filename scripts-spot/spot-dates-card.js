@@ -420,10 +420,9 @@ function renderCurrentCard() {
             <div class="comments-loading">⏳ Lade Kommentare…</div>
           </div>
           <div class="comment-input-row">
-              <textarea id="commentInput-${p.code}" class="comment-input" 
-                placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
-                rows="3"
-                onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); submitCommentHandler('${p.code}'); }"></textarea>
+            <textarea id="commentInput-${p.code}" class="comment-input" 
+              placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
+              rows="3"></textarea>
             <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
           </div>
           <div class="comment-status" id="commentStatus-${p.code}"></div>
