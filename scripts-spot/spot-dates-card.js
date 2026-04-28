@@ -776,7 +776,9 @@ function renderCommentsSection(comments, profileCode, isOwner) {
   return comments.map(c => `
     <div class="comment-item">
       <div class="comment-header">
-        <div class="comment-avatar-mini" id="cmtAv-${c.id}">
+        <div class="comment-avatar-mini" id="cmtAv-${c.id}" 
+          onclick="event.stopPropagation(); showCommenterProfile('${c.senderCode}')" 
+          style="cursor:pointer;" title="Profil von ${escHtml(c.senderName || '?')} anzeigen">
           ${(c.senderName || '?')[0]?.toUpperCase()}
         </div>
         <span class="comment-name">${escHtml(c.senderName || '?')}</span>
@@ -804,6 +806,30 @@ function renderAndLoadCommentAvatars(comments, profileCode, isOwner, container) 
     }
   });
 }
+
+window.showCommenterProfile = function(senderCode) {
+  // In filtered nach dem Profil suchen
+  let index = filtered.findIndex(p => p.code === senderCode);
+  
+  if (index >= 0) {
+    // Profil ist in der aktuellen Liste → direkt hinspringen
+    currentIndex = index;
+    renderCurrentCard();
+  } else {
+    // Profil ist nicht in der Liste (z.B. durch Filter ausgeblendet)
+    // Filter zurücksetzen und dann suchen
+    handleFilterReset();
+    setTimeout(() => {
+      index = filtered.findIndex(p => p.code === senderCode);
+      if (index >= 0) {
+        currentIndex = index;
+        renderCurrentCard();
+      } else if (typeof toast === 'function') {
+        toast('Profil nicht gefunden');
+      }
+    }, 400);
+  }
+};
 
 function escHtml(str) {
   if (!str) return '';
