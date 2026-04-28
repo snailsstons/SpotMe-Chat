@@ -846,9 +846,6 @@ app.post('/api/profile-comment', async (req, res) => {
   if (!profileCode || !senderCode || !senderName || !message) {
     return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
   }
-  if (profileCode === senderCode) {
-    return res.status(400).json({ error: 'Keine Kommentare ans eigene Profil' });
-  }
   
   const clean = message.trim().slice(0, 140);
   if (!clean.length) {
