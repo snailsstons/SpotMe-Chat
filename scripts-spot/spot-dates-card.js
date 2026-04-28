@@ -1049,6 +1049,7 @@ cardStyles.textContent = `
   .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
   .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--muted); font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
+  .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
   .close-back-btn:active { background:rgba(255,255,255,0.1); }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
