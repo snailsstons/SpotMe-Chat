@@ -81,6 +81,17 @@
   </div>
 </header>
 
+<div class="community-list-section" style="padding: 1rem; min-height: 60vh;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+    <div class="section-label">💕 Community Profile</div>
+    <div class="community-count" id="community-count"></div>
+  </div>
+  
+  <!-- 🆕 Card-Ansicht (renderList() schreibt hier rein) -->
+  <div id="community-list"></div>
+</div>
+
+<!-- 🆕 Profilbar jetzt UNTER der Community-Liste -->
 <div class="profile-bar" id="profile-bar" style="display:none;">
   <div class="profile-avatar" id="my-avatar-small">🧑</div>
   <div class="profile-info">
@@ -92,16 +103,6 @@
     <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten">✎</button>
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
   </div>
-</div>
-
-<div class="community-list-section" style="padding: 1rem;">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
-    <div class="section-label">💕 Community Profile</div>
-    <div class="community-count" id="community-count"></div>
-  </div>
-  
-  <!-- 🆕 Card-Ansicht (renderList() schreibt hier rein) -->
-  <div id="community-list"></div>
 </div>
 
 <!-- Kurznachricht Modal (wie in spot-dates.html) -->
@@ -143,4 +144,4 @@
 <div class="toast" id="toast"></div>
 
 </body>
-  </html>
+      </html>
