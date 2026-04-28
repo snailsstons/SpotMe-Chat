@@ -867,6 +867,46 @@ function showNotedProfile(code) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// MEIN PROFIL ANZEIGEN (Kommentare lesen/löschen)
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.showMyProfile = function() {
+  const myCode = localStorage.getItem('sm_code');
+  const myName = localStorage.getItem('sm_name') || 'Ich';
+  
+  if (!myCode) {
+    if (typeof toast === 'function') toast('Bitte erst ein Profil erstellen');
+    return;
+  }
+  
+  // Eigenes Profil aus allProfiles suchen
+  let myProfile = allProfiles.find(p => p.code === myCode);
+  
+  if (!myProfile) {
+    // Fallback: Profil aus localStorage bauen
+    const localProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
+    myProfile = {
+      code: myCode,
+      name: myName,
+      age: localProfile.age || '',
+      city: localProfile.city || '',
+      region: localProfile.region || '',
+      bio: localProfile.bio || 'Keine Beschreibung',
+      lookingFor: localProfile.lookingFor || '',
+      ts: Date.now()
+    };
+  }
+  
+  // Eigenes Profil an erste Stelle, Rest dahinter (gefiltert)
+  const rest = allProfiles.filter(p => p.code !== myCode);
+  filtered = [myProfile, ...rest];
+  currentIndex = 0;
+  renderList();
+  
+  if (typeof toast === 'function') toast('👤 Dein Profil');
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
 
