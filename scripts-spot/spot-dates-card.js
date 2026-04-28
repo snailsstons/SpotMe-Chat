@@ -1023,7 +1023,7 @@ cardStyles.textContent = `
   .comment-send-btn { width:36px; height:36px; border-radius:10px; background:var(--acc); border:none; color:white; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .comment-send-btn:active { transform:scale(0.95); }
   .comment-status { font-size:0.65rem; text-align:right; margin-top:0.2rem; min-height:1em; flex-shrink:0; }
-  .comment-avatar-mini { width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:0.55rem; color:white; flex-shrink:0; overflow:hidden; }
+  .comment-avatar-mini { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:0.55rem; color:white; flex-shrink:0; overflow:hidden; }
   .back-tags { display:flex; gap:6px; flex-wrap:wrap; }
   .back-tag { padding:4px 10px; background:rgba(255,255,255,.06); border-radius:8px; font-size:.8rem; }
   .back-actions { display:flex; gap:8px; flex-shrink:0; }
