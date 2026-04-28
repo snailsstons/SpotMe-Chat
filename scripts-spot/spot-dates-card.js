@@ -410,6 +410,11 @@ function renderCurrentCard() {
         <div class="back-section">
           <p class="story-text">${bio}</p>
         </div>
+          
+          <button class="close-back-btn" onclick="event.stopPropagation(); document.getElementById('cardInner').classList.remove('is-flipped');">
+          ✕ Schließen
+          </button>
+        </div>
         
         <div class="back-section">
           <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
@@ -967,6 +972,8 @@ cardStyles.textContent = `
   .filter-chip { padding:.4rem .8rem; border-radius:20px; font-size:.75rem; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--bord); color:var(--muted2); transition:all .2s; }
   .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
+  .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--muted); font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
+  .close-back-btn:active { background:rgba(255,255,255,0.1); }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
