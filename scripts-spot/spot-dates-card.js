@@ -336,8 +336,8 @@ window.renderList = function() {
   
   const countEl = document.getElementById('community-count');
   if (countEl) {
-    countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Profil' : 'Profile'} gefunden`;
-  }
+   countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Date wartet' : 'Dates warten'} auf deine Nachricht.<br><span style="font-size:0.7rem;color:var(--muted);">Dreh an der Profilkarte ✋</span>`;
+    }
   
   const filterState = {
     region: document.getElementById('f-region')?.value || '',
