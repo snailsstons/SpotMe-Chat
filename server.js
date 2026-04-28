@@ -193,22 +193,21 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_pc_created ON profile_comments(created_at);
   `);
 
-  // Spalten nachträglich hinzufügen
-  try {
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`);
-    console.log('✅ v4.0 – Alle Spalten bereit inkl. avatar, avatar_status, profile_comments');
-  } catch (e) {
-    console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
-  }
-
-  console.log('✅ Datenbank-Tabellen bereit');
+// Spalten nachträglich hinzufügen
+try {
+  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
+  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
+  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
+  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
+  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
+  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
+  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
+  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`).catch(()=>{});
+  console.log('✅ v4.0 – Alle Spalten bereit inkl. avatar, avatar_status, profile_comments');
+} catch (e) {
+  console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
+}
+  console.log('✅ Datenbank-Tabellen - Admin Moderation bereit');
 }
 
 // ---------- Standort-Cache (RAM, 2-Min TTL) ----------
