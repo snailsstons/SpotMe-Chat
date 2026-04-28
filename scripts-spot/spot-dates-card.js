@@ -454,14 +454,22 @@ function renderCurrentCard() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GESTEN-STEUERUNG v3.8
+// GESTEN-STEUERUNG v3.9
 // Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
-// Notieren NUR manuell über ❤️ Button
-// DoubleTap auf Avatar = Fullscreen (im <img> ondblclick)
+// Pinch (2 Finger zusammen) = Kurznachricht | DoubleTap Avatar = Fullscreen
 // ══════════════════════════════════════════════════════════════════════════════
 
 let longPressTimer = null;
 let touchMoved = false;
+let initialPinchDistance = 0;
+let isPinching = false;
+
+function getTouchDistance(e) {
+  if (e.touches.length < 2) return 0;
+  const dx = e.touches[0].clientX - e.touches[1].clientX;
+  const dy = e.touches[0].clientY - e.touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 function initCardSwipe() {
   const wrapper = document.getElementById('cardWrapper');
@@ -472,22 +480,29 @@ function initCardSwipe() {
   let isDragging = false;
   
   const onStart = (e) => {
+    // Pinch erkennen (2 Finger)
+    if (e.touches && e.touches.length === 2) {
+      initialPinchDistance = getTouchDistance(e);
+      isPinching = true;
+      clearTimeout(longPressTimer);
+      return;
+    }
+    
     startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
     touchMoved = false;
     isDragging = false;
+    isPinching = false;
     wrapper.style.transition = 'none';
     
     // Long Press Timer (500ms)
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
-      if (!touchMoved && !isDragging) {
-        // Long Press → Flip zur Info-Seite
+      if (!touchMoved && !isDragging && !isPinching) {
         const inner = document.getElementById('cardInner');
         if (inner && !inner.classList.contains('is-flipped')) {
           inner.classList.add('is-flipped');
         }
-        // Haptisches Feedback
         if (navigator.vibrate) navigator.vibrate(15);
       }
     }, 500);
@@ -499,6 +514,18 @@ function initCardSwipe() {
   };
   
   const onMove = (e) => {
+    // Pinch während Bewegung prüfen
+    if (isPinching && e.touches && e.touches.length === 2) {
+      const currentDistance = getTouchDistance(e);
+      // Pinch erkannt: Finger mindestens 40% zusammen bewegt
+      if (initialPinchDistance > 0 && currentDistance < initialPinchDistance * 0.6) {
+        isPinching = false;
+        handlePinch();
+        return;
+      }
+      return;
+    }
+    
     if (e.type.includes('touch')) e.preventDefault();
     let currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     moveX = currentX - startX;
@@ -521,12 +548,15 @@ function initCardSwipe() {
     clearTimeout(longPressTimer);
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
+    if (isPinching) {
+      isPinching = false;
+      return;
+    }
+    
     if (!touchMoved && !isDragging) {
-      // Tap → Flip
       const inner = document.getElementById('cardInner');
       if (inner) inner.classList.toggle('is-flipped');
     } else if (Math.abs(moveX) > 80) {
-      // Swipe
       const direction = moveX > 0 ? -1 : 1;
       let newIndex = currentIndex + direction;
       if (newIndex < 0) newIndex = filtered.length - 1;
@@ -554,33 +584,29 @@ function initCardSwipe() {
   wrapper.addEventListener('touchstart', onStart, { passive: false });
 }
 
-// Fullscreen für Avatar (via DoubleTap auf <img>)
-function showFullscreenAvatar(avatarBase64, name) {
-  const existing = document.getElementById('avatarFullscreen');
-  if (existing) existing.remove();
+// Pinch → Kurznachricht schreiben
+function handlePinch() {
+  const p = filtered[currentIndex];
+  if (!p) return;
   
-  const html = `
-    <div id="avatarFullscreen" onclick="this.remove()" style="
-      position:fixed; top:0; left:0; width:100%; height:100%; 
-      background:rgba(0,0,0,0.95); z-index:9999;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      animation: fadeIn 0.2s ease;
-    ">
-      <button onclick="event.stopPropagation(); document.getElementById('avatarFullscreen').remove()" style="
-        position:absolute; top:20px; right:20px;
-        width:40px; height:40px; border-radius:50%;
-        background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.5rem;
-        cursor:pointer; z-index:1;
-      ">✕</button>
-      <img src="${avatarBase64}" alt="${name || 'Avatar'}" style="
-        max-width:95%; max-height:80%; object-fit:contain; border-radius:8px;
-      ">
-      ${name ? `<p style="color:white; margin-top:1rem; font-size:1.1rem; opacity:0.8;">${name}</p>` : ''}
-      <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-top:0.5rem;">Tippen zum Schließen</p>
-    </div>
-  `;
+  // Visuelles Feedback
+  const wrapper = document.getElementById('cardWrapper');
+  if (wrapper) {
+    wrapper.style.transition = 'transform 0.2s ease';
+    wrapper.style.transform = 'scale(0.9)';
+    setTimeout(() => {
+      wrapper.style.transform = 'scale(1)';
+      setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 200);
+    }, 150);
+  }
   
-  document.body.insertAdjacentHTML('beforeend', html);
+  // Kurznachricht-Modal öffnen
+  if (typeof showKurznachrichtModal === 'function') {
+    showKurznachrichtModal(p.code, p.name);
+  }
+  
+  // Haptisches Feedback
+  if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
