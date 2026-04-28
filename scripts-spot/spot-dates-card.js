@@ -412,80 +412,60 @@ function renderCurrentCard() {
     const labels = { 'beziehung': '💕 Beziehung', 'freundschaft': '👥 Freundschaft', 'casual': '🍸 Casual' };
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
-  
+
   wrapper.innerHTML = `
-    <div class="card-inner" id="cardInner">
-      <div class="card-front">
-        <div class="card-image-container" id="cardImgContainer-${p.code}">
-          <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
-          <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
-            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          </div>
-          <div class="card-online-dot ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
+  <div class="card-inner" id="cardInner">
+    <div class="card-front">
+      <div class="card-image-container" id="cardImgContainer-${p.code}">
+        <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
+        <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
+          <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </div>
-        <div class="card-content">
-          <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
-          <div class="card-location">📍 ${loc}</div>
-          ${badges ? `<div class="card-tags">${badges}</div>` : ''}
-          <div class="card-bio">${bio}</div>
-          <div class="card-bottom">
-            <div class="card-time">🕐 ${timeAgo(p.ts)}</div>
-            <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
-          </div>
-        </div>
+        ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
       </div>
-
-<div class="card-back" id="cardBack-${p.code}">
-  <div class="back-header">📖 ${name}'s Story</div>
-  <div class="back-section">
-    <p class="story-text">${bio}</p>
-  </div>
-  
-  <div class="back-section">
-    <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
-    <div class="comments-list" id="commentsList-${p.code}">
-      <div class="comments-loading">⏳ Lade Kommentare…</div>
-    </div>
-    <div class="comment-input-row">
-      <textarea id="commentInput-${p.code}" class="comment-input" 
-        placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
-        rows="3"></textarea>
-      <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
-    </div>
-    <div class="comment-status" id="commentStatus-${p.code}"></div>
-  </div>
-  
-  <div class="back-actions">
-    <button onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
-    <button onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
-  </div>
-  
-  <button class="close-back-btn" onclick="event.stopPropagation(); document.getElementById('cardInner').classList.remove('is-flipped');">
-    ✕ Schließen
-  </button>
-</div>
-
-        <div class="back-section">
-          <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
-          <div class="comments-list" id="commentsList-${p.code}">
-            <div class="comments-loading">⏳ Lade Kommentare…</div>
-          </div>
-          <div class="comment-input-row">
-            <textarea id="commentInput-${p.code}" class="comment-input" 
-              placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
-              rows="3"></textarea>
-            <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
-          </div>
-          <div class="comment-status" id="commentStatus-${p.code}"></div>
-        </div>
-        
-        <div class="back-actions">
-          <button onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
-          <button onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
+      <div class="card-content">
+        <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
+        <div class="card-location">📍 ${loc}</div>
+        ${badges ? `<div class="card-tags">${badges}</div>` : ''}
+        <div class="card-bio">${bio}</div>
+        <div class="card-bottom">
+          <div class="card-time">🕐 ${timeAgo(p.ts)}</div>
+          <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
         </div>
       </div>
     </div>
-  `;
+    
+    <div class="card-back" id="cardBack-${p.code}">
+      <div class="back-header">📖 ${name}'s Story</div>
+      <div class="back-section">
+        <p class="story-text">${bio}</p>
+      </div>
+      
+      <div class="back-section">
+        <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
+        <div class="comments-list" id="commentsList-${p.code}">
+          <div class="comments-loading">⏳ Lade Kommentare…</div>
+        </div>
+        <div class="comment-input-row">
+          <textarea id="commentInput-${p.code}" class="comment-input" 
+            placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
+            rows="3"></textarea>
+          <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
+        </div>
+        <div class="comment-status" id="commentStatus-${p.code}"></div>
+      </div>
+      
+      <div class="back-actions">
+        <button onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
+        <button onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
+      </div>
+      
+      <button class="close-back-btn" onclick="event.stopPropagation(); document.getElementById('cardInner').classList.remove('is-flipped');">
+        ✕ Schließen
+      </button>
+    </div>
+  </div>
+`;
   
   // 🆕 Avatar asynchron laden – dynamisches object-fit
   const avatarContainer = document.getElementById(`cardAv-${p.code}`);
@@ -1070,13 +1050,8 @@ cardStyles.textContent = `
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
   .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--muted); font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
   .close-back-btn:active { background:rgba(255,255,255,0.1); }
-  .online-badge { 
-  position:absolute; top:10px; left:10px; 
-  padding:3px 10px; border-radius:12px; 
-  background:rgba(30,204,104,0.15); color:#1ecc68; 
-  font-size:0.7rem; font-weight:600; 
-  display:flex; align-items:center; gap:4px;
-  backdrop-filter:blur(8px); z-index:5;}
+  .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
+  
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
