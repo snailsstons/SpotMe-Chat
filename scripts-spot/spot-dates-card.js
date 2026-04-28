@@ -1,8 +1,9 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.8 – Korrigierte Gesten
-// Tap = Flip, Long Press = Flip (Info-Seite), DoubleTap Avatar = Fullscreen
-// Notieren NUR manuell über Herz-Button
+// SPOT DATES – CARD ANSICHT v3.9 – Gesten: Tap, LongPress, Swipe, Pinch, DoubleTap
+// Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
+// Pinch (2 Finger) = Kurznachricht | DoubleTap Avatar = Fullscreen
+// Notieren NUR manuell über ❤️ Button
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -457,6 +458,7 @@ function renderCurrentCard() {
 // GESTEN-STEUERUNG v3.9
 // Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
 // Pinch (2 Finger zusammen) = Kurznachricht | DoubleTap Avatar = Fullscreen
+// Notieren NUR manuell über ❤️ Button
 // ══════════════════════════════════════════════════════════════════════════════
 
 let longPressTimer = null;
@@ -517,7 +519,6 @@ function initCardSwipe() {
     // Pinch während Bewegung prüfen
     if (isPinching && e.touches && e.touches.length === 2) {
       const currentDistance = getTouchDistance(e);
-      // Pinch erkannt: Finger mindestens 40% zusammen bewegt
       if (initialPinchDistance > 0 && currentDistance < initialPinchDistance * 0.6) {
         isPinching = false;
         handlePinch();
@@ -609,6 +610,35 @@ function handlePinch() {
   if (navigator.vibrate) navigator.vibrate([10, 50, 10]);
 }
 
+// Fullscreen für Avatar (via DoubleTap auf <img>)
+function showFullscreenAvatar(avatarBase64, name) {
+  const existing = document.getElementById('avatarFullscreen');
+  if (existing) existing.remove();
+  
+  const html = `
+    <div id="avatarFullscreen" onclick="this.remove()" style="
+      position:fixed; top:0; left:0; width:100%; height:100%; 
+      background:rgba(0,0,0,0.95); z-index:9999;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      animation: fadeIn 0.2s ease;
+    ">
+      <button onclick="event.stopPropagation(); document.getElementById('avatarFullscreen').remove()" style="
+        position:absolute; top:20px; right:20px;
+        width:40px; height:40px; border-radius:50%;
+        background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.5rem;
+        cursor:pointer; z-index:1;
+      ">✕</button>
+      <img src="${avatarBase64}" alt="${name || 'Avatar'}" style="
+        max-width:95%; max-height:80%; object-fit:contain; border-radius:8px;
+      ">
+      ${name ? `<p style="color:white; margin-top:1rem; font-size:1.1rem; opacity:0.8;">${name}</p>` : ''}
+      <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-top:0.5rem;">Tippen zum Schließen</p>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // NOTIEREN (nur manuell über ❤️ Button)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -693,35 +723,4 @@ cardStyles.textContent = `
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; }
   .card-name-age { font-size:1.3rem; font-weight:700; }
   .card-location { font-size:.8rem; color:var(--muted2); margin-bottom:.5rem; }
-  .card-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:.7rem; font-weight:600; margin-bottom:.5rem; background:rgba(255,79,123,.15); color:#ff4f7b; }
-  .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; }
-  .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:.5rem; }
-  .card-time { font-size:.75rem; color:var(--muted); }
-  .card-chat-btn { background:var(--acc); color:var(--bg); border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
-  .back-header { font-size:1.2rem; font-weight:700; color:var(--acc); margin-bottom:1rem; }
-  .back-section { margin-bottom:1rem; }
-  .back-section h4 { font-size:.75rem; color:var(--muted); text-transform:uppercase; margin-bottom:.3rem; letter-spacing:1px; }
-  .back-tags { display:flex; gap:6px; flex-wrap:wrap; }
-  .back-tag { padding:4px 10px; background:rgba(255,255,255,.06); border-radius:8px; font-size:.8rem; }
-  .back-actions { display:flex; gap:8px; }
-  .back-actions button { flex:1; padding:8px; border-radius:10px; border:1px solid var(--bord); background:rgba(255,255,255,.04); color:var(--text); cursor:pointer; font-size:.8rem; font-weight:600; }
-  .back-hint { text-align:center; font-size:.75rem; color:var(--muted); margin-top:auto; font-style:italic; }
-  .noted-section { margin:1rem 0; }
-  .noted-header { font-size:.8rem; font-weight:600; color:var(--p3); margin-bottom:.5rem; }
-  .noted-list { display:flex; gap:8px; overflow-x:auto; padding-bottom:.5rem; }
-  .noted-item { display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; min-width:60px; }
-  .noted-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:white; }
-  .noted-name { font-size:.65rem; color:var(--muted2); text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .filter-drawer { margin-top:1rem; padding:1rem; background:var(--card); border:1px solid var(--bord); border-radius:16px; }
-  .filter-title { font-size:.8rem; font-weight:600; color:var(--muted); margin-bottom:.8rem; text-transform:uppercase; letter-spacing:1px; }
-  .filter-select-row { display:flex; gap:.5rem; margin-bottom:.8rem; }
-  .filter-select { flex:1; padding:.6rem .8rem; background:var(--bg); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:.85rem; outline:none; }
-  .filter-row { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.5rem; }
-  .filter-chip { padding:.4rem .8rem; border-radius:20px; font-size:.75rem; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--bord); color:var(--muted2); transition:all .2s; }
-  .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
-  .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
-  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-`;
-document.head.appendChild(cardStyles);
-
-console.log('✅ spot-dates-card.js v3.8 geladen – Gesten korrigiert');
+  .card-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:.7rem; font-weight:600; margin-bottom:.5rem; background:rgba(255,79,123,.15
