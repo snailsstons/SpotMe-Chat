@@ -654,7 +654,7 @@ function toggleNote(code) {
   if (heart) heart.classList.toggle('active', index < 0);
   renderNotedSection();
 }
-
+//
 function renderNotedSection() {
   const section = document.getElementById('notedSection');
   if (!section) return;
@@ -672,12 +672,29 @@ function renderNotedSection() {
     <div class="noted-list">
       ${profiles.map(p => `
         <div class="noted-item" onclick="showNotedProfile('${p.code}')">
-          <div class="noted-avatar">${(p.name || '?')[0]?.toUpperCase()}</div>
+          <div class="noted-avatar" id="notedAv-${p.code}" style="overflow:hidden;">
+            ${(p.name || '?')[0]?.toUpperCase()}
+          </div>
           <div class="noted-name">${p.name || '?'}</div>
         </div>
       `).join('')}
     </div>
   `;
+  
+  // 🆕 Avatare für notierte Profile nachladen
+  profiles.forEach(p => {
+    const avEl = document.getElementById(`notedAv-${p.code}`);
+    if (avEl) {
+      loadCardAvatar(p.code).then(avatarBase64 => {
+        if (avatarBase64 && document.getElementById(`notedAv-${p.code}`)) {
+          avEl.innerHTML = `<img src="${avatarBase64}" alt="${p.name || ''}" 
+            style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          avEl.style.fontSize = '0';
+          avEl.style.background = 'none';
+        }
+      });
+    }
+  });
 }
 
 function showNotedProfile(code) {
