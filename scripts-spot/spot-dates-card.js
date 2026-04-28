@@ -680,6 +680,7 @@ function showFullscreenAvatar(avatarBase64, name) {
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
+//
 // ══════════════════════════════════════════════════════════════════════════════
 // PROFILE COMMENTS (Story-Kommentare)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -745,6 +746,9 @@ function renderCommentsSection(comments, profileCode, isOwner) {
   return comments.map(c => `
     <div class="comment-item">
       <div class="comment-header">
+        <div class="comment-avatar-mini" id="cmtAv-${c.id}">
+          ${(c.senderName || '?')[0]?.toUpperCase()}
+        </div>
         <span class="comment-name">${escHtml(c.senderName || '?')}</span>
         <span class="comment-time">${timeAgo(c.createdAt)}</span>
         ${isOwner ? `<button class="comment-delete-btn" onclick="event.stopPropagation(); handleDeleteComment(${c.id},'${profileCode}')" title="Löschen">✕</button>` : ''}
@@ -752,6 +756,23 @@ function renderCommentsSection(comments, profileCode, isOwner) {
       <div class="comment-text">${escHtml(c.message)}</div>
     </div>
   `).join('');
+}
+
+function renderAndLoadCommentAvatars(comments, profileCode, isOwner, container) {
+  container.innerHTML = renderCommentsSection(comments, profileCode, isOwner);
+  
+  comments.forEach(c => {
+    const avEl = document.getElementById(`cmtAv-${c.id}`);
+    if (avEl) {
+      loadCardAvatar(c.senderCode).then(avatarBase64 => {
+        if (avatarBase64 && document.getElementById(`cmtAv-${c.id}`)) {
+          avEl.innerHTML = `<img src="${avatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          avEl.style.fontSize = '0';
+          avEl.style.background = 'none';
+        }
+      });
+    }
+  });
 }
 
 function escHtml(str) {
@@ -789,7 +810,7 @@ window.submitCommentHandler = async function(profileCode) {
     const container = document.getElementById(`commentsList-${profileCode}`);
     if (container) {
       const isOwner = (localStorage.getItem('sm_code') === profileCode);
-      container.innerHTML = renderCommentsSection(comments, profileCode, isOwner);
+      renderAndLoadCommentAvatars(comments, profileCode, isOwner, container);
     }
     setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
   } else {
@@ -806,11 +827,10 @@ window.handleDeleteComment = async function(commentId, profileCode) {
     const container = document.getElementById(`commentsList-${profileCode}`);
     if (container) {
       const isOwner = (localStorage.getItem('sm_code') === profileCode);
-      container.innerHTML = renderCommentsSection(comments, profileCode, isOwner);
+      renderAndLoadCommentAvatars(comments, profileCode, isOwner, container);
     }
   }
 };
-
 // ══════════════════════════════════════════════════════════════════════════════
 // NOTIEREN (nur manuell über ❤️ Button)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -973,6 +993,7 @@ cardStyles.textContent = `
   .comment-send-btn { width:36px; height:36px; border-radius:10px; background:var(--acc); border:none; color:white; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .comment-send-btn:active { transform:scale(0.95); }
   .comment-status { font-size:0.65rem; text-align:right; margin-top:0.2rem; min-height:1em; flex-shrink:0; }
+  .comment-avatar-mini { width:20px; height:20px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:0.55rem; color:white; flex-shrink:0; overflow:hidden; }
   .back-tags { display:flex; gap:6px; flex-wrap:wrap; }
   .back-tag { padding:4px 10px; background:rgba(255,255,255,.06); border-radius:8px; font-size:.8rem; }
   .back-actions { display:flex; gap:8px; flex-shrink:0; }
