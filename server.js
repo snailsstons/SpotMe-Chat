@@ -692,60 +692,34 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 // OFFLINE-NACHRICHTEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/offline-message', async (req, res) => {
-  const { recipient, senderCode, senderName, message, type, source, spotType } = req.body;
-
-  if (!recipient || !senderCode || !senderName || !message) {
-    return res.status(400).json({ error: 'Fehlende Felder' });
+app.post('/api/profile-comment', async (req, res) => {
+  const { profileCode, profileSpot = 'dates', senderCode, senderName, message } = req.body;
+  
+  if (!profileCode || !senderCode || !senderName || !message) {
+    return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
   }
-  if (recipient === senderCode) {
-    return res.status(400).json({ error: 'Keine Nachricht an sich selbst' });
-  }
-
-  const clean = sanitizeMessage(message);
+  
+  const clean = message.trim().slice(0, 140);
   if (!clean.length) {
-    return res.status(400).json({ error: 'Nachricht ist leer nach Bereinigung' });
+    return res.status(400).json({ error: 'Nachricht ist leer' });
   }
-
+  
+  if (/https?:\/\/|www\./i.test(clean)) {
+    return res.status(400).json({ error: 'Keine Links erlaubt' });
+  }
+  
   try {
-    const dialogCheck = await pool.query(
-      `SELECT id FROM offline_messages 
-       WHERE sender_code = $1 AND recipient = $2
-       LIMIT 1`,
-      [recipient, senderCode]
-    );
-
-    if (dialogCheck.rows.length === 0) {
-      const rateMinutes = Math.ceil(OFFLINE_MSG_RATE_MS / 60000);
-      const rateCheck = await pool.query(
-        `SELECT id FROM offline_messages
-         WHERE sender_code = $1 AND recipient = $2
-           AND created_at > NOW() - INTERVAL '${rateMinutes} minutes'
-         LIMIT 1`,
-        [senderCode, recipient]
-      );
-      if (rateCheck.rows.length > 0) {
-        return res.status(429).json({ error: `Maximal 1 Nachricht pro ${rateMinutes > 1 ? rateMinutes + ' Minuten' : 'Minute'} für die erste Kontaktaufnahme` });
-      }
-    }
-
-    const countCheck = await pool.query(
-      `SELECT COUNT(*) AS cnt FROM offline_messages WHERE recipient = $1 AND read = FALSE`,
-      [recipient]
-    );
-    if (Number(countCheck.rows[0].cnt) >= 50) {
-      return res.status(429).json({ error: 'Postfach des Empfängers voll' });
-    }
-
+    // 🆕 1-Kommentar-Limit & 20er-Limit ENTFERNT
     await pool.query(
-      `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [recipient, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), type || null, source || null, spotType || null]
+      `INSERT INTO profile_comments (profile_code, profile_spot, sender_code, sender_name, message, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [profileCode, profileSpot, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), Date.now()]
     );
-
+    
+    console.log(`💬 Kommentar: ${senderName} → ${profileCode}: "${clean.slice(0, 30)}..."`);
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/offline-message:', e.message);
+    console.error('POST /api/profile-comment:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -845,9 +819,6 @@ app.post('/api/profile-comment', async (req, res) => {
   
   if (!profileCode || !senderCode || !senderName || !message) {
     return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
-  }
-  if (profileCode === senderCode) {
-    return res.status(400).json({ error: 'Keine Kommentare ans eigene Profil' });
   }
   
   const clean = message.trim().slice(0, 140);
