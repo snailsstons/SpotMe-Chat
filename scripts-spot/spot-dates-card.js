@@ -757,7 +757,7 @@ cardStyles.textContent = `
   .noted-header { font-size:.8rem; font-weight:600; color:var(--p3); margin-bottom:.5rem; }
   .noted-list { display:flex; gap:8px; overflow-x:auto; padding-bottom:.5rem; }
   .noted-item { display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; min-width:60px; }
-  .noted-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:white; }
+  .noted-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:white; overflow:hidden; }
   .noted-name { font-size:.65rem; color:var(--muted2); text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .filter-drawer { margin-top:1rem; padding:1rem; background:var(--card); border:1px solid var(--bord); border-radius:16px; }
   .filter-title { font-size:.8rem; font-weight:600; color:var(--muted); margin-bottom:.8rem; text-transform:uppercase; letter-spacing:1px; }
