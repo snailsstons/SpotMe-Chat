@@ -401,8 +401,8 @@ function renderCurrentCard() {
           <div class="card-bio">${bio}</div>
           <div class="card-bottom">
             <div class="card-time">🕐 ${timeAgo(p.ts)}</div>
-            <button class="card-chat-btn" onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
-          </div>
+            <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
+            </div>
         </div>
       </div>
       
