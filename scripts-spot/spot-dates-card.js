@@ -421,7 +421,7 @@ function renderCurrentCard() {
           <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
             <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
           </div>
-          <div class="card-online-dot ${isOnline ? 'online' : ''}"></div>
+          <div class="card-online-dot ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
         </div>
         <div class="card-content">
           <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
@@ -1070,6 +1070,13 @@ cardStyles.textContent = `
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
   .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--muted); font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
   .close-back-btn:active { background:rgba(255,255,255,0.1); }
+  .online-badge { 
+  position:absolute; top:10px; left:10px; 
+  padding:3px 10px; border-radius:12px; 
+  background:rgba(30,204,104,0.15); color:#1ecc68; 
+  font-size:0.7rem; font-weight:600; 
+  display:flex; align-items:center; gap:4px;
+  backdrop-filter:blur(8px); z-index:5;}
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
