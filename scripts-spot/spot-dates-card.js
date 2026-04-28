@@ -1,8 +1,8 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v3.7 – Avatar-Integration
-// Flip, Swipe, Notieren, Preload, Filter bleiben, Notierte unter Filter
-// 🆕 Avatare vom Server laden & cachen (inkl. Preload)
+// SPOT DATES – CARD ANSICHT v3.8 – Korrigierte Gesten
+// Tap = Flip, Long Press = Flip (Info-Seite), DoubleTap Avatar = Fullscreen
+// Notieren NUR manuell über Herz-Button
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -420,50 +420,47 @@ function renderCurrentCard() {
       </div>
     </div>
   `;
-  //
   
   // 🆕 Avatar asynchron laden – dynamisches object-fit
-const avatarContainer = document.getElementById(`cardAv-${p.code}`);
-const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
-if (avatarContainer && imgContainer) {
-  loadCardAvatar(p.code).then(avatarBase64 => {
-    if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
-      // Bildformat prüfen
-      const testImg = new Image();
-      testImg.onload = function() {
-        const ratio = testImg.width / testImg.height;
-        let fit, pos;
-        if (ratio > 1.1) {
-          // Querformat → füllen
-          fit = 'cover'; pos = 'center';
-        } else if (ratio < 0.9) {
-          // Hochformat → cover + top (Gesicht zeigen)
-          fit = 'cover'; pos = 'top';
-        } else {
-          // Quadrat → cover
-          fit = 'cover'; pos = 'center';
-        }
-        avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" 
-          style="width:100%;height:100%;object-fit:${fit};object-position:${pos};">`;
-      };
-      testImg.src = avatarBase64;
-      avatarContainer.style.fontSize = '0';
-      imgContainer.style.background = 'none';
-    }
-  });
-}
+  const avatarContainer = document.getElementById(`cardAv-${p.code}`);
+  const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
+  if (avatarContainer && imgContainer) {
+    loadCardAvatar(p.code).then(avatarBase64 => {
+      if (avatarBase64 && document.getElementById(`cardAv-${p.code}`)) {
+        const testImg = new Image();
+        testImg.onload = function() {
+          const ratio = testImg.width / testImg.height;
+          let fit, pos;
+          if (ratio > 1.1) {
+            fit = 'cover'; pos = 'center';
+          } else if (ratio < 0.9) {
+            fit = 'cover'; pos = 'top';
+          } else {
+            fit = 'cover'; pos = 'center';
+          }
+          avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" 
+            style="width:100%;height:100%;object-fit:${fit};object-position:${pos};"
+            ondblclick="event.stopPropagation(); showFullscreenAvatar(this.src, '${name.replace(/'/g, "\\'")}')">`;
+        };
+        testImg.src = avatarBase64;
+        avatarContainer.style.fontSize = '0';
+        imgContainer.style.background = 'none';
+      }
+    });
+  }
   
   initCardSwipe();
   preloadNextProfiles();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// GESTEN-STEUERUNG (Tap, Doppeltap, Long Press, Swipe)
+// GESTEN-STEUERUNG v3.8
+// Tap = Flip | Long Press = Flip (Info) | Swipe = Nächste Karte
+// Notieren NUR manuell über ❤️ Button
+// DoubleTap auf Avatar = Fullscreen (im <img> ondblclick)
 // ══════════════════════════════════════════════════════════════════════════════
 
-let tapTimer = null;
 let longPressTimer = null;
-let touchStartTime = 0;
 let touchMoved = false;
 
 function initCardSwipe() {
@@ -477,18 +474,23 @@ function initCardSwipe() {
   const onStart = (e) => {
     startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-    touchStartTime = Date.now();
     touchMoved = false;
     isDragging = false;
     wrapper.style.transition = 'none';
     
-    // Long Press Timer (600ms)
+    // Long Press Timer (500ms)
     clearTimeout(longPressTimer);
     longPressTimer = setTimeout(() => {
       if (!touchMoved && !isDragging) {
-        handleLongPress(e);
+        // Long Press → Flip zur Info-Seite
+        const inner = document.getElementById('cardInner');
+        if (inner && !inner.classList.contains('is-flipped')) {
+          inner.classList.add('is-flipped');
+        }
+        // Haptisches Feedback
+        if (navigator.vibrate) navigator.vibrate(15);
       }
-    }, 600);
+    }, 500);
     
     document.addEventListener('mousemove', onMove);
     document.addEventListener('touchmove', onMove, { passive: false });
@@ -520,8 +522,9 @@ function initCardSwipe() {
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
     if (!touchMoved && !isDragging) {
-      // Keine Bewegung = Tap
-      handleTap();
+      // Tap → Flip
+      const inner = document.getElementById('cardInner');
+      if (inner) inner.classList.toggle('is-flipped');
     } else if (Math.abs(moveX) > 80) {
       // Swipe
       const direction = moveX > 0 ? -1 : 1;
@@ -542,7 +545,6 @@ function initCardSwipe() {
         setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
       }, 200);
     } else {
-      // Kleine Bewegung zurücksetzen
       wrapper.style.transform = 'translateX(0) rotate(0deg)';
     }
     moveX = 0; isDragging = false;
@@ -552,65 +554,8 @@ function initCardSwipe() {
   wrapper.addEventListener('touchstart', onStart, { passive: false });
 }
 
-// 1× Tap = Flip
-function handleTap() {
-  const inner = document.getElementById('cardInner');
-  if (!inner) return;
-  
-  // Doppeltap-Erkennung
-  if (tapTimer) {
-    // 2. Tap → Notieren
-    clearTimeout(tapTimer);
-    tapTimer = null;
-    handleDoubleTap();
-  } else {
-    // 1. Tap → Flip (nach 300ms, falls kein 2. Tap kommt)
-    tapTimer = setTimeout(() => {
-      tapTimer = null;
-      flipCard();
-    }, 300);
-  }
-}
-
-function flipCard() {
-  const inner = document.getElementById('cardInner');
-  if (inner) inner.classList.toggle('is-flipped');
-}
-
-// 2× Tap = Notieren
-function handleDoubleTap() {
-  const p = filtered[currentIndex];
-  if (!p) return;
-  
-  toggleNote(p.code);
-  
-  // Visuelles Feedback
-  const wrapper = document.getElementById('cardWrapper');
-  if (wrapper) {
-    wrapper.style.transition = 'transform 0.2s ease';
-    wrapper.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      wrapper.style.transform = 'scale(1)';
-      setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 200);
-    }, 150);
-  }
-}
-
-// Long Press = Bild groß öffnen
-function handleLongPress(e) {
-  const p = filtered[currentIndex];
-  if (!p) return;
-  
-  // Avatar aus Cache oder vom Server laden
-  loadCardAvatar(p.code).then(avatarBase64 => {
-    if (avatarBase64) {
-      showFullscreenAvatar(avatarBase64, p.name);
-    }
-  });
-}
-
+// Fullscreen für Avatar (via DoubleTap auf <img>)
 function showFullscreenAvatar(avatarBase64, name) {
-  // Bestehendes Fullscreen-Modal entfernen
   const existing = document.getElementById('avatarFullscreen');
   if (existing) existing.remove();
   
@@ -619,8 +564,9 @@ function showFullscreenAvatar(avatarBase64, name) {
       position:fixed; top:0; left:0; width:100%; height:100%; 
       background:rgba(0,0,0,0.95); z-index:9999;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
+      animation: fadeIn 0.2s ease;
     ">
-      <button onclick="document.getElementById('avatarFullscreen').remove()" style="
+      <button onclick="event.stopPropagation(); document.getElementById('avatarFullscreen').remove()" style="
         position:absolute; top:20px; right:20px;
         width:40px; height:40px; border-radius:50%;
         background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.5rem;
@@ -637,9 +583,8 @@ function showFullscreenAvatar(avatarBase64, name) {
   document.body.insertAdjacentHTML('beforeend', html);
 }
 
-
 // ══════════════════════════════════════════════════════════════════════════════
-// NOTIEREN
+// NOTIEREN (nur manuell über ❤️ Button)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function toggleNote(code) {
@@ -749,10 +694,8 @@ cardStyles.textContent = `
   .filter-chip { padding:.4rem .8rem; border-radius:20px; font-size:.75rem; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--bord); color:var(--muted2); transition:all .2s; }
   .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
- 
-  #avatarFullscreen { animation: fadeIn 0.2s ease; }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v3.7 geladen – Avatar-Integration aktiv');
+console.log('✅ spot-dates-card.js v3.8 geladen – Gesten korrigiert');
