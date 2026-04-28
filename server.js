@@ -9,13 +9,15 @@
 //   • Spot-Nachrichten          → type, source, spot_type Felder
 //   • Dates-Spot                → looking_for Feld
 //   • Avatar-Upload             → Profilbilder als Base64 in DB
+//   • Avatar-Moderation         → Admin freigeben/ablehnen
+//   • Profile Comments          → Story-Kommentare (öffentlich)
 //
 // Setup:
 //   npm install pg
 //   Render: DATABASE_URL wird automatisch gesetzt wenn du eine Postgres-DB
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
-// SpotMe Server v3.1 – Avatar-Endpoints
+// SpotMe Server v4.0 – Story & Kommentare
 
 
 'use strict';
@@ -52,10 +54,9 @@ function decrypt(text) {
     const key = Buffer.from(CRYPTO_KEY, 'hex');
     const decipher = crypto.createDecipheriv(CRYPTO_ALGO, key, Buffer.from(ivHex, 'hex'));
     return Buffer.concat([decipher.update(Buffer.from(encHex, 'hex')), decipher.final()]).toString();
-  } catch (e) { return text; } // Fallback: Klartext (Migration alter Daten)
+  } catch (e) { return text; }
 }
 
-// Verschlüsselt ein ganzes Profil-Objekt (DB-Row → Client)
 function decryptProfile(p) {
   if (!p) return p;
   return {
@@ -99,14 +100,14 @@ const pool = new Pool({
 });
 
 // ---------- Konstanten ----------
-const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000; // 24h Offline-Sichtbarkeit
-const OFFLINE_MSG_MAX     = 280;                   // Max. Zeichen pro Nachricht
-const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;        // 1 Nachricht/Sender/Empfänger/Stunde
+const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000;
+const OFFLINE_MSG_MAX     = 280;
+const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;
 
 // ---------- Tabellen anlegen (beim Start) ----------
 async function initDB() {
 
-  // Profiles — composite PK (code, spot) + visible_until
+  // Profiles
   await pool.query(`
     CREATE TABLE IF NOT EXISTS profiles (
       code          TEXT NOT NULL,
@@ -159,7 +160,7 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_missed_created   ON missed_calls(created_at);
   `);
 
-  // Offline-Nachrichten – MIT type, source, spot_type
+  // Offline-Nachrichten
   await pool.query(`
     CREATE TABLE IF NOT EXISTS offline_messages (
       id          SERIAL PRIMARY KEY,
@@ -177,7 +178,22 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_offmsg_created   ON offline_messages(created_at);
   `);
 
-  // Falls Tabelle schon existiert, Spalten nachträglich hinzufügen
+  // Profile Comments (Story-Kommentare)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS profile_comments (
+      id            SERIAL PRIMARY KEY,
+      profile_code  TEXT NOT NULL,
+      profile_spot  TEXT NOT NULL DEFAULT 'dates',
+      sender_code   TEXT NOT NULL,
+      sender_name   TEXT NOT NULL,
+      message       TEXT NOT NULL CHECK (char_length(message) <= 140),
+      created_at    BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pc_profile ON profile_comments(profile_code, profile_spot);
+    CREATE INDEX IF NOT EXISTS idx_pc_created ON profile_comments(created_at);
+  `);
+
+  // Spalten nachträglich hinzufügen
   try {
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
     await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
@@ -186,7 +202,8 @@ async function initDB() {
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
-    console.log('✅ v3.1 – Alle Spalten bereit inkl. avatar');
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`);
+    console.log('✅ v4.0 – Alle Spalten bereit inkl. avatar, avatar_status, profile_comments');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
@@ -226,7 +243,7 @@ setInterval(async () => {
 
 }, 120000);
 
-// ---------- Antispam: Links + E-Mails aus Nachrichten entfernen ----------
+// ---------- Antispam ----------
 function sanitizeMessage(text) {
   if (!text || typeof text !== 'string') return '';
   return text
@@ -252,13 +269,14 @@ app.get('/api/profiles', async (req, res) => {
               help_category AS "helpCategory",
               category, bio,
               last_seen, updated_at AS ts, visible_until,
-              (COALESCE(last_seen, 0) > $2) AS is_online
-       FROM profiles
+              (COALESCE(last_seen, 0) > $2) AS is_online,
+              (SELECT COUNT(*) FROM profile_comments WHERE profile_code = p.code AND profile_spot = p.spot) AS comment_count
+       FROM profiles p
        WHERE spot = $1 AND visible_until > $2
        ORDER BY is_online DESC, updated_at DESC`,
       [spot, now]
     );
-    res.json(rows.map(decryptProfile));
+    res.json(rows.map(r => ({ ...decryptProfile(r), commentCount: parseInt(r.comment_count) || 0 })));
   } catch (e) {
     console.error('GET /api/profiles:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
@@ -286,7 +304,6 @@ app.post('/api/profile', async (req, res) => {
       [code, spot]
     );
 
-    // Globaler Token: in anderen Spots suchen wenn nötig
     let globalToken = null;
     if (!existing.rows.length || !existing.rows[0]?.token) {
       const gc = await pool.query(
@@ -303,7 +320,6 @@ app.post('/api/profile', async (req, res) => {
       if (!token) {
         profileToken = storedToken || crypto.randomBytes(32).toString('hex');
       } else {
-        // Token gegen ALLE Spot-Profile prüfen
         const allTok = await pool.query(
           'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
           [code]
@@ -372,7 +388,6 @@ app.delete('/api/profile/:code', async (req, res) => {
     );
     if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
 
-    // Globaler Token: mitgeschickten Token gegen ALLE Spot-Profile prüfen
     const allTokens = await pool.query(
       'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
       [code]
@@ -425,7 +440,6 @@ app.post('/api/avatar', async (req, res) => {
     return res.status(400).json({ error: 'code, token und avatar (Base64) erforderlich' });
   }
 
-  // Token prüfen
   try {
     const auth = await pool.query(
       'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
@@ -438,17 +452,14 @@ app.post('/api/avatar', async (req, res) => {
     return res.status(500).json({ error: 'Token-Prüfung fehlgeschlagen' });
   }
 
-  // Base64-Größe prüfen (max ~1.4MB Base64 ≈ 1MB Bild)
   if (avatar.length > 1_400_000) {
     return res.status(413).json({ error: 'Bild zu groß (max. 1 MB)' });
   }
 
-  // Nur echte Base64-Bilder akzeptieren
   if (!avatar.startsWith('data:image/')) {
     return res.status(400).json({ error: 'Nur Base64-Bilder erlaubt (data:image/...)' });
   }
 
-  // MIME-Type validieren
   const mimeMatch = avatar.match(/^data:(image\/[a-z+]+);base64,/);
   if (!mimeMatch) {
     return res.status(400).json({ error: 'Ungültiges Base64-Format' });
@@ -462,11 +473,11 @@ app.post('/api/avatar', async (req, res) => {
 
   try {
     await pool.query(
-      'UPDATE profiles SET avatar = $1, updated_at = $2 WHERE code = $3 AND spot = $4',
-      [avatar, Date.now(), code, spot]
+      'UPDATE profiles SET avatar = $1, avatar_status = $2, updated_at = $3 WHERE code = $4 AND spot = $5',
+      [avatar, 'pending', Date.now(), code, spot]
     );
-    console.log(`🖼️ Avatar gespeichert: ${code} (${spot}) – ${(avatar.length/1024).toFixed(0)} KB`);
-    res.json({ success: true, mimeType });
+    console.log(`🖼️ Avatar hochgeladen (pending): ${code} (${spot}) – ${(avatar.length/1024).toFixed(0)} KB`);
+    res.json({ success: true, mimeType, status: 'pending', message: 'Avatar wird geprüft und bald freigegeben' });
   } catch (e) {
     console.error('POST /api/avatar:', e.message);
     res.status(500).json({ error: 'Fehler beim Speichern' });
@@ -479,7 +490,7 @@ app.get('/api/avatar/:code', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      'SELECT avatar FROM profiles WHERE code = $1 AND spot = $2 AND avatar IS NOT NULL',
+      'SELECT avatar, avatar_status FROM profiles WHERE code = $1 AND spot = $2 AND avatar IS NOT NULL',
       [code, spot]
     );
 
@@ -487,7 +498,11 @@ app.get('/api/avatar/:code', async (req, res) => {
       return res.status(404).json({ error: 'Kein Avatar' });
     }
 
-    // Browser-Cache: 1 Stunde
+    // TEST-MODUS: Auch pending Avatare anzeigen (später auf 'approved' ändern)
+    if (rows[0].avatar_status === 'rejected') {
+      return res.status(404).json({ error: 'Avatar abgelehnt', status: 'rejected' });
+    }
+
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ avatar: rows[0].avatar });
   } catch (e) {
@@ -515,7 +530,7 @@ app.delete('/api/avatar/:code', async (req, res) => {
     }
 
     await pool.query(
-      'UPDATE profiles SET avatar = NULL, updated_at = $1 WHERE code = $2 AND spot = $3',
+      'UPDATE profiles SET avatar = NULL, avatar_status = NULL, updated_at = $1 WHERE code = $2 AND spot = $3',
       [Date.now(), code, spot]
     );
     console.log(`🗑️ Avatar gelöscht: ${code} (${spot})`);
@@ -675,7 +690,7 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE-NACHRICHTEN (MIT SPOT-FELDERN)
+// OFFLINE-NACHRICHTEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.post('/api/offline-message', async (req, res) => {
@@ -823,21 +838,181 @@ app.delete('/api/offline-messages/:code', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PING ENDPUNKTE (für Heartbeat – Render Free Tier)
+// PROFILE COMMENTS (Story-Kommentare)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.all('/ping', (req, res) => {
-  res.status(204).end();
+app.post('/api/profile-comment', async (req, res) => {
+  const { profileCode, profileSpot = 'dates', senderCode, senderName, message } = req.body;
+  
+  if (!profileCode || !senderCode || !senderName || !message) {
+    return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
+  }
+  if (profileCode === senderCode) {
+    return res.status(400).json({ error: 'Keine Kommentare ans eigene Profil' });
+  }
+  
+  const clean = message.trim().slice(0, 140);
+  if (!clean.length) {
+    return res.status(400).json({ error: 'Nachricht ist leer' });
+  }
+  
+  if (/https?:\/\/|www\./i.test(clean)) {
+    return res.status(400).json({ error: 'Keine Links erlaubt' });
+  }
+  
+  try {
+    const existing = await pool.query(
+      'SELECT id FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2 AND sender_code = $3',
+      [profileCode, profileSpot, senderCode]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Du hast bereits kommentiert. Lösche den alten Kommentar zuerst.' });
+    }
+    
+    const count = await pool.query(
+      'SELECT COUNT(*) AS cnt FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2',
+      [profileCode, profileSpot]
+    );
+    if (Number(count.rows[0].cnt) >= 20) {
+      await pool.query(
+        `DELETE FROM profile_comments WHERE id IN (
+          SELECT id FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2
+          ORDER BY created_at ASC LIMIT 1
+        )`,
+        [profileCode, profileSpot]
+      );
+    }
+    
+    await pool.query(
+      `INSERT INTO profile_comments (profile_code, profile_spot, sender_code, sender_name, message, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [profileCode, profileSpot, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), Date.now()]
+    );
+    
+    console.log(`💬 Kommentar: ${senderName} → ${profileCode}: "${clean.slice(0, 30)}..."`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('POST /api/profile-comment:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
-app.all('/api/ping', (req, res) => {
-  res.status(204).end();
+app.get('/api/profile-comments/:code', async (req, res) => {
+  const { code } = req.params;
+  const spot = req.query.spot || 'dates';
+  
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
+              message, created_at AS "createdAt"
+       FROM profile_comments
+       WHERE profile_code = $1 AND profile_spot = $2
+       ORDER BY created_at ASC
+       LIMIT 20`,
+      [code, spot]
+    );
+    res.json(rows.map(r => ({
+      ...r,
+      senderName: decrypt(r.senderName),
+      message:    decrypt(r.message),
+    })));
+  } catch (e) {
+    console.error('GET /api/profile-comments:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.delete('/api/profile-comment/:id', async (req, res) => {
+  const { id } = req.params;
+  const { code, token, spot = 'dates' } = req.body;
+  
+  if (!code || !token) {
+    return res.status(401).json({ error: 'Token fehlt' });
+  }
+  
+  try {
+    const auth = await pool.query(
+      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
+      [code, spot]
+    );
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: 'Nur der Profilinhaber kann Kommentare löschen' });
+    }
+    
+    const comment = await pool.query(
+      'SELECT id FROM profile_comments WHERE id = $1 AND profile_code = $2 AND profile_spot = $3',
+      [id, code, spot]
+    );
+    if (!comment.rows.length) {
+      return res.status(404).json({ error: 'Kommentar nicht gefunden' });
+    }
+    
+    await pool.query('DELETE FROM profile_comments WHERE id = $1', [id]);
+    console.log(`🗑️ Kommentar gelöscht: ID ${id} von Profil ${code}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE /api/profile-comment:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// START
+// ADMIN – Avatar Moderation
 // ══════════════════════════════════════════════════════════════════════════════
 
+function requireAdmin(req, res, next) {
+  const key = req.headers['x-admin-key'] || req.query.key;
+  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: 'Kein Zugriff' });
+  }
+  next();
+}
+
+app.get('/api/admin/pending-avatars', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT code, spot, avatar, avatar_status, updated_at
+       FROM profiles
+       WHERE avatar IS NOT NULL AND avatar_status = 'pending'
+       ORDER BY updated_at ASC`
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.post('/api/admin/avatar-action', requireAdmin, async (req, res) => {
+  const { code, spot, action } = req.body;
+  if (!code || !spot || !['approve','reject'].includes(action)) {
+    return res.status(400).json({ error: 'code, spot und action (approve/reject) erforderlich' });
+  }
+  try {
+    if (action === 'approve') {
+      await pool.query(
+        'UPDATE profiles SET avatar_status = $1 WHERE code = $2 AND spot = $3',
+        ['approved', code, spot]
+      );
+      console.log(`✅ Avatar freigegeben: ${code} (${spot})`);
+    } else {
+      await pool.query(
+        'UPDATE profiles SET avatar = NULL, avatar_status = NULL WHERE code = $1 AND spot = $2',
+        [code, spot]
+      );
+      console.log(`❌ Avatar abgelehnt & gelöscht: ${code} (${spot})`);
+    }
+    res.json({ success: true, action, code, spot });
+  } catch (e) {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PING & START
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.all('/ping', (req, res) => res.status(204).end());
+app.all('/api/ping', (req, res) => res.status(204).end());
 app.get('/', (req, res) => res.send('SpotMe PG-Server läuft ✅'));
 
 const PORT = process.env.PORT || 3000;
