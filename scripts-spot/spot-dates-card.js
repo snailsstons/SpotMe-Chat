@@ -458,8 +458,13 @@ if (avatarContainer && imgContainer) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SWIPE LOGIK
+// GESTEN-STEUERUNG (Tap, Doppeltap, Long Press, Swipe)
 // ══════════════════════════════════════════════════════════════════════════════
+
+let tapTimer = null;
+let longPressTimer = null;
+let touchStartTime = 0;
+let touchMoved = false;
 
 function initCardSwipe() {
   const wrapper = document.getElementById('cardWrapper');
@@ -472,8 +477,19 @@ function initCardSwipe() {
   const onStart = (e) => {
     startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    touchStartTime = Date.now();
+    touchMoved = false;
     isDragging = false;
     wrapper.style.transition = 'none';
+    
+    // Long Press Timer (600ms)
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      if (!touchMoved && !isDragging) {
+        handleLongPress(e);
+      }
+    }, 600);
+    
     document.addEventListener('mousemove', onMove);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', onEnd);
@@ -484,8 +500,14 @@ function initCardSwipe() {
     if (e.type.includes('touch')) e.preventDefault();
     let currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     moveX = currentX - startX;
-    if (Math.abs(moveX) > 5) isDragging = true;
-    wrapper.style.transform = `translateX(${moveX}px) rotate(${moveX / 15}deg)`;
+    if (Math.abs(moveX) > 8) {
+      touchMoved = true;
+      isDragging = true;
+      clearTimeout(longPressTimer);
+    }
+    if (isDragging) {
+      wrapper.style.transform = `translateX(${moveX}px) rotate(${moveX / 15}deg)`;
+    }
   };
   
   const onEnd = () => {
@@ -493,11 +515,15 @@ function initCardSwipe() {
     document.removeEventListener('touchmove', onMove);
     document.removeEventListener('mouseup', onEnd);
     document.removeEventListener('touchend', onEnd);
+    
+    clearTimeout(longPressTimer);
     wrapper.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     
-    if (!isDragging) {
-      inner.classList.toggle('is-flipped');
+    if (!touchMoved && !isDragging) {
+      // Keine Bewegung = Tap
+      handleTap();
     } else if (Math.abs(moveX) > 80) {
+      // Swipe
       const direction = moveX > 0 ? -1 : 1;
       let newIndex = currentIndex + direction;
       if (newIndex < 0) newIndex = filtered.length - 1;
@@ -516,6 +542,7 @@ function initCardSwipe() {
         setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 50);
       }, 200);
     } else {
+      // Kleine Bewegung zurücksetzen
       wrapper.style.transform = 'translateX(0) rotate(0deg)';
     }
     moveX = 0; isDragging = false;
@@ -524,6 +551,92 @@ function initCardSwipe() {
   wrapper.addEventListener('mousedown', onStart);
   wrapper.addEventListener('touchstart', onStart, { passive: false });
 }
+
+// 1× Tap = Flip
+function handleTap() {
+  const inner = document.getElementById('cardInner');
+  if (!inner) return;
+  
+  // Doppeltap-Erkennung
+  if (tapTimer) {
+    // 2. Tap → Notieren
+    clearTimeout(tapTimer);
+    tapTimer = null;
+    handleDoubleTap();
+  } else {
+    // 1. Tap → Flip (nach 300ms, falls kein 2. Tap kommt)
+    tapTimer = setTimeout(() => {
+      tapTimer = null;
+      flipCard();
+    }, 300);
+  }
+}
+
+function flipCard() {
+  const inner = document.getElementById('cardInner');
+  if (inner) inner.classList.toggle('is-flipped');
+}
+
+// 2× Tap = Notieren
+function handleDoubleTap() {
+  const p = filtered[currentIndex];
+  if (!p) return;
+  
+  toggleNote(p.code);
+  
+  // Visuelles Feedback
+  const wrapper = document.getElementById('cardWrapper');
+  if (wrapper) {
+    wrapper.style.transition = 'transform 0.2s ease';
+    wrapper.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      wrapper.style.transform = 'scale(1)';
+      setTimeout(() => wrapper.style.transition = 'transform 0.4s ease', 200);
+    }, 150);
+  }
+}
+
+// Long Press = Bild groß öffnen
+function handleLongPress(e) {
+  const p = filtered[currentIndex];
+  if (!p) return;
+  
+  // Avatar aus Cache oder vom Server laden
+  loadCardAvatar(p.code).then(avatarBase64 => {
+    if (avatarBase64) {
+      showFullscreenAvatar(avatarBase64, p.name);
+    }
+  });
+}
+
+function showFullscreenAvatar(avatarBase64, name) {
+  // Bestehendes Fullscreen-Modal entfernen
+  const existing = document.getElementById('avatarFullscreen');
+  if (existing) existing.remove();
+  
+  const html = `
+    <div id="avatarFullscreen" onclick="this.remove()" style="
+      position:fixed; top:0; left:0; width:100%; height:100%; 
+      background:rgba(0,0,0,0.95); z-index:9999;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+    ">
+      <button onclick="document.getElementById('avatarFullscreen').remove()" style="
+        position:absolute; top:20px; right:20px;
+        width:40px; height:40px; border-radius:50%;
+        background:rgba(255,255,255,0.1); border:none; color:white; font-size:1.5rem;
+        cursor:pointer; z-index:1;
+      ">✕</button>
+      <img src="${avatarBase64}" alt="${name || 'Avatar'}" style="
+        max-width:95%; max-height:80%; object-fit:contain; border-radius:8px;
+      ">
+      ${name ? `<p style="color:white; margin-top:1rem; font-size:1.1rem; opacity:0.8;">${name}</p>` : ''}
+      <p style="color:rgba(255,255,255,0.4); font-size:0.75rem; margin-top:0.5rem;">Tippen zum Schließen</p>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // NOTIEREN
@@ -636,6 +749,9 @@ cardStyles.textContent = `
   .filter-chip { padding:.4rem .8rem; border-radius:20px; font-size:.75rem; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--bord); color:var(--muted2); transition:all .2s; }
   .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
   .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
+ 
+  #avatarFullscreen { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
 
