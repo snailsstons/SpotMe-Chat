@@ -47,6 +47,36 @@ let currentIndex = 0;
 let filtersInitialized = false;
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 🆕 SOFORT-START: Eigenes Profil aus localStorage vorab laden
+// ══════════════════════════════════════════════════════════════════════════════
+
+(function preloadMyProfile() {
+  const myCode = localStorage.getItem('sm_code');
+  if (!myCode || (typeof allProfiles !== 'undefined' && allProfiles.length > 0)) return;
+  
+  const localProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
+  if (!localProfile.name) return;
+  
+  const myProfile = {
+    code: myCode,
+    name: localProfile.name || localStorage.getItem('sm_name') || 'Ich',
+    age: localProfile.age || '',
+    city: localProfile.city || '',
+    region: localProfile.region || '',
+    bio: localProfile.bio || 'Keine Beschreibung',
+    lookingFor: localProfile.lookingFor || '',
+    ts: Date.now()
+  };
+  
+  allProfiles = [myProfile];
+  filtered = [myProfile];
+  currentIndex = 0;
+  renderList();
+  
+  console.log('⚡ Eigenes Profil vorab geladen');
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
 // ══════════════════════════════════════════════════════════════════════════════
 
