@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotMe · Avatar Test</title>
+    <style>
+        :root {
+            --bg: #060a0f;
+            --card: #101820;
+            --bord: rgba(255,255,255,.08);
+            --acc: #ff4f7b;
+            --text: #dde4f0;
+            --muted: #7a8fa8;
+            --green: #1ecc68;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .test-card {
+            background: var(--card);
+            border: 1px solid var(--bord);
+            border-radius: 20px;
+            padding: 2rem;
+            width: 360px;
+            text-align: center;
+        }
+        h2 { margin-bottom: 1.5rem; color: var(--acc); }
+        
+        .avatar-preview {
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--acc), #00e5c0);
+            margin: 0 auto 1rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid var(--bord);
+        }
+        .avatar-preview img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .hint { font-size: .75rem; color: var(--muted); margin-bottom: 1rem; }
+        
+        .btn-row { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem; }
+        button {
+            padding: .6rem 1.2rem;
+            border-radius: 10px;
+            border: 1px solid var(--bord);
+            background: var(--card);
+            color: var(--text);
+            cursor: pointer;
+            font-size: .85rem;
+        }
+        button.primary { background: var(--acc); border-color: var(--acc); color: #fff; }
+        button:active { transform: scale(.97); }
+        
+        .log {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: .7rem;
+            padding: .8rem;
+            border-radius: 10px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log .err { color: #f44; }
+        .log .ok { color: #0f0; }
+    </style>
+</head>
+<body>
+
+<div class="test-card">
+    <h2>🖼️ Avatar Test</h2>
+    
+    <!-- Vorschau -->
+    <div class="avatar-preview" id="preview" onclick="document.getElementById('fileInput').click()">
+        👤
+    </div>
+    <div class="hint">Tippe zum Ändern</div>
+    
+    <!-- Buttons -->
+    <div class="btn-row">
+        <button onclick="document.getElementById('fileInput').click()">📷 Wählen</button>
+        <button class="primary" id="btnUpload" onclick="uploadAvatar()" disabled>⬆️ Hochladen</button>
+        <button id="btnLoad" onclick="loadAvatar()">⬇️ Vom Server laden</button>
+        <button id="btnDelete" onclick="deleteAvatar()">🗑️ Löschen</button>
+    </div>
+    
+    <!-- Info -->
+    <div style="font-size:.75rem; color:var(--muted); margin-bottom:.5rem;">
+        Code: <b id="infoCode">—</b> · Token: <b id="infoToken">—</b>
+    </div>
+    
+    <!-- Log -->
+    <div class="log" id="log">Bereit. Token & Code aus localStorage geladen.</div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this)">
+
+<script>
+'use strict';
+
+const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+const SPOT = 'dates';
+
+let pendingAvatar = null; // Base64, noch nicht hochgeladen
+let currentAvatar = null; // Vom Server geladen
+
+// ── Token & Code holen ──────────────────────────────────
+const code  = localStorage.getItem('sm_code')  || '910001';
+const token = localStorage.getItem('sm_token') || 'demo_tok_001';
+
+document.getElementById('infoCode').textContent  = code;
+document.getElementById('infoToken').textContent = token ? token.slice(0,16) + '…' : '—';
+
+function log(msg, type = '') {
+    const el = document.getElementById('log');
+    const cls = type === 'error' ? 'err' : (type === 'ok' ? 'ok' : '');
+    el.innerHTML += `\n[${new Date().toLocaleTimeString()}] <span class="${cls}">${msg}</span>`;
+    el.scrollTop = el.scrollHeight;
+}
+
+// ── Datei auswählen + komprimieren ──────────────────────
+function handleFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    log(`📁 Datei: ${file.name} (${(file.size/1024).toFixed(1)} KB)`);
+    
+    if (file.size > 1 * 1024 * 1024) {
+        log('❌ Datei zu groß! Max. 1 MB', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // Komprimieren: max 600px breit, JPEG 75%
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxW = 600;
+            let w = img.width, h = img.height;
+            if (w > maxW) { h = h * maxW / w; w = maxW; }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            
+            pendingAvatar = canvas.toDataURL('image/jpeg', 0.75);
+            
+            document.getElementById('preview').innerHTML = `<img src="${pendingAvatar}" alt="Vorschau">`;
+            document.getElementById('btnUpload').disabled = false;
+            
+            log(`✅ Komprimiert: ${(pendingAvatar.length/1024).toFixed(1)} KB Base64 (${w}x${h})`);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// ── Hochladen ───────────────────────────────────────────
+async function uploadAvatar() {
+    if (!pendingAvatar) { log('⚠️ Erst Bild auswählen', 'error'); return; }
+    
+    log(`⬆️ Lade hoch… (${(pendingAvatar.length/1024).toFixed(0)} KB)`);
+    document.getElementById('btnUpload').disabled = true;
+    
+    try {
+        const res = await fetch(`${API_BASE}/avatar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, token, avatar: pendingAvatar, spot: SPOT })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            log('✅ Hochgeladen! ' + data.mimeType, 'ok');
+            currentAvatar = pendingAvatar;
+            pendingAvatar = null;
+        } else {
+            log('❌ ' + (data.error || 'Unbekannter Fehler'), 'error');
+            document.getElementById('btnUpload').disabled = false;
+        }
+    } catch(e) {
+        log('❌ Netzwerkfehler: ' + e.message, 'error');
+        document.getElementById('btnUpload').disabled = false;
+    }
+}
+
+// ── Vom Server laden ────────────────────────────────────
+async function loadAvatar() {
+    log('⬇️ Lade vom Server…');
+    
+    try {
+        const res = await fetch(`${API_BASE}/avatar/${code}?spot=${SPOT}`);
+        if (!res.ok) {
+            log('❌ Kein Avatar gefunden (404)', 'error');
+            return;
+        }
+        const data = await res.json();
+        if (data.avatar) {
+            currentAvatar = data.avatar;
+            document.getElementById('preview').innerHTML = `<img src="${data.avatar}" alt="Avatar">`;
+            log(`✅ Geladen: ${(data.avatar.length/1024).toFixed(0)} KB`, 'ok');
+        }
+    } catch(e) {
+        log('❌ Netzwerkfehler: ' + e.message, 'error');
+    }
+}
+
+// ── Löschen ─────────────────────────────────────────────
+async function deleteAvatar() {
+    if (!confirm('Avatar auf dem Server löschen?')) return;
+    
+    log('🗑️ Lösche…');
+    
+    try {
+        const res = await fetch(`${API_BASE}/avatar/${code}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, spot: SPOT })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            currentAvatar = null;
+            pendingAvatar = null;
+            document.getElementById('preview').innerHTML = '👤';
+            document.getElementById('btnUpload').disabled = true;
+            log('✅ Gelöscht', 'ok');
+        } else {
+            log('❌ ' + (data.error || 'Fehler'), 'error');
+        }
+    } catch(e) {
+        log('❌ Netzwerkfehler: ' + e.message, 'error');
+    }
+}
+
+// ── Init ────────────────────────────────────────────────
+log(`🔑 Code: ${code} | Token vorhanden: ${!!token}`);
+log('👆 Wähle ein Bild, dann "Hochladen"');
+log('👆 Danach "Vom Server laden" zum Testen');
+</script>
+</body>
+  </html>

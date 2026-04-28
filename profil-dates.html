@@ -138,16 +138,16 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   </div>
 
   <!-- Avatar -->
-  <div class="avatar-wrap">
-    <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">💕</div>
-    <div class="avatar-hint">Tippe zum Ändern</div>
-    <div class="avatar-btns">
-      <button class="av-btn" onclick="document.getElementById('avatar-input').click()">📷 Foto wählen</button>
-      <button class="av-btn" onclick="clearAvatar()">✕ Entfernen</button>
-    </div>
-    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="handleAvatar(this)">
+<div class="avatar-wrap">
+  <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">💕</div>
+  <div class="avatar-hint" id="avatar-status">Tippe zum Ändern</div>
+  <div class="avatar-btns">
+    <button class="av-btn" onclick="document.getElementById('avatar-input').click()">📷 Foto wählen</button>
+    <button class="av-btn" onclick="clearAvatar()">✕ Entfernen</button>
   </div>
-
+  <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="handleAvatar(this)">
+</div>
+  
   <!-- ICH SUCHE -->
   <div class="sec-label">Ich suche</div>
   <div class="mode-group" id="rg-looking">
@@ -239,6 +239,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
 
 const SPOT        = 'dates';
 const PROFILE_KEY = 'sm_profile_dates';
+const API_BASE    = 'https://spotme-chat-obom.onrender.com/api';
 
 // Geo-Daten
 const GEO = {
@@ -261,7 +262,7 @@ const GEO = {
   "Valencia (Region)":{"Alicante":["Denia","Jávea","Calpe","Altea","Benidorm","Villajoyosa","Alicante","Santa Pola","Torrevieja"],"Castellón":["Vinaròs","Peñíscola","Alcossebre","Oropesa del Mar","Benicàssim","Castellón de la Plana"],"Valencia":["Sagunto","Valencia","Cullera","Gandía","Oliva"]}
 };
 
-let avatarData = null;
+let avatarData = null;      // Base64 (wird auch bei Server-Ablehnung lokal behalten)
 let saveTimer  = null;
 
 // ── Region / Provinz / Stadt ──────────────────────────────────────────────
@@ -306,23 +307,20 @@ function pick(btn, groupId) {
   autoSave();
 }
 function pickMode(btn) {
-  document.querySelectorAll('#rg-helpmode .mode-opt').forEach(b => {
-    b.classList.remove('sel','sel-suche');
-  });
-  if (btn.dataset.val === 'suche') btn.classList.add('sel-suche');
-  else btn.classList.add('sel');
+  document.querySelectorAll('#rg-looking .mode-opt').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
   autoSave();
 }
 function getRadio(groupId) {
-  const sel = document.querySelector(`#${groupId} .sel, #${groupId} .sel-suche`);
+  const sel = document.querySelector(`#${groupId} .sel`);
   return sel ? sel.dataset.val : null;
 }
 function setRadio(groupId, val) {
   if (!val) return;
   const btn = document.querySelector(`#${groupId} [data-val="${val}"]`);
   if (!btn) return;
-  if (groupId === 'rg-helpmode') pickMode(btn);
-  else { document.querySelectorAll(`#${groupId} .radio-opt`).forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); }
+  document.querySelectorAll(`#${groupId} .mode-opt, #${groupId} .radio-opt`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
 }
 function updateAge() {
   const y = parseInt(document.getElementById('f-year').value);
@@ -335,7 +333,6 @@ function updateBioCount() {
   const el  = document.getElementById('bio-count');
   el.textContent = `${len} / 512`;
   el.classList.toggle('warn', len > 460);
-  // Antispam
   let val = document.getElementById('f-bio').value;
   if (/https?:\/\/|www\.|@[^\s]+\.[a-z]/i.test(val)) {
     toast('⚠️ Links und E-Mail-Adressen sind nicht erlaubt');
@@ -362,22 +359,127 @@ function goBack() {
   window.location.href = 'spot-dates.html';
 }
 
-// ── Avatar ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+// AVATAR – MIT SERVER-UPLOAD (Fallback: localStorage)
+// ══════════════════════════════════════════════════════════════════════════
+
 function handleAvatar(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { toast('⚠️ Max. 2 MB'); return; }
+  if (file.size > 1 * 1024 * 1024) { toast('⚠️ Max. 1 MB'); return; }
+
+  // Status zurücksetzen
+  const statusEl = document.getElementById('avatar-status');
+  if (statusEl) statusEl.textContent = '⏳ Komprimiere…';
+  
   const reader = new FileReader();
-  reader.onload = e => { avatarData = e.target.result; renderAvatar(); autoSave(); };
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const maxW = 600;
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = h * maxW / w; w = maxW; }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      avatarData = canvas.toDataURL('image/jpeg', 0.55);
+      
+      renderAvatar();
+      
+      // Hochladen mit Status-Anzeige
+      if (statusEl) statusEl.textContent = '⏳ Speichere auf Server…';
+      uploadAvatarToServer();
+    };
+    img.src = e.target.result;
+  };
   reader.readAsDataURL(file);
 }
+
+async function uploadAvatarToServer() {
+  const token = localStorage.getItem('sm_token');
+  const code  = localStorage.getItem('sm_code');
+  const statusEl = document.getElementById('avatar-status');
+  
+  // Lokal immer schonmal speichern
+  autoSave();
+  
+  if (!token || !code || !avatarData) {
+    if (statusEl) statusEl.textContent = '⚠️ Kein Token – nur lokal gespeichert';
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_BASE}/avatar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, token, avatar: avatarData, spot: SPOT })
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      if (statusEl) statusEl.textContent = '✅ Auf Server gespeichert';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+    } else {
+      if (statusEl) statusEl.textContent = '⚠️ ' + (data.error || 'Server abgelehnt');
+      console.warn('Server-Ablehnung:', data.error);
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '⚠️ Server nicht erreichbar – nur lokal';
+    console.warn('Upload fehlgeschlagen:', e.message);
+  }
+}
+
+async function loadAvatarFromServer() {
+  const code = localStorage.getItem('sm_code');
+  if (!code) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/avatar/${code}?spot=${SPOT}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.avatar) {
+      avatarData = data.avatar;
+      renderAvatar();
+      autoSave(); // Auch lokal cachen
+    }
+  } catch (e) {
+    // Server offline – lokaler Avatar bleibt
+  }
+}
+
+async function clearAvatarFromServer() {
+  const token = localStorage.getItem('sm_token');
+  const code  = localStorage.getItem('sm_code');
+  
+  if (token && code) {
+    try {
+      await fetch(`${API_BASE}/avatar/${code}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, spot: SPOT })
+      });
+    } catch (e) { /* Egal */ }
+  }
+}
+
 function renderAvatar() {
   const el = document.getElementById('avatar-el');
   if (avatarData) el.innerHTML = `<img src="${avatarData}" alt="Avatar">`;
   else el.textContent = '💕';
 }
-function clearAvatar() { avatarData = null; renderAvatar(); autoSave(); }
 
+async function clearAvatar() {
+  const statusEl = document.getElementById('avatar-status');
+  
+  avatarData = null;
+  renderAvatar();
+  await clearAvatarFromServer();
+  autoSave();
+  
+  if (statusEl) statusEl.textContent = '✅ Gelöscht';
+  setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000);
+}
 // ── Load / Save ───────────────────────────────────────────────────────────
 function loadProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
@@ -402,9 +504,12 @@ function loadProfile() {
         if (p.city) document.getElementById('f-city').value = p.city;
       }
     }
-    if (p.helpMode)     setRadio('rg-helpmode', p.helpMode);
-    if (p.helpCategory) setRadio('rg-helpcat',  p.helpCategory);
+    if (p.lookingFor) setRadio('rg-looking', p.lookingFor);
+    
+    // Avatar: Lokal aus localStorage laden, dann versuchen vom Server zu aktualisieren
     if (p.avatar) { avatarData = p.avatar; renderAvatar(); }
+    loadAvatarFromServer(); // Überschreibt lokal, falls Server aktueller ist
+    
     showSavedBadge();
   } catch(e) { console.warn('Ladefehler', e); }
 }
@@ -430,7 +535,7 @@ function saveProfile() {
     city:         document.getElementById('f-city').value || null,
     bio,
     avatar:       avatarData || null,
-    lookingFor: getRadio('rg-looking') || null,
+    lookingFor:   getRadio('rg-looking') || null,
     updated:      Date.now()
   };
 
@@ -460,6 +565,7 @@ window.addEventListener('DOMContentLoaded', () => {
   fillRegions();
   loadProfile();
 });
+  
 </script>
 </body>
 </html>
