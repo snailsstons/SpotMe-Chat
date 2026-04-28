@@ -498,9 +498,9 @@ app.get('/api/avatar/:code', async (req, res) => {
       return res.status(404).json({ error: 'Kein Avatar' });
     }
 
-    // TEST-MODUS: Auch pending Avatare anzeigen (später auf 'approved' ändern)
-    if (rows[0].avatar_status === 'rejected') {
-      return res.status(404).json({ error: 'Avatar abgelehnt', status: 'rejected' });
+    // Nur freigegebene Avatare anzeigen
+    if (rows[0].avatar_status !== 'approved') {        // ← HIER
+      return res.status(404).json({ error: 'Avatar noch nicht freigegeben', status: rows[0].avatar_status || 'pending' });
     }
 
     res.set('Cache-Control', 'public, max-age=3600');
