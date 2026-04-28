@@ -73,9 +73,11 @@
     SPOT<b>ME</b>
     <span style="font-weight:300; opacity:0.5; font-size:0.8rem;">Dates</span>
   </div>
+
   <div class="header-right">
-    <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
-    <div class="status-badge" id="status-indicator">● CARDS</div>
+  <button class="refresh-btn" id="my-profile-btn" onclick="showMyProfile()" title="Mein Profil">👤</button>
+  <button class="refresh-btn" id="refresh-btn" onclick="refreshSpot()" title="Aktualisieren">↺</button>
+  <div class="status-badge" id="status-indicator">● CARDS</div>
   </div>
 </header>
 
@@ -88,7 +90,6 @@
   <div class="profile-actions">
     <button class="icon-btn" id="publish-toggle-small" onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
     <button class="icon-btn" onclick="window.location.href='profil.html?spot=' + SPOT" title="Profil bearbeiten">✎</button>
-    <button onclick="showMyProfile()" style="...">👤 Mein Profil</button> 
     <button class="icon-btn" id="location-toggle-small" onclick="toggleLocationSharing()" title="Standort teilen">📍</button>
   </div>
 </div>
