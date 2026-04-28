@@ -419,11 +419,11 @@ function renderCurrentCard() {
           <div class="comments-list" id="commentsList-${p.code}">
             <div class="comments-loading">⏳ Lade Kommentare…</div>
           </div>
-          
           <div class="comment-input-row">
-            <input type="text" id="commentInput-${p.code}" class="comment-input" 
-              placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
-              onkeydown="if(event.key==='Enter') submitCommentHandler('${p.code}')">
+              <textarea id="commentInput-${p.code}" class="comment-input" 
+                placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
+                rows="3"
+                onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); submitCommentHandler('${p.code}'); }"></textarea>
             <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
           </div>
           <div class="comment-status" id="commentStatus-${p.code}"></div>
@@ -915,6 +915,7 @@ cardStyles.textContent = `
   .comment-delete-btn { margin-left:auto; background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.65rem; padding:2px 4px; }
   .comment-delete-btn:hover { color:#f44; }
   .comment-text { font-size:0.78rem; color:var(--text-dim); line-height:1.4; }
+  .comment-input { flex:1; padding:0.5rem 0.7rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:0.75rem; outline:none; font-family:inherit; resize:none; }
   .comment-input-row { display:flex; gap:0.3rem; margin-top:0.5rem; }
   .comment-input { flex:1; padding:0.5rem 0.7rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:0.75rem; outline:none; font-family:inherit; }
   .comment-input:focus { border-color:var(--acc); }
