@@ -1124,12 +1124,12 @@ cardStyles.textContent = `
   .card-image-container { height:60%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
   .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
   .card-avatar-large img { width:100%; height:100%; object-fit:cover; object-position:top; }
-  .card-heart { position:absolute; top:10px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
+  .card-heart { position:absolute; top:10px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-heart svg { width:20px; height:20px; fill:transparent; stroke:white; stroke-width:2; }
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
-  .card-search { position:absolute; top:58px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
+  .card-search { position:absolute; top:58px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-search:active { background:rgba(255,255,255,0.15); }
-  .card-noted { position:absolute; top:106px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
+  .card-noted { position:absolute; top:106px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-noted:active { background:rgba(255,255,255,0.15); }
   .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
