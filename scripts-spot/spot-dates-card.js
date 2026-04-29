@@ -425,6 +425,10 @@ function renderCurrentCard() {
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
+        <!-- 🆕 Notierte-Liste Icon (Lesezeichen) -->
+          <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
+           <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          </div>
         ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
       </div>
       <div class="card-content">
@@ -576,7 +580,84 @@ window.toggleFilterModal = function() {
       </div>
     </div>
   `;
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔖 NOTIERTE PROFIL MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.toggleNotedModal = function() {
+  const existing = document.getElementById('notedModal');
+  if (existing) {
+    existing.remove();
+    return;
+  }
   
+  notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
+  const profiles = allProfiles.filter(p => notedProfiles.includes(p.code));
+  
+  let profileList = '';
+  if (profiles.length === 0) {
+    profileList = '<p style="color:var(--muted);text-align:center;padding:1rem;">Noch keine notierten Profile. Tippe auf das ❤️ um Profile zu merken.</p>';
+  } else {
+    profileList = profiles.map(p => `
+      <div class="noted-modal-item" onclick="document.getElementById('notedModal').remove(); showNotedProfile('${p.code}')" style="
+        display:flex; align-items:center; gap:0.8rem; padding:0.6rem;
+        border-radius:12px; cursor:pointer; margin-bottom:0.3rem;
+        background:rgba(255,255,255,0.02);
+      ">
+        <div id="notedModalAv-${p.code}" style="
+          width:40px; height:40px; border-radius:50%;
+          background:linear-gradient(135deg,var(--p2),var(--p3));
+          display:flex; align-items:center; justify-content:center;
+          font-size:0.9rem; color:white; flex-shrink:0; overflow:hidden;
+        ">${(p.name || '?')[0]?.toUpperCase()}</div>
+        <div>
+          <div style="font-size:0.85rem; font-weight:600;">${escHtml(p.name || '?')}</div>
+          <div style="font-size:0.7rem; color:var(--muted);">${p.city || ''} ${p.region ? '· ' + p.region : ''}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  const html = `
+    <div id="notedModal" onclick="this.remove()" style="
+      position:fixed; top:0; left:0; width:100%; height:100%; 
+      background:rgba(0,0,0,0.9); z-index:9999;
+      display:flex; align-items:center; justify-content:center;
+      animation: fadeIn 0.2s ease;
+    ">
+      <div onclick="event.stopPropagation()" style="
+        background:var(--card,#1c222b); border:1px solid var(--bord);
+        border-radius:20px; padding:1.5rem; width:90%; max-width:400px;
+        max-height:80vh; overflow-y:auto;
+      ">
+        <h3 style="color:var(--acc); margin-bottom:1rem; font-family:'Syne';">🔖 Notierte Profile (${profiles.length})</h3>
+        ${profileList}
+        <button onclick="document.getElementById('notedModal').remove()" style="
+          display:block; width:100%; margin-top:1rem; padding:0.7rem;
+          background:transparent; color:var(--muted2);
+          border:1px solid var(--bord); border-radius:12px;
+          font-size:0.8rem; cursor:pointer;
+        ">✕ Schließen</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+  
+  // Avatare nachladen
+  profiles.forEach(p => {
+    const avEl = document.getElementById(`notedModalAv-${p.code}`);
+    if (avEl) {
+      loadCardAvatar(p.code).then(avatarBase64 => {
+        if (avatarBase64 && document.getElementById(`notedModalAv-${p.code}`)) {
+          avEl.innerHTML = `<img src="${avatarBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+          avEl.style.fontSize = '0';
+          avEl.style.background = 'none';
+        }
+      });
+    }
+  });
+};  
   document.body.insertAdjacentHTML('beforeend', html);
 };
 
@@ -1083,6 +1164,8 @@ cardStyles.textContent = `
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
   .card-search { position:absolute; top:58px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-search:active { background:rgba(255,255,255,0.15); }
+  .card-noted { position:absolute; top:106px; right:10px; width:40px; height:40px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
+  .card-noted:active { background:rgba(255,255,255,0.15); }
   .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
   .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; margin-bottom:0.5rem; }
