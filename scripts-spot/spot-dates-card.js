@@ -1,9 +1,9 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.2 – Filter-Lupe & Online-Badge
+// SPOT DATES – CARD ANSICHT v4.2 – Filter-Lupe & Notierte-Modal
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
 // Pinch = Kurznachricht | ❤️ Button = Notieren | 🔍 Lupe = Filter-Modal
-// 🆕 Card-Rückseite: Story + Kommentare (öffentlich) + natives Scrollen
+// 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -426,9 +426,9 @@ function renderCurrentCard() {
           <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <!-- 🆕 Notierte-Liste Icon (Lesezeichen) -->
-          <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
-           <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-          </div>
+        <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </div>
         ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
       </div>
       <div class="card-content">
@@ -580,6 +580,33 @@ window.toggleFilterModal = function() {
       </div>
     </div>
   `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.applyModalFilters = function() {
+  const region = document.getElementById('modal-f-region')?.value || '';
+  const age = document.getElementById('modal-f-age')?.value || '';
+  const chips = [...document.querySelectorAll('#filterModal .filter-chip.active')].map(c => c.dataset.filter);
+  
+  const realRegion = document.getElementById('f-region');
+  const realAge = document.getElementById('f-age');
+  if (realRegion) realRegion.value = region;
+  if (realAge) realAge.value = age;
+  
+  document.querySelectorAll('#filter-chips .filter-chip').forEach(c => {
+    c.classList.toggle('active', chips.includes(c.dataset.filter));
+  });
+  
+  document.getElementById('filterModal')?.remove();
+  applyFiltersLocal();
+};
+
+window.resetModalFilters = function() {
+  document.getElementById('filterModal')?.remove();
+  handleFilterReset();
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔖 NOTIERTE PROFIL MODAL
 // ══════════════════════════════════════════════════════════════════════════════
@@ -657,37 +684,10 @@ window.toggleNotedModal = function() {
       });
     }
   });
-};  
-  document.body.insertAdjacentHTML('beforeend', html);
-};
-
-window.applyModalFilters = function() {
-  const region = document.getElementById('modal-f-region')?.value || '';
-  const age = document.getElementById('modal-f-age')?.value || '';
-  const chips = [...document.querySelectorAll('#filterModal .filter-chip.active')].map(c => c.dataset.filter);
-  
-  const realRegion = document.getElementById('f-region');
-  const realAge = document.getElementById('f-age');
-  if (realRegion) realRegion.value = region;
-  if (realAge) realAge.value = age;
-  
-  document.querySelectorAll('#filter-chips .filter-chip').forEach(c => {
-    c.classList.toggle('active', chips.includes(c.dataset.filter));
-  });
-  
-  document.getElementById('filterModal')?.remove();
-  applyFiltersLocal();
-};
-
-window.resetModalFilters = function() {
-  document.getElementById('filterModal')?.remove();
-  handleFilterReset();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
 // GESTEN-STEUERUNG v4.1
-// Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
-// Pinch = Kurznachricht | Rückseite: natives Scrollen & Tippen
 // ══════════════════════════════════════════════════════════════════════════════
 
 let tapTimer = null;
@@ -1047,44 +1047,9 @@ function toggleNote(code) {
 }
 
 function renderNotedSection() {
+  // Wird jetzt über das Modal angezeigt
   const section = document.getElementById('notedSection');
-  if (!section) return;
-  notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
-  if (notedProfiles.length === 0) { section.innerHTML = ''; return; }
-  
-  const profiles = allProfiles.filter(p => notedProfiles.includes(p.code));
-  if (profiles.length === 0) {
-    section.innerHTML = '<div class="noted-header">❤️ Notiert (0 sichtbar)</div>';
-    return;
-  }
-  
-  section.innerHTML = `
-    <div class="noted-header">❤️ Notierte Profile (${profiles.length})</div>
-    <div class="noted-list">
-      ${profiles.map(p => `
-        <div class="noted-item" onclick="showNotedProfile('${p.code}')">
-          <div class="noted-avatar" id="notedAv-${p.code}" style="overflow:hidden;">
-            ${(p.name || '?')[0]?.toUpperCase()}
-          </div>
-          <div class="noted-name">${p.name || '?'}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-  
-  profiles.forEach(p => {
-    const avEl = document.getElementById(`notedAv-${p.code}`);
-    if (avEl) {
-      loadCardAvatar(p.code).then(avatarBase64 => {
-        if (avatarBase64 && document.getElementById(`notedAv-${p.code}`)) {
-          avEl.innerHTML = `<img src="${avatarBase64}" alt="${p.name || ''}" 
-            style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-          avEl.style.fontSize = '0';
-          avEl.style.background = 'none';
-        }
-      });
-    }
-  });
+  if (section) section.innerHTML = '';
 }
 
 function showNotedProfile(code) {
@@ -1221,4 +1186,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.2 geladen – Filter-Lupe & Online-Badge');
+console.log('✅ spot-dates-card.js v4.2 geladen – Filter-Modal & Notierte-Modal');
