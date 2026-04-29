@@ -354,8 +354,8 @@ window.renderList = function() {
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
-    <div id="filterAnchor"></div>
-    <div class="noted-section" id="notedSection"></div>
+  //  <div id="filterAnchor"></div> //
+  //   <div class="noted-section" id="notedSection"></div> //
   `;
   
   document.getElementById('prevBtn')?.addEventListener('click', () => {
