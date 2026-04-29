@@ -991,7 +991,7 @@ cardStyles.textContent = `
   .card-wrapper:active { cursor:grabbing; }
   .card-inner { position:relative; width:100%; height:100%; transition:transform 0.6s cubic-bezier(0.4,0.2,0.2,1); transform-style:preserve-3d; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.4); }
   .card-inner.is-flipped { transform:rotateY(180deg); }
-  .card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; background:var(--card,#1c222b); border:1px solid var(--bord); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; }
+  .card-front, .card-back { position:absolute; width:100%; height:100%; backface-visibility:hidden; background:var(--card,#1e2936); border:1px solid var(--bord); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; }
   .card-back { transform:rotateY(180deg); padding:1.2rem; overflow-y:auto; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
   .card-image-container { height:70%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; position:relative; }
   .card-avatar-large { font-size:4rem; color:white; opacity:.8; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
