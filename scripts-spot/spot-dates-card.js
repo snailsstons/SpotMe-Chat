@@ -419,15 +419,15 @@ function renderCurrentCard() {
       <div class="card-image-container" id="cardImgContainer-${p.code}">
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
         <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
-          <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </div>
         <!-- 🆕 Lupe für Filter -->
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <!-- 🆕 Notierte-Liste Icon (Lesezeichen) -->
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
-          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
         ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
       </div>
