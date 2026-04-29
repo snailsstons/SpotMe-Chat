@@ -1001,12 +1001,14 @@ cardStyles.textContent = `
   .card-heart.active svg { fill:var(--p3); stroke:var(--p3); }
   .card-online-dot { position:absolute; top:10px; left:10px; width:12px; height:12px; border-radius:50%; background:var(--muted); }
   .card-online-dot.online { background:var(--green); box-shadow:0 0 8px var(--green); }
-  .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; }
+
+  .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
+  .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; margin-bottom:0.5rem; }
+  .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:0.5rem; border-top:1px solid var(--bord); flex-shrink:0; }
+  
   .card-name-age { font-size:1.3rem; font-weight:700; }
   .card-location { font-size:.8rem; color:var(--muted2); margin-bottom:.5rem; }
   .card-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:.7rem; font-weight:600; margin-bottom:.5rem; background:rgba(255,79,123,.15); color:#ff4f7b; }
-  .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; }
-  .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:.5rem; }
   .card-time { font-size:.75rem; color:var(--muted); }
   .card-chat-btn { background:var(--acc); color:var(--bg); border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
   .back-header { font-size:1.2rem; font-weight:700; color:var(--acc); margin-bottom:1rem; flex-shrink:0; }
