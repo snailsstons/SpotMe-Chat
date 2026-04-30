@@ -1,6 +1,6 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.4 – Kommentar-Alert
+// SPOT DATES – CARD ANSICHT v4.5 – Publish-Fix & Profilbar
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
 // Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
 // 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
@@ -78,6 +78,7 @@ let currentIndex = 0;
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -364,28 +365,27 @@ if (isOwner) {
   });
 
   // 🆕 Wenn das eigene Profil gerendert wird, Profilbar aktualisieren
-if (isOwner) {
-  const profileBar = document.getElementById('profile-bar');
-  if (profileBar) {
-    profileBar.style.display = 'flex';
-    document.getElementById('my-name-small').textContent = name;
-    const metaEl = document.getElementById('my-meta-small');
-    if (metaEl) {
-      metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
-    }
-    
-    // Auge-Icon (Sichtbarkeit) setzen
-    const publishBtn = document.getElementById('publish-toggle-small');
-    if (publishBtn) {
-      // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
-      const isPublished = p.visible_until && p.visible_until > Date.now();
-      publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
-      // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
-      publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+  if (isOwner) {
+    const profileBar = document.getElementById('profile-bar');
+    if (profileBar) {
+      profileBar.style.display = 'flex';
+      document.getElementById('my-name-small').textContent = name;
+      const metaEl = document.getElementById('my-meta-small');
+      if (metaEl) {
+        metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
+      }
+      
+      // Auge-Icon (Sichtbarkeit) setzen
+      const publishBtn = document.getElementById('publish-toggle-small');
+      if (publishBtn) {
+        // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
+        const isPublished = p.visible_until && p.visible_until > Date.now();
+        publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
+        // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
+        publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+      }
     }
   }
-}
-
   
   initCardSwipe();
   preloadNextProfiles();
@@ -909,6 +909,51 @@ window.markCommentsRead = function(profileCode) {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 🆕 PROFIL VERÖFFENTLICHEN / VERSTECKEN (Server + Icon)
+// ══════════════════════════════════════════════════════════════════════════════
+window.togglePublish = async function() {
+  const code = localStorage.getItem('sm_code');
+  const token = localStorage.getItem('sm_token');
+  if (!code || !token) return;
+
+  // Aktuelles Profil-Objekt aus dem Cache oder allProfiles holen
+  const myProfile = allProfiles.find(p => p.code === code);
+  // Fallback: direkt vom Server holen? Besser aus dem aktuellen Zustand.
+  const isPublished = myProfile && myProfile.visible_until && myProfile.visible_until > Date.now();
+  const newVisibleUntil = isPublished ? 0 : Date.now() + 86400000; // 24h
+
+  // Server-Update
+  try {
+    const res = await fetch(`${API_BASE}/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        token: token,
+        spot: 'dates',
+        visible_until: newVisibleUntil
+      })
+    });
+    if (res.ok) {
+      // Erfolgreich: Icon sofort umschalten
+      const btn = document.getElementById('publish-toggle-small');
+      if (btn) {
+        btn.textContent = newVisibleUntil > 0 ? '👁️‍🗨️' : '👁️';
+        btn.setAttribute('data-published', newVisibleUntil > 0 ? 'true' : 'false');
+      }
+      // Optional: Cache aktualisieren, damit renderCurrentCard den neuen Status sieht
+      if (myProfile) {
+        myProfile.visible_until = newVisibleUntil;
+      }
+    } else {
+      console.error('Publish toggle failed:', await res.text());
+    }
+  } catch (e) {
+    console.error('Publish toggle error:', e);
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -983,4 +1028,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.4 geladen – Kommentar-Alert aktiv');
+console.log('✅ spot-dates-card.js v4.5 geladen – Publish-Fix & Profilbar');
