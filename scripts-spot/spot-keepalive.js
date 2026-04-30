@@ -38,10 +38,39 @@ function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   const sendHeartbeat = () => {
     if (!myCode || !isPublished) return;
+    
+    // 🆕 Suche das aktuellste Profil-Objekt aus dem globalen Cache (allProfiles)
+    const currentProfile = allProfiles.find(p => p.code === myCode);
+    if (!currentProfile) return; // Sicherheitscheck, falls das Profil nicht geladen ist
+    
     fetch(API + '/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Sende das Heartbeat-Signal. Dies aktualisiert last_seen und visible_until.
       body: JSON.stringify({ code: myCode, spot: SPOT })
+    }).catch(() => {});
+    
+    // Zusätzlich: Sende das vollständige Profil-Update, um zwischenzeitliche Änderungen zu sichern.
+    fetch(API + '/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: myCode,
+        token: myToken,
+        spot: SPOT,
+        name: currentProfile.name,
+        age: currentProfile.age || null,
+        region: currentProfile.region,
+        province: currentProfile.province || null,
+        city: currentProfile.city || null,
+        orientation: currentProfile.orientation || null,
+        role: currentProfile.role || null,
+        trans: currentProfile.trans || false,
+        crossdresser: currentProfile.crossdresser || false,
+        bio: currentProfile.bio || null,
+        lookingFor: currentProfile.lookingFor || null
+        // visible_until wird hier absichtlich weggelassen, um den bestehenden Wert nicht zu überschreiben.
+      })
     }).catch(() => {});
   };
   sendHeartbeat();
