@@ -283,18 +283,31 @@ if (isOwner) {
     <div class="card-front">
       <div class="card-image-container" id="cardImgContainer-${p.code}">
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
-        
+
+                
         ${isOwner && showAlertIcon ? `
        <div class="card-heart active" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Neue Kommentare! Tippen zum Lesen">
         <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
        </div>
          ` : `
-         <div class="card-online-dot ${isOnline ? 'online' : ''}" 
-           title="${isOnline ? 'Jetzt online' : 'Zuletzt online: ' + timeAgo(p.last_seen || p.ts)}">
-         </div>
        <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
         <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
        </div>
+`}
+        
+        <!-- 🟢 Online-Status-Punkt (für ALLE Profile sichtbar) -->
+        <div class="card-online-dot ${isOnline ? 'online' : ''}" 
+             title="${isOnline ? 'Jetzt online' : 'Zuletzt online: ' + timeAgo(p.last_seen || p.ts)}">
+        </div>
+
+        <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
+          <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
+          <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </div>
+        
+      </div>
 `}
 
 <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
@@ -1047,11 +1060,16 @@ cardStyles.textContent = `
   background:var(--muted); /* grau = offline */
   border: 1.5px solid rgba(0,0,0,0.3);
   z-index:10; 
+
 }
-.card-online-dot.online { 
-  background:#1ecc68; /* grün = online */
-  box-shadow:0 0 8px rgba(30,204,104,0.5); 
+.card-online-dot { 
+  position:absolute; top:14px; left:14px; 
+  width:12px; height:12px; border-radius:50%; 
+  background:var(--muted);
+  border: 1.5px solid rgba(0,0,0,0.3);
+  z-index:15; 
 }
+
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
   .card-swipe-container { position:relative; width:100%; height:550px; perspective:1000px; margin-bottom:1.5rem; }
   .card-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; margin-bottom:.3rem; }
