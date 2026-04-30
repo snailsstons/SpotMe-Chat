@@ -70,7 +70,7 @@ let currentIndex = 0;
   filtered = [myProfile];
   currentIndex = 0;
   
-  // 🆕 Eigenes Profil als online markieren (lokal)
+  // 🆕 Eigenes Profil als online markieren
   if (onlineStatusCache) {
     onlineStatusCache.set(myCode, { online: true });
   }
@@ -82,10 +82,20 @@ let currentIndex = 0;
     body: JSON.stringify({ code: myCode, spot: 'dates' })
   }).catch(() => {});
   
+  // 🆕 Profilbar anzeigen
+  const profileBar = document.getElementById('profile-bar');
+  if (profileBar) {
+    profileBar.style.display = 'flex';
+    document.getElementById('my-name-small').textContent = myProfile.name;
+    document.getElementById('my-meta-small').textContent = 
+      `${myProfile.age ? myProfile.age + ' J. · ' : ''}${myProfile.city || ''}`;
+  }
+  
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
