@@ -83,12 +83,18 @@ let currentIndex = 0;
     // damit der regelmäßige Heartbeat in spot-keepalive.js startet
     window.isPublished = true;
     localStorage.setItem('sm_published', 'true');
+
+    // 🆕 Eigenes Profil sofort als online markieren, damit der grüne Punkt sofort sichtbar ist
+    if (onlineStatusCache) {
+      onlineStatusCache.set(myCode, { online: true });
+    }
   }
   
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
