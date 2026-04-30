@@ -66,7 +66,7 @@ window.showProfileDialog = function() {
   
   if (shouldCreate) {
     const profilUrl = SPOT === 'general' ? 'profil-general.html'
-                    : SPOT === 'dates'   ? 'profil-dates.html'
+                    : SPOT === 'dates'   ? 'profil-dates-card.html'
                     : SPOT === 'gay'     ? 'profil-gay.html'
                     : 'profil-home.html';
     window.location.href = profilUrl;
