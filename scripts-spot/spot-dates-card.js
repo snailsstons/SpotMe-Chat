@@ -1044,21 +1044,23 @@ async function updateHeaderOnlineDotFromServer(myCode) {
 
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
-  .card-online-dot { 
-  position:absolute; top:14px; left:14px; 
-  width:12px; height:12px; border-radius:50%; 
-  background:var(--muted); /* grau = offline */
-  border: 1.5px solid rgba(0,0,0,0.3);
-  z-index:10; 
 
-}
 .card-online-dot { 
-  position:absolute; top:14px; left:14px; 
-  width:12px; height:12px; border-radius:50%; 
-  background:var(--muted);
-  border: 1.5px solid rgba(0,0,0,0.3);
+  position:absolute; bottom:14px; left:14px; 
+  display:flex; align-items:center; gap:4px;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+  border-radius:12px; padding:3px 7px 3px 5px;
   z-index:15; 
 }
+.card-online-dot::before {
+  content:''; width:8px; height:8px; border-radius:50%;
+  background:var(--muted); flex-shrink:0;
+}
+.card-online-dot.online::before { background:#1ecc68; }
+.card-lastseen { 
+  font-size:.65rem; color:rgba(255,255,255,.8); white-space:nowrap;
+}
+.card-online-dot.online .card-lastseen { display:none; }
 
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
   .card-swipe-container { position:relative; width:100%; height:550px; perspective:1000px; margin-bottom:1.5rem; }
