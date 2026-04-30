@@ -1,9 +1,9 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.5.1 – Heartbeat & Publish vollständig korrigiert
+// SPOT DATES – CARD ANSICHT v4.6 – Header-Online-Punkt & Heartbeat-Fix
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
 // Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
-// 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
+// 🔖 Lesezeichen = Notierte Profile | 🟢 Header-Punkt = Online-Status
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -84,17 +84,22 @@ let currentIndex = 0;
     window.isPublished = true;
     localStorage.setItem('sm_published', 'true');
 
-    // 🆕 Eigenes Profil sofort als online markieren, damit der grüne Punkt sofort sichtbar ist
+    // 🆕 Eigenes Profil sofort als online markieren, damit der Header-Punkt grün wird
     if (onlineStatusCache) {
       onlineStatusCache.set(myCode, { online: true });
     }
+    
+    // Header-Punkt sofort grün
+    updateHeaderOnlineDot(true);
   }
   
   renderList();
   
+  // 🆕 Header-Punkt alle 30 Sekunden vom Server aktualisieren
+  setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
+  
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
-
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
@@ -295,12 +300,6 @@ if (isOwner) {
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
-
-        ${isOnline ? `
-         <div class="card-online" title="Online">
-           <svg viewBox="0 0 24 24" width="36" height="36"><circle cx="12" cy="12" r="10" fill="#1ecc68" stroke="white" stroke-width="2"/></svg>
-         </div>
-           ` : ''}
         
       </div>
       <div class="card-content">
@@ -1001,6 +1000,29 @@ window.togglePublish = async function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 🟢 HEADER ONLINE-PUNKT
+// ══════════════════════════════════════════════════════════════════════════════
+
+function updateHeaderOnlineDot(isOnline) {
+  const dot = document.getElementById('header-online-dot');
+  if (dot) {
+    dot.textContent = isOnline ? '🟢' : '⚫';
+    dot.title = isOnline ? 'Online' : 'Offline';
+  }
+}
+
+async function updateHeaderOnlineDotFromServer(myCode) {
+  if (!myCode) return;
+  try {
+    const res = await fetch(`${API_BASE}/online/${myCode}?spot=dates`);
+    if (res.ok) {
+      const data = await res.json();
+      updateHeaderOnlineDot(data.online);
+    }
+  } catch(e) { /* Server offline -> Punkt bleibt */ }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -1028,7 +1050,6 @@ cardStyles.textContent = `
   .card-search:active { background:rgba(255,255,255,0.15); }
   .card-noted { position:absolute; top:186px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-noted:active { background:rgba(255,255,255,0.15); }
-  .card-online { position:absolute; top:10px; left:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:10; }
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
   .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; margin-bottom:0.5rem; }
   .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:0.5rem; border-top:1px solid var(--bord); flex-shrink:0; }
@@ -1075,4 +1096,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.5.1 geladen – Heartbeat & Publish vollständig korrigiert');
+console.log('✅ spot-dates-card.js v4.6 geladen – Header-Online-Punkt aktiv');
