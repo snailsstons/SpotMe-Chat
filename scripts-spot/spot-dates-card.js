@@ -314,7 +314,7 @@ if (isOwner) {
         ${badges ? `<div class="card-tags">${badges}</div>` : ''}
         <div class="card-bio">${bio}</div>
         <div class="card-bottom">
-          <div class="card-time">🕐 ${timeAgo(p.ts)}</div>
+       <!--   <div class="card-time">🕐 ${timeAgo(p.ts)}</div> -->
           <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
         </div>
       </div>
