@@ -71,13 +71,20 @@ let currentIndex = 0;
   filtered = [myProfile];
   currentIndex = 0;
   
-  // Wir verzichten hier auf Profilbar und Heartbeat.
-  // Das erledigt später renderCurrentCard, wenn das echte Profil vom Server kommt.
-  
+  // Einmaliger Heartbeat, um bei neuen Profilen die Sichtbarkeit zu starten
+  if (myCode) {
+    fetch(`${API_BASE}/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, spot: 'dates' })
+    }).catch(() => {});
+  }
+
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
@@ -375,17 +382,22 @@ if (isOwner) {
         metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
       }
       
-      // Auge-Icon (Sichtbarkeit) setzen
-      const publishBtn = document.getElementById('publish-toggle-small');
-      if (publishBtn) {
-        // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
-        const isPublished = p.visible_until && p.visible_until > Date.now();
-        publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
-        // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
-        publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
-      }
+// Auge-Icon (Sichtbarkeit) setzen
+const publishBtn = document.getElementById('publish-toggle-small');
+if (publishBtn) {
+  // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
+  const isPublished = p.visible_until && p.visible_until > Date.now();
+  publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
+  // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
+  publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+  
+  // 🆕 Globalen Status für spot-keepalive.js korrigieren
+  window.isPublished = isPublished; // <<< DIESE ZEILE NEU
+  localStorage.setItem('sm_published', String(isPublished)); // <<< DIESE ZEILE NEU
+     }
     }
   }
+}
   
   initCardSwipe();
   preloadNextProfiles();
