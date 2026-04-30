@@ -48,6 +48,7 @@ let currentIndex = 0;
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 SOFORT-START: Eigenes Profil aus localStorage vorab laden
 // ══════════════════════════════════════════════════════════════════════════════
+
 (function preloadMyProfile() {
   const myCode = localStorage.getItem('sm_code');
   if (!myCode || (typeof allProfiles !== 'undefined' && allProfiles.length > 0)) return;
@@ -70,33 +71,13 @@ let currentIndex = 0;
   filtered = [myProfile];
   currentIndex = 0;
   
-  // 🆕 Eigenes Profil als online markieren
-  if (onlineStatusCache) {
-    onlineStatusCache.set(myCode, { online: true });
-  }
-  
-  // 🆕 Heartbeat an Server senden
-  fetch(`${API_BASE}/heartbeat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: myCode, spot: 'dates' })
-  }).catch(() => {});
-  
-  // 🆕 Profilbar anzeigen
-  const profileBar = document.getElementById('profile-bar');
-  if (profileBar) {
-    profileBar.style.display = 'flex';
-    document.getElementById('my-name-small').textContent = myProfile.name;
-    document.getElementById('my-meta-small').textContent = 
-      `${myProfile.age ? myProfile.age + ' J. · ' : ''}${myProfile.city || ''}`;
-  }
+  // Wir verzichten hier auf Profilbar und Heartbeat.
+  // Das erledigt später renderCurrentCard, wenn das echte Profil vom Server kommt.
   
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
-
-
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
 // ══════════════════════════════════════════════════════════════════════════════
@@ -381,6 +362,30 @@ if (isOwner) {
       countEl.textContent = `(${comments.length})`;
     }
   });
+
+  // 🆕 Wenn das eigene Profil gerendert wird, Profilbar aktualisieren
+if (isOwner) {
+  const profileBar = document.getElementById('profile-bar');
+  if (profileBar) {
+    profileBar.style.display = 'flex';
+    document.getElementById('my-name-small').textContent = name;
+    const metaEl = document.getElementById('my-meta-small');
+    if (metaEl) {
+      metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
+    }
+    
+    // Auge-Icon (Sichtbarkeit) setzen
+    const publishBtn = document.getElementById('publish-toggle-small');
+    if (publishBtn) {
+      // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
+      const isPublished = p.visible_until && p.visible_until > Date.now();
+      publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
+      // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
+      publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+    }
+  }
+}
+
   
   initCardSwipe();
   preloadNextProfiles();
