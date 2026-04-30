@@ -878,7 +878,7 @@ app.get('/api/profile-comments/:code', async (req, res) => {
        FROM profile_comments
        WHERE profile_code = $1 AND profile_spot = $2
        ORDER BY created_at ASC
-       LIMIT 20`,
+       LIMIT 999`,
       [code, spot]
     );
     res.json(rows.map(r => ({
