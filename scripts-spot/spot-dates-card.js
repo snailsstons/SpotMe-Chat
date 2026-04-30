@@ -295,12 +295,9 @@ if (isOwner) {
         `}
         
         <!-- 🟢 Online-Status-Punkt (für ALLE Profile sichtbar) -->
-
         <div class="card-online-dot ${isOnline ? 'online' : ''}" 
-          title="${isOnline ? 'Jetzt online' : ''}">
-          ${!isOnline ? `<span class="card-lastseen">${timeAgo(p.last_seen || p.ts)}</span>` : ''}
+             title="${isOnline ? 'Jetzt online' : 'Zuletzt online: ' + timeAgo(p.last_seen || p.ts)}">
         </div>
-       
 
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -1051,25 +1048,16 @@ cardStyles.textContent = `
   width:12px; height:12px; border-radius:50%; 
   background:var(--muted); /* grau = offline */
   border: 1.5px solid rgba(0,0,0,0.3);
-  z-index:10;
+  z-index:10; 
 
-  .card-online-dot { 
-  position:absolute; bottom:14px; left:14px; 
-  display:flex; align-items:center; gap:4px;
-  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
-  border-radius:12px; padding:3px 7px 3px 5px;
+}
+.card-online-dot { 
+  position:absolute; top:14px; left:14px; 
+  width:12px; height:12px; border-radius:50%; 
+  background:var(--muted);
+  border: 1.5px solid rgba(0,0,0,0.3);
   z-index:15; 
-  
 }
-.card-online-dot::before {
-  content:''; width:8px; height:8px; border-radius:50%;
-  background:var(--muted); flex-shrink:0;
-}
-.card-online-dot.online::before { background:#1ecc68; }
-.card-lastseen { 
-  font-size:.65rem; color:rgba(255,255,255,.8); white-space:nowrap;
-}
-.card-online-dot.online .card-lastseen { display:none; }
 
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
   .card-swipe-container { position:relative; width:100%; height:550px; perspective:1000px; margin-bottom:1.5rem; }
