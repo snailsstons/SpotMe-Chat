@@ -210,7 +210,7 @@ window.renderList = function() {
 // ══════════════════════════════════════════════════════════════════════════════
 // CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE)
 // ══════════════════════════════════════════════════════════════════════════════
-
+//
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
   if (!wrapper || filtered.length === 0) return;
@@ -238,14 +238,26 @@ function renderCurrentCard() {
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
 
+  // 🆕 Prüfen ob neue Kommentare für's eigene Profil existieren
+  const isOwner = (localStorage.getItem('sm_code') === p.code);
+  let hasNewComment = false;
+  
   wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
     <div class="card-front">
       <div class="card-image-container" id="cardImgContainer-${p.code}">
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
-        <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
-          <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </div>
+        
+        ${isOwner ? `
+          <div class="card-heart active" id="cardHeart" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Kommentare ansehen">
+            <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
+          </div>
+        ` : `
+          <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
+            <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+        `}
+        
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
@@ -326,8 +338,7 @@ function renderCurrentCard() {
     });
   }
   
-  // 🆕 Kommentare für die Rückseite laden
-  const isOwner = (localStorage.getItem('sm_code') === p.code);
+  // 🆕 Kommentare laden + auf neue prüfen
   loadComments(p.code).then(comments => {
     const listEl = document.getElementById(`commentsList-${p.code}`);
     const countEl = document.getElementById(`commentCount-${p.code}`);
@@ -337,12 +348,23 @@ function renderCurrentCard() {
     if (countEl) {
       countEl.textContent = `(${comments.length})`;
     }
+    
+    // 🆕 Prüfen ob neue Kommentare da sind → Alert-Icon
+    if (isOwner && comments.length > 0) {
+      const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+      const lastSeen = alerts[p.code] || 0;
+      const latestComment = Math.max(...comments.map(c => c.createdAt));
+      
+      if (latestComment > lastSeen) {
+        // Brief-Icon bleibt (wurde schon im HTML gesetzt)
+        hasNewComment = true;
+      }
+    }
   });
   
   initCardSwipe();
   preloadNextProfiles();
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔖 NOTIERTE PROFIL MODAL
 // ══════════════════════════════════════════════════════════════════════════════
@@ -836,7 +858,19 @@ window.showMyProfile = function() {
   
   if (typeof toast === 'function') toast('👤 Dein Profil');
 };
+// ══════════════════════════════════════════════════════════════════════════════
+// KOMMENTAR-ALERT (Brief-Icon bei neuen Kommentaren)
+// ══════════════════════════════════════════════════════════════════════════════
 
+const COMMENT_ALERT_KEY = 'sm_comment_alert_dates';
+
+window.markCommentsRead = function(profileCode) {
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  alerts[profileCode] = Date.now();
+  localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+  // Card neu rendern → Icon wechselt von Brief zu Herz
+  renderCurrentCard();
+};
 // ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
