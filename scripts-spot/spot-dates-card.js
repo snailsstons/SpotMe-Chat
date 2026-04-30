@@ -48,7 +48,6 @@ let currentIndex = 0;
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 SOFORT-START: Eigenes Profil aus localStorage vorab laden
 // ══════════════════════════════════════════════════════════════════════════════
-
 (function preloadMyProfile() {
   const myCode = localStorage.getItem('sm_code');
   if (!myCode || (typeof allProfiles !== 'undefined' && allProfiles.length > 0)) return;
@@ -70,6 +69,19 @@ let currentIndex = 0;
   allProfiles = [myProfile];
   filtered = [myProfile];
   currentIndex = 0;
+  
+  // 🆕 Eigenes Profil als online markieren (lokal)
+  if (onlineStatusCache) {
+    onlineStatusCache.set(myCode, { online: true });
+  }
+  
+  // 🆕 Heartbeat an Server senden
+  fetch(`${API_BASE}/heartbeat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: myCode, spot: 'dates' })
+  }).catch(() => {});
+  
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
