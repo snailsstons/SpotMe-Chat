@@ -843,7 +843,7 @@ app.post('/api/profile-comment', async (req, res) => {
       'SELECT COUNT(*) AS cnt FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2',
       [profileCode, profileSpot]
     );
-    if (Number(count.rows[0].cnt) >= 20) {
+    if (Number(count.rows[0].cnt) >= 999) {
       await pool.query(
         `DELETE FROM profile_comments WHERE id IN (
           SELECT id FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2
