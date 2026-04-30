@@ -1,8 +1,8 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.3 – Ohne Filter (ausgelagert)
+// SPOT DATES – CARD ANSICHT v4.4 – Kommentar-Alert
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
-// Pinch = Kurznachricht | ❤️ Button = Notieren
+// Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
 // 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -41,6 +41,7 @@ window.fetchVerifications = function(code) {
 
 const API_BASE   = 'https://spotme-chat-obom.onrender.com/api';
 const NOTED_KEY  = 'sm_noted_dates';
+const COMMENT_ALERT_KEY = 'sm_comment_alert_dates';
 let notedProfiles = [];
 let currentIndex = 0;
 
@@ -208,9 +209,9 @@ window.renderList = function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE)
+// CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE + ALERT)
 // ══════════════════════════════════════════════════════════════════════════════
-//
+
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
   if (!wrapper || filtered.length === 0) return;
@@ -238,9 +239,7 @@ function renderCurrentCard() {
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
 
-  // 🆕 Prüfen ob neue Kommentare für's eigene Profil existieren
   const isOwner = (localStorage.getItem('sm_code') === p.code);
-  let hasNewComment = false;
   
   wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
@@ -249,7 +248,7 @@ function renderCurrentCard() {
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
         
         ${isOwner ? `
-          <div class="card-heart active" id="cardHeart" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Kommentare ansehen">
+          <div class="card-heart active" id="cardHeart" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Neue Kommentare! Tippen zum Lesen">
             <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
           </div>
         ` : `
@@ -348,23 +347,12 @@ function renderCurrentCard() {
     if (countEl) {
       countEl.textContent = `(${comments.length})`;
     }
-    
-    // 🆕 Prüfen ob neue Kommentare da sind → Alert-Icon
-    if (isOwner && comments.length > 0) {
-      const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-      const lastSeen = alerts[p.code] || 0;
-      const latestComment = Math.max(...comments.map(c => c.createdAt));
-      
-      if (latestComment > lastSeen) {
-        // Brief-Icon bleibt (wurde schon im HTML gesetzt)
-        hasNewComment = true;
-      }
-    }
   });
   
   initCardSwipe();
   preloadNextProfiles();
 }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔖 NOTIERTE PROFIL MODAL
 // ══════════════════════════════════════════════════════════════════════════════
@@ -759,6 +747,11 @@ window.submitCommentHandler = async function(profileCode) {
   const result = await submitComment(profileCode, senderCode, senderName, message);
   
   if (result.success) {
+    // 🆕 Alert für Absender löschen (er hat's ja gesehen)
+    const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+    alerts[profileCode] = Date.now();
+    localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+    
     input.value = '';
     if (statusEl) { statusEl.textContent = '✅ Gesendet!'; statusEl.style.color = '#1ecc68'; }
     const comments = await loadComments(profileCode);
@@ -858,11 +851,10 @@ window.showMyProfile = function() {
   
   if (typeof toast === 'function') toast('👤 Dein Profil');
 };
+
 // ══════════════════════════════════════════════════════════════════════════════
 // KOMMENTAR-ALERT (Brief-Icon bei neuen Kommentaren)
 // ══════════════════════════════════════════════════════════════════════════════
-
-const COMMENT_ALERT_KEY = 'sm_comment_alert_dates';
 
 window.markCommentsRead = function(profileCode) {
   const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
@@ -871,6 +863,7 @@ window.markCommentsRead = function(profileCode) {
   // Card neu rendern → Icon wechselt von Brief zu Herz
   renderCurrentCard();
 };
+
 // ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
@@ -946,4 +939,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.3 geladen – Filter ausgelagert');
+console.log('✅ spot-dates-card.js v4.4 geladen – Kommentar-Alert aktiv');
