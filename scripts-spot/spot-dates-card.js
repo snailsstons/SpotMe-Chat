@@ -79,10 +79,10 @@ let currentIndex = 0;
       body: JSON.stringify({ code: myCode, spot: 'dates' })
     }).catch(() => {});
 
-    // Zusätzlich: Das Profil sofort als global veröffentlicht markieren,
-    // damit der regelmäßige Heartbeat in spot-keepalive.js startet
-    window.isPublished = true;
-    localStorage.setItem('sm_published', 'true');
+    // nur wenn tatsächlich published
+    if (localStorage.getItem('sm_spot_published') === '1') {
+     window.isPublished = true;
+    }
 
     // 🆕 Eigenes Profil sofort als online markieren, damit der Header-Punkt grün wird
     if (onlineStatusCache) {
