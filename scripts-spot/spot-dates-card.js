@@ -1,6 +1,6 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.5 – Publish-Fix & Profilbar
+// SPOT DATES – CARD ANSICHT v4.5.1 – Heartbeat & Publish vollständig korrigiert
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
 // Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
 // 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
@@ -71,20 +71,24 @@ let currentIndex = 0;
   filtered = [myProfile];
   currentIndex = 0;
   
-  // Einmaliger Heartbeat, um bei neuen Profilen die Sichtbarkeit zu starten
+  // Heartbeat senden und Profil als online markieren
   if (myCode) {
     fetch(`${API_BASE}/heartbeat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: myCode, spot: 'dates' })
     }).catch(() => {});
-  }
 
+    // Zusätzlich: Das Profil sofort als global veröffentlicht markieren,
+    // damit der regelmäßige Heartbeat in spot-keepalive.js startet
+    window.isPublished = true;
+    localStorage.setItem('sm_published', 'true');
+  }
+  
   renderList();
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
-
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 AVATAR CACHE + COMMENTS CACHE
@@ -382,22 +386,21 @@ if (isOwner) {
         metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
       }
       
-// Auge-Icon (Sichtbarkeit) setzen
-const publishBtn = document.getElementById('publish-toggle-small');
-if (publishBtn) {
-  // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
-  const isPublished = p.visible_until && p.visible_until > Date.now();
-  publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
-  // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
-  publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
-  
-  // 🆕 Globalen Status für spot-keepalive.js korrigieren
-  window.isPublished = isPublished; // <<< DIESE ZEILE NEU
-  localStorage.setItem('sm_published', String(isPublished)); // <<< DIESE ZEILE NEU
-     }
+      // Auge-Icon (Sichtbarkeit) setzen
+      const publishBtn = document.getElementById('publish-toggle-small');
+      if (publishBtn) {
+        // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
+        const isPublished = p.visible_until && p.visible_until > Date.now();
+        publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
+        // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
+        publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+        
+        // 🆕 Globalen Status für spot-keepalive.js korrigieren
+        window.isPublished = isPublished;
+        localStorage.setItem('sm_published', String(isPublished));
+      }
     }
   }
-}
   
   initCardSwipe();
   preloadNextProfiles();
@@ -928,40 +931,60 @@ window.togglePublish = async function() {
   const token = localStorage.getItem('sm_token');
   if (!code || !token) return;
 
-  // Aktuelles Profil-Objekt aus dem Cache oder allProfiles holen
+  // Aktuelles Profil-Objekt AUS DEM CACHE oder allProfiles holen
   const myProfile = allProfiles.find(p => p.code === code);
-  // Fallback: direkt vom Server holen? Besser aus dem aktuellen Zustand.
-  const isPublished = myProfile && myProfile.visible_until && myProfile.visible_until > Date.now();
+  if (!myProfile) {
+    console.warn('Profil nicht im Cache, bitte Seite neu laden.');
+    return;
+  }
+
+  const isPublished = myProfile.visible_until && myProfile.visible_until > Date.now();
   const newVisibleUntil = isPublished ? 0 : Date.now() + 86400000; // 24h
 
-  // Server-Update
+  // Server-Update MIT VOLLSTÄNDIGEN PROFILDATEN
   try {
     const res = await fetch(`${API_BASE}/profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        // Pflichtfelder und alle optionalen Felder aus myProfile
         code: code,
         token: token,
         spot: 'dates',
-        visible_until: newVisibleUntil
+        visible_until: newVisibleUntil,
+        name: myProfile.name,
+        region: myProfile.region,
+        age: myProfile.age || null,
+        province: myProfile.province || null,
+        city: myProfile.city || null,
+        orientation: myProfile.orientation || null,
+        role: myProfile.role || null,
+        trans: myProfile.trans || false,
+        crossdresser: myProfile.crossdresser || false,
+        bio: myProfile.bio || null,
+        lookingFor: myProfile.lookingFor || null
       })
     });
     if (res.ok) {
-      // Erfolgreich: Icon sofort umschalten
+      // Erfolgreich: Icon umschalten und globalen Status setzen
       const btn = document.getElementById('publish-toggle-small');
       if (btn) {
         btn.textContent = newVisibleUntil > 0 ? '👁️‍🗨️' : '👁️';
         btn.setAttribute('data-published', newVisibleUntil > 0 ? 'true' : 'false');
       }
-      // Optional: Cache aktualisieren, damit renderCurrentCard den neuen Status sieht
-      if (myProfile) {
-        myProfile.visible_until = newVisibleUntil;
-      }
+      window.isPublished = newVisibleUntil > 0;
+      localStorage.setItem('sm_published', String(newVisibleUntil > 0));
+      
+      // Cache aktualisieren
+      myProfile.visible_until = newVisibleUntil;
+      console.log('Profil-Sichtbarkeit aktualisiert.');
     } else {
-      console.error('Publish toggle failed:', await res.text());
+      console.error('Publish toggle fehlgeschlagen:', await res.text());
+      alert('Fehler beim Ändern der Sichtbarkeit. Bitte versuche es erneut.');
     }
   } catch (e) {
-    console.error('Publish toggle error:', e);
+    console.error('Publish toggle Netzwerkfehler:', e);
+    alert('Netzwerkfehler. Bitte überprüfe deine Verbindung.');
   }
 };
 
@@ -1040,4 +1063,4 @@ cardStyles.textContent = `
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.5 geladen – Publish-Fix & Profilbar');
+console.log('✅ spot-dates-card.js v4.5.1 geladen – Heartbeat & Publish vollständig korrigiert');
