@@ -1,62 +1,141 @@
-# SpotMe · Spot Scripts
+# SpotMe – Card & Filter Scripts (v4.3)
 
-Modulare JavaScript‑Dateien für die Spot‑Radar‑Seiten (Gay, Dates, General).
+## 📂 Datei-Struktur
 
-## 📁 Dateiübersicht & Ladereihenfolge
+| Datei | Inhalt | Zeilen |
+|-------|--------|--------|
+| `spot-dates-card.js` | Card-Rendering, Gesten, Avatar, Kommentare, Notieren, CSS | ~700 |
+| `spot-dates-filter.js` | Filter-Logik, Filter-Modal, lokales Filtern | ~250 |
 
-Die Module müssen in der angegebenen Reihenfolge geladen werden.
+---
 
-| # | Datei | Beschreibung |
-|---|-------|--------------|
-| 1 | `spot-config.js` | Globale Konstanten (API, Intervalle, Regionen) |
-| 2 | `spot-state.js` | Alle globalen Variablen (Profile, Timer, Maps) |
-| 3 | `spot-utils.js` | Hilfsfunktionen (Zeit, Escaping, Toast, Distanz) |
-| 4 | `spot-profile.js` | Eigenes Profil laden & veröffentlichen |
-| 5 | `spot-location.js` | Standortfreigabe, Karte, Check‑in |
-| 6 | `spot-community.js` | Community laden, Cache, Filter |
-| 7 | `spot-render.js` | Radar, Liste, Profil‑Detail rendern |
-| 8 | `spot-messages.js` | Offline‑Nachrichten (Badge, Panel, Polling) |
-| 9 | `spot-verify.js` | Verifikation (QR, Code‑Eingabe) |
-| 10 | `spot-kurznachricht.js` | Kurznachricht‑Modal |
-| 11 | `spot-keepalive.js` | Keepalive, Heartbeat, Auto‑Refresh |
-| 12 | `spot-init.js` | Initialisierung & Event‑Listener |
-| 13 | `spot-gay.js` | **Spot‑Konfiguration:** `SPOT = 'gay'` |
-|    | `spot-dates.js` | **Spot‑Konfiguration:** `SPOT = 'dates'` |
-|    | `spot-general.js` | **Spot‑Konfiguration:** `SPOT = 'general'` |
+## 🃏 `spot-dates-card.js` – Card-Ansicht
 
-> ⚠️ **Wichtig:** Die Spot‑Konfiguration (`spot-xxx.js`) **muss als letztes** geladen werden, da sie die globalen Konstanten `SPOT` und `CACHE_KEY` definiert, die von allen anderen Modulen benötigt werden.
+### State & Konstanten
+| Variable | Typ | Beschreibung |
+|----------|-----|-------------|
+| `API_BASE` | `const` | Server-URL |
+| `NOTED_KEY` | `const` | localStorage-Key für notierte Profile |
+| `notedProfiles` | `let` | Array der notierten Profil-Codes |
+| `currentIndex` | `let` | Aktuelle Card-Position |
+| `avatarCache` | `Map` | Avatar-Base64-Cache |
+| `COMMENTS_CACHE` | `Map` | Kommentar-Cache (2 Min TTL) |
+
+### Funktionen
+| Funktion | Typ | Beschreibung |
+|----------|-----|-------------|
+| `preloadMyProfile()` | IIFE | Eigenes Profil aus localStorage vorab laden |
+| `loadCardAvatar(code)` | `async` | Avatar vom Server laden & cachen |
+| `preloadAvatar(code)` | `void` | Avatar im Hintergrund laden |
+| `preloadNextProfiles()` | `void` | Nächste 20 Profile + Avatare preloaden |
+| `renderList()` | `window` | Card-Container + Navigation rendern |
+| `renderCurrentCard()` | `void` | Einzelne Card (Vorder-/Rückseite) rendern |
+| `toggleNotedModal()` | `window` | 🔖 Modal mit notierten Profilen |
+| `toggleNote(code)` | `void` | ❤️ Profil notieren/entfernen |
+| `renderNotedSection()` | `void` | Wird jetzt via Modal angezeigt |
+| `showNotedProfile(code)` | `void` | Zu notiertem Profil springen |
+| `showMyProfile()` | `window` | 👤 Eigenes Profil als erste Karte |
+| `initCardSwipe()` | `void` | Touch-Gesten (Swipe, Doppeltap, Pinch) |
+| `handlePinch()` | `void` | Pinch → Kurznachricht |
+| `showFullscreenAvatar()` | `void` | Bild-Vollbild via Doppeltap |
+| `loadComments(code)` | `async` | Kommentare vom Server laden |
+| `submitComment()` | `async` | Kommentar senden |
+| `deleteComment()` | `async` | Kommentar löschen (nur Owner) |
+| `renderCommentsSection()` | `string` | Kommentar-HTML generieren |
+| `renderAndLoadCommentAvatars()` | `void` | Kommentare + Mini-Avatare rendern |
+| `showCommenterProfile()` | `window` | Zum Profil eines Kommentators springen |
+| `submitCommentHandler()` | `window` | Kommentar-Formular-Handler |
+| `handleDeleteComment()` | `window` | Kommentar-Löschen-Handler |
+| `escHtml(str)` | `string` | HTML-Escaping |
+| `getTouchDistance(e)` | `number` | Pinch-Distanz berechnen |
+
+### Globale Handler (window)
+- `window.renderList`
+- `window.toggleNotedModal`
+- `window.showCommenterProfile`
+- `window.submitCommentHandler`
+- `window.handleDeleteComment`
+- `window.showMyProfile`
+
+### Gesten
+| Geste | Aktion |
+|-------|--------|
+| **Doppeltap** (außerhalb Bild) | Card flipsen |
+| **Doppeltap** (auf Bild) | Vollbild-Vorschau |
+| **Swipe** (>80px) | Nächste/Vorherige Karte |
+| **Pinch** (2 Finger) | Kurznachricht schreiben |
+| **❤️ Herz-Tap** | Profil notieren |
+| **🔍 Lupe-Tap** | Filter-Modal öffnen |
+| **🔖 Lesezeichen-Tap** | Notierte-Modal öffnen |
+
+### CSS-Klassen (Auszug)
+- `.card-swipe-container` – Card-Container (550px Höhe)
+- `.card-inner` – 3D-Flip-Container
+- `.card-front`, `.card-back` – Vorder-/Rückseite
+- `.card-image-container` – Bildbereich (60% Höhe)
+- `.card-heart` – ❤️ Button (80×80px)
+- `.card-search` – 🔍 Button (80×80px)
+- `.card-noted` – 🔖 Button (80×80px)
+- `.online-badge` – 🟢 Online-Indikator
+- `.comment-avatar-mini` – 30×30px Mini-Avatar
+- `.card-chat-btn` – ✉️ Kurznachricht (grün)
+- `.close-back-btn` – ✕ Schließen (grün-transparent)
+
+---
+
+## 🔍 `spot-dates-filter.js` – Filter & Modal
+
+### State & Konstanten
+| Variable | Typ | Beschreibung |
+|----------|-----|-------------|
+| `FILTER_KEY` | `const` | localStorage-Key für Filter-State |
+| `filtersInitialized` | `let` | Ob Filter bereits initialisiert |
+
+### Funktionen
+| Funktion | Typ | Beschreibung |
+|----------|-----|-------------|
+| `saveFilterState()` | `void` | Filter in localStorage speichern |
+| `loadFilterState()` | `object\|null` | Filter aus localStorage laden |
+| `renderFilterSection()` | `void` | Inline-Filter (versteckt) rendern |
+| `handleFilterChange()` | `void` | Bei Select-Änderung |
+| `handleChipClick(chip)` | `void` | Chip toggeln |
+| `handleFilterReset()` | `void` | Alle Filter zurücksetzen |
+| `applyFiltersLocal()` | `void` | **Kern-Funktion**: Profile lokal filtern |
+| `toggleFilterModal()` | `window` | 🔍 Lupe-Modal öffnen/schließen |
+| `applyModalFilters()` | `window` | Filter aus Modal übernehmen |
+| `resetModalFilters()` | `window` | Modal-Filter zurücksetzen |
+
+### Globale Handler (window)
+- `window.toggleChip`
+- `window.resetFilters`
+- `window.applyFilters`
+- `window.toggleFilterModal`
+- `window.applyModalFilters`
+- `window.resetModalFilters`
+
+### Filter-Logik (`applyFiltersLocal`)
+Die Funktion filtert `allProfiles` nach:
+1. Eigenes Profil ausschließen (`myCode`)
+2. **Region** – exakte Übereinstimmung
+3. **Altersgruppe** – 18-29, 30-39, 40-49, 50+
+4. **Date-Chips** – beziehung, freundschaft, casual
+
+Setzt `filtered[]` und ruft `renderList()` auf.
+
+### Abhängigkeiten
+- `allProfiles` (aus `spot-dates-card.js`)
+- `myCode` (aus `spot-config.js`)
+- `filtered` (wird hier gesetzt)
+- `currentIndex` (wird hier zurückgesetzt)
+- `REGIONS` (aus `spot-config.js`)
+- `renderList()` (aus `spot-dates-card.js`)
 
 ---
 
 ## 🔗 Einbindung in HTML
 
-**Beispiel für `spot.html` (Gay‑Spot):**
-
 ```html
-<script src="scripts-spot/spot-config.js"></script>
-<script src="scripts-spot/spot-state.js"></script>
-<script src="scripts-spot/spot-utils.js"></script>
-<script src="scripts-spot/spot-profile.js"></script>
-<script src="scripts-spot/spot-location.js"></script>
-<script src="scripts-spot/spot-community.js"></script>
-<script src="scripts-spot/spot-render.js"></script>
-<script src="scripts-spot/spot-messages.js"></script>
-<script src="scripts-spot/spot-verify.js"></script>
-<script src="scripts-spot/spot-kurznachricht.js"></script>
-<script src="scripts-spot/spot-keepalive.js"></script>
-<script src="scripts-spot/spot-init.js"></script>
-<script src="scripts-spot/spot-gay.js"></script>
-
-SPOT               string   Wird in Spot‑Datei gesetzt ('gay', 'dates', 'general')
-CACHE_KEY          string   localStorage‑Key für Profil‑Cache
-API                string   REST‑API Endpunkt
-myCode             string   Eigener 6‑stelliger Code (aus localStorage)
-myToken            string   Authentifizierungs‑Token
-isPublished        boolean  Profil in Community sichtbar?
-isSharingLocation  boolean  Standort wird geteilt?
-allProfiles        array    Alle geladenen Profile
-filtered           array    Gefilterte Profile (Anzeige)
-userPosition       object   Eigene GPS‑Position { lat, lng }
-locationCache      Map      Zwischenspeicher für Standorte
-onlineStatusCache  Map      Online‑Status der Profile
-verificationCache  Map      Verifikationen der Profile
+<!-- Filter-Logik ZUERST laden -->
+<script src="scripts-spot/spot-dates-filter.js"></script>
+<!-- Card-Logik DANACH laden -->
+<script src="scripts-spot/spot-dates-card.js"></script>
