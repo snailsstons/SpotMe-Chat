@@ -240,6 +240,17 @@ function renderCurrentCard() {
   }
 
   const isOwner = (localStorage.getItem('sm_code') === p.code);
+
+// 🆕 Prüfen ob neue Kommentare existieren (vor dem Rendern)
+let showAlertIcon = false;
+if (isOwner) {
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  const lastSeen = alerts[p.code] || 0;
+  // Aus dem Cache lesen, falls vorhanden
+  const cachedComments = COMMENTS_CACHE.get(p.code) || [];
+  const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => c.createdAt)) : 0;
+  showAlertIcon = latestComment > lastSeen;
+}
   
   wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
@@ -248,16 +259,16 @@ function renderCurrentCard() {
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
         
         ${isOwner && showAlertIcon ? `
-      <div class="card-heart active" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Neue Kommentare! Tippen zum Lesen">
-       <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
-      </div>
-       ` : `
-     <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
-       <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-    </div>
+       <div class="card-heart active" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Neue Kommentare! Tippen zum Lesen">
+        <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
+       </div>
+         ` : `
+       <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
+        <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+       </div>
 `}
-        
-        <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
+
+<div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
