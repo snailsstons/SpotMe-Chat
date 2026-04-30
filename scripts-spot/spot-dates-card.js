@@ -999,9 +999,11 @@ window.togglePublish = async function() {
   }
 };
 
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 🟢 HEADER ONLINE-PUNKT
 // ══════════════════════════════════════════════════════════════════════════════
+
 
 function updateHeaderOnlineDot(isOnline) {
   const dot = document.getElementById('header-online-dot');
@@ -1018,13 +1020,21 @@ async function updateHeaderOnlineDotFromServer(myCode) {
     if (res.ok) {
       const data = await res.json();
       updateHeaderOnlineDot(data.online);
+    } else {
+      // Server sagt nein -> offline
+      updateHeaderOnlineDot(false);
     }
-  } catch(e) { /* Server offline -> Punkt bleibt */ }
+  } catch(e) {
+    // Keine Antwort vom Server -> offline
+    updateHeaderOnlineDot(false);
+  }
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
+
 
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
