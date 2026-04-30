@@ -289,7 +289,13 @@ if (isOwner) {
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
-        ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
+
+        ${isOnline ? `
+         <div class="card-online" title="Online">
+           <svg viewBox="0 0 24 24" width="36" height="36"><circle cx="12" cy="12" r="10" fill="#1ecc68" stroke="white" stroke-width="2"/></svg>
+         </div>
+           ` : ''}
+        
       </div>
       <div class="card-content">
         <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
@@ -1016,7 +1022,7 @@ cardStyles.textContent = `
   .card-search:active { background:rgba(255,255,255,0.15); }
   .card-noted { position:absolute; top:186px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-noted:active { background:rgba(255,255,255,0.15); }
-  .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
+  .card-online { position:absolute; top:10px; left:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:10; }
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
   .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; margin-bottom:0.5rem; }
   .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:0.5rem; border-top:1px solid var(--bord); flex-shrink:0; }
