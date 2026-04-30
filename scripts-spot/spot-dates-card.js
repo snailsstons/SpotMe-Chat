@@ -866,13 +866,19 @@ window.showMyProfile = function() {
 // ══════════════════════════════════════════════════════════════════════════════
 // KOMMENTAR-ALERT (Brief-Icon bei neuen Kommentaren)
 // ══════════════════════════════════════════════════════════════════════════════
-
 window.markCommentsRead = function(profileCode) {
   const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
   alerts[profileCode] = Date.now();
   localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+  
   // Card neu rendern → Icon wechselt von Brief zu Herz
   renderCurrentCard();
+  
+  // Kurz warten bis DOM da ist, dann zur Rückseite flippen
+  setTimeout(() => {
+    const inner = document.getElementById('cardInner');
+    if (inner) inner.classList.add('is-flipped');
+  }, 100);
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
