@@ -1,9 +1,9 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.2 – Filter-Lupe & Notierte-Modal
+// SPOT DATES – CARD ANSICHT v4.6 – Header-Online-Punkt & Heartbeat-Fix
 // Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
-// Pinch = Kurznachricht | ❤️ Button = Notieren | 🔍 Lupe = Filter-Modal
-// 🔖 Lesezeichen = Notierte Profile | 🆕 Card-Rückseite: Story + Kommentare
+// Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
+// 🔖 Lesezeichen = Notierte Profile | 🟢 Header-Punkt = Online-Status
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -41,10 +41,9 @@ window.fetchVerifications = function(code) {
 
 const API_BASE   = 'https://spotme-chat-obom.onrender.com/api';
 const NOTED_KEY  = 'sm_noted_dates';
-const FILTER_KEY = 'sm_filter_dates';
+const COMMENT_ALERT_KEY = 'sm_comment_alert_dates';
 let notedProfiles = [];
 let currentIndex = 0;
-let filtersInitialized = false;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🆕 SOFORT-START: Eigenes Profil aus localStorage vorab laden
@@ -71,7 +70,33 @@ let filtersInitialized = false;
   allProfiles = [myProfile];
   filtered = [myProfile];
   currentIndex = 0;
+  
+  // Heartbeat senden und Profil als online markieren
+  if (myCode) {
+    fetch(`${API_BASE}/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: myCode, spot: 'dates' })
+    }).catch(() => {});
+
+    // nur wenn tatsächlich published
+    if (localStorage.getItem('sm_spot_published') === '1') {
+     window.isPublished = true;
+    }
+
+    // 🆕 Eigenes Profil sofort als online markieren, damit der Header-Punkt grün wird
+    if (onlineStatusCache) {
+      onlineStatusCache.set(myCode, { online: true });
+    }
+    
+    // Header-Punkt sofort grün
+    updateHeaderOnlineDot(true);
+  }
+  
   renderList();
+  
+  // 🆕 Header-Punkt alle 30 Sekunden vom Server aktualisieren
+  setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
@@ -154,179 +179,6 @@ function preloadNextProfiles() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FILTER SPEICHERN & LADEN
-// ══════════════════════════════════════════════════════════════════════════════
-
-function saveFilterState() {
-  const regionSelect = document.getElementById('f-region');
-  const ageSelect = document.getElementById('f-age');
-  const activeChips = document.querySelectorAll('#filter-chips .filter-chip.active');
-  
-  const state = {
-    region: regionSelect?.value || '',
-    age: ageSelect?.value || '',
-    chips: [...activeChips].map(c => c.dataset.filter)
-  };
-  localStorage.setItem(FILTER_KEY, JSON.stringify(state));
-}
-
-function loadFilterState() {
-  const saved = localStorage.getItem(FILTER_KEY);
-  if (!saved) return null;
-  try {
-    return JSON.parse(saved);
-  } catch(e) {
-    return null;
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FILTER SEKTION RENDERN (ERST OPTIONEN, DANN ZUSTAND!)
-// ══════════════════════════════════════════════════════════════════════════════
-
-function renderFilterSection(savedState = null) {
-  const anchor = document.getElementById('filterAnchor');
-  if (!anchor) return;
-  
-  const oldFilter = document.getElementById('filterDrawer');
-  if (oldFilter) oldFilter.remove();
-  
-  const filterHTML = `
-    <div class="filter-drawer" id="filterDrawer">
-      <div class="filter-title">Community Filter</div>
-      <div class="filter-select-row">
-        <select class="filter-select" id="f-region" onchange="handleFilterChange()">
-          <option value="">Alle Regionen</option>
-        </select>
-        <select class="filter-select" id="f-age" onchange="handleFilterChange()">
-          <option value="">Alle Altersgruppen</option>
-          <option value="18-29">18–29</option>
-          <option value="30-39">30–39</option>
-          <option value="40-49">40–49</option>
-          <option value="50+">50+</option>
-        </select>
-      </div>
-      <div class="filter-row" id="filter-chips">
-        <div class="filter-chip" data-filter="beziehung" onclick="handleChipClick(this)">💕 Beziehung</div>
-        <div class="filter-chip" data-filter="freundschaft" onclick="handleChipClick(this)">👥 Freundschaft</div>
-        <div class="filter-chip" data-filter="casual" onclick="handleChipClick(this)">🍸 Casual</div>
-      </div>
-      <button class="reset-link" onclick="handleFilterReset()">✕ Filter zurücksetzen</button>
-    </div>
-  `;
-  
-  anchor.insertAdjacentHTML('beforeend', filterHTML);
-  
-  const regionSelect = document.getElementById('f-region');
-  if (regionSelect && typeof REGIONS !== 'undefined') {
-    while (regionSelect.options.length > 1) regionSelect.remove(1);
-    REGIONS.forEach(r => {
-      const option = document.createElement('option');
-      option.value = r;
-      option.textContent = r;
-      regionSelect.appendChild(option);
-    });
-  }
-  
-  const state = savedState || loadFilterState();
-  if (state) {
-    if (state.region && regionSelect) {
-      const optionExists = [...regionSelect.options].some(o => o.value === state.region);
-      if (optionExists) {
-        regionSelect.value = state.region;
-      }
-    }
-    if (state.age) {
-      const ageSelect = document.getElementById('f-age');
-      if (ageSelect) ageSelect.value = state.age;
-    }
-    if (state.chips && state.chips.length > 0) {
-      document.querySelectorAll('#filter-chips .filter-chip').forEach(chip => {
-        if (state.chips.includes(chip.dataset.filter)) {
-          chip.classList.add('active');
-        }
-      });
-    }
-  }
-  
-  filtersInitialized = true;
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// FILTER HANDLER
-// ══════════════════════════════════════════════════════════════════════════════
-
-function handleFilterChange() {
-  saveFilterState();
-  applyFiltersLocal();
-}
-
-function handleChipClick(chip) {
-  chip.classList.toggle('active');
-  saveFilterState();
-  applyFiltersLocal();
-}
-
-function handleFilterReset() {
-  document.querySelectorAll('#filter-chips .filter-chip').forEach(c => c.classList.remove('active'));
-  const regionSelect = document.getElementById('f-region');
-  const ageSelect = document.getElementById('f-age');
-  if (regionSelect) regionSelect.value = '';
-  if (ageSelect) ageSelect.value = '';
-  localStorage.removeItem(FILTER_KEY);
-  applyFiltersLocal();
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 🆕 LOKALES FILTERN (ohne Server-Request!)
-// ══════════════════════════════════════════════════════════════════════════════
-
-function applyFiltersLocal() {
-  const region = document.getElementById('f-region')?.value || '';
-  const ageRange = document.getElementById('f-age')?.value || '';
-  const chips = [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter);
-  
-  filtered = allProfiles.filter(p => {
-    if (myCode && p.code === myCode) return false;
-    if (region && p.region !== region) return false;
-    if (ageRange && p.age) {
-      const [lo, hi] = ageRange === '50+' ? [50, 999] : ageRange.split('-').map(Number);
-      if (p.age < lo || p.age > hi) return false;
-    }
-    const dateChips = chips.filter(f => ['beziehung', 'freundschaft', 'casual'].includes(f));
-    if (dateChips.length && (!p.lookingFor || !dateChips.includes(p.lookingFor))) {
-      return false;
-    }
-    return true;
-  });
-  
-  if (filtered.length === 0) {
-    currentIndex = 0;
-  } else if (currentIndex >= filtered.length) {
-    currentIndex = 0;
-  }
-  
-  saveFilterState();
-  renderList();
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// GLOBALE FUNKTIONEN ÜBERSCHREIBEN
-// ══════════════════════════════════════════════════════════════════════════════
-
-window.toggleChip = function(chip) {
-  handleChipClick(chip);
-};
-
-window.resetFilters = function() {
-  handleFilterReset();
-};
-
-window.applyFilters = function() {
-  applyFiltersLocal();
-};
-
-// ══════════════════════════════════════════════════════════════════════════════
 // RENDER LIST (Cards → Filter → Notierte)
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -336,7 +188,7 @@ window.renderList = function() {
   
   const countEl = document.getElementById('community-count');
   if (countEl) {
-   countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Date wartet' : 'Dates warten'} auf deine Nachricht.<br><span style="font-size:0.7rem;color:var(--muted);">Dreh an der Profilkarte ✋</span>`;
+   countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Date wartet' : 'Dates warten'} auf Dich.<br><span style="font-size:0.7rem;color:var(--muted);">Dreh an der Profilkarte ✋</span>`;
     }
   
   const filterState = {
@@ -383,7 +235,7 @@ window.renderList = function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE)
+// CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE + ALERT)
 // ══════════════════════════════════════════════════════════════════════════════
 
 function renderCurrentCard() {
@@ -413,23 +265,48 @@ function renderCurrentCard() {
     badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
   }
 
-  wrapper.innerHTML = `
+  const isOwner = (localStorage.getItem('sm_code') === p.code);
+
+// 🆕 Prüfen ob neue Kommentare existieren (vor dem Rendern)
+let showAlertIcon = false;
+if (isOwner) {
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  const lastSeen = alerts[p.code] || 0;
+  // Aus dem Cache lesen, falls vorhanden
+  const cachedComments = COMMENTS_CACHE.get(p.code) || [];
+  const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => c.createdAt)) : 0;
+  showAlertIcon = latestComment > lastSeen;
+}
+
+    wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
     <div class="card-front">
       <div class="card-image-container" id="cardImgContainer-${p.code}">
         <div class="card-avatar-large" id="cardAv-${p.code}">${initial}</div>
+        
+        ${isOwner && showAlertIcon ? `
+        <div class="card-heart active" style="background:rgba(255,140,0,0.3);" onclick="event.stopPropagation(); markCommentsRead('${p.code}')" title="Neue Kommentare! Tippen zum Lesen">
+          <svg viewBox="0 0 24 24" width="30" height="30"><path fill="none" stroke="#ff8c00" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="#ff8c00" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
+        </div>
+        ` : `
         <div class="card-heart ${isNoted ? 'active' : ''}" id="cardHeart" onclick="event.stopPropagation(); toggleNote('${p.code}')">
           <svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </div>
-        <!-- 🆕 Lupe für Filter -->
+        `}
+        
+        <!-- 🟢 Online-Status-Punkt (für ALLE Profile sichtbar) -->
+        
+        <div class="card-online-dot ${isOnline ? 'online' : ''}" 
+         title="${isOnline ? 'Jetzt online' : ''}"> ${!isOnline ? `<span class="card-lastseen">${timeAgo(p.last_seen || p.ts)}</span>` : ''}
+        </div>
+
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
-        <!-- 🆕 Notierte-Liste Icon (Lesezeichen) -->
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
-        ${isOnline ? `<div class="online-badge">🟢 Online</div>` : ''}
+        
       </div>
       <div class="card-content">
         <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
@@ -437,8 +314,8 @@ function renderCurrentCard() {
         ${badges ? `<div class="card-tags">${badges}</div>` : ''}
         <div class="card-bio">${bio}</div>
         <div class="card-bottom">
-          <div class="card-time">🕐 ${timeAgo(p.ts)}</div>
-          <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
+       <!--   <div class="card-time">🕐 ${timeAgo(p.ts)}</div> -->
+          <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Privat Nachricht</button>
         </div>
       </div>
     </div>
@@ -474,8 +351,8 @@ function renderCurrentCard() {
     </div>
   </div>
 `;
-  
-  // 🆕 Avatar asynchron laden – dynamisches object-fit
+
+  // 🆕 Avatar asynchron laden
   const avatarContainer = document.getElementById(`cardAv-${p.code}`);
   const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
   if (avatarContainer && imgContainer) {
@@ -503,8 +380,7 @@ function renderCurrentCard() {
     });
   }
   
-  // 🆕 Kommentare für die Rückseite laden
-  const isOwner = (localStorage.getItem('sm_code') === p.code);
+  // 🆕 Kommentare laden + auf neue prüfen
   loadComments(p.code).then(comments => {
     const listEl = document.getElementById(`commentsList-${p.code}`);
     const countEl = document.getElementById(`commentCount-${p.code}`);
@@ -515,97 +391,37 @@ function renderCurrentCard() {
       countEl.textContent = `(${comments.length})`;
     }
   });
+
+  // 🆕 Wenn das eigene Profil gerendert wird, Profilbar aktualisieren
+  if (isOwner) {
+    const profileBar = document.getElementById('profile-bar');
+    if (profileBar) {
+      profileBar.style.display = 'flex';
+      document.getElementById('my-name-small').textContent = name;
+      const metaEl = document.getElementById('my-meta-small');
+      if (metaEl) {
+        metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
+      }
+      
+      // Auge-Icon (Sichtbarkeit) setzen
+      const publishBtn = document.getElementById('publish-toggle-small');
+      if (publishBtn) {
+        // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
+        const isPublished = p.visible_until && p.visible_until > Date.now();
+        publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
+        // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
+        publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
+        
+        // 🆕 Globalen Status für spot-keepalive.js korrigieren
+        window.isPublished = isPublished;
+        localStorage.setItem('sm_published', String(isPublished));
+      }
+    }
+  }
   
   initCardSwipe();
   preloadNextProfiles();
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 🔍 FILTER-MODAL (Lupe)
-// ══════════════════════════════════════════════════════════════════════════════
-
-window.toggleFilterModal = function() {
-  const existing = document.getElementById('filterModal');
-  if (existing) {
-    existing.remove();
-    return;
-  }
-  
-  const currentRegion = document.getElementById('f-region')?.value || '';
-  const currentAge = document.getElementById('f-age')?.value || '';
-  const activeChips = [...document.querySelectorAll('#filter-chips .filter-chip.active')].map(c => c.dataset.filter);
-  
-  let regionOptions = '<option value="">Alle Regionen</option>';
-  if (typeof REGIONS !== 'undefined') {
-    REGIONS.forEach(r => {
-      regionOptions += `<option value="${r}" ${r === currentRegion ? 'selected' : ''}>${r}</option>`;
-    });
-  }
-  
-  const html = `
-    <div id="filterModal" onclick="this.remove()" style="
-      position:fixed; top:0; left:0; width:100%; height:100%; 
-      background:rgba(0,0,0,0.9); z-index:9999;
-      display:flex; align-items:center; justify-content:center;
-      animation: fadeIn 0.2s ease;
-    ">
-      <div onclick="event.stopPropagation()" style="
-        background:var(--card,#1c222b); border:1px solid var(--bord);
-        border-radius:20px; padding:1.5rem; width:90%; max-width:400px;
-      ">
-        <h3 style="color:var(--acc); margin-bottom:1rem; font-family:'Syne';">🔍 Filter & Suche</h3>
-        
-        <select id="modal-f-region" class="filter-select" style="width:100%; margin-bottom:0.5rem;">
-          ${regionOptions}
-        </select>
-        
-        <select id="modal-f-age" class="filter-select" style="width:100%; margin-bottom:0.5rem;">
-          <option value="">Alle Altersgruppen</option>
-          <option value="18-29" ${currentAge === '18-29' ? 'selected' : ''}>18–29</option>
-          <option value="30-39" ${currentAge === '30-39' ? 'selected' : ''}>30–39</option>
-          <option value="40-49" ${currentAge === '40-49' ? 'selected' : ''}>40–49</option>
-          <option value="50+" ${currentAge === '50+' ? 'selected' : ''}>50+</option>
-        </select>
-        
-        <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1rem;">
-          <div class="filter-chip ${activeChips.includes('beziehung') ? 'active' : ''}" data-filter="beziehung" onclick="this.classList.toggle('active')">💕 Beziehung</div>
-          <div class="filter-chip ${activeChips.includes('freundschaft') ? 'active' : ''}" data-filter="freundschaft" onclick="this.classList.toggle('active')">👥 Freundschaft</div>
-          <div class="filter-chip ${activeChips.includes('casual') ? 'active' : ''}" data-filter="casual" onclick="this.classList.toggle('active')">🍸 Casual</div>
-        </div>
-        
-        <div style="display:flex; gap:.5rem;">
-          <button onclick="applyModalFilters()" style="flex:1; padding:0.7rem; background:var(--acc); color:var(--bg); border:none; border-radius:12px; font-weight:700; cursor:pointer;">✅ Anwenden</button>
-          <button onclick="resetModalFilters()" style="flex:1; padding:0.7rem; background:transparent; color:var(--muted2); border:1px solid var(--bord); border-radius:12px; cursor:pointer;">✕ Zurücksetzen</button>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.insertAdjacentHTML('beforeend', html);
-};
-
-window.applyModalFilters = function() {
-  const region = document.getElementById('modal-f-region')?.value || '';
-  const age = document.getElementById('modal-f-age')?.value || '';
-  const chips = [...document.querySelectorAll('#filterModal .filter-chip.active')].map(c => c.dataset.filter);
-  
-  const realRegion = document.getElementById('f-region');
-  const realAge = document.getElementById('f-age');
-  if (realRegion) realRegion.value = region;
-  if (realAge) realAge.value = age;
-  
-  document.querySelectorAll('#filter-chips .filter-chip').forEach(c => {
-    c.classList.toggle('active', chips.includes(c.dataset.filter));
-  });
-  
-  document.getElementById('filterModal')?.remove();
-  applyFiltersLocal();
-};
-
-window.resetModalFilters = function() {
-  document.getElementById('filterModal')?.remove();
-  handleFilterReset();
-};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 🔖 NOTIERTE PROFIL MODAL
@@ -671,7 +487,6 @@ window.toggleNotedModal = function() {
   
   document.body.insertAdjacentHTML('beforeend', html);
   
-  // Avatare nachladen
   profiles.forEach(p => {
     const avEl = document.getElementById(`notedModalAv-${p.code}`);
     if (avEl) {
@@ -1002,6 +817,11 @@ window.submitCommentHandler = async function(profileCode) {
   const result = await submitComment(profileCode, senderCode, senderName, message);
   
   if (result.success) {
+  // 🆕 Alert für ABSENDER zurücksetzen (eigenes Profil), nicht für Empfänger
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  alerts[senderCode] = Date.now(); // ← senderCode statt profileCode
+  localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+        
     input.value = '';
     if (statusEl) { statusEl.textContent = '✅ Gesendet!'; statusEl.style.color = '#1ecc68'; }
     const comments = await loadComments(profileCode);
@@ -1047,7 +867,6 @@ function toggleNote(code) {
 }
 
 function renderNotedSection() {
-  // Wird jetzt über das Modal angezeigt
   const section = document.getElementById('notedSection');
   if (section) section.innerHTML = '';
 }
@@ -1067,7 +886,7 @@ function showNotedProfile(code) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// MEIN PROFIL ANZEIGEN (Kommentare lesen/löschen)
+// MEIN PROFIL ANZEIGEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 window.showMyProfile = function() {
@@ -1104,11 +923,145 @@ window.showMyProfile = function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
+// KOMMENTAR-ALERT (Brief-Icon bei neuen Kommentaren)
+// ══════════════════════════════════════════════════════════════════════════════
+window.markCommentsRead = function(profileCode) {
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  alerts[profileCode] = Date.now();
+  localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+  
+  // Card neu rendern → Icon wechselt von Brief zu Herz
+  renderCurrentCard();
+  
+  // Kurz warten bis DOM da ist, dann zur Rückseite flippen
+  setTimeout(() => {
+    const inner = document.getElementById('cardInner');
+    if (inner) inner.classList.add('is-flipped');
+  }, 100);
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 PROFIL VERÖFFENTLICHEN / VERSTECKEN (Server + Icon)
+// ══════════════════════════════════════════════════════════════════════════════
+window.togglePublish = async function() {
+  const code = localStorage.getItem('sm_code');
+  const token = localStorage.getItem('sm_token');
+  if (!code || !token) return;
+
+  // Aktuelles Profil-Objekt AUS DEM CACHE oder allProfiles holen
+  const myProfile = allProfiles.find(p => p.code === code);
+  if (!myProfile) {
+    console.warn('Profil nicht im Cache, bitte Seite neu laden.');
+    return;
+  }
+
+  const isPublished = myProfile.visible_until && myProfile.visible_until > Date.now();
+  const newVisibleUntil = isPublished ? 0 : Date.now() + 86400000; // 24h
+
+  // Server-Update MIT VOLLSTÄNDIGEN PROFILDATEN
+  try {
+    const res = await fetch(`${API_BASE}/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // Pflichtfelder und alle optionalen Felder aus myProfile
+        code: code,
+        token: token,
+        spot: 'dates',
+        visible_until: newVisibleUntil,
+        name: myProfile.name,
+        region: myProfile.region,
+        age: myProfile.age || null,
+        province: myProfile.province || null,
+        city: myProfile.city || null,
+        orientation: myProfile.orientation || null,
+        role: myProfile.role || null,
+        trans: myProfile.trans || false,
+        crossdresser: myProfile.crossdresser || false,
+        bio: myProfile.bio || null,
+        lookingFor: myProfile.lookingFor || null
+      })
+    });
+    if (res.ok) {
+      // Erfolgreich: Icon umschalten und globalen Status setzen
+      const btn = document.getElementById('publish-toggle-small');
+      if (btn) {
+        btn.textContent = newVisibleUntil > 0 ? '👁️‍🗨️' : '👁️';
+        btn.setAttribute('data-published', newVisibleUntil > 0 ? 'true' : 'false');
+      }
+      window.isPublished = newVisibleUntil > 0;
+      localStorage.setItem('sm_published', String(newVisibleUntil > 0));
+      
+      // Cache aktualisieren
+      myProfile.visible_until = newVisibleUntil;
+      console.log('Profil-Sichtbarkeit aktualisiert.');
+    } else {
+      console.error('Publish toggle fehlgeschlagen:', await res.text());
+      alert('Fehler beim Ändern der Sichtbarkeit. Bitte versuche es erneut.');
+    }
+  } catch (e) {
+    console.error('Publish toggle Netzwerkfehler:', e);
+    alert('Netzwerkfehler. Bitte überprüfe deine Verbindung.');
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 🟢 HEADER ONLINE-PUNKT
+// ══════════════════════════════════════════════════════════════════════════════
+
+
+function updateHeaderOnlineDot(isOnline) {
+  const dot = document.getElementById('header-online-dot');
+  if (dot) {
+    dot.textContent = isOnline ? '🟢' : '⚫';
+    dot.title = isOnline ? 'Online' : 'Offline';
+  }
+}
+
+async function updateHeaderOnlineDotFromServer(myCode) {
+  if (!myCode) return;
+  try {
+    const res = await fetch(`${API_BASE}/online/${myCode}?spot=dates`);
+    if (res.ok) {
+      const data = await res.json();
+      updateHeaderOnlineDot(data.online);
+    } else {
+      // Server sagt nein -> offline
+      updateHeaderOnlineDot(false);
+    }
+  } catch(e) {
+    // Keine Antwort vom Server -> offline
+    updateHeaderOnlineDot(false);
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CSS
 // ══════════════════════════════════════════════════════════════════════════════
 
+
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
+
+.card-online-dot { 
+  position:absolute; bottom:14px; left:14px; 
+  display:flex; align-items:center; gap:4px;
+  background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+  border-radius:12px; padding:3px 7px 3px 5px;
+  z-index:15; 
+}
+.card-online-dot::before {
+  content:''; width:8px; height:8px; border-radius:50%;
+  background:var(--muted); flex-shrink:0;
+}
+.card-online-dot.online::before { background:#1ecc68; }
+.card-lastseen { 
+  font-size:.65rem; color:rgba(255,255,255,.8); white-space:nowrap;
+}
+.card-online-dot.online .card-lastseen { display:none; }
+
   .card-empty { text-align:center; padding:2rem; color:var(--muted); background:var(--card); border-radius:16px; }
   .card-swipe-container { position:relative; width:100%; height:550px; perspective:1000px; margin-bottom:1.5rem; }
   .card-nav { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; margin-bottom:.3rem; }
@@ -1131,7 +1084,6 @@ cardStyles.textContent = `
   .card-search:active { background:rgba(255,255,255,0.15); }
   .card-noted { position:absolute; top:186px; right:10px; width:80px; height:80px; border-radius:10px; background:rgba(0,0,0,.3); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; }
   .card-noted:active { background:rgba(255,255,255,0.15); }
-  .online-badge { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:12px; background:rgba(30,204,104,0.15); color:#1ecc68; font-size:0.7rem; font-weight:600; display:flex; align-items:center; gap:4px; backdrop-filter:blur(8px); z-index:5; }
   .card-content { padding:.8rem 1rem; flex:1; display:flex; flex-direction:column; overflow-y:auto; }
   .card-bio { font-size:.85rem; color:var(--text-dim); flex:1; margin-bottom:0.5rem; }
   .card-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:0.5rem; border-top:1px solid var(--bord); flex-shrink:0; }
@@ -1170,22 +1122,12 @@ cardStyles.textContent = `
   .noted-item { display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; min-width:60px; }
   .noted-avatar { width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--p2),var(--p3)); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:white; overflow:hidden; }
   .noted-name { font-size:.65rem; color:var(--muted2); text-align:center; max-width:60px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .filter-drawer { margin-top:1rem; padding:1rem; background:var(--card); border:1px solid var(--bord); border-radius:16px; }
-  .filter-title { font-size:.8rem; font-weight:600; color:var(--muted); margin-bottom:.8rem; text-transform:uppercase; letter-spacing:1px; }
-  .filter-select-row { display:flex; gap:.5rem; margin-bottom:.8rem; }
-  .filter-select { flex:1; padding:.6rem .8rem; background:var(--bg); border:1px solid var(--bord); border-radius:10px; color:var(--text); font-size:.85rem; outline:none; }
-  .filter-row { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.5rem; }
-  .filter-chip { padding:.4rem .8rem; border-radius:20px; font-size:.75rem; cursor:pointer; background:rgba(255,255,255,.04); border:1px solid var(--bord); color:var(--muted2); transition:all .2s; }
-  .filter-chip.active { border-color:var(--acc); color:var(--acc); background:var(--acc-dim); }
-  .reset-link { background:none; border:none; color:var(--muted); font-size:.75rem; cursor:pointer; padding:.3rem 0; display:flex; align-items:center; gap:.3rem; }
-  .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(255,255,255,0.04); border:1px solid var(--bord); border-radius:10px; color:var(--muted); font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
-   #filterAnchor { display:none; }
+  #filterAnchor { display:none; }
   .card-chat-btn { background:#1ecc68; color:#fff; border:none; padding:8px 16px; border-radius:10px; font-weight:700; cursor:pointer; }
   .close-back-btn { display:block; width:100%; margin-top:0.8rem; padding:0.6rem; background:rgba(30,204,104,0.15); border:1px solid rgba(30,204,104,0.3); border-radius:10px; color:#1ecc68; font-size:0.75rem; cursor:pointer; text-align:center; flex-shrink:0; }
   .close-back-btn:active { background:rgba(30,204,104,0.25); }
-  .close-back-btn:active { background:rgba(255,255,255,0.1); }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.2 geladen – Filter-Modal & Notierte-Modal');
+console.log('✅ spot-dates-card.js v4.6 geladen – Header-Online-Punkt aktiv');
