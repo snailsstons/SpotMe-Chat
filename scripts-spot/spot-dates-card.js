@@ -758,11 +758,11 @@ window.submitCommentHandler = async function(profileCode) {
   const result = await submitComment(profileCode, senderCode, senderName, message);
   
   if (result.success) {
-    // 🆕 Alert für Absender löschen (er hat's ja gesehen)
-    const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-    alerts[profileCode] = Date.now();
-    localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
-    
+  // 🆕 Alert für ABSENDER zurücksetzen (eigenes Profil), nicht für Empfänger
+  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+  alerts[senderCode] = Date.now(); // ← senderCode statt profileCode
+  localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+        
     input.value = '';
     if (statusEl) { statusEl.textContent = '✅ Gesendet!'; statusEl.style.color = '#1ecc68'; }
     const comments = await loadComments(profileCode);
