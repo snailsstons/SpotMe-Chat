@@ -295,8 +295,9 @@ if (isOwner) {
         `}
         
         <!-- 🟢 Online-Status-Punkt (für ALLE Profile sichtbar) -->
+        
         <div class="card-online-dot ${isOnline ? 'online' : ''}" 
-             title="${isOnline ? 'Jetzt online' : 'Zuletzt online: ' + timeAgo(p.last_seen || p.ts)}">
+         title="${isOnline ? 'Jetzt online' : ''}"> ${!isOnline ? `<span class="card-lastseen">${timeAgo(p.last_seen || p.ts)}</span>` : ''}
         </div>
 
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
