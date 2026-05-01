@@ -94,7 +94,30 @@ let currentIndex = 0;
   }
   
   renderList();
-  
+
+  // Eigenes Profil frisch aus localStorage in allProfiles aktualisieren
+  // (Damit Änderungen aus profil-dates.html sofort in der Karte erscheinen)
+  const freshProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
+  if (freshProfile.name && myCode) {
+    const ownIdx = allProfiles.findIndex(p => p.code === myCode);
+    if (ownIdx >= 0) {
+      allProfiles[ownIdx] = {
+        ...allProfiles[ownIdx],
+        name:       freshProfile.name,
+        age:        freshProfile.year ? new Date().getFullYear() - freshProfile.year : allProfiles[ownIdx].age,
+        region:     freshProfile.region     || allProfiles[ownIdx].region,
+        city:       freshProfile.city        || allProfiles[ownIdx].city,
+        bio:        freshProfile.bio         || allProfiles[ownIdx].bio,
+        lookingFor: freshProfile.lookingFor  || allProfiles[ownIdx].lookingFor,
+      };
+      // filtered auch aktualisieren
+      const filtIdx = filtered.findIndex(p => p.code === myCode);
+      if (filtIdx >= 0) filtered[filtIdx] = allProfiles[ownIdx];
+      // Karte neu rendern falls gerade eigene Karte sichtbar
+      if (filtered[currentIndex]?.code === myCode) renderCurrentCard();
+    }
+  }
+
   // 🆕 Header-Punkt alle 30 Sekunden vom Server aktualisieren
   setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
   
