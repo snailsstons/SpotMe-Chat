@@ -118,8 +118,25 @@ let currentIndex = 0;
     }
   }
 
-  // 🆕 Header-Punkt alle 30 Sekunden vom Server aktualisieren
+  // Header-Punkt alle 30 Sekunden aktualisieren
   setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
+
+  // Alle 60s neue Kommentare auf eigenem Profil prüfen
+  setInterval(async () => {
+    if (!myCode) return;
+    const fresh = await loadComments(myCode);
+    if (!fresh.length) return;
+    const latest = Math.max(...fresh.map(c => new Date(c.timestamp).getTime()));
+    const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+    const lastSeen = alerts[myCode] || 0;
+    if (latest > lastSeen) {
+      // Neuer Kommentar — Brief-Icon zeigen ohne Seite neu zu laden
+      const heartEl = document.getElementById('cardHeart');
+      if (heartEl && filtered[currentIndex]?.code === myCode) {
+        renderCurrentCard(); // Karte neu rendern mit Alert-Icon
+      }
+    }
+  }, 60000);
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
@@ -297,7 +314,7 @@ if (isOwner) {
   const lastSeen = alerts[p.code] || 0;
   // Aus dem Cache lesen, falls vorhanden
   const cachedComments = COMMENTS_CACHE.get(p.code) || [];
-  const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => c.createdAt)) : 0;
+  const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => new Date(c.timestamp).getTime())) : 0;
   showAlertIcon = latestComment > lastSeen;
 }
 
@@ -842,7 +859,7 @@ window.submitCommentHandler = async function(profileCode) {
   if (result.success) {
   // 🆕 Alert für ABSENDER zurücksetzen (eigenes Profil), nicht für Empfänger
   const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-  alerts[senderCode] = Date.now(); // ← senderCode statt profileCode
+  alerts[profileCode] = Date.now(); // Timestamp des letzten Kommentars auf diesem Profil
   localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
         
     input.value = '';
