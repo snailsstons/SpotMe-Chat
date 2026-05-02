@@ -17,7 +17,7 @@
 //   Render: DATABASE_URL wird automatisch gesetzt wenn du eine Postgres-DB
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
-// SpotMe Server v4.0 – Story & Kommentare
+// SpotMe Server v4.1 – Saubere Endpunkte
 
 
 'use strict';
@@ -193,21 +193,22 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_pc_created ON profile_comments(created_at);
   `);
 
-// Spalten nachträglich hinzufügen
-try {
-  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
-  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
-  await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
-  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
-  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
-  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
-  await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`).catch(()=>{});
-  console.log('✅ v4.0 – Alle Spalten bereit inkl. avatar, avatar_status, profile_comments');
-} catch (e) {
-  console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
-}
-  console.log('✅ Datenbank-Tabellen - Admin Moderation bereit');
+  // Spalten nachträglich hinzufügen
+  try {
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
+    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
+    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`).catch(()=>{});
+    console.log('✅ v4.1 – Alle Spalten bereit');
+  } catch (e) {
+    console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
+  }
+
+  console.log('✅ Datenbank-Tabellen bereit');
 }
 
 // ---------- Standort-Cache (RAM, 2-Min TTL) ----------
@@ -498,7 +499,7 @@ app.get('/api/avatar/:code', async (req, res) => {
     }
 
     // Nur freigegebene Avatare anzeigen
-    if (rows[0].avatar_status !== 'approved') {        // ← HIER
+    if (rows[0].avatar_status !== 'approved') {
       return res.status(404).json({ error: 'Avatar noch nicht freigegeben', status: rows[0].avatar_status || 'pending' });
     }
 
@@ -689,37 +690,63 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// OFFLINE-NACHRICHTEN
+// OFFLINE-NACHRICHTEN (private Kurznachrichten)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/profile-comment', async (req, res) => {
-  const { profileCode, profileSpot = 'dates', senderCode, senderName, message } = req.body;
-  
-  if (!profileCode || !senderCode || !senderName || !message) {
-    return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
+app.post('/api/offline-message', async (req, res) => {
+  const { recipient, senderCode, senderName, message, type, source, spotType } = req.body;
+
+  if (!recipient || !senderCode || !senderName || !message) {
+    return res.status(400).json({ error: 'Fehlende Felder' });
   }
-  
-  const clean = message.trim().slice(0, 140);
+  if (recipient === senderCode) {
+    return res.status(400).json({ error: 'Keine Nachricht an sich selbst' });
+  }
+
+  const clean = sanitizeMessage(message);
   if (!clean.length) {
-    return res.status(400).json({ error: 'Nachricht ist leer' });
+    return res.status(400).json({ error: 'Nachricht ist leer nach Bereinigung' });
   }
-  
-  if (/https?:\/\/|www\./i.test(clean)) {
-    return res.status(400).json({ error: 'Keine Links erlaubt' });
-  }
-  
+
   try {
-    // 🆕 1-Kommentar-Limit & 20er-Limit ENTFERNT
-    await pool.query(
-      `INSERT INTO profile_comments (profile_code, profile_spot, sender_code, sender_name, message, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [profileCode, profileSpot, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), Date.now()]
+    const dialogCheck = await pool.query(
+      `SELECT id FROM offline_messages 
+       WHERE sender_code = $1 AND recipient = $2
+       LIMIT 1`,
+      [recipient, senderCode]
     );
-    
-    console.log(`💬 Kommentar: ${senderName} → ${profileCode}: "${clean.slice(0, 30)}..."`);
+
+    if (dialogCheck.rows.length === 0) {
+      const rateMinutes = Math.ceil(OFFLINE_MSG_RATE_MS / 60000);
+      const rateCheck = await pool.query(
+        `SELECT id FROM offline_messages
+         WHERE sender_code = $1 AND recipient = $2
+           AND created_at > NOW() - INTERVAL '${rateMinutes} minutes'
+         LIMIT 1`,
+        [senderCode, recipient]
+      );
+      if (rateCheck.rows.length > 0) {
+        return res.status(429).json({ error: `Maximal 1 Nachricht pro ${rateMinutes > 1 ? rateMinutes + ' Minuten' : 'Minute'} für die erste Kontaktaufnahme` });
+      }
+    }
+
+    const countCheck = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM offline_messages WHERE recipient = $1 AND read = FALSE`,
+      [recipient]
+    );
+    if (Number(countCheck.rows[0].cnt) >= 50) {
+      return res.status(429).json({ error: 'Postfach des Empfängers voll' });
+    }
+
+    await pool.query(
+      `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [recipient, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), type || null, source || null, spotType || null]
+    );
+
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/profile-comment:', e.message);
+    console.error('POST /api/offline-message:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
@@ -831,28 +858,6 @@ app.post('/api/profile-comment', async (req, res) => {
   }
   
   try {
-    const existing = await pool.query(
-      'SELECT id FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2 AND sender_code = $3',
-      [profileCode, profileSpot, senderCode]
-    );
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Du hast bereits kommentiert. Lösche den alten Kommentar zuerst.' });
-    }
-    
-    const count = await pool.query(
-      'SELECT COUNT(*) AS cnt FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2',
-      [profileCode, profileSpot]
-    );
-    if (Number(count.rows[0].cnt) >= 999) {
-      await pool.query(
-        `DELETE FROM profile_comments WHERE id IN (
-          SELECT id FROM profile_comments WHERE profile_code = $1 AND profile_spot = $2
-          ORDER BY created_at ASC LIMIT 1
-        )`,
-        [profileCode, profileSpot]
-      );
-    }
-    
     await pool.query(
       `INSERT INTO profile_comments (profile_code, profile_spot, sender_code, sender_name, message, created_at)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -872,16 +877,15 @@ app.get('/api/profile-comments/:code', async (req, res) => {
   const spot = req.query.spot || 'dates';
   
   try {
-const { rows } = await pool.query(
-  `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
-          message, created_at AS "createdAt"
-   FROM profile_comments
-   WHERE profile_code = $1 AND profile_spot = $2
-   ORDER BY created_at DESC
-   LIMIT 999`,
-  [code, spot]
-);
-
+    const { rows } = await pool.query(
+      `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
+              message, created_at AS "createdAt"
+       FROM profile_comments
+       WHERE profile_code = $1 AND profile_spot = $2
+       ORDER BY created_at DESC
+       LIMIT 999`,
+      [code, spot]
+    );
     res.json(rows.map(r => ({
       ...r,
       senderName: decrypt(r.senderName),
