@@ -326,15 +326,20 @@ function renderCurrentCard() {
 // 🆕 Prüfen ob neue Kommentare existieren (vor dem Rendern)
 let showAlertIcon = false;
 let showMsgIcon = false;
+let msgCount = 0; // <-- Wichtig: Variable für das Icon definieren
+
 if (isOwner) {
+  // Neue Kommentare prüfen
   const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
   const lastSeen = alerts[p.code] || 0;
-  // Aus dem Cache lesen, falls vorhanden
   const cachedComments = COMMENTS_CACHE.get(p.code) || [];
   const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => new Date(c.timestamp).getTime())) : 0;
   showAlertIcon = latestComment > lastSeen;
-}
 
+  // 🆕 Neue Kurznachrichten prüfen
+  msgCount = parseInt(localStorage.getItem('sm_unread_kurznachrichten_dates') || '0');
+  showMsgIcon = msgCount > 0;
+}
     wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
     <div class="card-front">
