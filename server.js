@@ -872,15 +872,16 @@ app.get('/api/profile-comments/:code', async (req, res) => {
   const spot = req.query.spot || 'dates';
   
   try {
-    const { rows } = await pool.query(
-      `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
-              message, created_at AS "createdAt"
-       FROM profile_comments
-       WHERE profile_code = $1 AND profile_spot = $2
-       ORDER BY created_at ASC
-       LIMIT 999`,
-      [code, spot]
-    );
+const { rows } = await pool.query(
+  `SELECT id, sender_code AS "senderCode", sender_name AS "senderName",
+          message, created_at AS "createdAt"
+   FROM profile_comments
+   WHERE profile_code = $1 AND profile_spot = $2
+   ORDER BY created_at DESC   // ← Neueste zuerst
+   LIMIT 999`,
+  [code, spot]
+);
+
     res.json(rows.map(r => ({
       ...r,
       senderName: decrypt(r.senderName),
