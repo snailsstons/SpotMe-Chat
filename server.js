@@ -877,7 +877,7 @@ const { rows } = await pool.query(
           message, created_at AS "createdAt"
    FROM profile_comments
    WHERE profile_code = $1 AND profile_spot = $2
-   ORDER BY created_at DESC   // ← Neueste zuerst
+   ORDER BY created_at DESC
    LIMIT 999`,
   [code, spot]
 );
