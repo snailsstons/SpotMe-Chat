@@ -32,7 +32,7 @@ async function sendPrivateMessage(recipientCode, recipientName, messageText) {
         message: messageText.trim().slice(0, 280),
         type: 'spot_message',
         source: 'spot',
-        spotType: 'dates'
+        spot: 'dates'
       })
     });
     
