@@ -393,11 +393,22 @@ if (isOwner) {
         <p class="story-text">${bio}</p>
       </div>
       
-      <div class="back-section">
-        <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
-        <div class="comments-list" id="commentsList-${p.code}">
-          <div class="comments-loading">⏳ Lade Kommentare…</div>
-        </div>
+        <div class="back-section">
+         <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
+  
+       <div class="comment-input-row">
+       <textarea id="commentInput-${p.code}" class="comment-input" 
+      placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
+      rows="3"></textarea>
+    <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
+  </div>
+
+  <div class="comment-status" id="commentStatus-${p.code}"></div>
+  
+  <div class="comments-list" id="commentsList-${p.code}">
+    <div class="comments-loading">⏳ Lade Kommentare…</div>
+  </div>
+</div>
         <div class="comment-input-row">
           <textarea id="commentInput-${p.code}" class="comment-input" 
             placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
