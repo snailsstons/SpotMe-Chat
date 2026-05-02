@@ -35,7 +35,7 @@ function addPendingMessage(recipient, text, senderName) {
     ts: Date.now(),
     type: 'spot_message',
     source: 'spot',
-    spot: SPOT || 'dates'
+    spotType: SPOT || 'dates'
   });
   savePendingMessages(msgs);
   console.log('📦 Pending gespeichert:', msgs.length, 'in Warteschlange');
@@ -144,7 +144,7 @@ async function submitKurznachricht() {
       message: text,
       type: 'spot_message',
       source: 'spot',
-      spot: SPOT || 'dates',
+      spotType: SPOT || 'dates',
       token: token
     };
     
