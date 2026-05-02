@@ -7,6 +7,11 @@
 const MSG_POLL_INTERVAL = 60000; // 60 Sekunden
 const UNREAD_KEY = 'sm_unread_kurznachrichten_dates';
 
+// API-URL: im Spot-Kontext heißt die Variable API, im Chat-Kontext API_BASE
+const _MSG_API = (typeof API_BASE !== 'undefined') ? API_BASE
+              : (typeof API     !== 'undefined') ? API
+              : 'https://spotme-chat-obom.onrender.com/api';
+
 // ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHT SENDEN
 // ══════════════════════════════════════════════════════════════════════════════
@@ -22,7 +27,7 @@ async function sendPrivateMessage(recipientCode, recipientName, messageText) {
   }
   
   try {
-    const res = await fetch(`${API_BASE}/offline-message`, {
+    const res = await fetch(`${_MSG_API}/offline-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -53,7 +58,7 @@ async function fetchPrivateMessages() {
   if (!token || !code) return [];
   
   try {
-    const res = await fetch(`${API_BASE}/offline-messages/${code}?spot=dates&token=${encodeURIComponent(token)}`);
+    const res = await fetch(`${_MSG_API}/offline-messages/${code}?spot=dates&token=${encodeURIComponent(token)}`);
     if (!res.ok) return [];
     return await res.json();
   } catch (e) {
@@ -129,6 +134,20 @@ window.showKurznachrichtModal = function(code, name) {
   };
 };
 
-// Sofort nach Laden starten
-startMessagePolling();
+// Erst starten wenn Token vorhanden (Token kann beim Laden noch fehlen)
+if (localStorage.getItem('sm_token')) {
+  startMessagePolling();
+} else {
+  // Auf Token warten — alle 500ms prüfen, max. 10 Sekunden
+  let _waitAttempts = 0;
+  const _waitForToken = setInterval(() => {
+    _waitAttempts++;
+    if (localStorage.getItem('sm_token')) {
+      clearInterval(_waitForToken);
+      startMessagePolling();
+    } else if (_waitAttempts >= 20) {
+      clearInterval(_waitForToken);
+    }
+  }, 500);
+}
 console.log('✅ spot-dates-messages.js geladen – Private Nachrichten für Dates');
