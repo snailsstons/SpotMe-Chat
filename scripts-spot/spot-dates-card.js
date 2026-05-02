@@ -121,21 +121,6 @@ let currentIndex = 0;
   // Header-Punkt alle 30 Sekunden aktualisieren
   setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
 
-  // Alle 60s Kurznachrichten prüfen
-  setInterval(async () => {
-    const token = localStorage.getItem('sm_token');
-    const code  = localStorage.getItem('sm_code');
-    if (!token || !code) return;
-    try {
-      const res = await fetch(`${API_BASE}/offline-messages/${code}?token=${encodeURIComponent(token)}&spot=dates`);
-      if (!res.ok) return;
-      const msgs = await res.json();
-      const unread = msgs.filter(m => !m.read).length;
-      const prev = parseInt(localStorage.getItem('sm_unread_kurznachrichten_dates') || '0');
-      localStorage.setItem('sm_unread_kurznachrichten_dates', String(unread));
-      if (unread > prev && filtered[currentIndex]?.code === code) renderCurrentCard();
-    } catch(e) {}
-  }, 60000);
 
   // Alle 60s neue Kommentare auf eigenem Profil prüfen
   setInterval(async () => {
