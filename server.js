@@ -772,10 +772,10 @@ app.get('/api/offline-messages/:code', async (req, res) => {
               message, type, source, spot_type AS "spotType",
               created_at AS timestamp, read
        FROM offline_messages
-       WHERE recipient = $1
+       WHERE recipient = $1 AND spot_type = $2   -- ← Spot-Filter!
        ORDER BY created_at DESC
        LIMIT 50`,
-      [code]
+      [code, spot]
     );
     res.json(rows.map(r => ({
       ...r,
