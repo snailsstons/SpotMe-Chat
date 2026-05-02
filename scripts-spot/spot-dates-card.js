@@ -363,12 +363,12 @@ if (isOwner) {
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
+
         ${showMsgIcon ? `
         <div class="card-msg-icon" onclick="event.stopPropagation(); openKurznachrichtenPanel()" title="Neue Kurznachrichten">
           <svg viewBox="0 0 24 24" width="28" height="28"><path fill="none" stroke="white" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="white" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
           <span class="card-msg-badge">${msgCount}</span>
         </div>` : ''}
-        ${isOwner && showAlertIcon ? `
         
       </div>
       <div class="card-content">
@@ -377,7 +377,6 @@ if (isOwner) {
         ${badges ? `<div class="card-tags">${badges}</div>` : ''}
         <div class="card-bio">${bio}</div>
         <div class="card-bottom">
-       <!--   <div class="card-time">🕐 ${timeAgo(p.ts)}</div> -->
           <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Privat Nachricht</button>
         </div>
       </div>
@@ -414,6 +413,7 @@ if (isOwner) {
     </div>
   </div>
 `;
+
 
   // 🆕 Avatar asynchron laden
   const avatarContainer = document.getElementById(`cardAv-${p.code}`);
