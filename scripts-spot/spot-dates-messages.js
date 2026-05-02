@@ -150,4 +150,15 @@ if (localStorage.getItem('sm_token')) {
     }
   }, 500);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// KOMPATIBILITÄT: Alte Aufrufe von fetchAndRenderOfflineMsgs() auf neue Logik umleiten
+// ══════════════════════════════════════════════════════════════════════════════
+window.fetchAndRenderOfflineMsgs = async function() {
+  const messages = await fetchPrivateMessages();
+  // Card-Ansicht neu rendern, falls Funktion verfügbar
+  if (typeof renderCurrentCard === 'function') {
+    renderCurrentCard();
+  }
+};
 console.log('✅ spot-dates-messages.js geladen – Private Nachrichten für Dates');
