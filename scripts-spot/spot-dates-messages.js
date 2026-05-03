@@ -76,16 +76,19 @@ function startMessagePolling() {
   if (msgPollTimer) clearInterval(msgPollTimer);
   
   const poll = async () => {
-    const messages = await fetchPrivateMessages();
-    const unread = messages.filter(m => !m.read).length;
-    const prev = parseInt(localStorage.getItem(UNREAD_KEY) || '0');
-    localStorage.setItem(UNREAD_KEY, String(unread));
-    
-    // Wenn neue Nachrichten da sind, Card neu rendern (damit Brief-Icon erscheint)
-    if (unread > prev && typeof renderCurrentCard === 'function') {
-      renderCurrentCard();
-    }
-  };
+  const messages = await fetchPrivateMessages();
+  const unread = messages.filter(m => !m.read).length;
+  const prev = parseInt(localStorage.getItem(UNREAD_KEY) || '0');
+  localStorage.setItem(UNREAD_KEY, String(unread));
+
+  // Header-Badge aktualisieren
+  const badge = document.getElementById('header-msg-badge');
+  const countEl = document.getElementById('header-msg-count');
+  if (badge && countEl) {
+    if (unread > 0) { badge.style.display = 'flex'; countEl.textContent = unread; }
+    else { badge.style.display = 'none'; }
+  }
+};
   
   poll(); // Sofort beim Start
   msgPollTimer = setInterval(poll, MSG_POLL_INTERVAL);
