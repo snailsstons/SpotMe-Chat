@@ -25,141 +25,72 @@
       padding: 1.5rem;
       box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
-    h2 {
-      text-align: center;
-      margin-bottom: 0.25rem;
-      color: #ff4f7b;
-      font-weight: 800;
-    }
-    .info {
-      text-align: center;
-      font-size: 0.8rem;
-      color: #888;
-      margin-bottom: 1.25rem;
-    }
-    .section-title {
-      font-size: 0.85rem;
-      color: #aaa;
-      margin-bottom: 0.5rem;
-    }
+    h2 { text-align: center; margin-bottom: 0.25rem; color: #ff4f7b; font-weight: 800; }
+    .info { text-align: center; font-size: 0.8rem; color: #888; margin-bottom: 1.25rem; }
+    .section-title { font-size: 0.85rem; color: #aaa; margin-bottom: 0.5rem; }
     input[type="text"] {
-      width: 100%;
-      padding: 0.75rem 0.9rem;
-      margin-bottom: 0.75rem;
-      border: 1px solid #333;
-      border-radius: 12px;
-      background: #222;
-      color: #fff;
-      font-size: 1rem;
-      outline: none;
-      transition: border 0.2s;
+      width: 100%; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem;
+      border: 1px solid #333; border-radius: 12px; background: #222; color: #fff;
+      font-size: 1rem; outline: none; transition: border 0.2s;
     }
     input[type="text"]:focus { border-color: #ff4f7b; }
     button {
-      width: 100%;
-      padding: 0.75rem;
-      background: #ff4f7b;
-      border: none;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 1rem;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.2s;
+      width: 100%; padding: 0.75rem; background: #ff4f7b; border: none;
+      border-radius: 12px; font-weight: 700; font-size: 1rem; color: #fff;
+      cursor: pointer; transition: background 0.2s;
     }
     button:hover { background: #e0456b; }
     button.secondary { background: #2a2a2a; color: #eee; }
-    .invite-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
+    .invite-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .invite-row input { flex: 1; margin-bottom: 0; }
     .invite-row button { width: auto; padding: 0.75rem 1.2rem; }
     #invites-container { margin-bottom: 1rem; }
     .invite-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #222;
-      padding: 0.6rem 0.9rem;
-      border-radius: 12px;
-      margin-bottom: 0.4rem;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #222; padding: 0.6rem 0.9rem; border-radius: 12px; margin-bottom: 0.4rem;
     }
     .invite-item span { font-weight: 600; }
-    .invite-item button {
-      width: auto;
-      padding: 0.4rem 1rem;
-      font-size: 0.85rem;
-    }
+    .invite-item button { width: auto; padding: 0.4rem 1rem; font-size: 0.85rem; }
     #chat-area { display: none; }
     #chat-area.active { display: block; }
     #setup-area { display: block; }
     #setup-area.hidden { display: none; }
     #messages {
-      height: 50vh;
-      max-height: 400px;
-      overflow-y: auto;
-      margin-bottom: 1rem;
-      padding: 0.5rem;
-      background: #111;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
+      height: 50vh; max-height: 400px; overflow-y: auto; margin-bottom: 1rem;
+      padding: 0.5rem; background: #111; border-radius: 12px;
+      display: flex; flex-direction: column; gap: 0.5rem;
     }
     .msg-bubble {
-      max-width: 80%;
-      padding: 0.6rem 0.9rem;
-      border-radius: 14px;
-      font-size: 0.9rem;
-      word-break: break-word;
-      animation: pop 0.2s ease;
+      max-width: 80%; padding: 0.6rem 0.9rem; border-radius: 14px;
+      font-size: 0.9rem; word-break: break-word; animation: pop 0.2s ease;
     }
     @keyframes pop { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .msg-bubble.mine {
-      align-self: flex-end;
-      background: #ff4f7b;
-      color: #fff;
-      border-bottom-right-radius: 4px;
+      align-self: flex-end; background: #ff4f7b; color: #fff; border-bottom-right-radius: 4px;
     }
     .msg-bubble.other {
-      align-self: flex-start;
-      background: #2a2a2a;
-      border-bottom-left-radius: 4px;
+      align-self: flex-start; background: #2a2a2a; border-bottom-left-radius: 4px;
+    }
+    .msg-bubble img {
+      max-width: 100%; border-radius: 8px; margin-top: 0.3rem; cursor: pointer;
     }
     .msg-author {
-      font-weight: 700;
-      font-size: 0.7rem;
-      display: block;
-      margin-bottom: 0.2rem;
-      opacity: 0.8;
+      font-weight: 700; font-size: 0.7rem; display: block; margin-bottom: 0.2rem; opacity: 0.8;
     }
     .msg-time {
-      font-size: 0.65rem;
-      opacity: 0.5;
-      margin-top: 0.2rem;
-      text-align: right;
+      font-size: 0.65rem; opacity: 0.5; margin-top: 0.2rem; text-align: right;
     }
-    .input-row {
-      display: flex;
-      gap: 0.5rem;
-    }
+    .input-row { display: flex; gap: 0.5rem; }
     .input-row input { flex: 1; margin-bottom: 0; }
     .input-row button { width: auto; padding: 0.75rem 1.25rem; }
+    .input-row .attach-btn { padding: 0.75rem; background: #333; }
     .return-btn {
-      margin-top: 0.8rem;
-      background: transparent;
-      border: 1px solid #333;
-      color: #aaa;
-      font-size: 0.85rem;
+      margin-top: 0.8rem; background: transparent; border: 1px solid #333;
+      color: #aaa; font-size: 0.85rem;
     }
     .status-dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      margin-right: 0.3rem;
-      background: #666;
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      margin-right: 0.3rem; background: #666;
     }
     .status-dot.connected { background: #4caf50; }
     .status-dot.disconnected { background: #f44336; }
@@ -192,6 +123,8 @@
       <div id="messages"></div>
       <div class="input-row">
         <input type="text" id="msgInput" placeholder="Nachricht..." autofocus>
+        <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onFileSelected(this)">
         <button onclick="sendMsg()">➤</button>
       </div>
       <button class="return-btn" onclick="resetToSetup()">← Zurück zu Einladungen</button>
@@ -202,6 +135,7 @@
   <script>
     const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
     const MSG_PREFIX = 'sm_local_msg_';
+    const CHUNK_SIZE = 16 * 1024; // 16 KB
 
     let myCode = '';
     let chatRoom = '';
@@ -209,6 +143,10 @@
     let peer = null;
     let conn = null;
     let pollTimer = null;
+    let messages = [];              // aktuelle Chat-Historie (Objekte)
+
+    // Datei-Empfang
+    let currentFileReceive = null; // { fileId, chunks: [], totalChunks, fileName, fileType }
 
     // ── Initialisierung ──────────────────────────────────────────────────
     async function init() {
@@ -223,7 +161,7 @@
       const partnerFromUrl = urlParams.get('partner');
       if (partnerFromUrl && partnerFromUrl.length === 6 && partnerFromUrl !== myCode) {
         document.getElementById('partnerCodeInput').value = partnerFromUrl;
-        sendInvite(); // direkt einladen
+        sendInvite();
       }
 
       await loadInvites();
@@ -237,9 +175,7 @@
         if (!res.ok) return;
         const invites = await res.json();
         renderInvites(invites);
-      } catch (e) {
-        console.error('Einladungen laden fehlgeschlagen', e);
-      }
+      } catch (e) { console.error(e); }
     }
 
     function renderInvites(invites) {
@@ -262,50 +198,36 @@
       if (partnerCode.length !== 6) { alert('Code muss 6‑stellig sein.'); return; }
       if (partnerCode === myCode) { alert('Chat mit dir selbst nicht möglich.'); return; }
 
-      const room = [myCode, partnerCode].sort().join('-');
+      chatRoom = [myCode, partnerCode].sort().join('-');
       try {
         const res = await fetch(`${API_BASE}/invites/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ from: myCode, to: partnerCode })
         });
-        if (!res.ok) throw new Error('Fehler beim Senden');
-        chatRoom = room;
+        if (!res.ok) throw new Error('Fehler');
         openChat();
-      } catch (e) {
-        alert('Einladung konnte nicht gesendet werden.');
-      }
+      } catch (e) { alert('Einladung konnte nicht gesendet werden.'); }
     }
 
     async function acceptInvite(fromCode, room) {
       partnerCode = fromCode;
       chatRoom = room;
-      // Einladung vom Server löschen
       await fetch(`${API_BASE}/invites/${myCode}/${fromCode}`, { method: 'DELETE' });
       openChat();
     }
 
     // ── WebRTC / PeerJS ──────────────────────────────────────────────────
     function setupPeer() {
-      if (peer) {
-        peer.destroy();
-        peer = null;
-      }
-      // Peer-ID = chatRoom + myCode (sicher eindeutig)
+      if (peer) { peer.destroy(); peer = null; }
       const peerId = chatRoom + '-' + myCode;
       peer = new Peer(peerId, {
-        host: '0.peerjs.com',
-        port: 443,
-        secure: true,
-        debug: 0
+        host: '0.peerjs.com', port: 443, secure: true, debug: 0
       });
 
       peer.on('open', (id) => {
         console.log('PeerID:', id);
-        // Verbindung zum Partner aufbauen, wenn ich der "Initiator" bin (höherer Code)
-        if (myCode > partnerCode) {
-          connectToPartner();
-        }
+        if (myCode > partnerCode) connectToPartner();
       });
 
       peer.on('connection', (incomingConn) => {
@@ -337,16 +259,19 @@
     }
 
     function handleRemoteData(data) {
-      if (data.type === 'chat_message') {
-        const msgs = getMessages();
-        msgs.push({
-          from: partnerCode,
-          fromName: data.fromName || maskCode(partnerCode),
-          text: data.text,
-          ts: data.ts
-        });
-        saveMessages(msgs);
-        renderMessages();
+      if (typeof data === 'string') {
+        // Text- oder Metadaten
+        try {
+          const msg = JSON.parse(data);
+          if (msg.type === 'file_start') {
+            startReceivingFile(msg);
+          } else if (msg.type === 'chat_message') {
+            addReceivedMessage(msg);
+          }
+        } catch (e) { console.warn('Ungültige JSON-Nachricht', e); }
+      } else if (data instanceof ArrayBuffer) {
+        // Datei-Chunk
+        receiveFileChunk(data);
       }
     }
 
@@ -362,25 +287,175 @@
       }
     }
 
-    // ── Nachrichten ───────────────────────────────────────────────────────
-    function getMessages() {
-      if (!chatRoom) return [];
-      return JSON.parse(localStorage.getItem(MSG_PREFIX + chatRoom) || '[]');
+    // ── Bildübertragung (Senden) ─────────────────────────────────────────
+    function onFileSelected(input) {
+      const file = input.files[0];
+      if (!file) return;
+      // Bild komprimieren
+      compressImage(file, 800, 0.7).then(blob => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const buffer = reader.result;
+          sendFileChunks(buffer, file.name, blob.type);
+        };
+        reader.readAsArrayBuffer(blob);
+      });
+      input.value = ''; // zurücksetzen
     }
-    function saveMessages(msgs) {
+
+    function compressImage(file, maxWidth, quality) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((maxWidth / width) * height);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(resolve, 'image/jpeg', quality);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    function sendFileChunks(arrayBuffer, fileName, fileType) {
+      const fileId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
+      
+      // Metadaten senden
+      const meta = JSON.stringify({
+        type: 'file_start',
+        fileId,
+        fileName,
+        fileType,
+        totalSize: arrayBuffer.byteLength,
+        totalChunks
+      });
+      conn.send(meta);
+
+      // Chunks senden
+      const uint8 = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, uint8.length);
+        const chunk = uint8.slice(start, end);
+        conn.send(chunk.buffer);
+      }
+
+      // Lokal anzeigen (eigenes Bild)
+      const objectUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: fileType }));
+      addLocalImageMessage(objectUrl, fileName);
+    }
+
+    // ── Bildempfang ──────────────────────────────────────────────────────
+    function startReceivingFile(meta) {
+      currentFileReceive = {
+        fileId: meta.fileId,
+        chunks: new Array(meta.totalChunks),
+        totalChunks: meta.totalChunks,
+        fileName: meta.fileName,
+        fileType: meta.fileType,
+        received: 0,
+        totalSize: meta.totalSize
+      };
+    }
+
+    function receiveFileChunk(chunk) {
+      if (!currentFileReceive) return;
+      // Chunks kommen in-order, also können wir sie direkt ablegen
+      const idx = currentFileReceive.received;
+      currentFileReceive.chunks[idx] = chunk;
+      currentFileReceive.received++;
+
+      if (currentFileReceive.received === currentFileReceive.totalChunks) {
+        // Datei komplett
+        const blob = new Blob(currentFileReceive.chunks, { type: currentFileReceive.fileType });
+        const objectUrl = URL.createObjectURL(blob);
+        addReceivedImageMessage(objectUrl, currentFileReceive.fileName);
+        currentFileReceive = null;
+      }
+    }
+
+    // ── Nachrichtenverwaltung ────────────────────────────────────────────
+    function loadMessagesFromStorage() {
+      const raw = localStorage.getItem(MSG_PREFIX + chatRoom);
+      if (!raw) return [];
+      try {
+        return JSON.parse(raw).filter(m => m.type !== 'image'); // Bilder nicht aus localStorage
+      } catch (e) { return []; }
+    }
+
+    function saveTextMessage(msg) {
+      const msgs = loadMessagesFromStorage();
+      msgs.push(msg);
       localStorage.setItem(MSG_PREFIX + chatRoom, JSON.stringify(msgs));
     }
+
+    function addLocalImageMessage(objectUrl, fileName) {
+      const msg = {
+        from: myCode,
+        fromName: localStorage.getItem('sm_name') || myCode,
+        type: 'image',
+        objectUrl,
+        fileName,
+        ts: Date.now()
+      };
+      messages.push(msg);
+      renderMessages();
+    }
+
+    function addReceivedImageMessage(objectUrl, fileName) {
+      const msg = {
+        from: partnerCode,
+        fromName: maskCode(partnerCode),
+        type: 'image',
+        objectUrl,
+        fileName,
+        ts: Date.now()
+      };
+      messages.push(msg);
+      renderMessages();
+    }
+
+    function addReceivedMessage(data) {
+      const msg = {
+        from: data.from,
+        fromName: data.fromName || maskCode(data.from),
+        text: data.text,
+        ts: data.ts
+      };
+      messages.push(msg);
+      // Textnachrichten im localStorage speichern
+      if (data.text) saveTextMessage(msg);
+      renderMessages();
+    }
+
     function renderMessages() {
-      const msgs = getMessages();
       const container = document.getElementById('messages');
-      container.innerHTML = msgs.map(m => {
+      container.innerHTML = messages.map(m => {
         const isMine = m.from === myCode;
-        return `
-          <div class="msg-bubble ${isMine ? 'mine' : 'other'}">
-            <span class="msg-author">${isMine ? 'Du' : (m.fromName || maskCode(m.from))}</span>
-            ${escHtml(m.text)}
-            <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
-          </div>`;
+        if (m.type === 'image') {
+          return `
+            <div class="msg-bubble ${isMine ? 'mine' : 'other'}">
+              <span class="msg-author">${isMine ? 'Du' : m.fromName}</span>
+              <img src="${m.objectUrl}" alt="${m.fileName}" loading="lazy" onclick="window.open('${m.objectUrl}')">
+              <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+            </div>`;
+        } else {
+          return `
+            <div class="msg-bubble ${isMine ? 'mine' : 'other'}">
+              <span class="msg-author">${isMine ? 'Du' : m.fromName}</span>
+              ${escHtml(m.text)}
+              <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+            </div>`;
+        }
       }).join('');
       container.scrollTop = container.scrollHeight;
     }
@@ -396,20 +471,13 @@
         text,
         ts: Date.now()
       };
-
-      // Lokal speichern
-      const msgs = getMessages();
-      msgs.push(msg);
-      saveMessages(msgs);
+      messages.push(msg);
+      saveTextMessage(msg);
       renderMessages();
 
-      // Per WebRTC senden
       if (conn && conn.open) {
-        conn.send({ type: 'chat_message', ...msg });
-      } else {
-        console.warn('Nicht verbunden, Nachricht nur lokal gespeichert');
+        conn.send(JSON.stringify({ type: 'chat_message', ...msg }));
       }
-
       input.value = '';
     }
 
@@ -418,6 +486,8 @@
       document.getElementById('setup-area').classList.add('hidden');
       document.getElementById('chat-area').classList.add('active');
       document.getElementById('roomInfo').textContent = 'Raum: ' + chatRoom;
+      // Nachrichten aus localStorage laden (nur Text)
+      messages = loadMessagesFromStorage();
       setupPeer();
       renderMessages();
       document.getElementById('msgInput').focus();
@@ -426,6 +496,7 @@
     function resetToSetup() {
       if (conn) { conn.close(); conn = null; }
       if (peer) { peer.destroy(); peer = null; }
+      messages = [];
       chatRoom = '';
       partnerCode = '';
       document.getElementById('setup-area').classList.remove('hidden');
@@ -435,13 +506,11 @@
       loadInvites();
     }
 
-    // ── Polling ──────────────────────────────────────────────────────────
     function startInvitePolling() {
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(loadInvites, 3000);
     }
 
-    // ── Helfer ──────────────────────────────────────────────────────────
     function escHtml(s) {
       const d = document.createElement('div');
       d.textContent = String(s);
@@ -455,4 +524,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
