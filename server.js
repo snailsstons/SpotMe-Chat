@@ -930,7 +930,46 @@ app.delete('/api/profile-comment/:id', async (req, res) => {
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
+// ══════════════════════════════════════════════════════════════════════════════
+// EINLADUNGEN (für lokalen Messenger – RAM)
+// ══════════════════════════════════════════════════════════════════════════════
 
+const invites = {}; // { empfaengerCode: [{ from, to, ts, room }] }
+
+// Cleanup: Einladungen nach 2 Stunden löschen
+setInterval(() => {
+  const now = Date.now();
+  for (const code of Object.keys(invites)) {
+    invites[code] = invites[code].filter(i => now - i.ts < 2 * 60 * 60 * 1000);
+    if (invites[code].length === 0) delete invites[code];
+  }
+}, 60000); // jede Minute
+
+app.post('/api/invites/send', (req, res) => {
+  const { from, to } = req.body;
+  if (!from || !to || from.length !== 6 || to.length !== 6) {
+    return res.status(400).json({ error: 'Ungültige Codes' });
+  }
+  if (!invites[to]) invites[to] = [];
+  const exists = invites[to].find(i => i.from === from);
+  if (!exists) {
+    const room = [from, to].sort().join('-');
+    invites[to].push({ from, to, ts: Date.now(), room });
+    console.log(`📨 Einladung: ${from} → ${to} (Raum ${room})`);
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/invites/:code', (req, res) => {
+  res.json(invites[req.params.code] || []);
+});
+
+app.delete('/api/invites/:code/:fromCode', (req, res) => {
+  if (invites[req.params.code]) {
+    invites[req.params.code] = invites[req.params.code].filter(i => i.from !== req.params.fromCode);
+  }
+  res.json({ success: true });
+});
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN – Avatar Moderation
 // ══════════════════════════════════════════════════════════════════════════════
