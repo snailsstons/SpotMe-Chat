@@ -12,6 +12,11 @@ const _MSG_API = (typeof API_BASE !== 'undefined') ? API_BASE
               : (typeof API     !== 'undefined') ? API
               : 'https://spotme-chat-obom.onrender.com/api';
 
+// Fallback-Aliase, falls andere Skripte falsche Namen verwenden
+window.fetchAndRenderOfflineMsg = window.fetchAndRenderOfflineMsgs;
+window.fetchAndRenderOfflineMsgSilent = window.fetchAndRenderOfflineMsgsSilent;
+window.fetchAnndrenderOfflineMsg = window.fetchAndRenderOfflineMsgs;
+window.fetchAnndrenderOfflineMsgSILENT = window.fetchAndRenderOfflineMsgsSilent;
 // ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHT SENDEN
 // ══════════════════════════════════════════════════════════════════════════════
