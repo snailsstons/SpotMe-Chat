@@ -168,7 +168,7 @@
 <body>
   <div class="container">
     <h2>💬 Messenger (P2P)</h2>
-    <p class="info" id="status-info">Kein Server · Direktverbindung</p>
+    <p class="info" id="status-info">Direktverbindung über WebRTC</p>
 
     <div id="setup-area">
       <div class="section-title">📨 Einladungen an dich:</div>
@@ -179,7 +179,7 @@
       <div class="section-title" style="margin-top:1rem;">Neuen Chat starten:</div>
       <div class="invite-row">
         <input type="text" id="partnerCodeInput" maxlength="6" placeholder="6‑stelliger Code">
-        <button onclick="inviteAndStartChat()">💬 Einladen</button>
+        <button onclick="sendInvite()">💬 Einladen</button>
       </div>
     </div>
 
@@ -192,7 +192,7 @@
       <div id="messages"></div>
       <div class="input-row">
         <input type="text" id="msgInput" placeholder="Nachricht..." autofocus>
-        <button onclick="sendLocalMsg()">➤</button>
+        <button onclick="sendMsg()">➤</button>
       </div>
       <button class="return-btn" onclick="resetToSetup()">← Zurück zu Einladungen</button>
     </div>
@@ -200,87 +200,88 @@
 
   <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
   <script>
+    const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
     const MSG_PREFIX = 'sm_local_msg_';
-    const INVITE_KEY = 'sm_local_invites';
-    let localMyCode = null;
-    let localChatRoom = null;
-    let localPartnerCode = null;
-    let peer = null;          // PeerJS-Objekt
-    let conn = null;          // DataConnection
+
+    let myCode = '';
+    let chatRoom = '';
+    let partnerCode = '';
+    let peer = null;
+    let conn = null;
     let pollTimer = null;
 
     // ── Initialisierung ──────────────────────────────────────────────────
-    function init() {
-      localMyCode = localStorage.getItem('sm_code');
-      if (!localMyCode) {
+    async function init() {
+      myCode = localStorage.getItem('sm_code');
+      if (!myCode) {
         document.getElementById('status-info').textContent = '⚠️ Kein Code – bitte im Spot veröffentlichen';
+        return;
       }
-      const params = new URLSearchParams(location.search);
-      const partnerFromUrl = params.get('partner');
-      if (partnerFromUrl && partnerFromUrl.length === 6 && localMyCode) {
+      document.getElementById('status-info').textContent = 'Dein Code: ' + myCode;
+
+      const urlParams = new URLSearchParams(location.search);
+      const partnerFromUrl = urlParams.get('partner');
+      if (partnerFromUrl && partnerFromUrl.length === 6 && partnerFromUrl !== myCode) {
         document.getElementById('partnerCodeInput').value = partnerFromUrl;
-        setTimeout(() => inviteAndStartChat(), 300);
+        sendInvite(); // direkt einladen
       }
-      renderInvites();
+
+      await loadInvites();
       startInvitePolling();
     }
 
-    // ── Einladungen ──────────────────────────────────────────────────────
-    function getInvites() {
-      return JSON.parse(localStorage.getItem(INVITE_KEY) || '[]');
-    }
-    function saveInvites(invites) {
-      localStorage.setItem(INVITE_KEY, JSON.stringify(invites));
-    }
-    function getMyInvites() {
-      if (!localMyCode) return [];
-      return getInvites().filter(i => i.to === localMyCode);
-    }
-    function addInvite(from, to) {
-      const invites = getInvites();
-      if (!invites.find(i => i.from === from && i.to === to)) {
-        invites.push({ from, to, ts: Date.now() });
-        saveInvites(invites);
+    // ── Einladungen (Server) ─────────────────────────────────────────────
+    async function loadInvites() {
+      try {
+        const res = await fetch(`${API_BASE}/invites/${myCode}`);
+        if (!res.ok) return;
+        const invites = await res.json();
+        renderInvites(invites);
+      } catch (e) {
+        console.error('Einladungen laden fehlgeschlagen', e);
       }
     }
-    function removeInvite(from, to) {
-      let invites = getInvites();
-      invites = invites.filter(i => !(i.from === from && i.to === to));
-      saveInvites(invites);
-    }
-    function renderInvites() {
+
+    function renderInvites(invites) {
       const container = document.getElementById('invites-container');
-      const invites = getMyInvites();
-      if (invites.length === 0) {
+      if (!invites || invites.length === 0) {
         container.innerHTML = '<p style="color:#666;font-size:0.85rem;text-align:center;">Keine offenen Einladungen</p>';
       } else {
         container.innerHTML = invites.map(inv => `
           <div class="invite-item">
             <span>💬 ${maskCode(inv.from)}</span>
-            <button onclick="acceptInvite('${inv.from}')">Beitreten</button>
+            <button onclick="acceptInvite('${inv.from}', '${inv.room}')">Beitreten</button>
           </div>
         `).join('');
       }
     }
-    function acceptInvite(fromCode) {
-      localPartnerCode = fromCode;
-      const codes = [localMyCode, fromCode].sort();
-      localChatRoom = codes[0] + '-' + codes[1];
-      removeInvite(fromCode, localMyCode);
-      openChat();
+
+    async function sendInvite() {
+      if (!myCode) { alert('Eigener Code fehlt.'); return; }
+      partnerCode = document.getElementById('partnerCodeInput').value.trim();
+      if (partnerCode.length !== 6) { alert('Code muss 6‑stellig sein.'); return; }
+      if (partnerCode === myCode) { alert('Chat mit dir selbst nicht möglich.'); return; }
+
+      const room = [myCode, partnerCode].sort().join('-');
+      try {
+        const res = await fetch(`${API_BASE}/invites/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: myCode, to: partnerCode })
+        });
+        if (!res.ok) throw new Error('Fehler beim Senden');
+        chatRoom = room;
+        openChat();
+      } catch (e) {
+        alert('Einladung konnte nicht gesendet werden.');
+      }
     }
 
-    // ── Chat starten ─────────────────────────────────────────────────────
-    function inviteAndStartChat() {
-      if (!localMyCode) { alert('Dein Code fehlt.'); return; }
-      const partnerCode = document.getElementById('partnerCodeInput').value.trim();
-      if (partnerCode.length !== 6) { alert('Code muss 6‑stellig sein.'); return; }
-      if (partnerCode === localMyCode) { alert('Chat mit dir selbst nicht möglich.'); return; }
-
-      localPartnerCode = partnerCode;
-      const codes = [localMyCode, partnerCode].sort();
-      localChatRoom = codes[0] + '-' + codes[1];
-      addInvite(localMyCode, partnerCode);
+    async function acceptInvite(fromCode, room) {
+      partnerCode = fromCode;
+      chatRoom = room;
+      // Einladung vom Server löschen
+      await fetch(`${API_BASE}/invites/${myCode}/${fromCode}`, { method: 'DELETE' });
       openChat();
     }
 
@@ -290,10 +291,10 @@
         peer.destroy();
         peer = null;
       }
-      // Peer-ID = raum + "-" + eigener Code (eindeutig pro Raum/Teilnehmer)
-      const peerId = localChatRoom + '-' + localMyCode;
+      // Peer-ID = chatRoom + myCode (sicher eindeutig)
+      const peerId = chatRoom + '-' + myCode;
       peer = new Peer(peerId, {
-        host: '0.peerjs.com',  // kostenloser Cloud-Server
+        host: '0.peerjs.com',
         port: 443,
         secure: true,
         debug: 0
@@ -301,13 +302,12 @@
 
       peer.on('open', (id) => {
         console.log('PeerID:', id);
-        // An Partner verbinden, falls wir der Initiator sind (eigener Code > PartnerCode?)
-        if (localMyCode > localPartnerCode) {
+        // Verbindung zum Partner aufbauen, wenn ich der "Initiator" bin (höherer Code)
+        if (myCode > partnerCode) {
           connectToPartner();
         }
       });
 
-      // Eingehende Verbindungen annehmen
       peer.on('connection', (incomingConn) => {
         conn = incomingConn;
         conn.on('open', () => {
@@ -325,7 +325,7 @@
     }
 
     function connectToPartner() {
-      const partnerPeerId = localChatRoom + '-' + localPartnerCode;
+      const partnerPeerId = chatRoom + '-' + partnerCode;
       console.log('Verbinde zu:', partnerPeerId);
       conn = peer.connect(partnerPeerId, { reliable: true });
       conn.on('open', () => {
@@ -338,11 +338,10 @@
 
     function handleRemoteData(data) {
       if (data.type === 'chat_message') {
-        // Nachricht speichern & anzeigen
         const msgs = getMessages();
         msgs.push({
-          from: localPartnerCode,
-          fromName: data.fromName || maskCode(localPartnerCode),
+          from: partnerCode,
+          fromName: data.fromName || maskCode(partnerCode),
           text: data.text,
           ts: data.ts
         });
@@ -365,17 +364,17 @@
 
     // ── Nachrichten ───────────────────────────────────────────────────────
     function getMessages() {
-      if (!localChatRoom) return [];
-      return JSON.parse(localStorage.getItem(MSG_PREFIX + localChatRoom) || '[]');
+      if (!chatRoom) return [];
+      return JSON.parse(localStorage.getItem(MSG_PREFIX + chatRoom) || '[]');
     }
     function saveMessages(msgs) {
-      localStorage.setItem(MSG_PREFIX + localChatRoom, JSON.stringify(msgs));
+      localStorage.setItem(MSG_PREFIX + chatRoom, JSON.stringify(msgs));
     }
     function renderMessages() {
       const msgs = getMessages();
       const container = document.getElementById('messages');
       container.innerHTML = msgs.map(m => {
-        const isMine = m.from === localMyCode;
+        const isMine = m.from === myCode;
         return `
           <div class="msg-bubble ${isMine ? 'mine' : 'other'}">
             <span class="msg-author">${isMine ? 'Du' : (m.fromName || maskCode(m.from))}</span>
@@ -386,14 +385,14 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    function sendLocalMsg() {
+    function sendMsg() {
       const input = document.getElementById('msgInput');
       const text = input.value.trim();
       if (!text) return;
 
       const msg = {
-        from: localMyCode,
-        fromName: localStorage.getItem('sm_name') || localMyCode,
+        from: myCode,
+        fromName: localStorage.getItem('sm_name') || myCode,
         text,
         ts: Date.now()
       };
@@ -404,11 +403,10 @@
       saveMessages(msgs);
       renderMessages();
 
-      // Per WebRTC senden, falls verbunden
+      // Per WebRTC senden
       if (conn && conn.open) {
         conn.send({ type: 'chat_message', ...msg });
       } else {
-        // Fallback: im localStorage als "ungesendet" markieren (optional)
         console.warn('Nicht verbunden, Nachricht nur lokal gespeichert');
       }
 
@@ -419,8 +417,7 @@
     function openChat() {
       document.getElementById('setup-area').classList.add('hidden');
       document.getElementById('chat-area').classList.add('active');
-      document.getElementById('roomInfo').textContent = 'Raum: ' + localChatRoom;
-      // PeerJS initialisieren
+      document.getElementById('roomInfo').textContent = 'Raum: ' + chatRoom;
       setupPeer();
       renderMessages();
       document.getElementById('msgInput').focus();
@@ -429,19 +426,19 @@
     function resetToSetup() {
       if (conn) { conn.close(); conn = null; }
       if (peer) { peer.destroy(); peer = null; }
-      localChatRoom = null;
-      localPartnerCode = null;
+      chatRoom = '';
+      partnerCode = '';
       document.getElementById('setup-area').classList.remove('hidden');
       document.getElementById('chat-area').classList.remove('active');
       document.getElementById('partnerCodeInput').value = '';
       document.getElementById('roomInfo').textContent = '';
-      renderInvites();
+      loadInvites();
     }
 
-    // ── Polling (Fallback) ───────────────────────────────────────────────
+    // ── Polling ──────────────────────────────────────────────────────────
     function startInvitePolling() {
       if (pollTimer) clearInterval(pollTimer);
-      pollTimer = setInterval(renderInvites, 2000);
+      pollTimer = setInterval(loadInvites, 3000);
     }
 
     // ── Helfer ──────────────────────────────────────────────────────────
@@ -454,7 +451,7 @@
 
     document.addEventListener('DOMContentLoaded', init);
     document.getElementById('msgInput')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendLocalMsg();
+      if (e.key === 'Enter') sendMsg();
     });
   </script>
 </body>
