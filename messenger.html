@@ -147,113 +147,301 @@
     </div>
   </div>
 
-  <script>
-    const STORAGE_PREFIX = 'sm_local_msg_';
-    let currentRoom = null;
-    let myCode = null;
-    let partnerCode = null;
-    let bc = null;
+ <script>
+// ══════════════════════════════════════════════════════════════════════════════
+// LOKALER MESSENGER – Einladungssystem
+// ══════════════════════════════════════════════════════════════════════════════
+const MSG_STORAGE_PREFIX = 'sm_local_msg_';
+const INVITE_KEY = 'sm_local_invites'; // Einladungen im localStorage
+let localChatRoom = null;
+let localMyCode = null;
+let localPartnerCode = null;
+let localBC = null;
+let invitePollInterval = null;
 
-    // Initialisierung
-    function initChat() {
-      myCode = document.getElementById('myCode').value.trim();
-      partnerCode = document.getElementById('partnerCode').value.trim();
+// ── Modal öffnen ─────────────────────────────────────────────────────────
+function openLocalMessenger() {
+  const modal = document.getElementById('local-messenger-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  
+  // Eigenen Code aus localStorage holen
+  const myCode = localStorage.getItem('sm_code');
+  localMyCode = myCode || '';
+  
+  // Prüfen, ob bereits ein aktiver Chat existiert
+  checkForActiveChats();
+  
+  // Setup zeigen
+  document.getElementById('messenger-setup').style.display = 'block';
+  document.getElementById('messenger-invites').style.display = 'block';
+  document.getElementById('messenger-chat').style.display = 'none';
+  document.getElementById('messenger-room-info').textContent = 'Kein Server · Nur dieses Gerät';
+  
+  renderInvites();
+}
 
-      if (myCode.length !== 6 || partnerCode.length !== 6) {
-        alert('Beide Codes müssen 6‑stellig sein.');
+function closeLocalMessenger() {
+  document.getElementById('local-messenger-modal').style.display = 'none';
+  if (invitePollInterval) clearInterval(invitePollInterval);
+}
+
+// ── Aktive Chats prüfen ──────────────────────────────────────────────────
+function checkForActiveChats() {
+  if (!localMyCode) return;
+  
+  // Alle localStorage-Keys durchsuchen
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith(MSG_STORAGE_PREFIX)) {
+      const room = key.replace(MSG_STORAGE_PREFIX, '');
+      const codes = room.split('-');
+      if (codes.includes(localMyCode)) {
+        // Aktiven Chat gefunden!
+        localChatRoom = room;
+        localPartnerCode = codes.find(c => c !== localMyCode);
+        document.getElementById('messenger-room-info').textContent = 'Raum: ' + localChatRoom;
+        document.getElementById('messenger-setup').style.display = 'none';
+        document.getElementById('messenger-invites').style.display = 'none';
+        document.getElementById('messenger-chat').style.display = 'block';
+        
+        // Broadcast Channel starten
+        startBroadcastChannel();
+        renderLocalMessages();
         return;
       }
-
-      if (myCode === partnerCode) {
-        alert('Chat mit dir selbst ist nicht möglich.');
-        return;
-      }
-
-      // Raum-Schlüssel: sortierte Codes
-      const codes = [myCode, partnerCode].sort();
-      currentRoom = codes[0] + '-' + codes[1];
-
-      document.getElementById('roomInfo').textContent = `Raum: ${currentRoom}`;
-      document.getElementById('setup').classList.remove('active');
-      document.getElementById('chat').classList.add('active');
-
-      // Broadcast Channel für tab-übergreifende Echtzeit
-      if (bc) bc.close();
-      bc = new BroadcastChannel(currentRoom);
-      bc.onmessage = (e) => {
-        if (e.data && e.data.type === 'new_msg') renderMessages();
-      };
-
-      renderMessages();
-      document.getElementById('inputMsg').focus();
     }
+  }
+}
 
-    // Nachrichten laden
-    function getMessages() {
-      const raw = localStorage.getItem(STORAGE_PREFIX + currentRoom);
-      return raw ? JSON.parse(raw) : [];
+// ── Einladung senden & Chat starten ──────────────────────────────────────
+function inviteAndStartChat() {
+  const partnerCode = document.getElementById('messenger-partner-code').value.trim();
+  
+  if (!localMyCode || localMyCode.length !== 6) {
+    alert('Dein Code fehlt. Bitte Profil veröffentlichen.');
+    return;
+  }
+  if (partnerCode.length !== 6) {
+    alert('Code muss 6‑stellig sein.');
+    return;
+  }
+  if (partnerCode === localMyCode) {
+    alert('Chat mit dir selbst ist nicht möglich.');
+    return;
+  }
+  
+  localPartnerCode = partnerCode;
+  
+  // Raum-Schlüssel bilden
+  const codes = [localMyCode, partnerCode].sort();
+  localChatRoom = codes[0] + '-' + codes[1];
+  
+  // Einladung speichern (für den anderen sichtbar)
+  addInvite(localMyCode, partnerCode);
+  
+  // Erste Nachricht (Einladungstext)
+  const myName = localStorage.getItem('sm_name') || localMyCode;
+  const msgs = getLocalMessages();
+  msgs.push({
+    from: localMyCode,
+    fromName: myName,
+    text: '👋 Hallo! Ich möchte chatten.',
+    ts: Date.now(),
+    isInvite: true
+  });
+  saveLocalMessages(msgs);
+  
+  // UI umschalten
+  document.getElementById('messenger-room-info').textContent = 'Raum: ' + localChatRoom;
+  document.getElementById('messenger-setup').style.display = 'none';
+  document.getElementById('messenger-invites').style.display = 'none';
+  document.getElementById('messenger-chat').style.display = 'block';
+  
+  startBroadcastChannel();
+  renderLocalMessages();
+  document.getElementById('local-msg-input').focus();
+  
+  if (typeof toast === 'function') toast('💬 Einladung gesendet!');
+}
+
+// ── Einladungen verwalten ────────────────────────────────────────────────
+function getInvites() {
+  const raw = localStorage.getItem(INVITE_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function addInvite(fromCode, toCode) {
+  const invites = getInvites();
+  // Prüfen, ob Einladung bereits existiert
+  if (!invites.find(i => i.from === fromCode && i.to === toCode)) {
+    invites.push({ from: fromCode, to: toCode, ts: Date.now() });
+    localStorage.setItem(INVITE_KEY, JSON.stringify(invites));
+  }
+}
+
+function getMyInvites() {
+  if (!localMyCode) return [];
+  return getInvites().filter(i => i.to === localMyCode);
+}
+
+function acceptInvite(fromCode) {
+  localPartnerCode = fromCode;
+  const codes = [localMyCode, fromCode].sort();
+  localChatRoom = codes[0] + '-' + codes[1];
+  
+  // Einladung entfernen
+  removeInvite(fromCode, localMyCode);
+  
+  document.getElementById('messenger-room-info').textContent = 'Raum: ' + localChatRoom;
+  document.getElementById('messenger-setup').style.display = 'none';
+  document.getElementById('messenger-invites').style.display = 'none';
+  document.getElementById('messenger-chat').style.display = 'block';
+  
+  startBroadcastChannel();
+  renderLocalMessages();
+  document.getElementById('local-msg-input').focus();
+}
+
+function removeInvite(fromCode, toCode) {
+  let invites = getInvites();
+  invites = invites.filter(i => !(i.from === fromCode && i.to === toCode));
+  localStorage.setItem(INVITE_KEY, JSON.stringify(invites));
+}
+
+function renderInvites() {
+  const container = document.getElementById('messenger-invites-list');
+  if (!container) return;
+  
+  const invites = getMyInvites();
+  if (invites.length === 0) {
+    container.innerHTML = '<p style="color:var(--muted2);font-size:0.85rem;text-align:center;">Keine offenen Einladungen</p>';
+  } else {
+    container.innerHTML = invites.map(inv => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem;background:var(--sur);border-radius:10px;margin-bottom:0.4rem;">
+        <span style="font-weight:600;">💬 ${maskLocalCode(inv.from)}</span>
+        <button onclick="acceptInvite('${inv.from}')" style="padding:0.3rem 0.8rem;background:var(--acc);color:white;border:none;border-radius:8px;cursor:pointer;">Beitreten</button>
+      </div>
+    `).join('');
+  }
+}
+
+// ── Nachrichten ─────────────────────────────────────────────────────────
+function getLocalMessages() {
+  if (!localChatRoom) return [];
+  const raw = localStorage.getItem(MSG_STORAGE_PREFIX + localChatRoom);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function saveLocalMessages(msgs) {
+  localStorage.setItem(MSG_STORAGE_PREFIX + localChatRoom, JSON.stringify(msgs));
+}
+
+function renderLocalMessages() {
+  const msgs = getLocalMessages();
+  const container = document.getElementById('local-messages');
+  if (!container) return;
+  
+  container.innerHTML = msgs.map(m => {
+    const isMine = m.from === localMyCode;
+    return `
+      <div class="msg-bubble ${isMine ? 'mine' : 'other'}">
+        <span class="msg-author">${isMine ? 'Du' : (m.fromName || maskLocalCode(m.from))}</span>
+        ${escLocal(m.text)}
+        <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+      </div>`;
+  }).join('');
+  
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendLocalMsg() {
+  const input = document.getElementById('local-msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+  
+  const myName = localStorage.getItem('sm_name') || localMyCode;
+  const msgs = getLocalMessages();
+  msgs.push({
+    from: localMyCode,
+    fromName: myName,
+    text: text,
+    ts: Date.now()
+  });
+  saveLocalMessages(msgs);
+  input.value = '';
+  renderLocalMessages();
+  
+  if (localBC) localBC.postMessage({ type: 'new_local_msg' });
+  
+  // Auch Einladung senden, falls der andere noch nicht beigetreten ist
+  if (localPartnerCode) addInvite(localMyCode, localPartnerCode);
+}
+
+function resetLocalChat() {
+  if (localBC) localBC.close();
+  localBC = null;
+  localChatRoom = null;
+  localPartnerCode = null;
+  
+  document.getElementById('messenger-setup').style.display = 'block';
+  document.getElementById('messenger-invites').style.display = 'block';
+  document.getElementById('messenger-chat').style.display = 'none';
+  document.getElementById('messenger-room-info').textContent = 'Kein Server · Nur dieses Gerät';
+  document.getElementById('messenger-partner-code').value = '';
+  
+  renderInvites();
+}
+
+// ── Broadcast Channel (Echtzeit zwischen Tabs) ───────────────────────────
+function startBroadcastChannel() {
+  if (localBC) localBC.close();
+  localBC = new BroadcastChannel(localChatRoom);
+  localBC.onmessage = (e) => {
+    if (e.data && e.data.type === 'new_local_msg') renderLocalMessages();
+    if (e.data && e.data.type === 'invite_update') renderInvites();
+  };
+}
+
+// ── Polling auf Einladungen ──────────────────────────────────────────────
+function startInvitePolling() {
+  if (invitePollInterval) clearInterval(invitePollInterval);
+  invitePollInterval = setInterval(() => {
+    if (document.getElementById('local-messenger-modal').style.display === 'flex') {
+      renderInvites();
     }
+  }, 2000);
+}
 
-    // Nachrichten speichern
-    function saveMessages(msgs) {
-      localStorage.setItem(STORAGE_PREFIX + currentRoom, JSON.stringify(msgs));
-    }
+// ── Helfer ──────────────────────────────────────────────────────────────
+function escLocal(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
 
-    // Rendern
-    function renderMessages() {
-      const msgs = getMessages();
-      const container = document.getElementById('messages');
-      container.innerHTML = msgs.map(m => {
-        const isMine = m.from === myCode;
-        return `<div class="msg ${isMine ? 'mine' : 'other'}">
-          <span class="author">${esc(isMine ? 'Du' : maskCode(m.from))}</span>
-          ${esc(m.text)}
-          <div style="font-size:0.65rem;opacity:0.5;margin-top:0.2rem;">${new Date(m.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</div>
-        </div>`;
-      }).join('');
-      container.scrollTop = container.scrollHeight;
-    }
+function maskLocalCode(c) {
+  return c ? c.slice(0,3) + '…' : '???';
+}
 
-    // Senden
-    function sendMsg() {
-      const input = document.getElementById('inputMsg');
-      const text = input.value.trim();
-      if (!text) return;
-      const msgs = getMessages();
-      msgs.push({ from: myCode, text, ts: Date.now() });
-      saveMessages(msgs);
-      input.value = '';
-      renderMessages();
-      // Tab-übergreifend benachrichtigen
-      if (bc) bc.postMessage({ type: 'new_msg' });
-    }
+// ── Von extern öffnen (z.B. aus Profil-Detail) ──────────────────────────
+window.openLocalChatWith = function(partnerCode) {
+  openLocalMessenger();
+  document.getElementById('messenger-partner-code').value = partnerCode;
+  document.getElementById('messenger-my-code').value = localStorage.getItem('sm_code') || '';
+  setTimeout(() => inviteAndStartChat(), 500);
+};
 
-    // Verlassen
-    function leaveChat() {
-      if (bc) bc.close();
-      bc = null;
-      currentRoom = null;
-      document.getElementById('chat').classList.remove('active');
-      document.getElementById('setup').classList.add('active');
-      document.getElementById('myCode').value = '';
-      document.getElementById('partnerCode').value = '';
-    }
-
-    // Helfer
-    function esc(s) {
-      const d = document.createElement('div');
-      d.textContent = String(s);
-      return d.innerHTML;
-    }
-
-    function maskCode(c) {
-      return c ? c.slice(0,3) + '…' : '???';
-    }
-
-    // Enter im Input
-    document.getElementById('inputMsg').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMsg();
+// ── Events ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('local-msg-input');
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendLocalMsg();
     });
-  </script>
-</body>
+  }
+  startInvitePolling();
+});
+    </script>
+  </body>
   </html>
