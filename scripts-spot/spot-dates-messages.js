@@ -12,17 +12,19 @@ const _MSG_API = (typeof API_BASE !== 'undefined') ? API_BASE
               : (typeof API     !== 'undefined') ? API
               : 'https://spotme-chat-obom.onrender.com/api';
 
-// Fallback-Aliase, falls andere Skripte falsche Namen verwenden
-window.fetchAndRenderOfflineMsg = window.fetchAndRenderOfflineMsgs;
-window.fetchAndRenderOfflineMsgSilent = window.fetchAndRenderOfflineMsgsSilent;
-window.fetchAnndrenderOfflineMsg = window.fetchAndRenderOfflineMsgs;
-window.fetchAnndrenderOfflineMsgSILENT = window.fetchAndRenderOfflineMsgsSilent;
+// ══════════════════════════════════════════════════════════════════════════════
+// TOKEN-HILFSFUNKTION – prüft dates-spezifischen Token, sonst globalen
+// ══════════════════════════════════════════════════════════════════════════════
+function getToken() {
+  return localStorage.getItem('sm_token_dates') || localStorage.getItem('sm_token');
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // NACHRICHT SENDEN
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function sendPrivateMessage(recipientCode, recipientName, messageText) {
-  const token = localStorage.getItem('sm_token');
+  const token = getToken();
   const code  = localStorage.getItem('sm_code');
   const name  = localStorage.getItem('sm_name') || 'Ich';
   
@@ -58,7 +60,7 @@ async function sendPrivateMessage(recipientCode, recipientName, messageText) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 async function fetchPrivateMessages() {
-  const token = localStorage.getItem('sm_token');
+  const token = getToken();
   const code  = localStorage.getItem('sm_code');
   if (!token || !code) return [];
   
@@ -107,13 +109,21 @@ function stopMessagePolling() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// KOMPATIBILITÄT mit spot-init.js – stilles Polling wird bereits erledigt
+// ══════════════════════════════════════════════════════════════════════════════
+window.fetchAndRenderOfflineMsgsSilent = async function() {
+  // Wird von spot-init.js alle 60s aufgerufen. Unser eigenes Polling läuft
+  // bereits über startMessagePolling(), daher lassen wir diese Funktion leer.
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Alte globale Funktionen überschreiben, falls sie von spot-kurznachricht.js gesetzt wurden
 window.showKurznachrichtModal = function(code, name) {
   // Modal-Logik aus spot-kurznachricht.js übernehmen, aber sendPrivateMessage nutzen
-  const token = localStorage.getItem('sm_token');
+  const token = getToken();
   if (!token) {
     if (typeof toast === 'function') toast('⚠️ Bitte zuerst dein Profil veröffentlichen');
     return;
@@ -146,14 +156,14 @@ window.showKurznachrichtModal = function(code, name) {
 };
 
 // Erst starten wenn Token vorhanden (Token kann beim Laden noch fehlen)
-if (localStorage.getItem('sm_token')) {
+if (getToken()) {
   startMessagePolling();
 } else {
   // Auf Token warten — alle 500ms prüfen, max. 10 Sekunden
   let _waitAttempts = 0;
   const _waitForToken = setInterval(() => {
     _waitAttempts++;
-    if (localStorage.getItem('sm_token')) {
+    if (getToken()) {
       clearInterval(_waitForToken);
       startMessagePolling();
     } else if (_waitAttempts >= 20) {
