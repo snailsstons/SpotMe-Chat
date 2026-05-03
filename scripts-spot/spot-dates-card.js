@@ -366,9 +366,11 @@ if (isOwner) {
         <div class="card-location">📍 ${loc}</div>
         ${badges ? `<div class="card-tags">${badges}</div>` : ''}
         <div class="card-bio">${bio}</div>
-        <div class="card-bottom">
+       <div class="card-bottom">
           <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Privat Nachricht</button>
-        </div>
+          <button class="card-chat-btn" onclick="event.stopPropagation(); openMessengerFor('${p.code}','${name}')" style="margin-left:0.3rem; background:#ff9a00;">💬 Messenger</button>
+         </div>
+
       </div>
     </div>
 
@@ -1100,6 +1102,20 @@ async function updateHeaderOnlineDotFromServer(myCode) {
     updateHeaderOnlineDot(false);
   }
 }
+// ══════════════════════════════════════════════════════════════════════════════
+// 🆕 LOKALER MESSENGER (P2P) – Öffnet messenger.html mit Partner-Code
+// ══════════════════════════════════════════════════════════════════════════════
+window.openMessengerFor = function(partnerCode, partnerName) {
+  if (!partnerCode) return;
+  const myCode = localStorage.getItem('sm_code');
+  if (!myCode) {
+    if (typeof toast === 'function') toast('⚠️ Eigenes Profil erforderlich');
+    return;
+  }
+  // Öffnet messenger.html in neuem Tab/Fenster
+  window.open(`messenger.html?partner=${partnerCode}`, '_blank');
+  if (typeof toast === 'function') toast(`💬 Messenger mit ${partnerName || maskCode(partnerCode)} geöffnet`);
+};
 
 
 // ══════════════════════════════════════════════════════════════════════════════
