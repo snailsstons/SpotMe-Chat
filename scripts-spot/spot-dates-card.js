@@ -1,43 +1,27 @@
 'use strict';
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOT DATES – CARD ANSICHT v4.6 – Header-Online-Punkt & Heartbeat-Fix
-// Doppeltap Card = Flip | Doppeltap Bild = Fullscreen | Swipe = Nächste Karte
-// Pinch = Kurznachricht | ❤️ Button = Notieren | 🔔 Brief = Neue Kommentare
-// 🔖 Lesezeichen = Notierte Profile | 🟢 Header-Punkt = Online-Status
+// SPOT DATES – CARD ANSICHT v5.0 – Inline Messenger (P2P)
 // ══════════════════════════════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════════════════════
-// 🆕 PERFORMANCE-BOOST: API-Calls für Card-Ansicht optimieren
-// ══════════════════════════════════════════════════════════════════════════════
-
+// Performance-Optimierungen
 const originalFetchLocation = window.fetchLocationForProfile;
 window.fetchLocationForProfile = function(code) {
-  if (locationCache && locationCache.has(code)) {
-    return Promise.resolve(locationCache.get(code));
-  }
+  if (locationCache && locationCache.has(code)) return Promise.resolve(locationCache.get(code));
   return Promise.resolve(null);
 };
 window.fetchLocationForProfile._original = originalFetchLocation;
 
 const originalFetchOnline = window.fetchOnlineStatus;
 window.fetchOnlineStatus = function(code) {
-  if (onlineStatusCache && onlineStatusCache.has(code)) {
-    return Promise.resolve(onlineStatusCache.get(code));
-  }
+  if (onlineStatusCache && onlineStatusCache.has(code)) return Promise.resolve(onlineStatusCache.get(code));
   return Promise.resolve({ online: false });
 };
 
 const originalFetchVerifications = window.fetchVerifications;
 window.fetchVerifications = function(code) {
-  if (verificationCache && verificationCache.has(code)) {
-    return Promise.resolve(verificationCache.get(code));
-  }
+  if (verificationCache && verificationCache.has(code)) return Promise.resolve(verificationCache.get(code));
   return Promise.resolve([]);
 };
-
-// ══════════════════════════════════════════════════════════════════════════════
-// KONSTANTEN & STATE
-// ══════════════════════════════════════════════════════════════════════════════
 
 const API_BASE   = 'https://spotme-chat-obom.onrender.com/api';
 const NOTED_KEY  = 'sm_noted_dates';
@@ -46,9 +30,21 @@ let notedProfiles = [];
 let currentIndex = 0;
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 SOFORT-START: Eigenes Profil aus localStorage vorab laden
+// INLINE MESSENGER STATE
 // ══════════════════════════════════════════════════════════════════════════════
+let activePartnerCode = null;
+let activeChatRoom    = null;
+let activePeer        = null;
+let activeConn        = null;
+let messengerMessages = [];
+let messengerOpen     = false;
 
+// Hilfsfunktion (wird auch anderswo verwendet)
+const maskCode = c => c ? c.slice(0,3)+'…' : '???';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PRELOAD MY PROFILE
+// ══════════════════════════════════════════════════════════════════════════════
 (function preloadMyProfile() {
   const myCode = localStorage.getItem('sm_code');
   if (!myCode || (typeof allProfiles !== 'undefined' && allProfiles.length > 0)) return;
@@ -56,7 +52,7 @@ let currentIndex = 0;
   const localProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
   if (!localProfile.name) return;
   
-  const myProfile = {
+  allProfiles = [{
     code: myCode,
     name: localProfile.name || localStorage.getItem('sm_name') || 'Ich',
     age: localProfile.age || '',
@@ -65,173 +61,103 @@ let currentIndex = 0;
     bio: localProfile.bio || 'Keine Beschreibung',
     lookingFor: localProfile.lookingFor || '',
     ts: Date.now()
-  };
-  
-  allProfiles = [myProfile];
-  filtered = [myProfile];
+  }];
+  filtered = [...allProfiles];
   currentIndex = 0;
   
-  // Heartbeat senden und Profil als online markieren
   if (myCode) {
-    fetch(`${API_BASE}/heartbeat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: myCode, spot: 'dates' })
-    }).catch(() => {});
-
-    // nur wenn tatsächlich published
-    if (localStorage.getItem('sm_spot_published') === '1') {
-     window.isPublished = true;
-    }
-
-    // 🆕 Eigenes Profil sofort als online markieren, damit der Header-Punkt grün wird
-    if (onlineStatusCache) {
-      onlineStatusCache.set(myCode, { online: true });
-    }
-    
-    // Header-Punkt sofort grün
+    fetch(`${API_BASE}/heartbeat`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({code:myCode,spot:'dates'}) }).catch(()=>{});
+    if (localStorage.getItem('sm_spot_published') === '1') window.isPublished = true;
+    if (onlineStatusCache) onlineStatusCache.set(myCode, { online: true });
     updateHeaderOnlineDot(true);
   }
   
   renderList();
-
-  // Eigenes Profil frisch aus localStorage in allProfiles aktualisieren
-  // (Damit Änderungen aus profil-dates.html sofort in der Karte erscheinen)
-  const freshProfile = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
-  if (freshProfile.name && myCode) {
-    const ownIdx = allProfiles.findIndex(p => p.code === myCode);
-    if (ownIdx >= 0) {
-      allProfiles[ownIdx] = {
-        ...allProfiles[ownIdx],
-        name:       freshProfile.name,
-        age:        freshProfile.year ? new Date().getFullYear() - freshProfile.year : allProfiles[ownIdx].age,
-        region:     freshProfile.region     || allProfiles[ownIdx].region,
-        city:       freshProfile.city        || allProfiles[ownIdx].city,
-        bio:        freshProfile.bio         || allProfiles[ownIdx].bio,
-        lookingFor: freshProfile.lookingFor  || allProfiles[ownIdx].lookingFor,
+  
+  const fresh = JSON.parse(localStorage.getItem('sm_profile_dates') || '{}');
+  if (fresh.name && myCode) {
+    const idx = allProfiles.findIndex(p => p.code === myCode);
+    if (idx >= 0) {
+      allProfiles[idx] = { ...allProfiles[idx],
+        name: fresh.name,
+        age: fresh.year ? new Date().getFullYear() - fresh.year : allProfiles[idx].age,
+        region: fresh.region || allProfiles[idx].region,
+        city: fresh.city || allProfiles[idx].city,
+        bio: fresh.bio || allProfiles[idx].bio,
+        lookingFor: fresh.lookingFor || allProfiles[idx].lookingFor,
       };
-      // filtered auch aktualisieren
-      const filtIdx = filtered.findIndex(p => p.code === myCode);
-      if (filtIdx >= 0) filtered[filtIdx] = allProfiles[ownIdx];
-      // Karte neu rendern falls gerade eigene Karte sichtbar
+      const fidx = filtered.findIndex(p => p.code === myCode);
+      if (fidx >= 0) filtered[fidx] = allProfiles[idx];
       if (filtered[currentIndex]?.code === myCode) renderCurrentCard();
     }
   }
-
-  // Header-Punkt alle 30 Sekunden aktualisieren
+  
   setInterval(() => updateHeaderOnlineDotFromServer(myCode), 30000);
-
-
-  // Alle 60s neue Kommentare auf eigenem Profil prüfen
   setInterval(async () => {
     if (!myCode) return;
     const fresh = await loadComments(myCode);
     if (!fresh.length) return;
     const latest = Math.max(...fresh.map(c => new Date(c.timestamp).getTime()));
     const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-    const lastSeen = alerts[myCode] || 0;
-    if (latest > lastSeen) {
-      // Neuer Kommentar — Brief-Icon zeigen ohne Seite neu zu laden
-      const heartEl = document.getElementById('cardHeart');
-      if (heartEl && filtered[currentIndex]?.code === myCode) {
-        renderCurrentCard(); // Karte neu rendern mit Alert-Icon
-      }
-    }
+    if (latest > (alerts[myCode] || 0) && filtered[currentIndex]?.code === myCode) renderCurrentCard();
   }, 60000);
   
   console.log('⚡ Eigenes Profil vorab geladen');
 })();
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 AVATAR CACHE + COMMENTS CACHE
+// AVATAR CACHE + COMMENTS CACHE
 // ══════════════════════════════════════════════════════════════════════════════
-
-const avatarCache   = new Map();
+const avatarCache = new Map();
 const COMMENTS_CACHE = new Map();
 
 async function loadCardAvatar(code) {
   if (avatarCache.has(code)) return avatarCache.get(code);
-  
   try {
     const res = await fetch(`${API_BASE}/avatar/${code}?spot=dates`);
     if (!res.ok) return null;
     const data = await res.json();
-    if (data.avatar) {
-      avatarCache.set(code, data.avatar);
-      return data.avatar;
-    }
-  } catch(e) { /* Server offline – Fallback: Initial-Buchstabe */ }
+    if (data.avatar) { avatarCache.set(code, data.avatar); return data.avatar; }
+  } catch(e) {}
   return null;
 }
 
 function preloadAvatar(code) {
   if (avatarCache.has(code)) return;
-  fetch(`${API_BASE}/avatar/${code}?spot=dates`)
-    .then(r => r.json())
-    .then(d => { if (d.avatar) avatarCache.set(code, d.avatar); })
-    .catch(() => {});
+  fetch(`${API_BASE}/avatar/${code}?spot=dates`).then(r=>r.json()).then(d=>{ if(d.avatar) avatarCache.set(code,d.avatar); }).catch(()=>{});
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 🆕 PRELOAD: Nächste Profile + Avatare im Hintergrund laden
-// ══════════════════════════════════════════════════════════════════════════════
 
 function preloadNextProfiles() {
   if (filtered.length === 0) return;
-  
-  if (currentIndex >= filtered.length) {
-    currentIndex = 0;
-  }
-  
+  if (currentIndex >= filtered.length) currentIndex = 0;
   const toPreload = [];
   for (let i = 1; i <= 10; i++) {
-    const nextIndex = (currentIndex + i) % filtered.length;
-    const prevIndex = (currentIndex - i + filtered.length) % filtered.length;
-    
-    if (filtered[nextIndex] && nextIndex !== currentIndex) {
-      toPreload.push(filtered[nextIndex]);
-    }
-    if (filtered[prevIndex] && prevIndex !== currentIndex && prevIndex !== nextIndex) {
-      toPreload.push(filtered[prevIndex]);
-    }
+    const next = (currentIndex + i) % filtered.length;
+    const prev = (currentIndex - i + filtered.length) % filtered.length;
+    if (filtered[next] && next !== currentIndex) toPreload.push(filtered[next]);
+    if (filtered[prev] && prev !== currentIndex && prev !== next) toPreload.push(filtered[prev]);
   }
-  
-  const unique = [...new Set(toPreload.map(p => p?.code).filter(Boolean))];
-  console.log('🔄 Preload:', unique.length, 'Profile');
-  
-  unique.forEach(code => {
+  [...new Set(toPreload.map(p=>p?.code).filter(Boolean))].forEach(code => {
     setTimeout(() => {
       if (window.fetchLocationForProfile._original) {
-        window.fetchLocationForProfile._original(code).then(loc => {
-          if (loc && locationCache) locationCache.set(code, loc);
-        }).catch(() => {});
+        window.fetchLocationForProfile._original(code).then(loc => { if(loc&&locationCache) locationCache.set(code,loc); }).catch(()=>{});
       }
-      if (originalFetchOnline) {
-        originalFetchOnline(code).then(status => {
-          if (status && onlineStatusCache) onlineStatusCache.set(code, status);
-        }).catch(() => {});
-      }
+      if (originalFetchOnline) originalFetchOnline(code).then(s => { if(s&&onlineStatusCache) onlineStatusCache.set(code,s); }).catch(()=>{});
     }, 100);
-    
-    setTimeout(() => {
-      preloadAvatar(code);
-    }, 200);
+    setTimeout(() => preloadAvatar(code), 200);
   });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // RENDER LIST (Cards → Filter → Notierte)
 // ══════════════════════════════════════════════════════════════════════════════
-
 window.renderList = function() {
   const container = document.getElementById('community-list');
   if (!container) return;
-  
   const countEl = document.getElementById('community-count');
   if (countEl) {
-   countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Date wartet' : 'Dates warten'} auf Dich.<br><span style="font-size:0.7rem;color:var(--muted);">Dreh an der Profilkarte ✋</span>`;
-    }
-  
+    countEl.innerHTML = `<b>${filtered.length}</b> ${filtered.length === 1 ? 'Date wartet' : 'Dates warten'} auf Dich.<br><span style="font-size:0.7rem;color:var(--muted);">Dreh an der Profilkarte ✋</span>`;
+  }
   const filterState = {
     region: document.getElementById('f-region')?.value || '',
     age: document.getElementById('f-age')?.value || '',
@@ -247,42 +173,40 @@ window.renderList = function() {
       </div>
       <div class="card-wrapper" id="cardWrapper"></div>
     </div>
-  <div id="filterAnchor"></div>
-  <div class="noted-section" id="notedSection"></div>
+    <div id="filterAnchor"></div>
+    <div class="noted-section" id="notedSection"></div>
   `;
   
   document.getElementById('prevBtn')?.addEventListener('click', () => {
     if (filtered.length === 0) return;
     currentIndex = currentIndex > 0 ? currentIndex - 1 : filtered.length - 1;
+    if (messengerOpen) closeInlineMessenger(true);
     renderCurrentCard();
   });
   document.getElementById('nextBtn')?.addEventListener('click', () => {
     if (filtered.length === 0) return;
     currentIndex = currentIndex < filtered.length - 1 ? currentIndex + 1 : 0;
+    if (messengerOpen) closeInlineMessenger(true);
     renderCurrentCard();
   });
   
   notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
-  
   if (filtered.length > 0) {
     if (currentIndex >= filtered.length) currentIndex = 0;
     renderCurrentCard();
   } else {
     document.getElementById('cardWrapper').innerHTML = `<div class="card-empty">Keine Profile gefunden</div>`;
   }
-  
   renderFilterSection(filterState);
   renderNotedSection();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CARD RENDERING (MIT AVATAR + STORY + KOMMENTARE + ALERT)
+// CARD RENDERING (MIT INLINE MESSENGER BEREICH)
 // ══════════════════════════════════════════════════════════════════════════════
-
 function renderCurrentCard() {
   const wrapper = document.getElementById('cardWrapper');
   if (!wrapper || filtered.length === 0) return;
-  
   const navInfo = document.querySelector('.card-nav-info');
   if (navInfo) navInfo.textContent = `${currentIndex + 1} / ${filtered.length}`;
   
@@ -299,33 +223,42 @@ function renderCurrentCard() {
   const isNoted = notedProfiles.includes(p.code);
   const onlineStatus = onlineStatusCache.get(p.code);
   const isOnline = onlineStatus && onlineStatus.online;
-  
-  let badges = '';
-  if (p.lookingFor) {
-    const labels = { 'beziehung': '💕 Beziehung', 'freundschaft': '👥 Freundschaft', 'casual': '🍸 Casual' };
-    badges += `<span class="card-tag">${labels[p.lookingFor] || p.lookingFor}</span>`;
-  }
-
   const isOwner = (localStorage.getItem('sm_code') === p.code);
-
-// 🆕 Prüfen ob neue Kommentare existieren (vor dem Rendern)
-let showAlertIcon = false;
-let showMsgIcon = false;
-let msgCount = 0; // <-- Wichtig: Variable für das Icon definieren
-
-if (isOwner) {
-  // Neue Kommentare prüfen
-  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-  const lastSeen = alerts[p.code] || 0;
-  const cachedComments = COMMENTS_CACHE.get(p.code) || [];
-  const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => new Date(c.timestamp).getTime())) : 0;
-  showAlertIcon = latestComment > lastSeen;
-
-  // 🆕 Neue Kurznachrichten prüfen
-  msgCount = parseInt(localStorage.getItem('sm_unread_kurznachrichten_dates') || '0');
-  showMsgIcon = msgCount > 0;
-}
-    wrapper.innerHTML = `
+  
+  let showAlertIcon = false;
+  let showMsgIcon = false;
+  let msgCount = 0;
+  if (isOwner) {
+    const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+    const lastSeen = alerts[p.code] || 0;
+    const cachedComments = COMMENTS_CACHE.get(p.code) || [];
+    const latestComment = cachedComments.length > 0 ? Math.max(...cachedComments.map(c => new Date(c.timestamp).getTime())) : 0;
+    showAlertIcon = latestComment > lastSeen;
+    msgCount = parseInt(localStorage.getItem('sm_unread_kurznachrichten_dates') || '0');
+    showMsgIcon = msgCount > 0;
+  }
+  
+  // Messenger-Bereich vorbereiten
+  const messengerActive = messengerOpen && activePartnerCode === p.code;
+  
+  const backMessengerHTML = messengerActive ? `
+    <div class="inline-messenger" id="inlineMessenger-${p.code}">
+      <div class="messenger-header">
+        <span>💬 Messenger mit ${escHtml(name)}</span>
+        <button class="messenger-close-btn" onclick="event.stopPropagation(); closeInlineMessenger(false)">✕</button>
+      </div>
+      <div class="messenger-messages" id="messengerMessages-${p.code}"></div>
+      <div class="messenger-status" id="messengerStatus-${p.code}">Verbinde...</div>
+      <div class="messenger-input-row">
+        <input type="text" id="messengerInput-${p.code}" placeholder="Nachricht..." autocomplete="off">
+        <button class="messenger-attach-btn" onclick="document.getElementById('messengerFile-${p.code}').click()">📎</button>
+        <input type="file" id="messengerFile-${p.code}" accept="image/*" style="display:none" onchange="sendInlineFile(this, '${p.code}')">
+        <button class="messenger-send-btn" onclick="sendInlineMessage('${p.code}')">➤</button>
+      </div>
+    </div>
+  ` : '';
+  
+  wrapper.innerHTML = `
   <div class="card-inner" id="cardInner">
     <div class="card-front">
       <div class="card-image-container" id="cardImgContainer-${p.code}">
@@ -341,74 +274,61 @@ if (isOwner) {
         </div>
         `}
         
-        <!-- 🟢 Online-Status-Punkt (für ALLE Profile sichtbar) -->
-        
         <div class="card-online-dot ${isOnline ? 'online' : ''}" 
-         title="${isOnline ? 'Jetzt online' : ''}"> ${!isOnline ? `<span class="card-lastseen">${timeAgo(p.last_seen || p.ts)}</span>` : ''}
-        </div>
-
+             title="${isOnline ? 'Jetzt online' : ''}"> ${!isOnline ? `<span class="card-lastseen">${timeAgo(p.last_seen || p.ts)}</span>` : ''}</div>
         <div class="card-search" onclick="event.stopPropagation(); toggleFilterModal()" title="Filter & Suche">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <div class="card-noted" onclick="event.stopPropagation(); toggleNotedModal()" title="Notierte Profile">
           <svg viewBox="0 0 24 24" width="36" height="36"><path fill="none" stroke="white" stroke-width="2" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         </div>
-
         ${showMsgIcon ? `
         <div class="card-msg-icon" onclick="event.stopPropagation(); openKurznachrichtenPanel()" title="Neue Kurznachrichten">
           <svg viewBox="0 0 24 24" width="28" height="28"><path fill="none" stroke="white" stroke-width="2" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path fill="none" stroke="white" stroke-width="2" d="M22 6l-10 7L2 6"/></svg>
           <span class="card-msg-badge">${msgCount}</span>
         </div>` : ''}
-        
       </div>
       <div class="card-content">
         <div class="card-name-age">${name}${age ? ', ' + age : ''}</div>
         <div class="card-location">📍 ${loc}</div>
-        ${badges ? `<div class="card-tags">${badges}</div>` : ''}
+        ${p.lookingFor ? `<div class="card-tags"><span class="card-tag">${ { 'beziehung': '💕 Beziehung', 'freundschaft': '👥 Freundschaft', 'casual': '🍸 Casual' }[p.lookingFor] || p.lookingFor }</span></div>` : ''}
         <div class="card-bio">${bio}</div>
-       <div class="card-bottom">
+        <div class="card-bottom">
           <button class="card-chat-btn" onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Privat Nachricht</button>
-          <button class="card-chat-btn" onclick="event.stopPropagation(); openMessengerFor('${p.code}','${name}')" style="margin-left:0.3rem; background:#ff9a00;">💬 Messenger</button>
-         </div>
-
+          <button class="card-chat-btn" onclick="event.stopPropagation(); openInlineMessenger('${p.code}','${name}')" style="margin-left:0.3rem; background:#ff9a00;">💬 Messenger</button>
+        </div>
       </div>
     </div>
 
-<div class="card-back" id="cardBack-${p.code}">
-  <div class="back-header">📖 ${name}'s Story</div>
-  <div class="back-section">
-    <p class="story-text">${bio}</p>
-  </div>
-  
-  <div class="back-section">
-    <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
-    
-    <div class="comment-input-row">
-      <textarea id="commentInput-${p.code}" class="comment-input" 
-        placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140"
-        rows="3"></textarea>
-      <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
+    <div class="card-back" id="cardBack-${p.code}">
+      <div class="back-header">📖 ${name}'s Story</div>
+      <div class="back-section">
+        <p class="story-text">${bio}</p>
+      </div>
+      
+      <div class="back-section">
+        <h4>💬 Kommentare <span id="commentCount-${p.code}" style="font-weight:400;color:var(--muted);"></span></h4>
+        <div class="comment-input-row">
+          <textarea id="commentInput-${p.code}" class="comment-input" placeholder="Dein Kommentar (max. 140 Zeichen)…" maxlength="140" rows="3"></textarea>
+          <button class="comment-send-btn" onclick="submitCommentHandler('${p.code}')">➤</button>
+        </div>
+        <div class="comment-status" id="commentStatus-${p.code}"></div>
+        <div class="comments-list" id="commentsList-${p.code}"><div class="comments-loading">⏳ Lade Kommentare…</div></div>
+      </div>
+      
+      ${backMessengerHTML}
+      
+      <div class="back-actions">
+        <button onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
+        <button onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
+        <button onclick="event.stopPropagation(); openInlineMessenger('${p.code}','${name}')" style="background:#ff9a00;">💬 Messenger</button>
+      </div>
+      
+      <button class="close-back-btn" onclick="event.stopPropagation(); document.getElementById('cardInner').classList.remove('is-flipped');">✕ Schließen</button>
     </div>
-    <div class="comment-status" id="commentStatus-${p.code}"></div>
-    
-    <div class="comments-list" id="commentsList-${p.code}">
-      <div class="comments-loading">⏳ Lade Kommentare…</div>
-    </div>
-  </div>
-  
-  <div class="back-actions">
-    <button onclick="event.stopPropagation(); showKurznachrichtModal('${p.code}','${name}')">✉️ Kurznachricht</button>
-    <button onclick="event.stopPropagation(); startChat('${p.code}','${name}')">💬 Chat</button>
-  </div>
-  
-  <button class="close-back-btn" onclick="event.stopPropagation(); document.getElementById('cardInner').classList.remove('is-flipped');">
-    ✕ Schließen
-  </button>
-</div>
+  </div>`;
 
-`;
-
-  // 🆕 Avatar asynchron laden
+  // Avatar nachladen
   const avatarContainer = document.getElementById(`cardAv-${p.code}`);
   const imgContainer = document.getElementById(`cardImgContainer-${p.code}`);
   if (avatarContainer && imgContainer) {
@@ -417,17 +337,9 @@ if (isOwner) {
         const testImg = new Image();
         testImg.onload = function() {
           const ratio = testImg.width / testImg.height;
-          let fit, pos;
-          if (ratio > 1.1) {
-            fit = 'cover'; pos = 'center';
-          } else if (ratio < 0.9) {
-            fit = 'cover'; pos = 'top';
-          } else {
-            fit = 'cover'; pos = 'center';
-          }
-          avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" 
-            style="width:100%;height:100%;object-fit:${fit};object-position:${pos};"
-            ondblclick="event.stopPropagation(); showFullscreenAvatar(this.src, '${name.replace(/'/g, "\\'")}')">`;
+          let fit = ratio > 1.1 ? 'cover' : (ratio < 0.9 ? 'cover' : 'cover');
+          let pos = ratio > 1.1 ? 'center' : (ratio < 0.9 ? 'top' : 'center');
+          avatarContainer.innerHTML = `<img src="${avatarBase64}" alt="${name}" style="width:100%;height:100%;object-fit:${fit};object-position:${pos};" ondblclick="event.stopPropagation(); showFullscreenAvatar(this.src, '${name.replace(/'/g, "\\'")}')">`;
         };
         testImg.src = avatarBase64;
         avatarContainer.style.fontSize = '0';
@@ -436,39 +348,36 @@ if (isOwner) {
     });
   }
   
-  // 🆕 Kommentare laden + auf neue prüfen
+  // Kommentare laden
   loadComments(p.code).then(comments => {
     const listEl = document.getElementById(`commentsList-${p.code}`);
     const countEl = document.getElementById(`commentCount-${p.code}`);
-    if (listEl) {
-      listEl.innerHTML = renderCommentsSection(comments, p.code, isOwner);
-    }
-    if (countEl) {
-      countEl.textContent = `(${comments.length})`;
-    }
+    if (listEl) listEl.innerHTML = renderCommentsSection(comments, p.code, isOwner);
+    if (countEl) countEl.textContent = `(${comments.length})`;
   });
-
-  // 🆕 Wenn das eigene Profil gerendert wird, Profilbar aktualisieren
+  
+  // Messenger rendern
+  if (messengerActive) {
+    renderInlineMessages(p.code);
+    const msgInput = document.getElementById(`messengerInput-${p.code}`);
+    if (msgInput) {
+      msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendInlineMessage(p.code); });
+    }
+    updateInlineStatus(p.code);
+  }
+  
+  // Profilbar aktualisieren
   if (isOwner) {
     const profileBar = document.getElementById('profile-bar');
     if (profileBar) {
       profileBar.style.display = 'flex';
       document.getElementById('my-name-small').textContent = name;
-      const metaEl = document.getElementById('my-meta-small');
-      if (metaEl) {
-        metaEl.textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
-      }
-      
-      // Auge-Icon (Sichtbarkeit) setzen
+      document.getElementById('my-meta-small').textContent = `${p.age ? p.age + ' J. · ' : ''}${p.city || ''} ${p.region ? '(' + p.region + ')' : ''}`.trim();
       const publishBtn = document.getElementById('publish-toggle-small');
       if (publishBtn) {
-        // Prüfen, ob das Profil auf dem Server noch sichtbar ist (24h)
         const isPublished = p.visible_until && p.visible_until > Date.now();
         publishBtn.textContent = isPublished ? '👁️‍🗨️' : '👁️';
-        // Zusätzlich ein Attribut setzen, falls es woanders gebraucht wird
         publishBtn.setAttribute('data-published', isPublished ? 'true' : 'false');
-        
-        // 🆕 Globalen Status für spot-keepalive.js korrigieren
         window.isPublished = isPublished;
         localStorage.setItem('sm_published', String(isPublished));
       }
@@ -480,9 +389,267 @@ if (isOwner) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🔖 NOTIERTE PROFIL MODAL
+// INLINE MESSENGER FUNKTIONEN (KOMPLETT)
 // ══════════════════════════════════════════════════════════════════════════════
 
+function ensurePeerJS(callback) {
+  if (window.Peer) return callback();
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js';
+  script.onload = callback;
+  document.head.appendChild(script);
+}
+
+window.openInlineMessenger = function(partnerCode, partnerName) {
+  const myCode = localStorage.getItem('sm_code');
+  if (!myCode) { if (typeof toast === 'function') toast('⚠️ Eigenes Profil erforderlich'); return; }
+  if (!partnerCode || partnerCode === myCode) return;
+  
+  if (messengerOpen && activePartnerCode === partnerCode) return;
+  if (messengerOpen) closeInlineMessenger(false);
+  
+  fetch(`${API_BASE}/invites/send`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ from: myCode, to: partnerCode })
+  }).catch(()=>{});
+  
+  activePartnerCode = partnerCode;
+  const codes = [myCode, partnerCode].sort();
+  activeChatRoom = codes[0] + '-' + codes[1];
+  messengerOpen = true;
+  messengerMessages = loadMessengerMessages(activeChatRoom);
+  
+  if (filtered[currentIndex]?.code !== partnerCode) {
+    const idx = filtered.findIndex(p => p.code === partnerCode);
+    if (idx >= 0) currentIndex = idx;
+    else currentIndex = 0;
+  }
+  renderCurrentCard();
+  
+  ensurePeerJS(() => {
+    startPeerConnection();
+  });
+};
+
+function startPeerConnection() {
+  if (!activeChatRoom || !activePartnerCode) return;
+  const myCode = localStorage.getItem('sm_code');
+  
+  if (activePeer) { activePeer.destroy(); activePeer = null; }
+  
+  const peerId = activeChatRoom + '-' + myCode;
+  activePeer = new Peer(peerId, {
+    host: '0.peerjs.com', port: 443, secure: true, debug: 0
+  });
+  
+  activePeer.on('open', (id) => {
+    console.log('Inline PeerID:', id);
+    if (myCode > activePartnerCode) {
+      connectToInlinePartner();
+    }
+  });
+  
+  activePeer.on('connection', (incomingConn) => {
+    activeConn = incomingConn;
+    activeConn.on('open', () => {
+      updateInlineStatus(activePartnerCode);
+      activeConn.on('data', handleInlineData);
+    });
+    activeConn.on('close', () => updateInlineStatus(activePartnerCode));
+    activeConn.on('error', () => updateInlineStatus(activePartnerCode));
+  });
+  
+  activePeer.on('error', (err) => {
+    console.error('Peer-Fehler:', err);
+    updateInlineStatus(activePartnerCode);
+  });
+  
+  setTimeout(() => {
+    if (activePeer && !activeConn) connectToInlinePartner();
+  }, 1000);
+}
+
+function connectToInlinePartner() {
+  if (!activePeer || !activePartnerCode) return;
+  const partnerPeerId = activeChatRoom + '-' + activePartnerCode;
+  console.log('Verbinde zu Partner:', partnerPeerId);
+  activeConn = activePeer.connect(partnerPeerId, { reliable: true });
+  activeConn.on('open', () => {
+    updateInlineStatus(activePartnerCode);
+    activeConn.on('data', handleInlineData);
+  });
+  activeConn.on('close', () => updateInlineStatus(activePartnerCode));
+  activeConn.on('error', () => updateInlineStatus(activePartnerCode));
+}
+
+function handleInlineData(data) {
+  if (typeof data === 'string') {
+    try {
+      const msg = JSON.parse(data);
+      if (msg.type === 'file_start') {
+        startReceivingInlineFile(msg);
+      } else if (msg.type === 'chat_message') {
+        if (msg.from !== localStorage.getItem('sm_code')) {
+          messengerMessages.push({ from: msg.from, fromName: msg.fromName, text: msg.text, ts: msg.ts });
+          saveMessengerMessages(activeChatRoom, messengerMessages);
+          renderInlineMessages(activePartnerCode);
+        }
+      }
+    } catch(e) {}
+  } else if (data instanceof ArrayBuffer && currentInlineFileReceive) {
+    receiveInlineFileChunk(data);
+  }
+}
+
+window.sendInlineFile = function(fileInput, partnerCode) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  compressImageForInline(file, 800, 0.7).then(blob => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const buffer = reader.result;
+      sendInlineFileChunks(buffer, file.name, blob.type);
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+  fileInput.value = '';
+};
+
+function compressImageForInline(file, maxW, q) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = maxW / w * h; w = maxW; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(resolve, 'image/jpeg', q);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+let currentInlineFileReceive = null;
+
+function startReceivingInlineFile(meta) {
+  currentInlineFileReceive = { ...meta, chunks: new Array(meta.totalChunks), received: 0 };
+}
+
+function receiveInlineFileChunk(chunk) {
+  if (!currentInlineFileReceive) return;
+  currentInlineFileReceive.chunks[currentInlineFileReceive.received++] = chunk;
+  if (currentInlineFileReceive.received === currentInlineFileReceive.totalChunks) {
+    const blob = new Blob(currentInlineFileReceive.chunks, { type: currentInlineFileReceive.fileType });
+    const url = URL.createObjectURL(blob);
+    messengerMessages.push({
+      from: activePartnerCode,
+      fromName: maskCode(activePartnerCode),
+      type: 'image',
+      objectUrl: url,
+      fileName: currentInlineFileReceive.fileName,
+      ts: Date.now()
+    });
+    saveMessengerMessages(activeChatRoom, messengerMessages);
+    renderInlineMessages(activePartnerCode);
+    currentInlineFileReceive = null;
+  }
+}
+
+function sendInlineFileChunks(arrayBuffer, fileName, fileType) {
+  if (!activeConn || !activeConn.open) return;
+  const CHUNK_SIZE = 16384;
+  const fileId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE);
+  
+  activeConn.send(JSON.stringify({ type: 'file_start', fileId, fileName, fileType, totalChunks, totalSize: arrayBuffer.byteLength }));
+  
+  const u8 = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < totalChunks; i++) {
+    const chunk = u8.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    activeConn.send(chunk.buffer);
+  }
+  
+  const objUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: fileType }));
+  messengerMessages.push({ from: localStorage.getItem('sm_code'), fromName: 'Du', type: 'image', objectUrl: objUrl, fileName, ts: Date.now() });
+  saveMessengerMessages(activeChatRoom, messengerMessages);
+  renderInlineMessages(activePartnerCode);
+}
+
+window.sendInlineMessage = function(partnerCode) {
+  const input = document.getElementById(`messengerInput-${partnerCode}`);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  const msg = {
+    from: localStorage.getItem('sm_code'),
+    fromName: localStorage.getItem('sm_name') || localStorage.getItem('sm_code'),
+    text,
+    ts: Date.now()
+  };
+  messengerMessages.push(msg);
+  saveMessengerMessages(activeChatRoom, messengerMessages);
+  renderInlineMessages(partnerCode);
+  if (activeConn && activeConn.open) {
+    activeConn.send(JSON.stringify({ type: 'chat_message', ...msg }));
+  }
+  input.value = '';
+};
+
+function renderInlineMessages(partnerCode) {
+  const container = document.getElementById(`messengerMessages-${partnerCode}`);
+  if (!container) return;
+  const myCode = localStorage.getItem('sm_code');
+  container.innerHTML = messengerMessages.map(m => {
+    const isMine = m.from === myCode;
+    if (m.type === 'image') {
+      return `<div class="msg-bubble ${isMine ? 'mine' : 'other'}">
+        <span class="msg-author">${isMine ? 'Du' : m.fromName}</span>
+        <img src="${m.objectUrl}" alt="${m.fileName || ''}" style="max-width:100%;border-radius:8px;margin-top:4px;" onclick="window.open('${m.objectUrl}')">
+        <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+      </div>`;
+    } else {
+      return `<div class="msg-bubble ${isMine ? 'mine' : 'other'}">
+        <span class="msg-author">${isMine ? 'Du' : m.fromName}</span>
+        ${escHtml(m.text)}
+        <div class="msg-time">${new Date(m.ts).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</div>
+      </div>`;
+    }
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function updateInlineStatus(partnerCode) {
+  const el = document.getElementById(`messengerStatus-${partnerCode}`);
+  if (!el) return;
+  el.textContent = activeConn && activeConn.open ? 'Verbunden' : 'Warte auf Verbindung...';
+}
+
+function loadMessengerMessages(room) {
+  const raw = localStorage.getItem('sm_local_msg_' + room);
+  return raw ? JSON.parse(raw) : [];
+}
+
+function saveMessengerMessages(room, msgs) {
+  localStorage.setItem('sm_local_msg_' + room, JSON.stringify(msgs));
+}
+
+window.closeInlineMessenger = function(keepDOM) {
+  if (activeConn) { activeConn.close(); activeConn = null; }
+  if (activePeer) { activePeer.destroy(); activePeer = null; }
+  activePartnerCode = null;
+  activeChatRoom = null;
+  messengerMessages = [];
+  messengerOpen = false;
+  if (!keepDOM) {
+    renderCurrentCard();
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NOTIERTE PROFIL MODAL
+// ══════════════════════════════════════════════════════════════════════════════
 window.toggleNotedModal = function() {
   const existing = document.getElementById('notedModal');
   if (existing) {
@@ -560,7 +727,6 @@ window.toggleNotedModal = function() {
 // ══════════════════════════════════════════════════════════════════════════════
 // GESTEN-STEUERUNG v4.1
 // ══════════════════════════════════════════════════════════════════════════════
-
 let tapTimer = null;
 let touchMoved = false;
 let initialPinchDistance = 0;
@@ -729,9 +895,8 @@ function showFullscreenAvatar(avatarBase64, name) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PROFILE COMMENTS (Story-Kommentare)
+// PROFILE COMMENTS
 // ══════════════════════════════════════════════════════════════════════════════
-
 async function loadComments(code) {
   if (COMMENTS_CACHE.has(code)) return COMMENTS_CACHE.get(code);
   
@@ -846,7 +1011,7 @@ window.showCommenterProfile = function(senderCode) {
 
 function escHtml(str) {
   if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 window.submitCommentHandler = async function(profileCode) {
@@ -873,11 +1038,10 @@ window.submitCommentHandler = async function(profileCode) {
   const result = await submitComment(profileCode, senderCode, senderName, message);
   
   if (result.success) {
-  // 🆕 Alert für ABSENDER zurücksetzen (eigenes Profil), nicht für Empfänger
-  const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
-  alerts[profileCode] = Date.now(); // Timestamp des letzten Kommentars auf diesem Profil
-  localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
-        
+    const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
+    alerts[profileCode] = Date.now();
+    localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
+          
     input.value = '';
     if (statusEl) { statusEl.textContent = '✅ Gesendet!'; statusEl.style.color = '#1ecc68'; }
     const comments = await loadComments(profileCode);
@@ -907,9 +1071,8 @@ window.handleDeleteComment = async function(commentId, profileCode) {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NOTIEREN (nur manuell über ❤️ Button)
+// NOTIEREN
 // ══════════════════════════════════════════════════════════════════════════════
-
 function toggleNote(code) {
   notedProfiles = JSON.parse(localStorage.getItem(NOTED_KEY) || '[]');
   const index = notedProfiles.indexOf(code);
@@ -944,7 +1107,6 @@ function showNotedProfile(code) {
 // ══════════════════════════════════════════════════════════════════════════════
 // MEIN PROFIL ANZEIGEN
 // ══════════════════════════════════════════════════════════════════════════════
-
 window.showMyProfile = function() {
   const myCode = localStorage.getItem('sm_code');
   const myName = localStorage.getItem('sm_name') || 'Ich';
@@ -979,17 +1141,15 @@ window.showMyProfile = function() {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// KOMMENTAR-ALERT (Brief-Icon bei neuen Kommentaren)
+// KOMMENTAR-ALERT
 // ══════════════════════════════════════════════════════════════════════════════
 window.markCommentsRead = function(profileCode) {
   const alerts = JSON.parse(localStorage.getItem(COMMENT_ALERT_KEY) || '{}');
   alerts[profileCode] = Date.now();
   localStorage.setItem(COMMENT_ALERT_KEY, JSON.stringify(alerts));
   
-  // Card neu rendern → Icon wechselt von Brief zu Herz
   renderCurrentCard();
   
-  // Kurz warten bis DOM da ist, dann zur Rückseite flippen
   setTimeout(() => {
     const inner = document.getElementById('cardInner');
     if (inner) inner.classList.add('is-flipped');
@@ -997,60 +1157,41 @@ window.markCommentsRead = function(profileCode) {
 };
 
 window.openKurznachrichtenPanel = function() {
-  // Panel aus spot-messages.js öffnen
   if (typeof fetchAndRenderOfflineMsgs === 'function') {
     fetchAndRenderOfflineMsgs();
   }
-  // Zähler zurücksetzen
   localStorage.setItem('sm_unread_kurznachrichten_dates', '0');
-  showMsgIcon = false;
   if (filtered[currentIndex]?.code === localStorage.getItem('sm_code')) renderCurrentCard();
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 🆕 PROFIL VERÖFFENTLICHEN / VERSTECKEN (Server + Icon)
+// PROFIL VERÖFFENTLICHEN / VERSTECKEN
 // ══════════════════════════════════════════════════════════════════════════════
 window.togglePublish = async function() {
   const code = localStorage.getItem('sm_code');
   const token = localStorage.getItem('sm_token');
   if (!code || !token) return;
 
-  // Aktuelles Profil-Objekt AUS DEM CACHE oder allProfiles holen
   const myProfile = allProfiles.find(p => p.code === code);
-  if (!myProfile) {
-    console.warn('Profil nicht im Cache, bitte Seite neu laden.');
-    return;
-  }
+  if (!myProfile) return;
 
   const isPublished = myProfile.visible_until && myProfile.visible_until > Date.now();
-  const newVisibleUntil = isPublished ? 0 : Date.now() + 86400000; // 24h
+  const newVisibleUntil = isPublished ? 0 : Date.now() + 86400000;
 
-  // Server-Update MIT VOLLSTÄNDIGEN PROFILDATEN
   try {
     const res = await fetch(`${API_BASE}/profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        // Pflichtfelder und alle optionalen Felder aus myProfile
-        code: code,
-        token: token,
-        spot: 'dates',
-        visible_until: newVisibleUntil,
-        name: myProfile.name,
-        region: myProfile.region,
-        age: myProfile.age || null,
-        province: myProfile.province || null,
-        city: myProfile.city || null,
-        orientation: myProfile.orientation || null,
-        role: myProfile.role || null,
-        trans: myProfile.trans || false,
-        crossdresser: myProfile.crossdresser || false,
-        bio: myProfile.bio || null,
-        lookingFor: myProfile.lookingFor || null
+        code, token, spot: 'dates', visible_until: newVisibleUntil,
+        name: myProfile.name, region: myProfile.region, age: myProfile.age || null,
+        province: myProfile.province || null, city: myProfile.city || null,
+        orientation: myProfile.orientation || null, role: myProfile.role || null,
+        trans: myProfile.trans || false, crossdresser: myProfile.crossdresser || false,
+        bio: myProfile.bio || null, lookingFor: myProfile.lookingFor || null
       })
     });
     if (res.ok) {
-      // Erfolgreich: Icon umschalten und globalen Status setzen
       const btn = document.getElementById('publish-toggle-small');
       if (btn) {
         btn.textContent = newVisibleUntil > 0 ? '👁️‍🗨️' : '👁️';
@@ -1058,26 +1199,16 @@ window.togglePublish = async function() {
       }
       window.isPublished = newVisibleUntil > 0;
       localStorage.setItem('sm_published', String(newVisibleUntil > 0));
-      
-      // Cache aktualisieren
       myProfile.visible_until = newVisibleUntil;
-      console.log('Profil-Sichtbarkeit aktualisiert.');
-    } else {
-      console.error('Publish toggle fehlgeschlagen:', await res.text());
-      alert('Fehler beim Ändern der Sichtbarkeit. Bitte versuche es erneut.');
     }
-  } catch (e) {
-    console.error('Publish toggle Netzwerkfehler:', e);
-    alert('Netzwerkfehler. Bitte überprüfe deine Verbindung.');
+  } catch(e) {
+    alert('Netzwerkfehler beim Ändern der Sichtbarkeit');
   }
 };
 
-
 // ══════════════════════════════════════════════════════════════════════════════
-// 🟢 HEADER ONLINE-PUNKT
+// HEADER ONLINE-PUNKT
 // ══════════════════════════════════════════════════════════════════════════════
-
-
 function updateHeaderOnlineDot(isOnline) {
   const dot = document.getElementById('header-online-dot');
   if (dot) {
@@ -1094,35 +1225,16 @@ async function updateHeaderOnlineDotFromServer(myCode) {
       const data = await res.json();
       updateHeaderOnlineDot(data.online);
     } else {
-      // Server sagt nein -> offline
       updateHeaderOnlineDot(false);
     }
   } catch(e) {
-    // Keine Antwort vom Server -> offline
     updateHeaderOnlineDot(false);
   }
 }
-// ══════════════════════════════════════════════════════════════════════════════
-// 🆕 LOKALER MESSENGER (P2P) – Öffnet messenger.html mit Partner-Code
-// ══════════════════════════════════════════════════════════════════════════════
-window.openMessengerFor = function(partnerCode, partnerName) {
-  if (!partnerCode) return;
-  const myCode = localStorage.getItem('sm_code');
-  if (!myCode) {
-    if (typeof toast === 'function') toast('⚠️ Eigenes Profil erforderlich');
-    return;
-  }
-  // Öffnet messenger.html in neuem Tab/Fenster
-  window.open(`messenger.html?partner=${partnerCode}`, '_blank');
-  if (typeof toast === 'function') toast(`💬 Messenger mit ${partnerName || maskCode(partnerCode)} geöffnet`);
-};
-
 
 // ══════════════════════════════════════════════════════════════════════════════
-// CSS
+// CSS (Karten-Styles + Inline Messenger Styles)
 // ══════════════════════════════════════════════════════════════════════════════
-
-
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
 
@@ -1218,7 +1330,42 @@ cardStyles.textContent = `
   .card-msg-icon { position:absolute; bottom:14px; right:14px; width:52px; height:52px; border-radius:10px; background:rgba(255,79,123,.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:15; }
   .card-msg-badge { position:absolute; top:-4px; right:-4px; background:#fff; color:#ff4f7b; font-size:.6rem; font-weight:700; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+  /* Inline Messenger Styles */
+  .inline-messenger {
+    margin-top: 1rem;
+    border-top: 1px solid var(--bord);
+    padding-top: 0.5rem;
+    background: var(--card);
+  }
+  .messenger-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 700; margin-bottom: 0.3rem; color: var(--acc);
+  }
+  .messenger-close-btn {
+    background: none; border: none; color: var(--muted2); cursor: pointer; font-size: 1.2rem;
+  }
+  .messenger-messages {
+    height: 180px; overflow-y: auto; background: #111; border-radius: 12px; padding: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem;
+  }
+  .messenger-messages .msg-bubble {
+    max-width: 80%; padding: 0.4rem 0.7rem; border-radius: 12px; font-size: 0.8rem; word-break: break-word;
+  }
+  .messenger-messages .msg-bubble.mine { align-self: flex-end; background: #ff4f7b; color: white; }
+  .messenger-messages .msg-bubble.other { align-self: flex-start; background: #2a2a2a; }
+  .messenger-messages .msg-author { font-weight: 700; font-size: 0.65rem; display: block; margin-bottom: 2px; opacity: 0.8; }
+  .messenger-messages .msg-time { font-size: 0.6rem; opacity: 0.5; text-align: right; margin-top: 2px; }
+  .messenger-status { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .messenger-input-row { display: flex; gap: 0.3rem; }
+  .messenger-input-row input {
+    flex: 1; padding: 0.5rem; border: 1px solid var(--bord); border-radius: 10px; background: var(--bg); color: var(--text); font-size: 0.85rem;
+  }
+  .messenger-attach-btn, .messenger-send-btn {
+    padding: 0.5rem; border: none; border-radius: 10px; background: var(--acc); color: white; cursor: pointer; font-size: 1rem;
+  }
+  .messenger-attach-btn { background: #555; }
 `;
 document.head.appendChild(cardStyles);
 
-console.log('✅ spot-dates-card.js v4.6 geladen – Header-Online-Punkt aktiv');
+console.log('✅ spot-dates-card.js v5.0 geladen – Inline Messenger aktiv');
