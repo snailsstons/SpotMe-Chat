@@ -220,14 +220,13 @@ function startHeartbeat() {
   sendHeartbeat();
   heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
 }
-
 function startKeepalive() {
   if (keepaliveTimer) clearInterval(keepaliveTimer);
   keepaliveTimer = setInterval(async () => {
     if (isPublished && myProfile) {
       try {
         const age = myProfile.year ? (new Date().getFullYear() - myProfile.year) : null;
-        await fetch(API + '/profile', {
+        const res = await fetch(API + '/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -238,6 +237,13 @@ function startKeepalive() {
             token: myToken, spot: SPOT
           })
         });
+        // 🔑 Token speichern, damit der Dates-Spot ihn für Nachrichten nutzen kann
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('sm_token_dates', data.token);
+          }
+        }
       } catch(e) {}
     }
     await loadCommunity();
