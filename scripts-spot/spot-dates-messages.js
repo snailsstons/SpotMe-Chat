@@ -65,13 +65,18 @@ async function fetchPrivateMessages() {
   if (!token || !code) return [];
   
   try {
-    const res = await fetch(`${_MSG_API}/offline-messages/${code}?spot=dates&token=${encodeURIComponent(token)}`);
+    const res = await fetch(`${_MSG_API}/offline-messages/${code}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, spot: 'dates' })
+    });
     if (!res.ok) return [];
     return await res.json();
   } catch (e) {
     return [];
   }
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // POLLING (neue Nachrichten erkennen und Badge aktualisieren)
