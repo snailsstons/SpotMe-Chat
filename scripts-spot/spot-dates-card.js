@@ -1110,6 +1110,14 @@ async function updateHeaderOnlineDotFromServer(myCode) {
 const cardStyles = document.createElement('style');
 cardStyles.textContent = `
 
+.header-msg-badge {
+  font-size: 0.8rem; margin-right: 0.5rem; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,79,123,.2); padding: 3px 8px;
+  border-radius: 12px; color: var(--acc);
+}
+.header-msg-badge:hover { background: rgba(255,79,123,.4); }
+
 .card-online-dot { 
   position:absolute; bottom:14px; left:14px; 
   display:flex; align-items:center; gap:4px;
