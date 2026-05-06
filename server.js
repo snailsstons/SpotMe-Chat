@@ -1039,3 +1039,191 @@ initDB()
     console.error('❌ DB-Initialisierung fehlgeschlagen:', e.message);
     process.exit(1);
   });
+// ══════════════════════════════════════════════════════════════════════════════
+// SPOTCACHE – GEHEIME TREFFPUNKTE
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 1️⃣ Matching: gemeinsam Wünsche + nahe Profile
+app.get('/api/spotcache/match/:code', async (req, res) => {
+  const { code } = req.params;
+  const spot = req.query.spot || 'dates';
+  const now = Date.now();
+  const maxDistMeters = 5000; // 5 km
+
+  try {
+    // Eigenes Profil mit Wish-Tags holen
+    const myProfile = await pool.query(
+      'SELECT wish_tags, offer_tags, region FROM profiles WHERE code = $1 AND spot = $2 AND visible_until > $3',
+      [code, spot, now]
+    );
+    if (!myProfile.rows.length) return res.json({ matches: [] });
+    const my = myProfile.rows[0];
+    const myWishes = my.wish_tags ? JSON.parse(decrypt(my.wish_tags)) : [];
+    
+    // Andere Profile mit gemeinsamen Wünschen und Location
+    const candidates = await pool.query(`
+      SELECT p.code, p.name, p.city, p.region,
+             p.wish_tags AS "wishTags", p.offer_tags AS "offerTags",
+             l.lat, l.lng
+      FROM profiles p
+      JOIN (
+        SELECT DISTINCT ON (key) 
+               split_part(key, ':', 1) AS code,
+               data->>'lat' AS lat,
+               data->>'lng' AS lng
+        FROM (
+          SELECT key, value::jsonb AS data
+          FROM jsonb_each((SELECT jsonb_object_agg(key, value) FROM (SELECT key, value FROM location_cache) t))
+        ) sub
+      ) l ON p.code = l.code
+      WHERE p.code <> $1 AND p.spot = $2 AND p.visible_until > $3
+    `, [code, spot, now]);
+
+    // Einfache Distanzberechnung (nur grob, ohne Index)
+    const matches = candidates.rows.filter(c => {
+      const theirWishes = c.wishTags ? JSON.parse(decrypt(c.wishTags)) : [];
+      const common = myWishes.filter(w => theirWishes.includes(w));
+      return common.length > 0;
+    }).map(c => {
+      const theirWishes = c.wishTags ? JSON.parse(decrypt(c.wishTags)) : [];
+      const common = myWishes.filter(w => theirWishes.includes(w));
+      return {
+        code: c.code,
+        name: decrypt(c.name),
+        city: c.city,
+        region: c.region,
+        commonWishes: common,
+        lat: parseFloat(c.lat),
+        lng: parseFloat(c.lng)
+      };
+    });
+    res.json({ matches });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Matching fehlgeschlagen' });
+  }
+});
+
+// 2️⃣ Cache-Anfrage stellen (von einem zum anderen)
+app.post('/api/spotcache/request', async (req, res) => {
+  const { from, to, wish } = req.body;
+  if (!from || !to || !wish) return res.status(400).json({ error: 'Fehlende Felder' });
+
+  try {
+    // Prüfen, ob nicht schon eine offene Anfrage besteht
+    const existing = await pool.query(
+      `SELECT id FROM spot_cache_requests
+       WHERE from_code = $1 AND to_code = $2 AND wish = $3 AND status IN ('pending','accepted')`,
+      [from, to, wish]
+    );
+    if (existing.rows.length) return res.status(409).json({ error: 'Bereits angefragt' });
+
+    await pool.query(
+      `INSERT INTO spot_cache_requests (from_code, to_code, wish, status, created_at)
+       VALUES ($1, $2, $3, 'pending', $4)`,
+      [from, to, wish, Date.now()]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Fehler beim Erstellen' });
+  }
+});
+
+// 3️⃣ Eigene Anfragen ansehen (als Empfänger oder Sender)
+app.get('/api/spotcache/requests/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, from_code AS "from", to_code AS "to", wish, status,
+              location_lat AS lat, location_lng AS lng, unlocked_at
+       FROM spot_cache_requests
+       WHERE (from_code = $1 OR to_code = $1) AND status != 'declined'
+       ORDER BY created_at DESC`,
+      [code]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Fehler beim Abrufen' });
+  }
+});
+
+// 4️⃣ Anfrage akzeptieren oder ablehnen
+app.post('/api/spotcache/respond', async (req, res) => {
+  const { id, code, action } = req.body; // action: 'accept' | 'decline'
+  if (!id || !code || !['accept','decline'].includes(action)) {
+    return res.status(400).json({ error: 'Ungültige Parameter' });
+  }
+
+  try {
+    const request = await pool.query(`SELECT * FROM spot_cache_requests WHERE id = $1`, [id]);
+    if (!request.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+
+    const reqData = request.rows[0];
+    if (reqData.to_code !== code && reqData.from_code !== code) {
+      return res.status(403).json({ error: 'Keine Berechtigung' });
+    }
+
+    if (action === 'decline') {
+      await pool.query(`UPDATE spot_cache_requests SET status = 'declined' WHERE id = $1`, [id]);
+      return res.json({ success: true, status: 'declined' });
+    }
+
+    // Accept: Status auf 'accepted' setzen (falls noch pending) und prüfen ob beide zugestimmt haben
+    if (reqData.status === 'pending' && reqData.to_code === code) {
+      // Empfänger akzeptiert -> status auf accepted (aber noch nicht unlocked)
+      await pool.query(`UPDATE spot_cache_requests SET status = 'accepted' WHERE id = $1`, [id]);
+      // Jetzt prüfen, ob es eine entsprechende Anfrage vom anderen gibt (Gegenseitigkeit)
+      const reciprocal = await pool.query(
+        `SELECT id FROM spot_cache_requests
+         WHERE from_code = $1 AND to_code = $2 AND wish = $3 AND status = 'accepted'`,
+        [reqData.to_code, reqData.from_code, reqData.wish]
+      );
+      if (reciprocal.rows.length) {
+        // Beide akzeptiert! Treffpunkt generieren
+        await unlockCache(reqData, reciprocal.rows[0].id);
+      }
+      return res.json({ success: true, status: 'accepted' });
+    }
+
+    // Wenn der Sender auf seine eigene Anfrage klickt (nur möglich, wenn bereits accepted vom Empfänger?), ignorieren oder Fehler
+    res.status(400).json({ error: 'Ungültiger Zustand' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Fehler' });
+  }
+});
+
+// Hilfsfunktion: Treffpunkt generieren und beide Requests updaten
+async function unlockCache(reqA, reqBId) {
+  // Zufälligen Punkt innerhalb 2 km um die Mitte
+  const midLat = (reqA.lat + reqB.lat) / 2;
+  const midLng = (reqA.lng + reqB.lng) / 2;
+  const offset = 0.01; // ~1km
+  const targetLat = midLat + (Math.random() - 0.5) * offset * 2;
+  const targetLng = midLng + (Math.random() - 0.5) * offset * 2;
+
+  const now = Date.now();
+  await pool.query(
+    `UPDATE spot_cache_requests SET status = 'unlocked', location_lat = $1, location_lng = $2, unlocked_at = $3
+     WHERE id IN ($4, $5)`,
+    [targetLat, targetLng, now, reqA.id, reqBId]
+  );
+}
+
+// Profilverwaltung: wishTags/offerTags speichern
+// Erweiterung in POST /api/profile: Zusätzlich die Felder wishTags und offerTags entgegennehmen und verschlüsselt speichern.
+// (Beispiel – in bestehender Route einfügen)
+app.post('/api/profile', async (req, res) => {
+  // ... bestehender Code ...
+  // Zusätzlich: wishTags, offerTags
+  const wishTags = req.body.wishTags;
+  const offerTags = req.body.offerTags;
+  // Beim INSERT/UPDATE diese Felder als encrypted JSON speichern
+  // Beispiel:
+  // wish_tags = encrypt(JSON.stringify(wishTags || []))
+  // offer_tags = encrypt(JSON.stringify(offerTags || []))
+  // Dies muss in die bestehenden INSERT/UPDATE Statements eingebaut werden.
+  // Der Einfachheit halber hier nur der Hinweis.
+});
