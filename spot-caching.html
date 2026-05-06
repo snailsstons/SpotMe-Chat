@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpotMe · SpotCache</title>
+  <meta name="theme-color" content="#ff4f7b">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Fonts & Styles -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="spot.css">
+  
+  <style>
+    :root {
+      --spot-acc: #ff4f7b;
+      --spot-acc2: #ff9a00;
+      --acc: var(--spot-acc);
+      --p2: var(--spot-acc2);
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'DM Sans', sans-serif;
+    }
+    header.app-header {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background: var(--bg, #111);
+      border-bottom: 1px solid var(--bord, #333);
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      color: var(--acc);
+      margin-right: auto;
+    }
+    .logo span { font-weight: 300; opacity: 0.7; }
+    .header-actions button {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.3rem;
+      margin-left: 0.75rem;
+      cursor: pointer;
+    }
+    #map-container {
+      flex: 1;
+      width: 100%;
+      min-height: 50vh;
+      background: #222;
+    }
+    #map { width: 100%; height: 100%; }
+    .controls {
+      padding: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg, #111);
+      border-top: 1px solid var(--bord);
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--acc);
+      background: var(--acc);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--acc);
+      border-color: var(--acc-dim);
+    }
+    .match-list {
+      max-height: 30vh;
+      overflow-y: auto;
+      padding: 0 1rem;
+      background: var(--bg);
+    }
+    .match-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--bord);
+    }
+    .match-item:last-child { border-bottom: none; }
+    .badge {
+      background: rgba(255,79,123,0.15);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      margin-left: 6px;
+    }
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: var(--card, #1a1a1a);
+      border-radius: 20px;
+      padding: 1.5rem;
+      max-width: 350px;
+      width: 90%;
+      position: relative;
+      color: var(--text);
+      border: 1px solid var(--bord);
+    }
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo">SPOT<b>ME</b> <span>· SpotCache</span></div>
+    <div class="header-actions">
+      <button onclick="goHome()" title="Zurück">‹</button>
+      <button onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+      <button onclick="location.reload()" title="Aktualisieren">↺</button>
+    </div>
+  </header>
+
+  <!-- Karte -->
+  <div id="map-container"><div id="map"></div></div>
+
+  <!-- Steuerung -->
+  <div class="controls">
+    <button class="btn" id="btnFindMatches" onclick="findMatches()">🔍 Matches finden</button>
+    <button class="btn secondary" onclick="showMyRequests()">📋 Meine Anfragen</button>
+  </div>
+
+  <!-- Match-Liste (unter Karte) -->
+  <div class="match-list" id="matchList"></div>
+
+  <!-- Modal für SpotCache-Details -->
+  <div class="modal-overlay" id="cacheModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeCacheModal()">✕</button>
+      <h3 style="font-family:'Syne'; color:var(--acc); text-align:center;">🧭 SpotCache</h3>
+      <div id="cacheModalBody"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ---------- API ----------
+    const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+    const myCode = localStorage.getItem('sm_code') || '000000';
+    let map, userMarker, currentLatLng = null;
+
+    // ---------- Karte initialisieren ----------
+    function initMap() {
+      map = L.map('map').setView([39.47, -0.38], 14); // Valencia
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap-Mitwirkende'
+      }).addTo(map);
+      
+      // Eigene Position
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const { latitude, longitude } = pos.coords;
+          currentLatLng = { lat: latitude, lng: longitude };
+          userMarker = L.marker([latitude, longitude], {
+            icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>', iconSize: [18,18] })
+          }).addTo(map).bindPopup('Du').openPopup();
+          map.setView([latitude, longitude], 15);
+        }, () => console.warn('Keine Geolocation'));
+      }
+    }
+
+    // ---------- Matching ----------
+    async function findMatches() {
+      document.getElementById('matchList').innerHTML = '<p style="color:var(--muted);text-align:center;">Suche...</p>';
+      try {
+        const res = await fetch(`${API_BASE}/spotcache/match/${myCode}?spot=dates`);
+        if (!res.ok) throw new Error('API nicht verfügbar');
+        const data = await res.json();
+        displayMatches(data.matches);
+      } catch (e) {
+        // Fallback: Demo-Matches
+        console.warn('Verwende Demo-Daten:', e);
+        const demo = [
+          { code: '123456', name: 'Lena', commonWishes: ['Kaffee'], lat: 39.472, lng: -0.376, city: 'Valencia' },
+          { code: '654321', name: 'Carlos', commonWishes: ['Strand'], lat: 39.468, lng: -0.382, city: 'Valencia' }
+        ];
+        displayMatches(demo);
+      }
+    }
+
+    function displayMatches(matches) {
+      // Marker setzen
+      map.eachLayer(layer => { if (layer instanceof L.Marker && layer !== userMarker) map.removeLayer(layer); });
+      matches.forEach(m => {
+        if (m.lat && m.lng) {
+          L.marker([m.lat, m.lng])
+            .addTo(map)
+            .bindPopup(`<b>${escHtml(m.name)}</b><br>${m.commonWishes.map(w=>'💭 '+w).join('<br>')}`)
+            .on('click', () => showCacheOptions(m.code, m.name, m.commonWishes[0]));
+        }
+      });
+
+      // Liste unter der Karte
+      const list = document.getElementById('matchList');
+      if (!matches.length) {
+        list.innerHTML = '<p style="color:var(--muted);text-align:center;">Keine Matches in der Nähe</p>';
+        return;
+      }
+      list.innerHTML = matches.map(m => `
+        <div class="match-item">
+          <div>
+            <strong>${escHtml(m.name)}</strong>
+            <span class="badge">${m.commonWishes.join(', ')}</span>
+          </div>
+          <button class="btn" style="padding:0.3rem 0.8rem; font-size:0.8rem;" onclick="showCacheOptions('${m.code}','${escHtml(m.name)}','${m.commonWishes[0]}')">🧭</button>
+        </div>
+      `).join('');
+    }
+
+    // ---------- Cache-Dialog ----------
+    function showCacheOptions(partnerCode, partnerName, wish) {
+      const modal = document.getElementById('cacheModal');
+      const body = document.getElementById('cacheModalBody');
+      body.innerHTML = `
+        <p>Gemeinsamer Wunsch: <b>${escHtml(wish)}</b></p>
+        <p>Möchtest du mit <b>${escHtml(partnerName)}</b> einen geheimen Treffpunkt öffnen?</p>
+        <button class="btn" style="width:100%; margin-bottom:0.5rem;" onclick="sendCacheRequest('${partnerCode}','${wish}')">Ja, Anfrage senden</button>
+        <button class="btn secondary" style="width:100%;" onclick="closeCacheModal()">Abbrechen</button>
+      `;
+      modal.style.display = 'flex';
+    }
+
+    async function sendCacheRequest(toCode, wish) {
+      const body = document.getElementById('cacheModalBody');
+      try {
+        const res = await fetch(`${API_BASE}/spotcache/request`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ from: myCode, to: toCode, wish })
+        });
+        const data = await res.json();
+        if (data.success) {
+          body.innerHTML = '<p>✅ Anfrage gesendet! Warte auf Bestätigung...</p>';
+          // Polling könnte hier starten
+        } else {
+          body.innerHTML = `<p style="color:red;">Fehler: ${data.error}</p>`;
+        }
+      } catch (e) {
+        // Demo: simuliere Erfolg
+        body.innerHTML = '<p>✅ (Demo) Anfrage gesendet! Der andere müsste jetzt zustimmen.</p>';
+      }
+    }
+
+    // Anfragen anzeigen
+    async function showMyRequests() {
+      const body = document.getElementById('cacheModalBody');
+      const modal = document.getElementById('cacheModal');
+      body.innerHTML = '<p>Lade Anfragen...</p>';
+      modal.style.display = 'flex';
+      try {
+        const res = await fetch(`${API_BASE}/spotcache/requests/${myCode}`);
+        const requests = await res.json();
+        if (!requests.length) {
+          body.innerHTML = '<p>Keine offenen Anfragen</p>';
+          return;
+        }
+        body.innerHTML = requests.map(r => `
+          <div style="border-bottom:1px solid var(--bord); padding:0.5rem 0;">
+            <strong>${r.wish}</strong> mit ${r.from === myCode ? 'dir als Sender' : r.from}
+            <span class="badge">${r.status}</span>
+            ${r.status === 'unlocked' && r.lat ? `<button class="btn" style="margin-left:1rem;" onclick="showOnMap(${r.lat},${r.lng})">📍 zeigen</button>` : ''}
+            ${r.status === 'pending' && r.to === myCode ? `<button class="btn" style="margin-left:1rem;" onclick="respondCache(${r.id},'accept')">Akzeptieren</button>` : ''}
+          </div>
+        `).join('');
+      } catch (e) {
+        // Demo: leere Liste
+        body.innerHTML = '<p>Keine Anfragen (Demo-Modus)</p>';
+      }
+    }
+
+    async function respondCache(id, action) {
+      try {
+        const res = await fetch(`${API_BASE}/spotcache/respond`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ id, code: myCode, action })
+        });
+        const data = await res.json();
+        if (data.status === 'unlocked') {
+          // Treffpunkt laden und anzeigen
+          const reqRes = await fetch(`${API_BASE}/spotcache/requests/${myCode}`);
+          const requests = await reqRes.json();
+          const unlocked = requests.find(r => r.id === id);
+          if (unlocked && unlocked.lat) {
+            showOnMap(unlocked.lat, unlocked.lng);
+            document.getElementById('cacheModalBody').innerHTML = '<p>🎉 Treffpunkt entsperrt! Siehe Karte.</p>';
+          }
+        } else {
+          document.getElementById('cacheModalBody').innerHTML = '<p>✅ Antwort gespeichert.</p>';
+        }
+      } catch (e) {
+        // Demo: zeige zufälligen Punkt in Valencia
+        const lat = 39.47 + (Math.random()-0.5)*0.02;
+        const lng = -0.38 + (Math.random()-0.5)*0.02;
+        showOnMap(lat, lng);
+        document.getElementById('cacheModalBody').innerHTML = '<p>🎉 (Demo) Treffpunkt entsperrt!</p>';
+      }
+    }
+
+    function showOnMap(lat, lng) {
+      L.marker([lat, lng], {
+        icon: L.divIcon({ html: '<div style="background:#ff4f7b;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
+      }).addTo(map).bindPopup('Geheimer Treffpunkt').openPopup();
+      map.setView([lat, lng], 16);
+      closeCacheModal();
+    }
+
+    // ---------- Hilfsfunktionen ----------
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    function goHome() { window.location.href = 'index.html'; }
+    function closeCacheModal() { document.getElementById('cacheModal').style.display = 'none'; }
+    window.onclick = e => { if (e.target === document.getElementById('cacheModal')) closeCacheModal(); };
+
+    // Profil-Sichtbarkeit toggeln (vereinfacht)
+    function togglePublish() {
+      // Hier könnte publish-Logik aus spot-dates-card.js eingebaut werden
+      alert('Veröffentlichung wird in der Profilverwaltung gesteuert.');
+    }
+
+    // Start
+    window.addEventListener('load', initMap);
+  </script>
+</body>
+  </html>
