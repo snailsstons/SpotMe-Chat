@@ -143,7 +143,8 @@
     <div class="logo">SPOT<b>ME</b> <span>· SpotCache</span></div>
     <div class="header-actions">
       <button onclick="goHome()" title="Zurück">‹</button>
-      <button onclick="togglePublish()" title="Sichtbarkeit">👁️</button>
+      <!-- NEU: Profil bearbeiten -->
+      <button onclick="window.location.href='profil-caching.html'" title="Profil bearbeiten">👤</button>
       <button onclick="location.reload()" title="Aktualisieren">↺</button>
     </div>
   </header>
@@ -200,23 +201,32 @@
     async function findMatches() {
       document.getElementById('matchList').innerHTML = '<p style="color:var(--muted);text-align:center;">Suche...</p>';
       try {
+        // Später: eigenes Profil aus localStorage laden und Wünsche auslesen
+        const myProfile = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}');
+        const myWishes = myProfile.wishes || [];
+        if (!myWishes.length) {
+          document.getElementById('matchList').innerHTML = '<p style="color:var(--muted);text-align:center;">Bitte fülle dein Cache-Profil aus!</p>';
+          return;
+        }
+        
         const res = await fetch(`${API_BASE}/spotcache/match/${myCode}?spot=dates`);
         if (!res.ok) throw new Error('API nicht verfügbar');
         const data = await res.json();
         displayMatches(data.matches);
       } catch (e) {
-        // Fallback: Demo-Matches
+        // Fallback: Demo-Daten
         console.warn('Verwende Demo-Daten:', e);
+        const myWishes = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}').wishes || ['Kaffee'];
         const demo = [
-          { code: '123456', name: 'Lena', commonWishes: ['Kaffee'], lat: 39.472, lng: -0.376, city: 'Valencia' },
-          { code: '654321', name: 'Carlos', commonWishes: ['Strand'], lat: 39.468, lng: -0.382, city: 'Valencia' }
+          { code: '123456', name: 'Lena', commonWishes: myWishes, lat: 39.472, lng: -0.376, city: 'Valencia' },
+          { code: '654321', name: 'Carlos', commonWishes: myWishes, lat: 39.468, lng: -0.382, city: 'Valencia' }
         ];
         displayMatches(demo);
       }
     }
 
     function displayMatches(matches) {
-      // Marker setzen
+      // Alte Marker entfernen
       map.eachLayer(layer => { if (layer instanceof L.Marker && layer !== userMarker) map.removeLayer(layer); });
       matches.forEach(m => {
         if (m.lat && m.lng) {
@@ -227,7 +237,6 @@
         }
       });
 
-      // Liste unter der Karte
       const list = document.getElementById('matchList');
       if (!matches.length) {
         list.innerHTML = '<p style="color:var(--muted);text-align:center;">Keine Matches in der Nähe</p>';
@@ -268,17 +277,14 @@
         const data = await res.json();
         if (data.success) {
           body.innerHTML = '<p>✅ Anfrage gesendet! Warte auf Bestätigung...</p>';
-          // Polling könnte hier starten
         } else {
           body.innerHTML = `<p style="color:red;">Fehler: ${data.error}</p>`;
         }
       } catch (e) {
-        // Demo: simuliere Erfolg
         body.innerHTML = '<p>✅ (Demo) Anfrage gesendet! Der andere müsste jetzt zustimmen.</p>';
       }
     }
 
-    // Anfragen anzeigen
     async function showMyRequests() {
       const body = document.getElementById('cacheModalBody');
       const modal = document.getElementById('cacheModal');
@@ -300,7 +306,6 @@
           </div>
         `).join('');
       } catch (e) {
-        // Demo: leere Liste
         body.innerHTML = '<p>Keine Anfragen (Demo-Modus)</p>';
       }
     }
@@ -314,7 +319,6 @@
         });
         const data = await res.json();
         if (data.status === 'unlocked') {
-          // Treffpunkt laden und anzeigen
           const reqRes = await fetch(`${API_BASE}/spotcache/requests/${myCode}`);
           const requests = await reqRes.json();
           const unlocked = requests.find(r => r.id === id);
@@ -326,7 +330,6 @@
           document.getElementById('cacheModalBody').innerHTML = '<p>✅ Antwort gespeichert.</p>';
         }
       } catch (e) {
-        // Demo: zeige zufälligen Punkt in Valencia
         const lat = 39.47 + (Math.random()-0.5)*0.02;
         const lng = -0.38 + (Math.random()-0.5)*0.02;
         showOnMap(lat, lng);
@@ -342,7 +345,6 @@
       closeCacheModal();
     }
 
-    // ---------- Hilfsfunktionen ----------
     function escHtml(str) {
       const d = document.createElement('div');
       d.textContent = String(str);
@@ -353,14 +355,7 @@
     function closeCacheModal() { document.getElementById('cacheModal').style.display = 'none'; }
     window.onclick = e => { if (e.target === document.getElementById('cacheModal')) closeCacheModal(); };
 
-    // Profil-Sichtbarkeit toggeln (vereinfacht)
-    function togglePublish() {
-      // Hier könnte publish-Logik aus spot-dates-card.js eingebaut werden
-      alert('Veröffentlichung wird in der Profilverwaltung gesteuert.');
-    }
-
-    // Start
     window.addEventListener('load', initMap);
   </script>
 </body>
-  </html>
+</html>
