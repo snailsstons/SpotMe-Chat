@@ -18,8 +18,8 @@
   --card2:   #141f2e;
   --bord:    rgba(255,255,255,.08);
   --bord2:   rgba(255,255,255,.13);
-  --acc:     #ff4f7b;   /* Pink wie Dates */
-  --acc-dim: rgba(255,79,123,.10);
+  --acc:     #ff9a00;
+  --acc-dim: rgba(255,154,0,.10);
   --p2:      #00e5c0;
   --p3:      #ff4f7b;
   --text:    #dde4f0;
@@ -54,7 +54,7 @@ html, body { min-height:100%; background:var(--bg); color:var(--text); font-fami
 .field label { display:block; font-size:.8rem; font-weight:500; color:var(--muted2); margin-bottom:.4rem; }
 .field label span { color:var(--p3); margin-left:.2rem }
 .finp { width:100%; padding:.7rem 1rem; background:var(--sur); border:1.5px solid var(--bord); border-radius:13px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:.95rem; outline:none; }
-.finp:focus { border-color:rgba(123,92,250,.4) }
+.finp:focus { border-color:rgba(255,154,0,.4) }
 .finp[readonly] { opacity:.55; cursor:not-allowed }
 select.finp { cursor:pointer }
 select.finp option { background:var(--card); color:var(--text) }
@@ -64,7 +64,7 @@ select.finp option { background:var(--card); color:var(--text) }
 textarea.finp-anzeige {
   width:100%; padding:1rem 1.1rem;
   background:var(--card2);
-  border:1.5px solid rgba(123,92,250,.3);
+  border:1.5px solid rgba(255,154,0,.3);
   border-radius:16px;
   color:var(--text); font-family:'DM Sans',sans-serif;
   font-size:1rem; line-height:1.6;
@@ -92,7 +92,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
 .toast { position:fixed; bottom:5.5rem; left:50%; transform:translateX(-50%); background:var(--sur); border:1px solid var(--bord2); border-radius:100px; padding:.5rem 1.2rem; font-size:.82rem; z-index:999; opacity:0; transition:all .3s; pointer-events:none; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(-10px); }
 .readonly-hint { font-size:.72rem; color:var(--muted); margin-top:.3rem; display:none; }
-.info-box { background:var(--card); border:1px solid rgba(123,92,250,.2); border-radius:14px; padding:1rem 1.1rem; font-size:.88rem; color:var(--muted2); margin-bottom:1.5rem; line-height:1.6; }
+.info-box { background:var(--card); border:1px solid rgba(255,154,0,.2); border-radius:14px; padding:1rem 1.1rem; font-size:.88rem; color:var(--muted2); margin-bottom:1.5rem; line-height:1.6; }
 .info-box strong { color:var(--text) }
 </style>
 </head>
@@ -108,15 +108,15 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   </div>
 
   <!-- Back -->
-  <div class="back-link" onclick="goBack()">‹ Zurück zum Spot</div>
+  <div class="back-link" onclick="goBack()">‹ Zurück zum SpotCaching</div>
 
   <!-- Info -->
   <div class="info-box">
-    <strong>🧭 SpotCache</strong><br>
-    Verrate, wonach du dich sehnst und was du bieten kannst. Aus gemeinsamen Wünschen entstehen geheime Treffpunkte in deiner Nähe.
+    <strong>🧭 SpotCache Profil</strong><br>
+    Deine Wünsche und Angebote helfen, geheime Treffpunkte in deiner Nähe zu entsperren. Je mehr du teilst, desto mehr Matches.
   </div>
 
-  <!-- Avatar (wie Dates) -->
+  <!-- Avatar -->
   <div class="avatar-wrap">
     <div class="avatar" id="avatar-el" onclick="document.getElementById('avatar-input').click()">🧭</div>
     <div class="avatar-hint" id="avatar-status">Tippe zum Ändern</div>
@@ -132,11 +132,11 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   <div class="field">
     <div class="anzeige-wrap">
       <textarea class="finp-anzeige" id="f-wishes"
-        placeholder="Was wünschst du dir? Z. B. Kaffee trinken, Strandspaziergang, Kino, Wandern …"
+        placeholder="Was wünschst du dir? Z.B. Kaffee trinken, Strandspaziergang, Kino, Wandern, Fahrrad fahren …"
         maxlength="300"
         oninput="updateCharCount('f-wishes','wish-count',300); autoSave()"></textarea>
     </div>
-    <div class="tag-hint">Mehrere Wünsche mit Komma trennen</div>
+    <div class="tag-hint">Mehrere Wünsche mit Komma trennen – aus diesen werden deine Spots</div>
     <div class="char-count" id="wish-count">0 / 300</div>
   </div>
 
@@ -145,7 +145,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
   <div class="field">
     <div class="anzeige-wrap">
       <textarea class="finp-anzeige" id="f-offers"
-        placeholder="Das bringst du mit: Kochkünste, Humor, gute Gespräche, Sportlichkeit …"
+        placeholder="Das bringst du mit: Kochkünste, Humor, gute Gespräche, sportliche Aktivitäten …"
         maxlength="300"
         oninput="updateCharCount('f-offers','offer-count',300); autoSave()"></textarea>
     </div>
@@ -153,7 +153,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
     <div class="char-count" id="offer-count">0 / 300</div>
   </div>
 
-  <!-- PERSÖNLICHE NOTIZ -->
+  <!-- ÜBER MICH -->
   <div class="sec-label">Über mich</div>
   <div class="field">
     <div class="anzeige-wrap">
@@ -175,7 +175,7 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
 
   <div class="field">
     <label>Geburtsjahr <span style="color:var(--muted2);font-weight:400;">(optional)</span></label>
-    <input type="number" id="f-year" class="finp" placeholder="z. B. 1985" min="1940" max="2007" oninput="updateAge();autoSave()">
+    <input type="number" id="f-year" class="finp" placeholder="z.B. 1985" min="1940" max="2007" oninput="updateAge();autoSave()">
     <div id="year-hint" class="readonly-hint">Geburtsjahr kann nicht mehr geändert werden.</div>
     <div id="age-display" style="font-size:.8rem;color:var(--muted2);margin-top:.3rem;"></div>
   </div>
@@ -220,8 +220,8 @@ textarea.finp-anzeige:focus { border-color:var(--acc); }
 <script>
 'use strict';
 
-const SPOT        = 'caching';            // eigener Spot-Name
-const PROFILE_KEY = 'sm_profile_caching'; // separater Speicher
+const SPOT        = 'caching';
+const PROFILE_KEY = 'sm_profile_caching';
 const API_BASE    = 'https://spotme-chat-obom.onrender.com/api';
 
 // Geo-Daten (identisch zu profil-dates)
@@ -315,21 +315,18 @@ function showSavedBadge() {
   setTimeout(() => b.classList.remove('show'), 2500);
 }
 function goBack() {
-  window.location.href = 'spot-caching.html';   // später Hauptseite für Caching
+  window.location.href = 'spot-caching.html';
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// AVATAR – IDENTISCH ZU DATES (Upload + Fallback)
+// AVATAR
 // ══════════════════════════════════════════════════════════════════════════
-
 function handleAvatar(input) {
   const file = input.files[0];
   if (!file) return;
   if (file.size > 1 * 1024 * 1024) { toast('⚠️ Max. 1 MB'); return; }
-
   const statusEl = document.getElementById('avatar-status');
   if (statusEl) statusEl.textContent = '⏳ Komprimiere…';
-  
   const reader = new FileReader();
   reader.onload = function(e) {
     const img = new Image();
@@ -342,7 +339,6 @@ function handleAvatar(input) {
       canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       avatarData = canvas.toDataURL('image/jpeg', 0.55);
-      
       renderAvatar();
       if (statusEl) statusEl.textContent = '⏳ Speichere auf Server…';
       uploadAvatarToServer();
@@ -356,14 +352,11 @@ async function uploadAvatarToServer() {
   const token = localStorage.getItem('sm_token');
   const code  = localStorage.getItem('sm_code');
   const statusEl = document.getElementById('avatar-status');
-  
   autoSave();
-  
   if (!token || !code || !avatarData) {
     if (statusEl) statusEl.textContent = '⚠️ Kein Token – nur lokal gespeichert';
     return;
   }
-  
   try {
     const res = await fetch(`${API_BASE}/avatar`, {
       method: 'POST',
@@ -371,7 +364,6 @@ async function uploadAvatarToServer() {
       body: JSON.stringify({ code, token, avatar: avatarData, spot: SPOT })
     });
     const data = await res.json();
-    
     if (data.success) {
       if (statusEl) statusEl.textContent = '✅ Auf Server gespeichert';
       setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
@@ -390,11 +382,7 @@ async function loadAvatarFromServer() {
     const res = await fetch(`${API_BASE}/avatar/${code}?spot=${SPOT}`);
     if (!res.ok) return;
     const data = await res.json();
-    if (data.avatar) {
-      avatarData = data.avatar;
-      renderAvatar();
-      autoSave();
-    }
+    if (data.avatar) { avatarData = data.avatar; renderAvatar(); autoSave(); }
   } catch (e) {}
 }
 
@@ -431,7 +419,6 @@ async function clearAvatar() {
 // ══════════════════════════════════════════════════════════════════════════
 // PROFIL LADEN & SPEICHERN
 // ══════════════════════════════════════════════════════════════════════════
-
 function loadProfile() {
   const raw = localStorage.getItem(PROFILE_KEY);
   if (!raw) return;
@@ -457,15 +444,11 @@ function loadProfile() {
         if (p.city) document.getElementById('f-city').value = p.city;
       }
     }
-    
     if (p.avatar) { avatarData = p.avatar; renderAvatar(); }
     loadAvatarFromServer();
-    
-    // Char-Counts initialisieren
     updateCharCount('f-wishes','wish-count',300);
     updateCharCount('f-offers','offer-count',300);
     updateCharCount('f-bio','bio-count',400);
-    
     showSavedBadge();
   } catch(e) { console.warn('Ladefehler', e); }
 }
@@ -485,8 +468,6 @@ function saveProfile() {
   if (yearVal && (year < 1940 || year > 2007)) { toast('⚠️ Gültiges Geburtsjahr eingeben'); return; }
 
   const existing = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
-  
-  // Tags als Arrays speichern (nach Komma getrennt, getrimmt, keine leeren Strings)
   const wishArray = wishes.split(',').map(s => s.trim()).filter(Boolean);
   const offerArray = offers.split(',').map(s => s.trim()).filter(Boolean);
   
@@ -510,6 +491,21 @@ function saveProfile() {
 
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   localStorage.setItem('sm_name', name);
+  
+  // Auch an Server senden
+  const token = localStorage.getItem('sm_token');
+  if (token) {
+    fetch(`${API_BASE}/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: localStorage.getItem('sm_code'), name, spot: SPOT,
+        region: profile.region, province: profile.province, city: profile.city,
+        bio: profile.bio, wishTags: wishArray, offerTags: offerArray, token
+      })
+    }).catch(()=>{});
+  }
+  
   showSavedBadge();
   toast('✅ Cache-Profil gespeichert');
 }
@@ -517,7 +513,6 @@ function saveProfile() {
 function autoSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    // Nur speichern wenn Pflichtfelder gefüllt sind
     if (!document.getElementById('f-name').value.trim()) return;
     if (!document.getElementById('f-wishes').value.trim()) return;
     if (!document.getElementById('f-offers').value.trim()) return;
@@ -530,7 +525,6 @@ function autoSave() {
 window.addEventListener('DOMContentLoaded', () => {
   fillRegions();
   loadProfile();
-  // Char-Counts initialisieren
   updateCharCount('f-wishes','wish-count',300);
   updateCharCount('f-offers','offer-count',300);
   updateCharCount('f-bio','bio-count',400);
