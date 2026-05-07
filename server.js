@@ -1443,26 +1443,24 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     const u = updated.rows[0];
     if (u.checked_in_from && u.checked_in_to) {
       await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
-      if (u.checked_in_from && u.checked_in_to) {
-  await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
 
-  // ✅ Echtheits‑Verifikation für beide speichern
-  const nowTS = Date.now();
-  await pool.query(
-    `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
-     VALUES ($1, 'caching', $2, 'personal', $3)
-     ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
-    [inv.from_code, inv.to_code, nowTS]
-  );
-  await pool.query(
-    `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
-     VALUES ($1, 'caching', $2, 'personal', $3)
-     ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
-    [inv.to_code, inv.from_code, nowTS]
-  );
+      // ✅ Echtheits‑Verifikation für beide speichern
+      const nowTS = Date.now();
+      await pool.query(
+        `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
+         VALUES ($1, 'caching', $2, 'personal', $3)
+         ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
+        [inv.from_code, inv.to_code, nowTS]
+      );
+      await pool.query(
+        `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
+         VALUES ($1, 'caching', $2, 'personal', $3)
+         ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
+        [inv.to_code, inv.from_code, nowTS]
+      );
 
-  return res.json({ success: true, bothCheckedIn: true, message: 'Ihr habt euch gefunden!' });
-}
+      return res.json({ success: true, bothCheckedIn: true, message: 'Ihr habt euch gefunden!' });
+    }
 
     res.json({ success: true, bothCheckedIn: false });
   } catch (e) {
@@ -1470,7 +1468,6 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     res.status(500).json({ error: 'Fehler beim Einchecken' });
   }
 });
-
 // ══════════════════════════════════════════════════════════════════════════════
 // PING & START
 // ══════════════════════════════════════════════════════════════════════════════
