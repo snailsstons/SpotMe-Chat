@@ -489,12 +489,19 @@ async function showInvites() {
 
   const list = invites.map(inv => {
     const isSender = inv.from === CODE;
+    const isReceiver = inv.to === CODE;
     const status = getInviteStatus(inv);
     const timeStr = formatDateTime(inv.timeStart) + ' – ' + formatDateTime(inv.timeEnd);
     let actionButtons = '';
 
+    // Profil des anderen anzeigen (Absender oder Empfänger, je nachdem wer ich bin)
+    const otherParty = isSender ? inv.to : inv.from;
+    if (!isSender || isReceiver) {
+      actionButtons += `<button class="si-btn" style="background:#7a8fa8;" onclick="showSpotOwnerProfile('${otherParty}')">👤 Profil</button>`;
+    }
+
     // Akzeptieren-Button (nur für Empfänger bei pending)
-    if (!isSender && inv.status === 'pending') {
+    if (isReceiver && inv.status === 'pending') {
       actionButtons += `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
     }
     // Check-in & Navigation (wenn Zeitfenster aktiv)
