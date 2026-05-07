@@ -555,7 +555,7 @@ async function showInvites() {
       <div class="si-icon">${isSender ? '📤' : '📨'}</div>
       <div class="si-info">
         <div class="si-name">${esc(inv.spotName)} (${inv.wishTag})</div>
-        <div class="si-detail">${new Date(inv.timeStart).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} – ${new Date(inv.timeEnd).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} ${countdown}</div>
+        <div class="si-detail">${formatDateTime(inv.timeStart)} – ${formatDateTime(inv.timeEnd)} ${countdown}</div>
         <div class="si-detail">${inv.status==='pending'?'⏳ Warte auf Antwort':inv.status==='accepted'?'✅ Akzeptiert':inv.status==='completed'?'🎉 Getroffen!':inv.status}</div>
       </div>
       <div class="si-actions">
@@ -613,7 +613,28 @@ async function checkIn(inviteId) {
 function closeMatch() {
   document.getElementById('matchOverlay').classList.remove('show');
 }
+// Sichere Datumsformatierung
+function formatDateTime(ts) {
+  const d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return 'Datum fehlt';
+  return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' }) + ' ' +
+         d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+}
 
+// Countdown mit Tagen
+function formatCountdown(ts) {
+  const time = Number(ts);
+  const diff = time - Date.now();
+  if (diff <= 0) return 'jetzt';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h > 24) {
+    const d = Math.floor(h / 24);
+    return `in ${d} Tag${d>1?'en':''}`;
+  }
+  return h > 0 ? `in ${h}h ${m}min` : `in ${m}min`;
+    }
+  
 // ════════════════ UI ════════════════
 function showMySpots() {
   const list = mySpots.map(s=>`<div class="sheet-item"><div class="si-icon">🟠</div><div class="si-info"><div class="si-name">${esc(s.name)}</div><div class="si-detail">${s.wishTag}</div></div><div class="si-actions"><button class="si-btn navigate" onclick="navigateToSpot(${s.lat},${s.lng})">🧭</button><button class="si-btn" onclick="deleteSpot(${s.id})">🗑️</button></div></div>`).join('')||'<p style="text-align:center;color:var(--muted);">Du hast noch keine Spots</p>';
