@@ -265,6 +265,7 @@ let map, userPos, placeMode = false, tempLatLng = null;
 let mySpots = [], allSpots = [], currentSpots = [];
 let selectedInviteSpot = null;
 let invitePollInterval = null, knownInviteCount = 0;
+let radiusCircles = [];
 
 // ════════ KARTE ════════
 function initMap() {
@@ -466,6 +467,38 @@ function applyRadiusFilter() {
     alert('❌ Dein Standort ist nicht bekannt. Erlaube GPS und versuche es erneut.');
     return;
   }
+
+  // Alte Kreise entfernen
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = [];
+
+  // Hilfskreise bei 2km, 5km, 10km (nur wenn sie größer sind als der gewählte Radius)
+  const helperRadii = [2000, 5000, 10000].filter(r => r >= radiusMeters);
+  const colors = ['rgba(255,154,0,0.15)', 'rgba(255,154,0,0.1)', 'rgba(255,154,0,0.05)'];
+  helperRadii.forEach((r, i) => {
+    const circle = L.circle([userPos.lat, userPos.lng], {
+      radius: r,
+      color: 'transparent',
+      fillColor: '#ff9a00',
+      fillOpacity: 0.08,
+      weight: 0.5,
+      dashArray: '5 5',
+      interactive: false
+    }).addTo(map);
+    radiusCircles.push(circle);
+  });
+
+  // Aktiven Radius-Kreis zeichnen
+  const activeCircle = L.circle([userPos.lat, userPos.lng], {
+    radius: radiusMeters,
+    color: '#ff9a00',
+    weight: 2,
+    fillOpacity: 0.05,
+    interactive: false
+  }).addTo(map);
+  radiusCircles.push(activeCircle);
+
+  // Spots filtern
   currentSpots = allSpots.filter(s => {
     const dist = Math.sqrt(Math.pow(userPos.lat - s.lat, 2) + Math.pow(userPos.lng - s.lng, 2)) * 111000;
     return dist <= radiusMeters;
@@ -483,6 +516,10 @@ function applyRadiusFilter() {
 }
 
 function resetRadiusFilter() {
+  // Alle Kreise entfernen
+  radiusCircles.forEach(c => map.removeLayer(c));
+  radiusCircles = [];
+
   currentSpots = allSpots;
   mySpots = currentSpots.filter(s => s.code === CODE);
   document.getElementById('infoBar').innerHTML = `
@@ -490,7 +527,7 @@ function resetRadiusFilter() {
     <span id="inviteCount">${knownInviteCount}</span> Einladungen
   `;
   renderAllMarkers();
-  }
+}
   
 // ════════ EINLADUNGEN ════════
 function startInvitePolling() {
