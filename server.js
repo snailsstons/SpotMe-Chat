@@ -1295,6 +1295,21 @@ app.post('/api/userspots', async (req, res) => {
   }
 });
 
+// 🌍 Alle öffentlichen Spots abrufen (für die Karte)
+app.get('/api/userspots/all', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", created_at
+       FROM user_spots
+       ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Fehler beim Abrufen' });
+  }
+});
+
 // 🟠 Eigene Spots abrufen
 app.get('/api/userspots/:code', async (req, res) => {
   const { code } = req.params;
@@ -1427,7 +1442,7 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     const now = Date.now();
     if (now < inv.time_start || now > inv.time_end) return res.status(400).json({ error: 'Außerhalb des Zeitfensters' });
 
-    // Prüfen ob in der Nähe des Spots (50m Radius)
+    // 50m‑Radius prüfen
     const spot = await pool.query('SELECT lat, lng FROM user_spots WHERE id = $1', [inv.spot_id]);
     const dist = Math.sqrt(Math.pow(lat - spot.rows[0].lat, 2) + Math.pow(lng - spot.rows[0].lng, 2)) * 111000;
     if (dist > 50) return res.status(400).json({ error: 'Nicht nah genug am Spot (50m)' });
@@ -1438,13 +1453,12 @@ app.post('/api/spotcache/checkin', async (req, res) => {
       [id]
     );
 
-    // Check ob beide eingecheckt haben
     const updated = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
     const u = updated.rows[0];
     if (u.checked_in_from && u.checked_in_to) {
       await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
 
-      // ✅ Echtheits‑Verifikation für beide speichern
+      // ✅ Echtheits‑Verifikation
       const nowTS = Date.now();
       await pool.query(
         `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
@@ -1468,6 +1482,7 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     res.status(500).json({ error: 'Fehler beim Einchecken' });
   }
 });
+
 // ══════════════════════════════════════════════════════════════════════════════
 // PING & START
 // ══════════════════════════════════════════════════════════════════════════════
