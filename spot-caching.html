@@ -529,44 +529,61 @@ async function sendInvite() {
   } catch(e) { alert('✅ Einladung gesendet (Demo)'); }
 }
 
+//
 async function showInvites() {
   const btn = document.getElementById('inviteBtn');
   btn.classList.remove('alert');
   btn.classList.add('secondary');
   btn.textContent = '📨 Einladungen';
+
   let invites = [];
   try {
-    const r = await fetch(API+'/spotcache/invites/'+CODE);
+    const r = await fetch(API + '/spotcache/invites/' + CODE);
     if (r.ok) invites = await r.json();
-  } catch(e) {
+  } catch (e) {
+    // Demo-Daten
     invites = [
-      { id:1, spotName:'Sonnenplatz', wishTag:'Kaffee', from:'222222', to:CODE, status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000 },
-      { id:2, spotName:'Aussichtspunkt', wishTag:'Spaziergang', from:CODE, to:'333333', status:'accepted', timeStart:Date.now()+86400000, timeEnd:Date.now()+90000000 }
+      { id: 1, spotName: 'Sonnenplatz', wishTag: 'Kaffee', from: '222222', to: CODE, status: 'pending',
+        timeStart: Date.now() + 3600000, timeEnd: Date.now() + 7200000, lat: 39.469, lng: -0.381 },
+      { id: 2, spotName: 'Aussichtspunkt', wishTag: 'Spaziergang', from: CODE, to: '333333', status: 'accepted',
+        timeStart: Date.now() - 600000, timeEnd: Date.now() + 3600000, lat: 39.471, lng: -0.374 }
     ];
   }
+
   knownInviteCount = invites.length;
   document.getElementById('inviteCount').textContent = invites.length;
 
   const list = invites.map(inv => {
     const isSender = inv.from === CODE;
-    const now = Date.now();
-    const countdown = inv.timeStart > now ? `<span class="countdown-badge">⏳ ${formatCountdown(inv.timeStart)}</span>` : (inv.timeEnd > now ? '<span class="countdown-badge" style="background:rgba(30,204,104,0.2);color:#1ecc68;">🟢 Jetzt!</span>' : '');
+    const status = getInviteStatus(inv);
+    const timeStr = formatDateTime(inv.timeStart) + ' – ' + formatDateTime(inv.timeEnd);
+    
+    let actionButtons = '';
+    if (!isSender && inv.status === 'pending') {
+      actionButtons = `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
+    } else if (status.action === 'checkin') {
+      actionButtons = `
+        <button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>
+        <button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>
+      `;
+    } else if (status.action === 'countdown') {
+      actionButtons = `<span style="font-size:0.7rem;color:var(--muted);">${status.label}</span>`;
+    }
+
     return `<div class="sheet-item">
       <div class="si-icon">${isSender ? '📤' : '📨'}</div>
       <div class="si-info">
         <div class="si-name">${esc(inv.spotName)} (${inv.wishTag})</div>
-        <div class="si-detail">${formatDateTime(inv.timeStart)} – ${formatDateTime(inv.timeEnd)} ${countdown}</div>
-        <div class="si-detail">${inv.status==='pending'?'⏳ Warte auf Antwort':inv.status==='accepted'?'✅ Akzeptiert':inv.status==='completed'?'🎉 Getroffen!':inv.status}</div>
+        <div class="si-detail">${timeStr}</div>
+        <div class="si-detail">${status.label}</div>
       </div>
-      <div class="si-actions">
-        ${inv.status==='pending' && !isSender ? `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅</button>` : ''}
-        ${inv.status==='accepted' ? `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button><button class="si-btn" onclick="checkIn(${inv.id})">📍</button>` : ''}
-      </div>
+      <div class="si-actions">${actionButtons}</div>
     </div>`;
   }).join('') || '<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
+
   openSheet('📨 Einladungen', list);
 }
-
+//  
 async function acceptInvite(id) {
   try { await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, code:CODE, action:'accept'}) }); } catch(e){}
   showInvites();
@@ -610,6 +627,29 @@ async function checkIn(inviteId) {
   }, null, { enableHighAccuracy: true });
 }
 
+  
+function getInviteStatus(inv) {
+  const now = Date.now();
+  const start = Number(inv.timeStart);
+  const end = Number(inv.timeEnd);
+  if (inv.status === 'completed') return { label: '🎉 Getroffen!', action: null };
+  if (inv.status === 'pending')   return { label: '⏳ Warte auf Antwort', action: null };
+  if (inv.status === 'declined')  return { label: '❌ Abgelehnt', action: null };
+  // accepted
+  if (now < start) {
+    const diff = start - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const text = h > 0 ? `⏳ in ${h}h ${m}min` : `⏳ in ${m}min`;
+    return { label: text, action: 'countdown' };
+  }
+  if (now >= start && now <= end) {
+    return { label: '🟢 Jetzt!', action: 'checkin' };
+  }
+  return { label: '⏰ Abgelaufen', action: 'expired' };
+}
+
+  
 function closeMatch() {
   document.getElementById('matchOverlay').classList.remove('show');
 }
