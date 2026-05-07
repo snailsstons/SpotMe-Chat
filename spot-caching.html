@@ -31,145 +31,66 @@
       font-size: 16px;
       touch-action: manipulation;
     }
-    body {
-      display: flex;
-      flex-direction: column;
-    }
+    body { display: flex; flex-direction: column; }
 
-    /* HEADER */
     .app-header {
-      display: flex;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      background: var(--sur);
-      border-bottom: 1px solid var(--bord);
-      flex-shrink: 0;
-      z-index: 100;
+      display: flex; align-items: center; padding: 0.5rem 1rem;
+      background: var(--sur); border-bottom: 1px solid var(--bord);
+      flex-shrink: 0; z-index: 100;
     }
-    .logo {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 1.2rem;
-      color: var(--acc);
-      margin-right: auto;
-    }
+    .logo { font-family: 'Syne',sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--acc); margin-right: auto; }
     .logo span { font-weight: 300; opacity: 0.7; font-size: 0.8rem; }
     .header-btn {
-      background: none;
-      border: 1px solid rgba(255,255,255,0.1);
-      color: var(--muted);
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-left: 0.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--muted);
+      width: 34px; height: 34px; border-radius: 50%; font-size: 1rem; cursor: pointer;
+      margin-left: 0.4rem; display: flex; align-items: center; justify-content: center;
     }
     .header-btn:active { background: rgba(255,154,0,0.15); border-color: var(--acc); }
-    .header-btn.has-alert { border-color: var(--red); color: var(--red); animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
-    /* MAP */
     #map-container { flex: 1; width: 100%; min-height: 0; }
     #map { width: 100%; height: 100%; }
-/* Zoom-Controls nach rechts unten verschieben */
-.leaflet-control-zoom {
-  margin-bottom: 120px !important;
-  margin-right: 10px !important;
-}
+    .leaflet-control-zoom { margin-bottom: 120px !important; margin-right: 10px !important; }
+    .leaflet-control-attribution { display: none !important; }
 
-/* Leaflet-Link ausblenden */
-.leaflet-control-attribution {
-  display: none !important;
-}
-    /* INFO BAR */
     .info-bar {
-      display: flex;
-      justify-content: space-around;
-      padding: 0.4rem 0.5rem;
-      background: var(--sur);
-      border-top: 1px solid var(--bord);
-      font-size: 0.75rem;
-      color: var(--muted);
-      flex-shrink: 0;
+      display: flex; justify-content: space-around; padding: 0.4rem 0.5rem;
+      background: var(--sur); border-top: 1px solid var(--bord);
+      font-size: 0.75rem; color: var(--muted); flex-shrink: 0;
     }
     .info-bar span { color: var(--acc); font-weight: 700; }
 
-    /* ACTION BAR */
     .action-bar {
-      display: flex;
-      gap: 0.4rem;
-      padding: 0.5rem;
-      background: var(--sur);
-      border-top: 1px solid var(--bord);
-      overflow-x: auto;
-      flex-shrink: 0;
+      display: flex; gap: 0.4rem; padding: 0.5rem;
+      background: var(--sur); border-top: 1px solid var(--bord);
+      overflow-x: auto; flex-shrink: 0;
     }
     .action-btn {
-      padding: 0.55rem 1rem;
-      border-radius: 20px;
-      border: 1px solid var(--acc);
-      background: var(--acc);
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.78rem;
-      cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-      font-family: 'DM Sans', sans-serif;
+      padding: 0.55rem 1rem; border-radius: 20px; border: 1px solid var(--acc);
+      background: var(--acc); color: #fff; font-weight: 700; font-size: 0.78rem;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0; font-family: 'DM Sans', sans-serif;
     }
-    .action-btn.secondary {
-      background: transparent;
-      color: var(--acc);
-      border-color: rgba(255,154,0,0.3);
-    }
-    .action-btn.alert {
-      background: var(--red);
-      border-color: var(--red);
-      color: #fff;
-    }
+    .action-btn.secondary { background: transparent; color: var(--acc); border-color: rgba(255,154,0,0.3); }
+    .action-btn.alert { background: var(--red); border-color: var(--red); color: #fff; }
     .action-btn:active { opacity: 0.8; transform: scale(0.97); }
 
-    /* BOTTOM SHEET */
     .bottom-sheet {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      max-height: 50vh;
-      background: var(--card);
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      border: 1px solid var(--bord);
-      padding: 0.8rem 1rem 2.5rem;
-      overflow-y: auto;
-      z-index: 500;
-      transform: translateY(100%);
-      transition: transform 0.3s ease;
+      position: fixed; bottom: 0; left: 0; right: 0; max-height: 50vh;
+      background: var(--card); border-top-left-radius: 20px; border-top-right-radius: 20px;
+      border: 1px solid var(--bord); padding: 0.8rem 1rem 2.5rem; overflow-y: auto;
+      z-index: 500; transform: translateY(100%); transition: transform 0.3s ease;
     }
     .bottom-sheet.open { transform: translateY(0); }
     .sheet-handle {
-      width: 36px; height: 4px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 2px;
-      margin: 0 auto 0.6rem;
-      cursor: pointer;
+      width: 36px; height: 4px; background: rgba(255,255,255,0.2);
+      border-radius: 2px; margin: 0 auto 0.6rem; cursor: pointer;
     }
     .sheet-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 1rem;
-      color: var(--acc);
-      margin-bottom: 0.6rem;
-      text-align: center;
+      font-family: 'Syne', sans-serif; font-size: 1rem; color: var(--acc);
+      margin-bottom: 0.6rem; text-align: center;
     }
     .sheet-item {
-      background: var(--card2);
-      border-radius: 12px;
-      padding: 0.7rem 0.9rem;
-      margin-bottom: 0.4rem;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
+      background: var(--card2); border-radius: 12px; padding: 0.7rem 0.9rem;
+      margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.6rem;
     }
     .sheet-item .si-icon { font-size: 1.5rem; flex-shrink: 0; }
     .sheet-item .si-info { flex: 1; min-width: 0; }
@@ -177,90 +98,41 @@
     .sheet-item .si-detail { color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
     .sheet-item .si-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
     .si-btn {
-      padding: 0.35rem 0.7rem;
-      border-radius: 10px;
-      border: none;
-      font-size: 0.7rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #fff;
-      background: var(--acc);
-      white-space: nowrap;
+      padding: 0.35rem 0.7rem; border-radius: 10px; border: none;
+      font-size: 0.7rem; font-weight: 600; cursor: pointer; color: #fff;
+      background: var(--acc); white-space: nowrap;
     }
     .si-btn.accept { background: var(--green); }
     .si-btn.navigate { background: #3498db; }
 
-    /* COUNTDOWN-BADGE */
-    .countdown-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      background: rgba(255,154,0,0.2);
-      color: var(--acc);
-      font-size: 0.65rem;
-      font-weight: 700;
-      margin-top: 3px;
-    }
-
-    /* MODAL */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 600;
-      align-items: center;
-      justify-content: center;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      z-index: 600; align-items: center; justify-content: center;
     }
     .modal-overlay.show { display: flex; }
     .modal-content {
-      background: var(--card);
-      border-radius: 18px;
-      padding: 1.2rem;
-      width: 92%;
-      max-width: 370px;
-      border: 1px solid var(--bord);
-      color: var(--text);
-      position: relative;
+      background: var(--card); border-radius: 18px; padding: 1.2rem;
+      width: 92%; max-width: 370px; border: 1px solid var(--bord);
+      color: var(--text); position: relative;
     }
     .modal-close {
-      position: absolute;
-      top: 8px; right: 12px;
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 1.2rem;
-      cursor: pointer;
+      position: absolute; top: 8px; right: 12px; background: none;
+      border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer;
     }
     .finp {
-      width: 100%;
-      padding: 0.6rem 0.8rem;
-      margin-bottom: 0.5rem;
-      background: var(--sur);
-      border: 1px solid var(--bord);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 0.85rem;
-      outline: none;
+      width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
+      background: var(--sur); border: 1px solid var(--bord); border-radius: 10px;
+      color: var(--text); font-family: inherit; font-size: 0.85rem; outline: none;
     }
     .finp:focus { border-color: var(--acc); }
     .form-label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
     .modal-btns { display: flex; gap: 0.4rem; margin-top: 0.8rem; }
     .modal-btns button { flex: 1; }
 
-    /* MATCH OVERLAY */
     .match-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.92);
-      z-index: 700;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      text-align: center;
-      padding: 2rem;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+      z-index: 700; align-items: center; justify-content: center;
+      flex-direction: column; text-align: center; padding: 2rem;
     }
     .match-overlay.show { display: flex; }
     .match-emoji { font-size: 5rem; animation: bounce 0.6s ease infinite alternate; }
@@ -269,19 +141,12 @@
     .match-name { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; }
     .match-spot { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
     .match-btn {
-      padding: 0.8rem 2rem;
-      border-radius: 20px;
-      border: none;
-      background: var(--green);
-      color: #fff;
-      font-weight: 700;
-      font-size: 1rem;
-      cursor: pointer;
+      padding: 0.8rem 2rem; border-radius: 20px; border: none;
+      background: var(--green); color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer;
     }
   </style>
 </head>
 <body>
-
 <header class="app-header">
   <div class="logo">SPOT<b>ME</b> <span>· Caching</span></div>
   <button class="header-btn" onclick="location.href='index.html'">‹</button>
@@ -302,14 +167,12 @@
   <button class="action-btn secondary" id="inviteBtn" onclick="showInvites()">📨 Einladungen</button>
 </div>
 
-<!-- Bottom Sheet -->
 <div class="bottom-sheet" id="bottomSheet">
   <div class="sheet-handle" onclick="closeSheet()"></div>
-  <div class="sheet-title" id="sheetTitle">Titel</div>
+  <div class="sheet-title" id="sheetTitle"></div>
   <div id="sheetContent"></div>
 </div>
 
-<!-- Spot Form Modal -->
 <div class="modal-overlay" id="spotFormModal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeModals()">✕</button>
@@ -325,7 +188,6 @@
   </div>
 </div>
 
-<!-- Invite Modal -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeModals()">✕</button>
@@ -341,7 +203,6 @@
   </div>
 </div>
 
-<!-- Match Overlay -->
 <div class="match-overlay" id="matchOverlay">
   <div class="match-emoji">🎉</div>
   <div class="match-title">Ihr habt euch gefunden!</div>
@@ -358,13 +219,10 @@ const API = 'https://spotme-chat-obom.onrender.com/api';
 const CODE = localStorage.getItem('sm_code') || '000000';
 
 let map, userPos, placeMode = false, tempLatLng = null;
-let mySpots = [];
-let allSpots = [];
-let selectedInviteSpot = null;
-let invitePollInterval = null;
-let knownInviteCount = 0;
+let mySpots = [], allSpots = [], selectedInviteSpot = null;
+let invitePollInterval = null, knownInviteCount = 0;
 
-// ════════════════ KARTE ════════════════
+// ════════ KARTE ════════
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView([39.47, -0.38], 14);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -395,7 +253,7 @@ function initMap() {
   if ('Notification' in window) Notification.requestPermission();
 }
 
-// ════════════════ SPOTS ════════════════
+// ════════ SPOTS ════════
 async function loadAllSpots() {
   try {
     const r = await fetch(API+'/userspots/all');
@@ -467,7 +325,7 @@ async function deleteSpot(id) {
   loadAllSpots();
 }
 
-// ════════════════ KOMPASS ════════════════
+// ════════ KOMPASS ════════
 function navigateToSpot(lat, lng) {
   if (!userPos) return alert('❌ Standort unbekannt');
   const dist = Math.round(Math.sqrt((userPos.lat-lat)**2+(userPos.lng-lng)**2)*111000);
@@ -479,7 +337,7 @@ function navigateToSpot(lat, lng) {
   setTimeout(() => alert(`🧭 ${dir} · ${dist}m`), 300);
 }
 
-// ════════════════ EINLADUNGEN ════════════════
+// ════════ EINLADUNGEN ════════
 function startInvitePolling() {
   if (invitePollInterval) clearInterval(invitePollInterval);
   invitePollInterval = setInterval(async () => {
@@ -491,15 +349,13 @@ function startInvitePolling() {
       document.getElementById('inviteCount').textContent = count;
       const btn = document.getElementById('inviteBtn');
       if (count > knownInviteCount && knownInviteCount > 0) {
-        btn.classList.add('alert');
-        btn.classList.remove('secondary');
+        btn.classList.add('alert'); btn.classList.remove('secondary');
         btn.textContent = `📨 ${count} neue!`;
         if (Notification.permission === 'granted') {
           new Notification('🧭 Neue Einladung!', { body: 'Jemand möchte sich an deinem Spot treffen.' });
         }
       } else if (count === 0) {
-        btn.classList.remove('alert');
-        btn.classList.add('secondary');
+        btn.classList.remove('alert'); btn.classList.add('secondary');
         btn.textContent = '📨 Einladungen';
       }
       knownInviteCount = count;
@@ -529,27 +385,20 @@ async function sendInvite() {
   } catch(e) { alert('✅ Einladung gesendet (Demo)'); }
 }
 
-//
 async function showInvites() {
   const btn = document.getElementById('inviteBtn');
-  btn.classList.remove('alert');
-  btn.classList.add('secondary');
-  btn.textContent = '📨 Einladungen';
+  btn.classList.remove('alert'); btn.classList.add('secondary'); btn.textContent = '📨 Einladungen';
 
   let invites = [];
   try {
-    const r = await fetch(API + '/spotcache/invites/' + CODE);
+    const r = await fetch(API+'/spotcache/invites/'+CODE);
     if (r.ok) invites = await r.json();
-  } catch (e) {
-    // Demo-Daten
+  } catch(e) {
     invites = [
-      { id: 1, spotName: 'Sonnenplatz', wishTag: 'Kaffee', from: '222222', to: CODE, status: 'pending',
-        timeStart: Date.now() + 3600000, timeEnd: Date.now() + 7200000, lat: 39.469, lng: -0.381 },
-      { id: 2, spotName: 'Aussichtspunkt', wishTag: 'Spaziergang', from: CODE, to: '333333', status: 'accepted',
-        timeStart: Date.now() - 600000, timeEnd: Date.now() + 3600000, lat: 39.471, lng: -0.374 }
+      { id:1, spotName:'Sonnenplatz', wishTag:'Kaffee', from:'222222', to:CODE, status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000, lat:39.469, lng:-0.381 },
+      { id:2, spotName:'Aussichtspunkt', wishTag:'Spaziergang', from:CODE, to:'333333', status:'accepted', timeStart:Date.now()-600000, timeEnd:Date.now()+3600000, lat:39.471, lng:-0.374 }
     ];
   }
-
   knownInviteCount = invites.length;
   document.getElementById('inviteCount').textContent = invites.length;
 
@@ -557,19 +406,15 @@ async function showInvites() {
     const isSender = inv.from === CODE;
     const status = getInviteStatus(inv);
     const timeStr = formatDateTime(inv.timeStart) + ' – ' + formatDateTime(inv.timeEnd);
-    
     let actionButtons = '';
     if (!isSender && inv.status === 'pending') {
       actionButtons = `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
     } else if (status.action === 'checkin') {
-      actionButtons = `
-        <button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>
-        <button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>
-      `;
+      actionButtons = `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>
+                       <button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>`;
     } else if (status.action === 'countdown') {
       actionButtons = `<span style="font-size:0.7rem;color:var(--muted);">${status.label}</span>`;
     }
-
     return `<div class="sheet-item">
       <div class="si-icon">${isSender ? '📤' : '📨'}</div>
       <div class="si-info">
@@ -580,64 +425,40 @@ async function showInvites() {
       <div class="si-actions">${actionButtons}</div>
     </div>`;
   }).join('') || '<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
-
   openSheet('📨 Einladungen', list);
 }
-//  
+
 async function acceptInvite(id) {
   try { await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, code:CODE, action:'accept'}) }); } catch(e){}
   showInvites();
 }
 
-function formatCountdown(ts) {
-  const diff = ts - Date.now();
-  if (diff <= 0) return 'jetzt';
-  const h = Math.floor(diff/3600000);
-  const m = Math.floor((diff%3600000)/60000);
-  return h>0 ? `${h}h ${m}min` : `${m}min`;
-}
-
-// ════════════════ CHECK-IN ════════════════
-  
+// ════════ CHECK-IN ════════
 async function checkIn(inviteId) {
   if (!navigator.geolocation) return alert('❌ Kein GPS verfügbar');
-  
   navigator.geolocation.getCurrentPosition(async pos => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
     try {
-      const res = await fetch(API + '/spotcache/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: inviteId, code: CODE, lat, lng })
-      });
+      const res = await fetch(API+'/spotcache/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude}) });
       const data = await res.json();
-      if (data.error) {
-        alert('⚠️ ' + data.error);
-      } else if (data.bothCheckedIn) {
-        // MATCH!
+      if (data.error) return alert('⚠️ '+data.error);
+      if (data.bothCheckedIn) {
         showMatchOverlay(inviteId);
       } else {
         alert('✅ Du bist eingecheckt!\n\nWarte auf deinen Treffpartner...');
       }
-    } catch (e) {
-      // Fallback Demo
+    } catch(e) {
       alert('✅ Eingecheckt (Demo) – warte auf den anderen...');
       setTimeout(() => showMatchOverlay(inviteId, true), 3000);
     }
     showInvites();
-  }, (err) => {
-    alert('⚠️ Konnte Position nicht bestimmen. Erlaube GPS und versuche es erneut.');
-  }, { enableHighAccuracy: true });
+  }, () => alert('GPS nicht verfügbar'), { enableHighAccuracy: true });
 }
 
 async function showMatchOverlay(inviteId, demo = false) {
-  let partnerName = 'Unbekannt';
-  let spotName = 'Spot';
-  let wishTag = '';
+  let partnerName = 'Unbekannt', spotName = 'Spot', wishTag = '';
   if (!demo) {
     try {
-      const r = await fetch(API + '/spotcache/invites/' + CODE);
+      const r = await fetch(API+'/spotcache/invites/'+CODE);
       const invites = await r.json();
       const match = invites.find(i => i.id === inviteId);
       if (match) {
@@ -645,76 +466,45 @@ async function showMatchOverlay(inviteId, demo = false) {
         spotName = match.spotName;
         wishTag = match.wishTag;
       }
-    } catch (e) {}
+    } catch(e) {}
   } else {
-    partnerName = 'Demo-Partner';
-    spotName = 'Demo-Spot';
+    partnerName = 'Demo-Partner'; spotName = 'Demo-Spot';
   }
   document.getElementById('matchName').textContent = partnerName;
   document.getElementById('matchSpot').textContent = spotName + (wishTag ? ` · ${wishTag}` : '');
   document.getElementById('matchOverlay').classList.add('show');
-  }
-  
+}
+
+function closeMatch() { document.getElementById('matchOverlay').classList.remove('show'); }
+
+// ════════ HILFSFUNKTIONEN ════════
 function getInviteStatus(inv) {
   const now = Date.now();
-  const start = Number(inv.timeStart);
-  const end = Number(inv.timeEnd);
+  const start = Number(inv.timeStart), end = Number(inv.timeEnd);
   if (inv.status === 'completed') return { label: '🎉 Getroffen!', action: null };
   if (inv.status === 'pending')   return { label: '⏳ Warte auf Antwort', action: null };
   if (inv.status === 'declined')  return { label: '❌ Abgelehnt', action: null };
-  // accepted
   if (now < start) {
     const diff = start - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const text = h > 0 ? `⏳ in ${h}h ${m}min` : `⏳ in ${m}min`;
-    return { label: text, action: 'countdown' };
+    const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000);
+    return { label: h>0?`⏳ in ${h}h ${m}min`:`⏳ in ${m}min`, action: 'countdown' };
   }
-  if (now >= start && now <= end) {
-    return { label: '🟢 Jetzt!', action: 'checkin' };
-  }
+  if (now >= start && now <= end) return { label: '🟢 Jetzt!', action: 'checkin' };
   return { label: '⏰ Abgelaufen', action: 'expired' };
 }
 
-  
-function closeMatch() {
-  document.getElementById('matchOverlay').classList.remove('show');
-}
-// Sichere Datumsformatierung
 function formatDateTime(ts) {
   const d = new Date(Number(ts));
   if (isNaN(d.getTime())) return 'Datum fehlt';
-  return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' }) + ' ' +
-         d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 }
 
-// Countdown mit Tagen
-function formatCountdown(ts) {
-  const time = Number(ts);
-  const diff = time - Date.now();
-  if (diff <= 0) return 'jetzt';
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 24) {
-    const d = Math.floor(h / 24);
-    return `in ${d} Tag${d>1?'en':''}`;
-  }
-  return h > 0 ? `in ${h}h ${m}min` : `in ${m}min`;
-    }
+function maskCode(c) { return c?.slice(0,3)+'…'; }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-  
-function formatDateTime(ts) {
-  const d = new Date(Number(ts));
-  if (isNaN(d.getTime())) return 'Datum fehlt';
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' +
-         d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-}
-
-function maskCode(c) { return c ? c.slice(0, 3) + '…' : '???' }
-  
-// ════════════════ UI ════════════════
 function showMySpots() {
-  const list = mySpots.map(s=>`<div class="sheet-item"><div class="si-icon">🟠</div><div class="si-info"><div class="si-name">${esc(s.name)}</div><div class="si-detail">${s.wishTag}</div></div><div class="si-actions"><button class="si-btn navigate" onclick="navigateToSpot(${s.lat},${s.lng})">🧭</button><button class="si-btn" onclick="deleteSpot(${s.id})">🗑️</button></div></div>`).join('')||'<p style="text-align:center;color:var(--muted);">Du hast noch keine Spots</p>';
+  const list = mySpots.map(s=>`<div class="sheet-item"><div class="si-icon">🟠</div><div class="si-info"><div class="si-name">${esc(s.name)}</div><div class="si-detail">${s.wishTag}</div></div><div class="si-actions"><button class="si-btn navigate" onclick="navigateToSpot(${s.lat},${s.lng})">🧭</button><button class="si-btn" onclick="deleteSpot(${s.id})">🗑️</button></div></div>`).join('')||'<p style="text-align:center;color:var(--muted);">Keine Spots</p>';
   openSheet('🟠 Meine Spots', list);
 }
 
@@ -725,8 +515,6 @@ function openSheet(title, content) {
 }
 function closeSheet() { document.getElementById('bottomSheet').classList.remove('open'); }
 function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show')); }
-function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-function maskCode(c) { return c?.slice(0,3)+'…'; }
 
 window.addEventListener('load', initMap);
 </script>
