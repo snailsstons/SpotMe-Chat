@@ -104,6 +104,7 @@
     }
     .si-btn.accept { background: var(--green); }
     .si-btn.navigate { background: #3498db; }
+    .si-btn.cancel { background: var(--red); }
 
     .modal-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -128,6 +129,20 @@
     .form-label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
     .modal-btns { display: flex; gap: 0.4rem; margin-top: 0.8rem; }
     .modal-btns button { flex: 1; }
+
+    /* Profil-Modal */
+    .profile-avatar-large {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--acc), #ff4f7b);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; margin: 0 auto 0.5rem; overflow: hidden;
+    }
+    .profile-avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 0.5rem 0; }
+    .profile-tag {
+      background: rgba(255,154,0,0.15); color: var(--acc);
+      padding: 2px 10px; border-radius: 12px; font-size: 0.7rem;
+    }
 
     .match-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
@@ -200,6 +215,14 @@
       <button onclick="sendInvite()" style="background:var(--acc);color:#fff;">Einladung senden</button>
       <button class="secondary" onclick="closeModals()" style="background:transparent;border:1px solid var(--bord);color:var(--muted);">Abbrechen</button>
     </div>
+  </div>
+</div>
+
+<!-- Profil-Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModals()">✕</button>
+    <div id="profileModalContent"></div>
   </div>
 </div>
 
@@ -286,11 +309,57 @@ function renderAllMarkers() {
     if (!isMine) {
       popup += `<br><button onclick="openInviteFromSpot(${s.id},'${esc(s.name)}','${s.wishTag}')" style="margin-top:4px;padding:4px 10px;background:#ff9a00;border:none;border-radius:8px;color:#fff;cursor:pointer;">📨 Einladung</button>`;
       popup += `<br><button onclick="navigateToSpot(${s.lat},${s.lng})" style="margin-top:3px;padding:4px 10px;background:#3498db;border:none;border-radius:8px;color:#fff;cursor:pointer;">🧭 Navigation</button>`;
+      popup += `<br><button onclick="showSpotOwnerProfile('${s.code}')" style="margin-top:3px;padding:4px 10px;background:#7a8fa8;border:none;border-radius:8px;color:#fff;cursor:pointer;">👤 Profil</button>`;
     } else {
       popup += `<br><button onclick="deleteSpot(${s.id})" style="margin-top:4px;padding:4px 10px;background:#e74c3c;border:none;border-radius:8px;color:#fff;cursor:pointer;">🗑️ Löschen</button>`;
     }
     m.bindPopup(popup);
   });
+}
+
+// ════════ PROFIL ANZEIGEN ════════
+async function showSpotOwnerProfile(ownerCode) {
+  const modal = document.getElementById('profileModal');
+  const content = document.getElementById('profileModalContent');
+  content.innerHTML = '<p style="text-align:center;color:var(--muted);">Lade Profil…</p>';
+  modal.classList.add('show');
+
+  try {
+    const [profileRes, avatarRes] = await Promise.all([
+      fetch(`${API}/profile/${ownerCode}?spot=caching`),
+      fetch(`${API}/avatar/${ownerCode}?spot=caching`)
+    ]);
+    const profile = profileRes.ok ? await profileRes.json() : null;
+    const avatarData = avatarRes.ok ? await avatarRes.json() : null;
+    const avatarUrl = avatarData?.avatar || null;
+
+    if (!profile || !profile.name) {
+      content.innerHTML = '<p style="text-align:center;color:var(--muted);">Profil nicht gefunden.</p>';
+      return;
+    }
+
+    const initial = profile.name[0]?.toUpperCase() || '?';
+    const wishes = profile.wishTags?.join(', ') || profile.wishes?.join(', ') || 'Keine Wünsche';
+    const offers = profile.offerTags?.join(', ') || profile.offers?.join(', ') || 'Keine Angebote';
+    const bio = profile.bio || 'Keine Beschreibung';
+    const avatarHTML = avatarUrl
+      ? `<img src="${avatarUrl}" alt="Avatar">`
+      : initial;
+
+    content.innerHTML = `
+      <div style="text-align:center;">
+        <div class="profile-avatar-large">${avatarHTML}</div>
+        <h3 style="font-family:'Syne';color:var(--acc);">${esc(profile.name)}</h3>
+      </div>
+      <div class="profile-tags">
+        <span class="profile-tag">💭 Wünsche: ${esc(wishes)}</span>
+        <span class="profile-tag">🎁 Bietet: ${esc(offers)}</span>
+      </div>
+      <p style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;">${esc(bio)}</p>
+    </div>`;
+  } catch(e) {
+    content.innerHTML = '<p style="text-align:center;color:var(--muted);">Fehler beim Laden.</p>';
+  }
 }
 
 function startPlaceMode() {
@@ -319,8 +388,24 @@ async function saveSpot() {
   loadAllSpots();
 }
 
+// ════════ SPOT LÖSCHEN (MIT SCHUTZ) ════════
+async function canDeleteSpot(spotId) {
+  try {
+    const r = await fetch(API+'/spotcache/invites/'+CODE);
+    if (!r.ok) return true;
+    const invites = await r.json();
+    const hasActive = invites.some(inv => inv.spotId === spotId && (inv.status === 'pending' || inv.status === 'accepted'));
+    return !hasActive;
+  } catch(e) { return true; }
+}
+
 async function deleteSpot(id) {
   if (!confirm('Spot löschen?')) return;
+  const allowed = await canDeleteSpot(id);
+  if (!allowed) {
+    alert('⚠️ Dieser Spot hat aktive Einladungen und kann nicht gelöscht werden. Storniere zuerst die Einladungen.');
+    return;
+  }
   try { await fetch(API+'/userspots/'+id, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) }); } catch(e){}
   loadAllSpots();
 }
@@ -407,14 +492,25 @@ async function showInvites() {
     const status = getInviteStatus(inv);
     const timeStr = formatDateTime(inv.timeStart) + ' – ' + formatDateTime(inv.timeEnd);
     let actionButtons = '';
+
+    // Akzeptieren-Button (nur für Empfänger bei pending)
     if (!isSender && inv.status === 'pending') {
-      actionButtons = `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
-    } else if (status.action === 'checkin') {
-      actionButtons = `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>
-                       <button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>`;
-    } else if (status.action === 'countdown') {
-      actionButtons = `<span style="font-size:0.7rem;color:var(--muted);">${status.label}</span>`;
+      actionButtons += `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
     }
+    // Check-in & Navigation (wenn Zeitfenster aktiv)
+    if (status.action === 'checkin') {
+      actionButtons += `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>`;
+      actionButtons += `<button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>`;
+    }
+    // Countdown anzeigen
+    if (status.action === 'countdown') {
+      actionButtons += `<span style="font-size:0.7rem;color:var(--muted);">${status.label}</span>`;
+    }
+    // ❌ Storno-Button (für beide Seiten, außer bei completed)
+    if (inv.status !== 'completed') {
+      actionButtons += `<button class="si-btn cancel" onclick="cancelInvite(${inv.id}, ${isSender})">❌</button>`;
+    }
+
     return `<div class="sheet-item">
       <div class="si-icon">${isSender ? '📤' : '📨'}</div>
       <div class="si-info">
@@ -430,6 +526,21 @@ async function showInvites() {
 
 async function acceptInvite(id) {
   try { await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, code:CODE, action:'accept'}) }); } catch(e){}
+  showInvites();
+}
+
+// ════════ STORNO ════════
+async function cancelInvite(inviteId, isSender) {
+  if (!confirm('Einladung wirklich stornieren?')) return;
+  try {
+    if (isSender) {
+      // Sender löscht die Einladung komplett
+      await fetch(API+'/spotcache/invite/delete/'+inviteId, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) });
+    } else {
+      // Empfänger lehnt ab
+      await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, action:'decline'}) });
+    }
+  } catch(e) {}
   showInvites();
 }
 
