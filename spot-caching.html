@@ -18,6 +18,8 @@
       --acc: #ff9a00;
       --text: #dde4f0;
       --muted: #7a8fa8;
+      --green: #1ecc68;
+      --red: #e74c3c;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body {
@@ -28,7 +30,6 @@
       font-family: 'DM Sans', system-ui, sans-serif;
       font-size: 16px;
       touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
     }
     body {
       display: flex;
@@ -67,13 +68,11 @@
       justify-content: center;
     }
     .header-btn:active { background: rgba(255,154,0,0.15); border-color: var(--acc); }
+    .header-btn.has-alert { border-color: var(--red); color: var(--red); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
     /* MAP */
-    #map-container {
-      flex: 1;
-      width: 100%;
-      min-height: 0;
-    }
+    #map-container { flex: 1; width: 100%; min-height: 0; }
     #map { width: 100%; height: 100%; }
 
     /* INFO BAR */
@@ -98,9 +97,8 @@
       border-top: 1px solid var(--bord);
       overflow-x: auto;
       flex-shrink: 0;
-      -webkit-overflow-scrolling: touch;
     }
-    .action-bar button {
+    .action-btn {
       padding: 0.55rem 1rem;
       border-radius: 20px;
       border: 1px solid var(--acc);
@@ -113,18 +111,23 @@
       flex-shrink: 0;
       font-family: 'DM Sans', sans-serif;
     }
-    .action-bar button.secondary {
+    .action-btn.secondary {
       background: transparent;
       color: var(--acc);
       border-color: rgba(255,154,0,0.3);
     }
-    .action-bar button:active { opacity: 0.8; transform: scale(0.97); }
+    .action-btn.alert {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+    .action-btn:active { opacity: 0.8; transform: scale(0.97); }
 
     /* BOTTOM SHEET */
     .bottom-sheet {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      max-height: 45vh;
+      max-height: 50vh;
       background: var(--card);
       border-top-left-radius: 20px;
       border-top-right-radius: 20px;
@@ -159,11 +162,12 @@
       align-items: center;
       gap: 0.6rem;
     }
-    .sheet-item .si-icon { font-size: 1.5rem; }
-    .sheet-item .si-info { flex: 1; }
+    .sheet-item .si-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .sheet-item .si-info { flex: 1; min-width: 0; }
     .sheet-item .si-name { font-weight: 600; font-size: 0.9rem; }
     .sheet-item .si-detail { color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
-    .sheet-item .si-btn {
+    .sheet-item .si-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+    .si-btn {
       padding: 0.35rem 0.7rem;
       border-radius: 10px;
       border: none;
@@ -172,8 +176,22 @@
       cursor: pointer;
       color: #fff;
       background: var(--acc);
+      white-space: nowrap;
     }
-    .sheet-item .si-btn.accept { background: #1ecc68; }
+    .si-btn.accept { background: var(--green); }
+    .si-btn.navigate { background: #3498db; }
+
+    /* COUNTDOWN-BADGE */
+    .countdown-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255,154,0,0.2);
+      color: var(--acc);
+      font-size: 0.65rem;
+      font-weight: 700;
+      margin-top: 3px;
+    }
 
     /* MODAL */
     .modal-overlay {
@@ -221,6 +239,36 @@
     .form-label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; }
     .modal-btns { display: flex; gap: 0.4rem; margin-top: 0.8rem; }
     .modal-btns button { flex: 1; }
+
+    /* MATCH OVERLAY */
+    .match-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 700;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      padding: 2rem;
+    }
+    .match-overlay.show { display: flex; }
+    .match-emoji { font-size: 5rem; animation: bounce 0.6s ease infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-15px); } }
+    .match-title { font-family: 'Syne', sans-serif; color: var(--acc); font-size: 1.8rem; margin: 1rem 0; }
+    .match-name { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .match-spot { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .match-btn {
+      padding: 0.8rem 2rem;
+      border-radius: 20px;
+      border: none;
+      background: var(--green);
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -239,10 +287,10 @@
   <span id="inviteCount">0</span> Einladungen
 </div>
 
-<div class="action-bar" id="actionBar">
-  <button onclick="startPlaceMode()">📍 Spot setzen</button>
-  <button class="secondary" onclick="showMySpots()">🟠 Meine Spots</button>
-  <button class="secondary" onclick="showInvites()">📨 Einladungen</button>
+<div class="action-bar">
+  <button class="action-btn" onclick="startPlaceMode()">📍 Spot setzen</button>
+  <button class="action-btn secondary" onclick="showMySpots()">🟠 Meine</button>
+  <button class="action-btn secondary" id="inviteBtn" onclick="showInvites()">📨 Einladungen</button>
 </div>
 
 <!-- Bottom Sheet -->
@@ -268,13 +316,13 @@
   </div>
 </div>
 
-<!-- Invite Modal (von fremdem Spot aus) -->
+<!-- Invite Modal -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeModals()">✕</button>
     <h3 style="font-family:'Syne';color:var(--acc);text-align:center;margin-bottom:0.8rem;">📨 Einladung senden</h3>
     <p id="inviteSpotInfo" style="text-align:center;margin-bottom:0.8rem;font-size:0.9rem;"></p>
-    <label class="form-label">Zeitraum:</label>
+    <label class="form-label">Zeitraum wählen:</label>
     <input type="datetime-local" id="inviteStart" class="finp">
     <input type="datetime-local" id="inviteEnd" class="finp">
     <div class="modal-btns">
@@ -282,6 +330,15 @@
       <button class="secondary" onclick="closeModals()" style="background:transparent;border:1px solid var(--bord);color:var(--muted);">Abbrechen</button>
     </div>
   </div>
+</div>
+
+<!-- Match Overlay -->
+<div class="match-overlay" id="matchOverlay">
+  <div class="match-emoji">🎉</div>
+  <div class="match-title">Ihr habt euch gefunden!</div>
+  <div class="match-name" id="matchName"></div>
+  <div class="match-spot" id="matchSpot"></div>
+  <button class="match-btn" onclick="closeMatch()">✨ Weiter</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -293,8 +350,10 @@ const CODE = localStorage.getItem('sm_code') || '000000';
 
 let map, userPos, placeMode = false, tempLatLng = null;
 let mySpots = [];
-let allSpots = [];      // alle öffentlichen Spots
+let allSpots = [];
 let selectedInviteSpot = null;
+let invitePollInterval = null;
+let knownInviteCount = 0;
 
 // ════════════════ KARTE ════════════════
 function initMap() {
@@ -307,7 +366,7 @@ function initMap() {
   navigator.geolocation?.getCurrentPosition(pos => {
     userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     L.marker([userPos.lat, userPos.lng], {
-      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:12px;height:12px;border-radius:50%;border:2px solid #fff;"></div>', iconSize: [16,16] })
+      icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;"></div>', iconSize: [18,18] })
     }).addTo(map).bindPopup('📍 Du').openPopup();
     map.setView([userPos.lat, userPos.lng], 15);
     fetch(API+'/location', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE, lat:userPos.lat, lng:userPos.lng, spot:'caching'}) }).catch(()=>{});
@@ -323,53 +382,50 @@ function initMap() {
   });
 
   loadAllSpots();
+  startInvitePolling();
+  if ('Notification' in window) Notification.requestPermission();
 }
 
-// ════════════════ SPOTS LADEN (ALLE) ════════════════
+// ════════════════ SPOTS ════════════════
 async function loadAllSpots() {
   try {
     const r = await fetch(API+'/userspots/all');
     if (r.ok) allSpots = await r.json();
   } catch(e) {
-    // Demo: öffentliche Spots
     allSpots = [
       { id:101, code:'111111', lat:39.473, lng:-0.377, name:'Geheimer Garten', wishTag:'Park' },
       { id:102, code:'222222', lat:39.469, lng:-0.381, name:'Sonnenplatz', wishTag:'Kaffee' },
       { id:103, code:'333333', lat:39.471, lng:-0.374, name:'Aussichtspunkt', wishTag:'Spaziergang' }
     ];
   }
-  // Eigene Spots herausfiltern
   mySpots = allSpots.filter(s => s.code === CODE);
   document.getElementById('spotCount').textContent = mySpots.length;
-
   renderAllMarkers();
 }
 
 function renderAllMarkers() {
-  // Alte Marker entfernen
   map.eachLayer(l => { if (l.options?.className==='spot-marker') map.removeLayer(l); });
-
   allSpots.forEach(s => {
     const isMine = s.code === CODE;
-    const color = isMine ? '#ff9a00' : '#aaa';
-    const icon = isMine ? '🟠' : '⚪';
-    const label = isMine ? 'Dein Spot' : 'Öffentlicher Spot';
-
+    const color = isMine ? '#ff9a00' : '#ccc';
     const m = L.marker([s.lat, s.lng], {
-      icon: L.divIcon({ html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #fff;font-size:10px;line-height:16px;text-align:center;">${icon}</div>`, iconSize: [20,20], className: 'spot-marker' })
+      icon: L.divIcon({
+        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #fff;"></div>`,
+        iconSize: [20,20], className: 'spot-marker'
+      })
     }).addTo(map);
 
-    let popupContent = `<b>${esc(s.name)}</b><br>💭 ${s.wishTag}<br><small>${label}</small>`;
+    let popup = `<b>${esc(s.name)}</b><br>💭 ${s.wishTag}`;
     if (!isMine) {
-      popupContent += `<br><button onclick="openInviteFromSpot(${s.id},'${esc(s.name)}','${s.wishTag}')" style="margin-top:4px;padding:4px 10px;background:#ff9a00;border:none;border-radius:8px;color:#fff;cursor:pointer;">📨 Einladung senden</button>`;
+      popup += `<br><button onclick="openInviteFromSpot(${s.id},'${esc(s.name)}','${s.wishTag}')" style="margin-top:4px;padding:4px 10px;background:#ff9a00;border:none;border-radius:8px;color:#fff;cursor:pointer;">📨 Einladung</button>`;
+      popup += `<br><button onclick="navigateToSpot(${s.lat},${s.lng})" style="margin-top:3px;padding:4px 10px;background:#3498db;border:none;border-radius:8px;color:#fff;cursor:pointer;">🧭 Navigation</button>`;
     } else {
-      popupContent += `<br><button onclick="deleteSpot(${s.id})" style="margin-top:4px;padding:4px 10px;background:#e74c3c;border:none;border-radius:8px;color:#fff;cursor:pointer;">🗑️ Löschen</button>`;
+      popup += `<br><button onclick="deleteSpot(${s.id})" style="margin-top:4px;padding:4px 10px;background:#e74c3c;border:none;border-radius:8px;color:#fff;cursor:pointer;">🗑️ Löschen</button>`;
     }
-    m.bindPopup(popupContent);
+    m.bindPopup(popup);
   });
 }
 
-// ════════════════ SPOT ERSTELLEN ════════════════
 function startPlaceMode() {
   placeMode = true;
   alert('📍 Tippe jetzt auf die Karte, wo dein Spot sein soll.');
@@ -390,36 +446,61 @@ async function saveSpot() {
   const wish = document.getElementById('spotWish').value;
   if (!name || !tempLatLng) return;
   closeModals();
-
-  const spot = {
-    id: Date.now(),
-    code: CODE,
-    lat: tempLatLng.lat,
-    lng: tempLatLng.lng,
-    name,
-    wishTag: wish
-  };
-
   try {
-    await fetch(API+'/userspots', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({...spot, description:desc, wishTag:wish})
-    });
+    await fetch(API+'/userspots', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE, lat:tempLatLng.lat, lng:tempLatLng.lng, name, description:desc, wishTag:wish}) });
   } catch(e) {}
   loadAllSpots();
 }
 
-async function deleteSpot(spotId) {
-  if (!confirm('Spot wirklich löschen?')) return;
-  try { await fetch(API+'/userspots/'+spotId, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) }); } catch(e){}
+async function deleteSpot(id) {
+  if (!confirm('Spot löschen?')) return;
+  try { await fetch(API+'/userspots/'+id, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) }); } catch(e){}
   loadAllSpots();
 }
 
+// ════════════════ KOMPASS ════════════════
+function navigateToSpot(lat, lng) {
+  if (!userPos) return alert('❌ Standort unbekannt');
+  const dist = Math.round(Math.sqrt((userPos.lat-lat)**2+(userPos.lng-lng)**2)*111000);
+  const angle = Math.atan2(lng-userPos.lng, lat-userPos.lat)*180/Math.PI;
+  const dirs = ['↑ N','↗ NO','→ O','↘ SO','↓ S','↙ SW','← W','↖ NW'];
+  const dir = dirs[Math.round(angle/45)%8];
+  map.setView([(userPos.lat+lat)/2, (userPos.lng+lng)/2], 15);
+  L.marker([lat, lng], { icon: L.divIcon({ html:'🎯', iconSize:[30,30] }) }).addTo(map).bindPopup('Ziel').openPopup();
+  setTimeout(() => alert(`🧭 ${dir} · ${dist}m`), 300);
+}
+
 // ════════════════ EINLADUNGEN ════════════════
-function openInviteFromSpot(spotId, spotName, wishTag) {
-  selectedInviteSpot = { id: spotId, name: spotName, wishTag };
-  document.getElementById('inviteSpotInfo').textContent = `Spot: ${spotName} (${wishTag})`;
+function startInvitePolling() {
+  if (invitePollInterval) clearInterval(invitePollInterval);
+  invitePollInterval = setInterval(async () => {
+    try {
+      const r = await fetch(API+'/spotcache/invites/'+CODE);
+      if (!r.ok) return;
+      const invites = await r.json();
+      const count = invites.length;
+      document.getElementById('inviteCount').textContent = count;
+      const btn = document.getElementById('inviteBtn');
+      if (count > knownInviteCount && knownInviteCount > 0) {
+        btn.classList.add('alert');
+        btn.classList.remove('secondary');
+        btn.textContent = `📨 ${count} neue!`;
+        if (Notification.permission === 'granted') {
+          new Notification('🧭 Neue Einladung!', { body: 'Jemand möchte sich an deinem Spot treffen.' });
+        }
+      } else if (count === 0) {
+        btn.classList.remove('alert');
+        btn.classList.add('secondary');
+        btn.textContent = '📨 Einladungen';
+      }
+      knownInviteCount = count;
+    } catch(e) {}
+  }, 8000);
+}
+
+function openInviteFromSpot(spotId, name, wish) {
+  selectedInviteSpot = { id: spotId, name, wish };
+  document.getElementById('inviteSpotInfo').textContent = `Spot: ${name} (${wish})`;
   document.getElementById('inviteStart').value = '';
   document.getElementById('inviteEnd').value = '';
   document.getElementById('inviteModal').classList.add('show');
@@ -429,100 +510,105 @@ async function sendInvite() {
   if (!selectedInviteSpot) return;
   const start = new Date(document.getElementById('inviteStart').value).getTime();
   const end = new Date(document.getElementById('inviteEnd').value).getTime();
-  if (!start || !end) return alert('Bitte Zeitraum wählen');
-  
+  if (!start || !end) return alert('Zeitraum wählen');
   const spot = allSpots.find(s => s.id === selectedInviteSpot.id);
-  if (!spot) return alert('Spot nicht gefunden');
-  
+  if (!spot) return;
   closeModals();
   try {
-    await fetch(API+'/spotcache/invite', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        from: CODE,
-        to: spot.code,
-        spotId: spot.id,
-        timeStart: start,
-        timeEnd: end
-      })
-    });
+    await fetch(API+'/spotcache/invite', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from:CODE, to:spot.code, spotId:spot.id, timeStart:start, timeEnd:end}) });
     alert('✅ Einladung gesendet');
-  } catch(e) {
-    alert('✅ Einladung gesendet (Demo)');
-  }
+  } catch(e) { alert('✅ Einladung gesendet (Demo)'); }
 }
 
 async function showInvites() {
+  const btn = document.getElementById('inviteBtn');
+  btn.classList.remove('alert');
+  btn.classList.add('secondary');
+  btn.textContent = '📨 Einladungen';
   let invites = [];
   try {
     const r = await fetch(API+'/spotcache/invites/'+CODE);
     if (r.ok) invites = await r.json();
   } catch(e) {
     invites = [
-      { id:1, spotName:'Sonnenplatz', wishTag:'Kaffee', from:'222222', status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000 },
-      { id:2, spotName:'Aussichtspunkt', wishTag:'Spaziergang', from:'333333', status:'accepted', timeStart:Date.now()+86400000, timeEnd:Date.now()+90000000 }
+      { id:1, spotName:'Sonnenplatz', wishTag:'Kaffee', from:'222222', to:CODE, status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000 },
+      { id:2, spotName:'Aussichtspunkt', wishTag:'Spaziergang', from:CODE, to:'333333', status:'accepted', timeStart:Date.now()+86400000, timeEnd:Date.now()+90000000 }
     ];
   }
+  knownInviteCount = invites.length;
   document.getElementById('inviteCount').textContent = invites.length;
-  const list = invites.map(inv => `
-    <div class="sheet-item">
-      <div class="si-icon">📨</div>
+
+  const list = invites.map(inv => {
+    const isSender = inv.from === CODE;
+    const now = Date.now();
+    const countdown = inv.timeStart > now ? `<span class="countdown-badge">⏳ ${formatCountdown(inv.timeStart)}</span>` : (inv.timeEnd > now ? '<span class="countdown-badge" style="background:rgba(30,204,104,0.2);color:#1ecc68;">🟢 Jetzt!</span>' : '');
+    return `<div class="sheet-item">
+      <div class="si-icon">${isSender ? '📤' : '📨'}</div>
       <div class="si-info">
         <div class="si-name">${esc(inv.spotName)} (${inv.wishTag})</div>
-        <div class="si-detail">${inv.status==='pending'?'Warte auf Antwort':inv.status==='accepted'?'Akzeptiert – bereit zum Check-in':inv.status}</div>
+        <div class="si-detail">${new Date(inv.timeStart).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} – ${new Date(inv.timeEnd).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} ${countdown}</div>
+        <div class="si-detail">${inv.status==='pending'?'⏳ Warte auf Antwort':inv.status==='accepted'?'✅ Akzeptiert':inv.status==='completed'?'🎉 Getroffen!':inv.status}</div>
       </div>
-      ${inv.status==='pending' && inv.to===CODE ? `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅</button>` : ''}
-      ${inv.status==='accepted' ? `<button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>` : ''}
-    </div>
-  `).join('') || '<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
+      <div class="si-actions">
+        ${inv.status==='pending' && !isSender ? `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅</button>` : ''}
+        ${inv.status==='accepted' ? `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button><button class="si-btn" onclick="checkIn(${inv.id})">📍</button>` : ''}
+      </div>
+    </div>`;
+  }).join('') || '<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
   openSheet('📨 Einladungen', list);
 }
 
 async function acceptInvite(id) {
-  try {
-    await fetch(API+'/spotcache/invite/respond', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id, code:CODE, action:'accept'})
-    });
-  } catch(e){}
+  try { await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, code:CODE, action:'accept'}) }); } catch(e){}
   showInvites();
 }
 
-function checkIn(inviteId) {
-  navigator.geolocation?.getCurrentPosition(async pos => {
+function formatCountdown(ts) {
+  const diff = ts - Date.now();
+  if (diff <= 0) return 'jetzt';
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  return h>0 ? `${h}h ${m}min` : `${m}min`;
+}
+
+// ════════════════ CHECK-IN ════════════════
+async function checkIn(inviteId) {
+  if (!navigator.geolocation) return alert('❌ Kein GPS');
+  navigator.geolocation.getCurrentPosition(async pos => {
     try {
-      const r = await fetch(API+'/spotcache/checkin', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude})
-      });
-      const d = await r.json();
-      alert(d.bothCheckedIn ? '🎉 Ihr habt euch gefunden!' : '✅ Eingecheckt – warte auf den anderen.');
-    } catch(e) { alert('✅ Check-in erfolgreich (Demo)'); }
+      const r = await fetch(API+'/spotcache/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude}) });
+      const data = await r.json();
+      if (data.error) return alert('⚠️ '+data.error);
+      if (data.bothCheckedIn) {
+        // MATCH!
+        const invRes = await fetch(API+'/spotcache/invites/'+CODE);
+        const invites = await invRes.json();
+        const match = invites.find(i => i.id === inviteId);
+        const partnerName = match ? (match.from === CODE ? maskCode(match.to) : maskCode(match.from)) : 'Unbekannt';
+        document.getElementById('matchName').textContent = partnerName;
+        document.getElementById('matchSpot').textContent = match ? `${match.spotName} · ${match.wishTag}` : '';
+        document.getElementById('matchOverlay').classList.add('show');
+      } else {
+        alert('✅ Du bist eingecheckt!\n\nWarte auf deinen Treffpartner...');
+      }
+    } catch(e) {
+      alert('✅ Eingecheckt (Demo)! 🎉');
+      document.getElementById('matchName').textContent = maskCode('999999');
+      document.getElementById('matchSpot').textContent = 'Demo-Spot';
+      document.getElementById('matchOverlay').classList.add('show');
+    }
     showInvites();
-  });
+  }, null, { enableHighAccuracy: true });
+}
+
+function closeMatch() {
+  document.getElementById('matchOverlay').classList.remove('show');
 }
 
 // ════════════════ UI ════════════════
 function showMySpots() {
-  const list = mySpots.map(s => `
-    <div class="sheet-item">
-      <div class="si-icon">🟠</div>
-      <div class="si-info">
-        <div class="si-name">${esc(s.name)}</div>
-        <div class="si-detail">${s.wishTag}</div>
-      </div>
-      <button class="si-btn" onclick="focusSpot(${s.lat},${s.lng})">📍</button>
-    </div>
-  `).join('') || '<p style="text-align:center;color:var(--muted);">Du hast noch keine Spots</p>';
+  const list = mySpots.map(s=>`<div class="sheet-item"><div class="si-icon">🟠</div><div class="si-info"><div class="si-name">${esc(s.name)}</div><div class="si-detail">${s.wishTag}</div></div><div class="si-actions"><button class="si-btn navigate" onclick="navigateToSpot(${s.lat},${s.lng})">🧭</button><button class="si-btn" onclick="deleteSpot(${s.id})">🗑️</button></div></div>`).join('')||'<p style="text-align:center;color:var(--muted);">Du hast noch keine Spots</p>';
   openSheet('🟠 Meine Spots', list);
-}
-
-function focusSpot(lat, lng) {
-  closeSheet();
-  map.setView([lat, lng], 17);
 }
 
 function openSheet(title, content) {
@@ -533,6 +619,8 @@ function openSheet(title, content) {
 function closeSheet() { document.getElementById('bottomSheet').classList.remove('open'); }
 function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show')); }
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+function maskCode(c) { return c?.slice(0,3)+'…'; }
+
 window.addEventListener('load', initMap);
 </script>
 </body>
