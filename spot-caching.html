@@ -294,16 +294,23 @@ async function loadAllSpots() {
 }
 
 function renderAllMarkers() {
-  map.eachLayer(l => { if (l.options?.className==='spot-marker') map.removeLayer(l); });
+  // Alte Spot-Marker entfernen
+  map.eachLayer(l => { if (l.options?.className === 'spot-marker') map.removeLayer(l); });
+
   allSpots.forEach(s => {
     const isMine = s.code === CODE;
-    const color = isMine ? '#ff9a00' : '#ccc';
-    const m = L.marker([s.lat, s.lng], {
-      icon: L.divIcon({
-        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #fff;"></div>`,
-        iconSize: [20,20], className: 'spot-marker'
-      })
-    }).addTo(map);
+    const starColor = isMine ? '#ff9a00' : '#66ccff';   // Orange für eigene, Hellblau für fremde
+    const label = isMine ? 'Dein Spot' : 'Öffentlicher Spot';
+
+    const icon = L.divIcon({
+      html: `<div style="font-size:32px; color:${starColor}; line-height:1; text-shadow: 0 0 6px rgba(0,0,0,0.5);">✴️</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
+      className: 'spot-marker'
+    });
+
+    const m = L.marker([s.lat, s.lng], { icon }).addTo(map);
 
     let popup = `<b>${esc(s.name)}</b><br>💭 ${s.wishTag}`;
     if (!isMine) {
@@ -315,8 +322,8 @@ function renderAllMarkers() {
     }
     m.bindPopup(popup);
   });
-}
-
+  }
+  
 // ════════ PROFIL ANZEIGEN ════════
 async function showSpotOwnerProfile(ownerCode) {
   const modal = document.getElementById('profileModal');
