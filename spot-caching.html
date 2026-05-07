@@ -283,256 +283,153 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    // ═══════════════════════════════════════════════════════════════
-    // SPOTCACHING V2 – Komplett
-    // ═══════════════════════════════════════════════════════════════
-    const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
-    const myCode = localStorage.getItem('sm_code') || '000000';
-    let map, userMarker, placingMode = false;
-    let pendingSpotLatLng = null;
-    let mySpots = [], allSpots = [];
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ═══════════════════════════════════════════════════════════════
+  // SPOTCACHING V2 – Initialisiert
+  // ═══════════════════════════════════════════════════════════════
+  const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+  const myCode = localStorage.getItem('sm_code') || '000000';
+  let map, userMarker, placingMode = false;
+  let pendingSpotLatLng = null;
+  let mySpots = [];
 
-    // ═══════════════════════════════════════════════════════════════
-    // KARTE
-    // ═══════════════════════════════════════════════════════════════
-    function initMap() {
-      map = L.map('map').setView([39.47, -0.38], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap', maxZoom: 19
-      }).addTo(map);
+  // ═══════════════════════════════════════════════════════════════
+  // KARTE STARTEN
+  // ═══════════════════════════════════════════════════════════════
+  function initMap() {
+    map = L.map('map').setView([39.47, -0.38], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 19
+    }).addTo(map);
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          const { latitude, longitude } = pos.coords;
-          userMarker = L.marker([latitude, longitude], {
-            icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;"></div>', iconSize: [18,18] })
-          }).addTo(map).bindPopup('Du').openPopup();
-          map.setView([latitude, longitude], 15);
-          // Standort auch an Server senden
-          fetch(`${API_BASE}/location`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ code: myCode, lat: latitude, lng: longitude, spot: 'caching' })
-          }).catch(()=>{});
-        }, () => {}, { enableHighAccuracy: true });
-      }
-
-      // Klick auf Karte zum Spot platzieren
-      map.on('click', e => {
-        if (placingMode) {
-          pendingSpotLatLng = e.latlng;
-          // Temporärer Marker
-          L.circleMarker([e.latlng.lat, e.latlng.lng], {
-            radius: 8, color: '#ff9a00', fillColor: '#ff9a00', fillOpacity: 0.6
-          }).addTo(map);
-          placingMode = false;
-          showSpotForm();
-        }
-      });
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // SPOT ANLEGEN
-    // ═══════════════════════════════════════════════════════════════
-    function startPlacingSpot() {
-      placingMode = true;
-      alert('Tippe auf die Karte, um einen Spot zu platzieren.');
-    }
-
-    function showSpotForm() {
-      const wishes = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}').wishes || ['Kaffee','Strand'];
-      const sel = document.getElementById('spotWishTag');
-      sel.innerHTML = wishes.map(w => `<option value="${w}">${w}</option>`).join('');
-      document.getElementById('spotName').value = '';
-      document.getElementById('spotDesc').value = '';
-      document.getElementById('spotModal').style.display = 'flex';
-    }
-
-    async function saveSpot() {
-      const name = document.getElementById('spotName').value.trim();
-      const desc = document.getElementById('spotDesc').value.trim();
-      const wishTag = document.getElementById('spotWishTag').value;
-      if (!name || !pendingSpotLatLng) return;
-
-      try {
-        await fetch(`${API_BASE}/userspots`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            code: myCode, lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng,
-            name, description: desc, wishTag
+    // Eigenen Standort abrufen
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        userMarker = L.marker([latitude, longitude], {
+          icon: L.divIcon({
+            html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;"></div>',
+            iconSize: [18,18]
           })
-        });
-      } catch (e) { /* Fallback: lokal speichern */ }
-
-      // Lokal auch für Demo
-      mySpots.push({ id: Date.now(), lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng, name, wishTag });
-      closeModals();
-      loadMySpots();
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // MEINE SPOTS LADEN & ANZEIGEN
-    // ═══════════════════════════════════════════════════════════════
-    async function loadMySpots() {
-      try {
-        const res = await fetch(`${API_BASE}/userspots/${myCode}`);
-        if (res.ok) mySpots = await res.json();
-      } catch (e) {
-        // Demo-Daten
-        if (!mySpots.length) {
-          mySpots = [
-            { id: 1, lat: 39.472, lng: -0.376, name: 'Strandbar', wishTag: 'Strand' },
-            { id: 2, lat: 39.468, lng: -0.380, name: 'Café Central', wishTag: 'Kaffee' }
-          ];
-        }
-      }
-
-      // Marker rendern
-      map.eachLayer(l => { if (l.options && l.options.className === 'myspot') map.removeLayer(l); });
-      mySpots.forEach(s => {
-        const m = L.marker([s.lat, s.lng], {
-          icon: L.divIcon({ html: '🟠', iconSize: [20,20], className: 'myspot' })
-        }).addTo(map);
-        m.bindPopup(`<b>${esc(s.name)}</b><br>${s.wishTag}<br>
-          <button onclick="inviteToSpot(${s.id},'${esc(s.name)}')">📨 Einladen</button>
-          <button onclick="deleteSpot(${s.id})">🗑️</button>`);
-      });
-
-      document.getElementById('spotCount').textContent = mySpots.length;
-      openBottomSheet('Meine Spots', mySpots.map(s => `
-        <div class="item-card">
-          <div class="item-icon">🟠</div>
-          <div class="item-info">
-            <div class="item-name">${esc(s.name)}</div>
-            <div class="item-detail">${s.wishTag}</div>
-          </div>
-          <div class="item-actions">
-            <button onclick="inviteToSpot(${s.id},'${esc(s.name)}')">📨</button>
-          </div>
-        </div>
-      `).join(''));
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // EINLADUNGEN
-    // ═══════════════════════════════════════════════════════════════
-    async function inviteToSpot(spotId, spotName) {
-      const modal = document.getElementById('inviteModal');
-      const content = document.getElementById('inviteModalContent');
-      content.innerHTML = `
-        <p><b>Spot:</b> ${spotName}</p>
-        <input type="text" id="invitePartnerCode" class="finp" placeholder="6‑stelliger Partner-Code" maxlength="6">
-        <label>Zeitraum:</label>
-        <input type="datetime-local" id="inviteStart" class="finp">
-        <input type="datetime-local" id="inviteEnd" class="finp">
-        <div class="modal-actions">
-          <button class="btn" onclick="sendInvite(${spotId})" style="flex:1;">Einladung senden</button>
-          <button class="btn secondary" onclick="closeModals()" style="flex:1;">Abbrechen</button>
-        </div>
-      `;
-      modal.style.display = 'flex';
-    }
-
-    async function sendInvite(spotId) {
-      const to = document.getElementById('invitePartnerCode').value.trim();
-      const start = new Date(document.getElementById('inviteStart').value).getTime();
-      const end = new Date(document.getElementById('inviteEnd').value).getTime();
-      if (!to || !start || !end) return alert('Alle Felder ausfüllen');
-      try {
-        await fetch(`${API_BASE}/spotcache/invite`, {
+        }).addTo(map).bindPopup('📍 Du').openPopup();
+        map.setView([latitude, longitude], 15);
+        // Standort an Server melden
+        fetch(`${API_BASE}/location`, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ from: myCode, to, spotId, timeStart: start, timeEnd: end })
-        });
-      } catch (e) {}
-      closeModals();
-      alert('✅ Einladung gesendet');
+          body: JSON.stringify({ code: myCode, lat: latitude, lng: longitude, spot: 'caching' })
+        }).catch(()=>{});
+      });
     }
 
-    async function loadInvites() {
-      let invites = [];
-      try {
-        const res = await fetch(`${API_BASE}/spotcache/invites/${myCode}`);
-        if (res.ok) invites = await res.json();
-      } catch (e) {
-        // Demo
-        invites = [
-          { id: 1, from: '123456', spotName: 'Café Central', wishTag: 'Kaffee',
-            timeStart: Date.now() + 3600000, timeEnd: Date.now() + 7200000, status: 'pending' }
+    // Klick auf Karte für Spot-Platzierung
+    map.on('click', e => {
+      if (placingMode) {
+        pendingSpotLatLng = e.latlng;
+        L.circleMarker([e.latlng.lat, e.latlng.lng], {
+          radius: 8, color: '#ff9a00', fillColor: '#ff9a00', fillOpacity: 0.6
+        }).addTo(map);
+        placingMode = false;
+        showSpotForm();
+      }
+    });
+
+    // Meine Spots laden
+    loadMySpots();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SPOT ANLEGEN
+  // ═══════════════════════════════════════════════════════════════
+  function startPlacingSpot() {
+    placingMode = true;
+    alert('📍 Tippe nun auf einen Ort auf der Karte, um deinen Spot zu setzen.');
+  }
+
+  function showSpotForm() {
+    const profile = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}');
+    const wishes = profile.wishes || ['Kaffee', 'Strand', 'Spaziergang'];
+    const sel = document.getElementById('spotWishTag');
+    sel.innerHTML = wishes.map(w => `<option value="${w}">${w}</option>`).join('');
+    document.getElementById('spotName').value = '';
+    document.getElementById('spotDesc').value = '';
+    document.getElementById('spotModal').style.display = 'flex';
+  }
+
+  async function saveSpot() {
+    const name = document.getElementById('spotName').value.trim();
+    const desc = document.getElementById('spotDesc').value.trim();
+    const wishTag = document.getElementById('spotWishTag').value;
+    if (!name || !pendingSpotLatLng) return;
+
+    try {
+      await fetch(`${API_BASE}/userspots`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          code: myCode, lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng,
+          name, description: desc, wishTag
+        })
+      });
+    } catch (e) {}
+
+    // Lokal speichern
+    mySpots.push({
+      id: Date.now(),
+      lat: pendingSpotLatLng.lat,
+      lng: pendingSpotLatLng.lng,
+      name, wishTag
+    });
+    closeModals();
+    loadMySpots();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MEINE SPOTS LADEN
+  // ═══════════════════════════════════════════════════════════════
+  async function loadMySpots() {
+    try {
+      const res = await fetch(`${API_BASE}/userspots/${myCode}`);
+      if (res.ok) mySpots = await res.json();
+    } catch (e) {
+      if (!mySpots.length) {
+        mySpots = [
+          { id: 1, lat: 39.472, lng: -0.376, name: 'Strandbar', wishTag: 'Strand' },
+          { id: 2, lat: 39.468, lng: -0.380, name: 'Café Central', wishTag: 'Kaffee' }
         ];
       }
-      document.getElementById('inviteCount').textContent = invites.length;
-      openBottomSheet('Einladungen', invites.map(inv => `
-        <div class="item-card">
-          <div class="item-icon">📨</div>
-          <div class="item-info">
-            <div class="item-name">${esc(inv.spotName)} (${inv.wishTag})</div>
-            <div class="item-detail">${new Date(inv.timeStart).toLocaleString()} · ${inv.status}</div>
-          </div>
-          <div class="item-actions">
-            ${inv.status==='pending' && inv.to===myCode ? `<button class="btn-accept" onclick="respondInvite(${inv.id},'accept')">✅</button>` : ''}
-            ${inv.status==='accepted' ? `<button class="btn-checkin" onclick="checkIn(${inv.id})">📍</button>` : ''}
-          </div>
-        </div>
-      `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine Einladungen</p>');
     }
 
-    async function respondInvite(id, action) {
-      try {
-        await fetch(`${API_BASE}/spotcache/invite/respond`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ id, code: myCode, action })
-        });
-      } catch (e) {}
-      loadInvites();
-    }
+    // Marker auf Karte
+    map.eachLayer(l => { if (l.options && l.options.className === 'myspot') map.removeLayer(l); });
+    mySpots.forEach(s => {
+      const m = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({ html: '🟠', iconSize: [24,24], className: 'myspot' })
+      }).addTo(map);
+      m.bindPopup(`<b>${esc(s.name)}</b><br>${s.wishTag}`);
+    });
 
-    async function checkIn(inviteId) {
-      if (!navigator.geolocation) return alert('Kein GPS');
-      navigator.geolocation.getCurrentPosition(async pos => {
-        try {
-          const res = await fetch(`${API_BASE}/spotcache/checkin`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ id: inviteId, code: myCode, lat: pos.coords.latitude, lng: pos.coords.longitude })
-          });
-          const data = await res.json();
-          alert(data.bothCheckedIn ? '🎉 Ihr habt euch gefunden!' : '✅ Eingecheckt!');
-          loadInvites();
-        } catch (e) { alert('⚠️ Check‑in fehlgeschlagen'); }
-      });
-    }
+    document.getElementById('spotCount').textContent = mySpots.length;
+  }
 
-    // ═══════════════════════════════════════════════════════════════
-    // UI-HILFEN
-    // ═══════════════════════════════════════════════════════════════
-    function openBottomSheet(title, content) {
-      document.getElementById('sheetTitle').textContent = title;
-      document.getElementById('sheetContent').innerHTML = content;
-      document.getElementById('bottomSheet').classList.add('open');
-    }
-    function closeBottomSheet() {
-      document.getElementById('bottomSheet').classList.remove('open');
-    }
-    function closeModals() {
-      document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
-    }
-    function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-    async function loadCommonSpots() {
-      // Demo: zeigt eigene Spots als "gemeinsam" an (später mit Partner-Code)
-      openBottomSheet('Gemeinsame Spots', mySpots.map(s => `
-        <div class="item-card">
-          <div class="item-icon">🟣</div>
-          <div class="item-info"><div class="item-name">${esc(s.name)}</div><div class="item-detail">${s.wishTag}</div></div>
-        </div>
-      `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine gemeinsamen Spots</p>');
-    }
+  // ═══════════════════════════════════════════════════════════════
+  // HILFSFUNKTIONEN
+  // ═══════════════════════════════════════════════════════════════
+  function closeModals() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+  }
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
 
-    window.addEventListener('load', () => { initMap(); loadMySpots(); });
-  </script>
+  // ═══════════════════════════════════════════════════════════════
+  // START
+  // ═══════════════════════════════════════════════════════════════
+  window.addEventListener('load', initMap);
+</script>
+  
 </body>
 </html>
