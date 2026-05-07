@@ -1295,21 +1295,6 @@ app.post('/api/userspots', async (req, res) => {
   }
 });
 
-// 🌍 Alle öffentlichen Spots abrufen (für die Karte)
-app.get('/api/userspots/all', async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", created_at
-       FROM user_spots
-       ORDER BY created_at DESC`
-    );
-    res.json(rows);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Fehler beim Abrufen' });
-  }
-});
-
 // 🟠 Eigene Spots abrufen
 app.get('/api/userspots/:code', async (req, res) => {
   const { code } = req.params;
@@ -1339,21 +1324,6 @@ app.delete('/api/userspots/:id', async (req, res) => {
     res.status(500).json({ error: 'Fehler beim Löschen' });
   }
 });
-
-// Einladung komplett löschen (nur für Sender)
-app.delete('/api/spotcache/invite/delete/:id', async (req, res) => {
-  const { id } = req.params;
-  const { code } = req.body;
-  try {
-    const inv = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
-    if (!inv.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (inv.rows[0].from_code !== code) return res.status(403).json({ error: 'Nur der Sender kann löschen' });
-    await pool.query('DELETE FROM spot_cache_invites WHERE id = $1', [id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: 'Fehler' }); }
-});
-
-
 
 // 🟣 Gemeinsame Spots finden (gleicher Wunsch + Nähe)
 app.get('/api/userspots/common/:code1/:code2', async (req, res) => {
@@ -1473,8 +1443,26 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     const u = updated.rows[0];
     if (u.checked_in_from && u.checked_in_to) {
       await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
-      return res.json({ success: true, bothCheckedIn: true, message: 'Ihr habt euch gefunden!' });
-    }
+      if (u.checked_in_from && u.checked_in_to) {
+  await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
+
+  // ✅ Echtheits‑Verifikation für beide speichern
+  const nowTS = Date.now();
+  await pool.query(
+    `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
+     VALUES ($1, 'caching', $2, 'personal', $3)
+     ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
+    [inv.from_code, inv.to_code, nowTS]
+  );
+  await pool.query(
+    `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
+     VALUES ($1, 'caching', $2, 'personal', $3)
+     ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
+    [inv.to_code, inv.from_code, nowTS]
+  );
+
+  return res.json({ success: true, bothCheckedIn: true, message: 'Ihr habt euch gefunden!' });
+}
 
     res.json({ success: true, bothCheckedIn: false });
   } catch (e) {
