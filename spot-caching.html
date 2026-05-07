@@ -53,7 +53,7 @@
     .leaflet-control-attribution { display: none !important; }
 
     .info-bar {
-      display: flex; justify-content: space-around; padding: 0.4rem 0.5rem;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.4rem 0.5rem;
       background: var(--sur); border-top: 1px solid var(--bord);
       font-size: 0.75rem; color: var(--muted); flex-shrink: 0;
     }
@@ -171,7 +171,7 @@
 
 <div id="map-container"><div id="map"></div></div>
 
-<div class="info-bar">
+<div class="info-bar" id="infoBar">
   <span id="spotCount">0</span> Spots ·
   <span id="inviteCount">0</span> Einladungen
 </div>
@@ -180,6 +180,7 @@
   <button class="action-btn" onclick="startPlaceMode()">📍 Spot setzen</button>
   <button class="action-btn secondary" onclick="showMySpots()">🟠 Meine</button>
   <button class="action-btn secondary" id="inviteBtn" onclick="showInvites()">📨 Einladungen</button>
+  <button class="action-btn secondary" onclick="openRadiusSearch()">🔍 Umkreis</button>
 </div>
 
 <div class="bottom-sheet" id="bottomSheet">
@@ -218,6 +219,25 @@
   </div>
 </div>
 
+<!-- Radius-Filter Modal -->
+<div class="modal-overlay" id="radiusModal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModals()">✕</button>
+    <h3 style="font-family:'Syne';color:var(--acc);text-align:center;margin-bottom:0.8rem;">🔍 Umkreissuche</h3>
+    <label class="form-label">Radius wählen:</label>
+    <select id="radiusSelect" class="finp">
+      <option value="1000">1 km</option>
+      <option value="2000" selected>2 km</option>
+      <option value="5000">5 km</option>
+      <option value="10000">10 km</option>
+    </select>
+    <div class="modal-btns">
+      <button onclick="applyRadiusFilter()" style="background:var(--acc);color:#fff;">Anwenden</button>
+      <button class="secondary" onclick="closeModals()" style="background:transparent;border:1px solid var(--bord);color:var(--muted);">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Profil-Modal -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal-content">
@@ -242,7 +262,8 @@ const API = 'https://spotme-chat-obom.onrender.com/api';
 const CODE = localStorage.getItem('sm_code') || '000000';
 
 let map, userPos, placeMode = false, tempLatLng = null;
-let mySpots = [], allSpots = [], selectedInviteSpot = null;
+let mySpots = [], allSpots = [], currentSpots = [];
+let selectedInviteSpot = null;
 let invitePollInterval = null, knownInviteCount = 0;
 
 // ════════ KARTE ════════
@@ -288,14 +309,15 @@ async function loadAllSpots() {
       { id:103, code:'333333', lat:39.471, lng:-0.374, name:'Aussichtspunkt', wishTag:'Spaziergang' }
     ];
   }
-  mySpots = allSpots.filter(s => s.code === CODE);
+  currentSpots = allSpots;
+  mySpots = currentSpots.filter(s => s.code === CODE);
   document.getElementById('spotCount').textContent = mySpots.length;
   renderAllMarkers();
 }
 
 function renderAllMarkers() {
   map.eachLayer(l => { if (l.options?.className==='spot-marker') map.removeLayer(l); });
-  allSpots.forEach(s => {
+  currentSpots.forEach(s => {
     const isMine = s.code === CODE;
     const starColor = isMine ? '#ff9a00' : '#66ccff';
     const icon = L.divIcon({
@@ -317,8 +339,8 @@ function renderAllMarkers() {
     }
     m.bindPopup(popup);
   });
-  }
-  
+}
+
 // ════════ PROFIL ANZEIGEN (MIT ECHTHEITS-VERIFIKATION) ════════
 async function showSpotOwnerProfile(ownerCode) {
   const modal = document.getElementById('profileModal');
@@ -327,7 +349,6 @@ async function showSpotOwnerProfile(ownerCode) {
   modal.classList.add('show');
 
   try {
-    // Profil, Avatar und Verifikationen parallel laden
     const [profileRes, avatarRes, verifRes] = await Promise.all([
       fetch(`${API}/profile/${ownerCode}?spot=caching`),
       fetch(`${API}/avatar/${ownerCode}?spot=caching`),
@@ -343,13 +364,11 @@ async function showSpotOwnerProfile(ownerCode) {
       return;
     }
 
-    // Echtheits‑Badge berechnen
     const personalCount = verifications.filter(v => v.type === 'personal').length;
     const verifiedBadge = personalCount > 0
       ? `<div style="color:#1ecc68; font-weight:600; font-size:0.8rem; margin-top:4px;">✓ Persönlich getroffen (${personalCount})</div>`
       : '';
 
-    // Restliche Profildaten
     const initial = profile.name[0]?.toUpperCase() || '?';
     const wishes = profile.wishTags?.join(', ') || profile.wishes?.join(', ') || 'Keine Wünsche';
     const offers = profile.offerTags?.join(', ') || profile.offers?.join(', ') || 'Keine Angebote';
@@ -436,6 +455,37 @@ function navigateToSpot(lat, lng) {
   setTimeout(() => alert(`🧭 ${dir} · ${dist}m`), 300);
 }
 
+// ════════ UMGEBUNGSFILTER ════════
+function openRadiusSearch() {
+  document.getElementById('radiusModal').classList.add('show');
+}
+
+function applyRadiusFilter() {
+  const radiusMeters = parseInt(document.getElementById('radiusSelect').value);
+  if (!userPos) {
+    alert('❌ Dein Standort ist nicht bekannt. Erlaube GPS oder bewege die Karte.');
+    return;
+  }
+  currentSpots = allSpots.filter(s => {
+    const dist = Math.sqrt(Math.pow(userPos.lat - s.lat, 2) + Math.pow(userPos.lng - s.lng, 2)) * 111000;
+    return dist <= radiusMeters;
+  });
+
+  mySpots = currentSpots.filter(s => s.code === CODE);
+  document.getElementById('spotCount').textContent = mySpots.length;
+  document.getElementById('infoBar').innerHTML = `<span id="spotCount">${mySpots.length}</span> Spots im Umkreis · <button onclick="resetRadiusFilter()" style="background:none;border:1px solid var(--acc);color:var(--acc);border-radius:12px;padding:2px 8px;font-size:0.7rem;cursor:pointer;">↺ Alle Spots</button>`;
+  renderAllMarkers();
+  closeModals();
+}
+
+function resetRadiusFilter() {
+  currentSpots = allSpots;
+  mySpots = currentSpots.filter(s => s.code === CODE);
+  document.getElementById('spotCount').textContent = mySpots.length;
+  document.getElementById('infoBar').innerHTML = `<span id="spotCount">${mySpots.length}</span> Spots · <span id="inviteCount">${knownInviteCount}</span> Einladungen`;
+  renderAllMarkers();
+}
+
 // ════════ EINLADUNGEN ════════
 function startInvitePolling() {
   if (invitePollInterval) clearInterval(invitePollInterval);
@@ -445,7 +495,8 @@ function startInvitePolling() {
       if (!r.ok) return;
       const invites = await r.json();
       const count = invites.length;
-      document.getElementById('inviteCount').textContent = count;
+      const icEl = document.getElementById('inviteCount');
+      if (icEl) icEl.textContent = count;
       const btn = document.getElementById('inviteBtn');
       if (count > knownInviteCount && knownInviteCount > 0) {
         btn.classList.add('alert'); btn.classList.remove('secondary');
@@ -499,7 +550,8 @@ async function showInvites() {
     ];
   }
   knownInviteCount = invites.length;
-  document.getElementById('inviteCount').textContent = invites.length;
+  const icEl = document.getElementById('inviteCount');
+  if (icEl) icEl.textContent = invites.length;
 
   const list = invites.map(inv => {
     const isSender = inv.from === CODE;
@@ -508,26 +560,21 @@ async function showInvites() {
     const timeStr = formatDateTime(inv.timeStart) + ' – ' + formatDateTime(inv.timeEnd);
     let actionButtons = '';
 
-    // Profil des anderen anzeigen (Absender oder Empfänger, je nachdem wer ich bin)
     const otherParty = isSender ? inv.to : inv.from;
     if (!isSender || isReceiver) {
       actionButtons += `<button class="si-btn" style="background:#7a8fa8;" onclick="showSpotOwnerProfile('${otherParty}')">👤 Profil</button>`;
     }
 
-    // Akzeptieren-Button (nur für Empfänger bei pending)
     if (isReceiver && inv.status === 'pending') {
       actionButtons += `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅ Akzeptieren</button>`;
     }
-    // Check-in & Navigation (wenn Zeitfenster aktiv)
     if (status.action === 'checkin') {
       actionButtons += `<button class="si-btn navigate" onclick="navigateToSpot(${inv.lat},${inv.lng})">🧭</button>`;
       actionButtons += `<button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>`;
     }
-    // Countdown anzeigen
     if (status.action === 'countdown') {
       actionButtons += `<span style="font-size:0.7rem;color:var(--muted);">${status.label}</span>`;
     }
-    // ❌ Storno-Button (für beide Seiten, außer bei completed)
     if (inv.status !== 'completed') {
       actionButtons += `<button class="si-btn cancel" onclick="cancelInvite(${inv.id}, ${isSender})">❌</button>`;
     }
@@ -555,10 +602,8 @@ async function cancelInvite(inviteId, isSender) {
   if (!confirm('Einladung wirklich stornieren?')) return;
   try {
     if (isSender) {
-      // Sender löscht die Einladung komplett
       await fetch(API+'/spotcache/invite/delete/'+inviteId, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) });
     } else {
-      // Empfänger lehnt ab
       await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, action:'decline'}) });
     }
   } catch(e) {}
