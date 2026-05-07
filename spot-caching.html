@@ -627,6 +627,26 @@
     .pop-btn.nav { background: rgba(34,211,238,0.2); color: var(--cyan); border: 1px solid rgba(34,211,238,0.4); }
     .pop-btn.del { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
 
+    /* Radius choice buttons */
+    .radius-choice {
+      padding: 0.75rem 0.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--bord2);
+      background: var(--card);
+      color: var(--muted2);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .radius-choice:active,
+    .radius-choice.selected {
+      background: var(--acc-dim);
+      border-color: var(--acc-glow);
+      color: var(--acc);
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -696,6 +716,10 @@
     <span class="di">📨</span>
     Einladungen
   </button>
+  <button class="dock-btn" id="radiusBtn" onclick="openRadiusSearch()">
+    <span class="di">🔍</span>
+    Radius
+  </button>
 </div>
 
 <!-- DRAWER OVERLAY -->
@@ -746,6 +770,25 @@
   </div>
 </div>
 
+<!-- RADIUS MODAL -->
+<div class="modal-overlay" id="radiusModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔍 Radius-Suche</div>
+    <p style="font-size:0.82rem;color:var(--muted2);margin-bottom:1rem;">Zeigt alle Spots anderer Profile in deiner Umgebung.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.8rem;">
+      <button class="radius-choice" data-km="2"  onclick="selectRadius(2)">2 km</button>
+      <button class="radius-choice" data-km="5"  onclick="selectRadius(5)">5 km</button>
+      <button class="radius-choice" data-km="10" onclick="selectRadius(10)">10 km</button>
+    </div>
+    <div id="radiusResult" style="font-size:0.8rem;color:var(--muted2);text-align:center;min-height:1.2rem;"></div>
+    <div class="modal-actions" style="margin-top:0.8rem;">
+      <button class="btn-ghost" onclick="clearRadius(); closeModals()">✕ Löschen</button>
+      <button class="btn-primary" onclick="closeModals()">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <!-- MATCH SCREEN -->
 <div class="match-screen" id="matchScreen">
   <div class="match-ring">🎯</div>
@@ -779,9 +822,13 @@ function initMap() {
 
   L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OSM'
   }).addTo(map);
+
+  // Dimming-Overlay über der Karte
+  document.getElementById('map').style.filter = 'brightness(0.72) saturate(0.7)';
 
   navigator.geolocation?.getCurrentPosition(pos => {
     userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -1149,6 +1196,108 @@ function updateInviteBadge(n) {
   const badge = document.getElementById('inviteBadge');
   if (n > 0) { badge.style.display = 'flex'; badge.textContent = n; }
   else        { badge.style.display = 'none'; }
+}
+
+// ─── RADIUS SEARCH ───────────────────────────────────────────────────────────
+let radiusCircle = null, activeRadius = null;
+
+function openRadiusSearch() {
+  document.querySelectorAll('.radius-choice').forEach(b => b.classList.remove('selected'));
+  if (activeRadius) {
+    document.querySelector(`.radius-choice[data-km="${activeRadius}"]`)?.classList.add('selected');
+  }
+  document.getElementById('radiusResult').textContent = activeRadius
+    ? `Aktiver Radius: ${activeRadius} km`
+    : 'Radius wählen:';
+  document.getElementById('radiusModal').classList.add('show');
+}
+
+function selectRadius(km) {
+  if (!userPos) { toast('❌ Standort unbekannt'); return; }
+
+  // Button-Highlight
+  document.querySelectorAll('.radius-choice').forEach(b => b.classList.remove('selected'));
+  document.querySelector(`.radius-choice[data-km="${km}"]`)?.classList.add('selected');
+  activeRadius = km;
+
+  // Alten Kreis entfernen
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+
+  const radiusM = km * 1000;
+
+  // Leaflet Circle zeichnen
+  radiusCircle = L.circle([userPos.lat, userPos.lng], {
+    radius:      radiusM,
+    color:       '#f59e0b',
+    fillColor:   '#f59e0b',
+    fillOpacity: 0.06,
+    weight:      2,
+    dashArray:   '6 4'
+  }).addTo(map);
+
+  map.fitBounds(radiusCircle.getBounds(), { padding: [20, 20] });
+
+  // Spots im Radius filtern (Haversine)
+  const nearby = allSpots.filter(s => {
+    if (s.code === CODE) return false;
+    return haversineKm(userPos.lat, userPos.lng, s.lat, s.lng) <= km;
+  });
+
+  const resultEl = document.getElementById('radiusResult');
+  resultEl.textContent = `${nearby.length} Spot${nearby.length !== 1 ? 's' : ''} innerhalb ${km} km`;
+
+  // Dock-Button highlighten
+  document.getElementById('radiusBtn').classList.add('active');
+
+  // Wenn Ergebnisse: Drawer öffnen mit gefilterter Liste
+  if (nearby.length > 0) {
+    setTimeout(() => {
+      closeModals();
+      openDrawerFiltered(nearby, km);
+    }, 600);
+  }
+}
+
+function clearRadius() {
+  if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+  activeRadius = null;
+  document.getElementById('radiusBtn').classList.remove('active');
+}
+
+function openDrawerFiltered(spots, km) {
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const title   = document.getElementById('drawerTitle');
+  const body    = document.getElementById('drawerBody');
+  overlay.classList.add('show');
+  drawer.classList.add('open');
+  currentDrawer = 'radius';
+  title.textContent = `RADIUS ${km} KM`;
+  body.innerHTML = spots.map(s => {
+    const dist = haversineKm(userPos.lat, userPos.lng, s.lat, s.lng);
+    return `<div class="spot-card">
+      <div class="sc-icon">📍</div>
+      <div class="sc-info">
+        <div class="sc-name">${esc(s.name)}</div>
+        <div class="sc-detail">
+          <span class="sc-tag">${s.wishTag}</span>
+          <span style="font-size:0.68rem;color:var(--muted);margin-left:6px;">~${dist < 1 ? Math.round(dist*1000)+'m' : dist.toFixed(1)+'km'}</span>
+        </div>
+      </div>
+      <div class="sc-actions">
+        <button class="sc-btn navigate" onclick="navigateToSpot(${s.lat},${s.lng})">🧭</button>
+        <button class="sc-btn primary"  onclick="openInviteFromSpot(${s.id},'${esc(s.name)}','${s.wishTag}'); closeDrawer()">📨</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R  = 6371;
+  const dL = (lat2 - lat1) * Math.PI / 180;
+  const dG = (lng2 - lng1) * Math.PI / 180;
+  const a  = Math.sin(dL/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dG/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 // ─── MATCH ───────────────────────────────────────────────────────────────────
