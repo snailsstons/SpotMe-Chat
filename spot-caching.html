@@ -3,359 +3,536 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SpotMe · SpotCache</title>
+  <title>SpotMe · SpotCaching</title>
   <meta name="theme-color" content="#ff4f7b">
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
-  <!-- Fonts & Styles -->
+
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="spot.css">
-  
+
   <style>
     :root {
-      --spot-acc: #ff4f7b;
-      --spot-acc2: #ff9a00;
+      --spot-acc: #ff9a00;  /* Orange – Abenteuer/Geocaching */
+      --spot-acc2: #ff4f7b;
       --acc: var(--spot-acc);
       --p2: var(--spot-acc2);
     }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
+      font-family: 'DM Sans', sans-serif;
+      background: #060a0f;
+      color: #dde4f0;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
-      margin: 0;
-      font-family: 'DM Sans', sans-serif;
     }
-    header.app-header {
+
+    /* Header */
+    .app-header {
       display: flex;
       align-items: center;
-      padding: 0.5rem 1rem;
-      background: var(--bg, #111);
-      border-bottom: 1px solid var(--bord, #333);
+      padding: 0.6rem 1rem;
+      background: #0c1219;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
     .logo {
       font-family: 'Syne', sans-serif;
       font-weight: 800;
+      font-size: 1.3rem;
       color: var(--acc);
       margin-right: auto;
     }
-    .logo span { font-weight: 300; opacity: 0.7; }
-    .header-actions button {
+    .logo span { font-weight: 300; opacity: 0.7; font-size: 0.85rem; }
+    .header-btn {
       background: none;
-      border: none;
-      color: var(--text);
-      font-size: 1.3rem;
-      margin-left: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #7a8fa8;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      font-size: 1.1rem;
       cursor: pointer;
+      margin-left: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
     }
+    .header-btn:active { background: rgba(255,154,0,0.1); border-color: var(--acc); }
+    .header-btn.profile-btn { font-size: 1.2rem; }
+
+    /* Karte */
     #map-container {
       flex: 1;
       width: 100%;
-      min-height: 50vh;
-      background: #222;
+      min-height: 55vh;
     }
     #map { width: 100%; height: 100%; }
-    .controls {
-      padding: 1rem;
+
+    /* Info-Leiste unter Karte */
+    .info-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: #0c1219;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.8rem;
+      color: #7a8fa8;
+    }
+    .info-bar span { color: var(--acc); font-weight: 600; }
+
+    /* Button-Leiste */
+    .action-bar {
       display: flex;
       gap: 0.5rem;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg, #111);
-      border-top: 1px solid var(--bord);
+      padding: 0.75rem 1rem;
+      background: #0c1219;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto;
     }
     .btn {
-      padding: 0.5rem 1rem;
+      padding: 0.65rem 1.2rem;
       border-radius: 20px;
       border: 1px solid var(--acc);
       background: var(--acc);
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
+      color: #fff;
+      font-weight: 700;
       font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
     }
+    .btn:active { transform: scale(0.96); }
     .btn.secondary {
       background: transparent;
       color: var(--acc);
-      border-color: var(--acc-dim);
+      border-color: rgba(255,154,0,0.3);
     }
-    .match-list {
-      max-height: 30vh;
+    .btn.secondary:active { background: rgba(255,154,0,0.08); }
+
+    /* Bottom Sheet (Einladungen / Match-Liste) */
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      max-height: 40vh;
+      background: #101820;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 1rem 1rem 2rem;
       overflow-y: auto;
-      padding: 0 1rem;
-      background: var(--bg);
+      z-index: 200;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
     }
-    .match-item {
+    .bottom-sheet.open { transform: translateY(0); }
+    .sheet-handle {
+      width: 40px; height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 0 auto 0.8rem;
+    }
+    .sheet-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      color: var(--acc);
+      margin-bottom: 0.8rem;
+      text-align: center;
+    }
+
+    /* Match- / Einladungs-Karten */
+    .item-card {
+      background: #141f2e;
+      border-radius: 14px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.5rem;
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid var(--bord);
+      gap: 0.8rem;
     }
-    .match-item:last-child { border-bottom: none; }
-    .badge {
-      background: rgba(255,79,123,0.15);
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      margin-left: 6px;
+    .item-card .item-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
     }
-    /* Modal */
+    .item-card .item-info { flex: 1; min-width: 0; }
+    .item-card .item-name { font-weight: 600; font-size: 0.95rem; }
+    .item-card .item-detail { color: #7a8fa8; font-size: 0.78rem; margin-top: 2px; }
+    .item-card .item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .item-card .item-actions button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-accept { background: #1ecc68; color: #fff; }
+    .btn-decline { background: rgba(255,255,255,0.1); color: #aaa; }
+    .btn-checkin { background: var(--acc); color: #fff; }
+
+    /* Modals */
     .modal-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.8);
-      z-index: 1000;
+      background: rgba(0,0,0,0.85);
+      z-index: 300;
       align-items: center;
       justify-content: center;
     }
     .modal-content {
-      background: var(--card, #1a1a1a);
+      background: #101820;
       border-radius: 20px;
       padding: 1.5rem;
-      max-width: 350px;
+      max-width: 380px;
       width: 90%;
-      position: relative;
-      color: var(--text);
-      border: 1px solid var(--bord);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #dde4f0;
     }
     .modal-close {
       position: absolute;
-      top: 10px;
-      right: 15px;
+      top: 12px; right: 16px;
       background: none;
       border: none;
-      color: var(--muted);
+      color: #7a8fa8;
       font-size: 1.3rem;
       cursor: pointer;
     }
+    .finp {
+      width: 100%;
+      padding: 0.7rem;
+      margin-bottom: 0.6rem;
+      background: #0c1219;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: #dde4f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .finp:focus { border-color: var(--acc); }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
   </style>
 </head>
 <body>
 
   <!-- Header -->
   <header class="app-header">
-    <div class="logo">SPOT<b>ME</b> <span>· SpotCache</span></div>
-    <div class="header-actions">
-      <button onclick="goHome()" title="Zurück">‹</button>
-      <!-- NEU: Profil bearbeiten -->
-      <button onclick="window.location.href='profil-caching.html'" title="Profil bearbeiten">👤</button>
-      <button onclick="location.reload()" title="Aktualisieren">↺</button>
-    </div>
+    <div class="logo">SPOT<b>ME</b> <span>· Caching</span></div>
+    <button class="header-btn" onclick="window.location.href='index.html'" title="Zurück">‹</button>
+    <button class="header-btn profile-btn" onclick="window.location.href='profil-caching.html'" title="Profil">👤</button>
+    <button class="header-btn" onclick="location.reload()" title="Aktualisieren">↺</button>
   </header>
 
   <!-- Karte -->
   <div id="map-container"><div id="map"></div></div>
 
-  <!-- Steuerung -->
-  <div class="controls">
-    <button class="btn" id="btnFindMatches" onclick="findMatches()">🔍 Matches finden</button>
-    <button class="btn secondary" onclick="showMyRequests()">📋 Meine Anfragen</button>
+  <!-- Info-Leiste -->
+  <div class="info-bar">
+    <span id="spotCount">0</span> deiner Spots ·
+    <span id="matchCount">0</span> Matches ·
+    <span id="inviteCount">0</span> Einladungen
   </div>
 
-  <!-- Match-Liste (unter Karte) -->
-  <div class="match-list" id="matchList"></div>
+  <!-- Aktionen -->
+  <div class="action-bar">
+    <button class="btn" onclick="startPlacingSpot()">📍 Spot legen</button>
+    <button class="btn secondary" onclick="loadMySpots()">🟠 Meine Spots</button>
+    <button class="btn secondary" onclick="loadCommonSpots()">🟣 Gemeinsam</button>
+    <button class="btn secondary" onclick="loadInvites()">📨 Einladungen</button>
+  </div>
 
-  <!-- Modal für SpotCache-Details -->
-  <div class="modal-overlay" id="cacheModal">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeCacheModal()">✕</button>
-      <h3 style="font-family:'Syne'; color:var(--acc); text-align:center;">🧭 SpotCache</h3>
-      <div id="cacheModalBody"></div>
+  <!-- Bottom Sheet -->
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-handle" onclick="closeBottomSheet()"></div>
+    <div class="sheet-title" id="sheetTitle">Details</div>
+    <div id="sheetContent"></div>
+  </div>
+
+  <!-- Spot‑Formular Modal -->
+  <div class="modal-overlay" id="spotModal">
+    <div class="modal-content" style="position:relative;">
+      <button class="modal-close" onclick="closeModals()">✕</button>
+      <h3 style="font-family:'Syne';color:var(--acc);text-align:center;">📍 Spot legen</h3>
+      <input type="text" id="spotName" class="finp" placeholder="Name (z.B. Schöner Brunnen)" maxlength="50">
+      <input type="text" id="spotDesc" class="finp" placeholder="Beschreibung (optional)" maxlength="100">
+      <label style="font-size:0.8rem;color:#7a8fa8;">Wunsch-Tag:</label>
+      <select id="spotWishTag" class="finp"></select>
+      <div class="modal-actions">
+        <button class="btn" onclick="saveSpot()" style="flex:1;">💾 Speichern</button>
+        <button class="btn secondary" onclick="closeModals()" style="flex:1;">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Einladungs-Detail Modal -->
+  <div class="modal-overlay" id="inviteModal">
+    <div class="modal-content" style="position:relative;">
+      <button class="modal-close" onclick="closeModals()">✕</button>
+      <h3 style="font-family:'Syne';color:var(--acc);text-align:center;">📨 Einladung</h3>
+      <div id="inviteModalContent"></div>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ---------- API ----------
+    // ═══════════════════════════════════════════════════════════════
+    // SPOTCACHING V2 – Komplett
+    // ═══════════════════════════════════════════════════════════════
     const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
     const myCode = localStorage.getItem('sm_code') || '000000';
-    let map, userMarker, currentLatLng = null;
+    let map, userMarker, placingMode = false;
+    let pendingSpotLatLng = null;
+    let mySpots = [], allSpots = [];
 
-    // ---------- Karte initialisieren ----------
+    // ═══════════════════════════════════════════════════════════════
+    // KARTE
+    // ═══════════════════════════════════════════════════════════════
     function initMap() {
-      map = L.map('map').setView([39.47, -0.38], 14); // Valencia
+      map = L.map('map').setView([39.47, -0.38], 14);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap-Mitwirkende'
+        attribution: '© OpenStreetMap', maxZoom: 19
       }).addTo(map);
-      
-      // Eigene Position
+
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           const { latitude, longitude } = pos.coords;
-          currentLatLng = { lat: latitude, lng: longitude };
           userMarker = L.marker([latitude, longitude], {
-            icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>', iconSize: [18,18] })
+            icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;"></div>', iconSize: [18,18] })
           }).addTo(map).bindPopup('Du').openPopup();
           map.setView([latitude, longitude], 15);
-        }, () => console.warn('Keine Geolocation'));
+          // Standort auch an Server senden
+          fetch(`${API_BASE}/location`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ code: myCode, lat: latitude, lng: longitude, spot: 'caching' })
+          }).catch(()=>{});
+        }, () => {}, { enableHighAccuracy: true });
       }
-    }
 
-    // ---------- Matching ----------
-    async function findMatches() {
-      document.getElementById('matchList').innerHTML = '<p style="color:var(--muted);text-align:center;">Suche...</p>';
-      try {
-        // Später: eigenes Profil aus localStorage laden und Wünsche auslesen
-        const myProfile = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}');
-        const myWishes = myProfile.wishes || [];
-        if (!myWishes.length) {
-          document.getElementById('matchList').innerHTML = '<p style="color:var(--muted);text-align:center;">Bitte fülle dein Cache-Profil aus!</p>';
-          return;
-        }
-        
-        const res = await fetch(`${API_BASE}/spotcache/match/${myCode}?spot=dates`);
-        if (!res.ok) throw new Error('API nicht verfügbar');
-        const data = await res.json();
-        displayMatches(data.matches);
-      } catch (e) {
-        // Fallback: Demo-Daten
-        console.warn('Verwende Demo-Daten:', e);
-        const myWishes = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}').wishes || ['Kaffee'];
-        const demo = [
-          { code: '123456', name: 'Lena', commonWishes: myWishes, lat: 39.472, lng: -0.376, city: 'Valencia' },
-          { code: '654321', name: 'Carlos', commonWishes: myWishes, lat: 39.468, lng: -0.382, city: 'Valencia' }
-        ];
-        displayMatches(demo);
-      }
-    }
-
-    function displayMatches(matches) {
-      // Alte Marker entfernen
-      map.eachLayer(layer => { if (layer instanceof L.Marker && layer !== userMarker) map.removeLayer(layer); });
-      matches.forEach(m => {
-        if (m.lat && m.lng) {
-          L.marker([m.lat, m.lng])
-            .addTo(map)
-            .bindPopup(`<b>${escHtml(m.name)}</b><br>${m.commonWishes.map(w=>'💭 '+w).join('<br>')}`)
-            .on('click', () => showCacheOptions(m.code, m.name, m.commonWishes[0]));
+      // Klick auf Karte zum Spot platzieren
+      map.on('click', e => {
+        if (placingMode) {
+          pendingSpotLatLng = e.latlng;
+          // Temporärer Marker
+          L.circleMarker([e.latlng.lat, e.latlng.lng], {
+            radius: 8, color: '#ff9a00', fillColor: '#ff9a00', fillOpacity: 0.6
+          }).addTo(map);
+          placingMode = false;
+          showSpotForm();
         }
       });
-
-      const list = document.getElementById('matchList');
-      if (!matches.length) {
-        list.innerHTML = '<p style="color:var(--muted);text-align:center;">Keine Matches in der Nähe</p>';
-        return;
-      }
-      list.innerHTML = matches.map(m => `
-        <div class="match-item">
-          <div>
-            <strong>${escHtml(m.name)}</strong>
-            <span class="badge">${m.commonWishes.join(', ')}</span>
-          </div>
-          <button class="btn" style="padding:0.3rem 0.8rem; font-size:0.8rem;" onclick="showCacheOptions('${m.code}','${escHtml(m.name)}','${m.commonWishes[0]}')">🧭</button>
-        </div>
-      `).join('');
     }
 
-    // ---------- Cache-Dialog ----------
-    function showCacheOptions(partnerCode, partnerName, wish) {
-      const modal = document.getElementById('cacheModal');
-      const body = document.getElementById('cacheModalBody');
-      body.innerHTML = `
-        <p>Gemeinsamer Wunsch: <b>${escHtml(wish)}</b></p>
-        <p>Möchtest du mit <b>${escHtml(partnerName)}</b> einen geheimen Treffpunkt öffnen?</p>
-        <button class="btn" style="width:100%; margin-bottom:0.5rem;" onclick="sendCacheRequest('${partnerCode}','${wish}')">Ja, Anfrage senden</button>
-        <button class="btn secondary" style="width:100%;" onclick="closeCacheModal()">Abbrechen</button>
+    // ═══════════════════════════════════════════════════════════════
+    // SPOT ANLEGEN
+    // ═══════════════════════════════════════════════════════════════
+    function startPlacingSpot() {
+      placingMode = true;
+      alert('Tippe auf die Karte, um einen Spot zu platzieren.');
+    }
+
+    function showSpotForm() {
+      const wishes = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}').wishes || ['Kaffee','Strand'];
+      const sel = document.getElementById('spotWishTag');
+      sel.innerHTML = wishes.map(w => `<option value="${w}">${w}</option>`).join('');
+      document.getElementById('spotName').value = '';
+      document.getElementById('spotDesc').value = '';
+      document.getElementById('spotModal').style.display = 'flex';
+    }
+
+    async function saveSpot() {
+      const name = document.getElementById('spotName').value.trim();
+      const desc = document.getElementById('spotDesc').value.trim();
+      const wishTag = document.getElementById('spotWishTag').value;
+      if (!name || !pendingSpotLatLng) return;
+
+      try {
+        await fetch(`${API_BASE}/userspots`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            code: myCode, lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng,
+            name, description: desc, wishTag
+          })
+        });
+      } catch (e) { /* Fallback: lokal speichern */ }
+
+      // Lokal auch für Demo
+      mySpots.push({ id: Date.now(), lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng, name, wishTag });
+      closeModals();
+      loadMySpots();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MEINE SPOTS LADEN & ANZEIGEN
+    // ═══════════════════════════════════════════════════════════════
+    async function loadMySpots() {
+      try {
+        const res = await fetch(`${API_BASE}/userspots/${myCode}`);
+        if (res.ok) mySpots = await res.json();
+      } catch (e) {
+        // Demo-Daten
+        if (!mySpots.length) {
+          mySpots = [
+            { id: 1, lat: 39.472, lng: -0.376, name: 'Strandbar', wishTag: 'Strand' },
+            { id: 2, lat: 39.468, lng: -0.380, name: 'Café Central', wishTag: 'Kaffee' }
+          ];
+        }
+      }
+
+      // Marker rendern
+      map.eachLayer(l => { if (l.options && l.options.className === 'myspot') map.removeLayer(l); });
+      mySpots.forEach(s => {
+        const m = L.marker([s.lat, s.lng], {
+          icon: L.divIcon({ html: '🟠', iconSize: [20,20], className: 'myspot' })
+        }).addTo(map);
+        m.bindPopup(`<b>${esc(s.name)}</b><br>${s.wishTag}<br>
+          <button onclick="inviteToSpot(${s.id},'${esc(s.name)}')">📨 Einladen</button>
+          <button onclick="deleteSpot(${s.id})">🗑️</button>`);
+      });
+
+      document.getElementById('spotCount').textContent = mySpots.length;
+      openBottomSheet('Meine Spots', mySpots.map(s => `
+        <div class="item-card">
+          <div class="item-icon">🟠</div>
+          <div class="item-info">
+            <div class="item-name">${esc(s.name)}</div>
+            <div class="item-detail">${s.wishTag}</div>
+          </div>
+          <div class="item-actions">
+            <button onclick="inviteToSpot(${s.id},'${esc(s.name)}')">📨</button>
+          </div>
+        </div>
+      `).join(''));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // EINLADUNGEN
+    // ═══════════════════════════════════════════════════════════════
+    async function inviteToSpot(spotId, spotName) {
+      const modal = document.getElementById('inviteModal');
+      const content = document.getElementById('inviteModalContent');
+      content.innerHTML = `
+        <p><b>Spot:</b> ${spotName}</p>
+        <input type="text" id="invitePartnerCode" class="finp" placeholder="6‑stelliger Partner-Code" maxlength="6">
+        <label>Zeitraum:</label>
+        <input type="datetime-local" id="inviteStart" class="finp">
+        <input type="datetime-local" id="inviteEnd" class="finp">
+        <div class="modal-actions">
+          <button class="btn" onclick="sendInvite(${spotId})" style="flex:1;">Einladung senden</button>
+          <button class="btn secondary" onclick="closeModals()" style="flex:1;">Abbrechen</button>
+        </div>
       `;
       modal.style.display = 'flex';
     }
 
-    async function sendCacheRequest(toCode, wish) {
-      const body = document.getElementById('cacheModalBody');
+    async function sendInvite(spotId) {
+      const to = document.getElementById('invitePartnerCode').value.trim();
+      const start = new Date(document.getElementById('inviteStart').value).getTime();
+      const end = new Date(document.getElementById('inviteEnd').value).getTime();
+      if (!to || !start || !end) return alert('Alle Felder ausfüllen');
       try {
-        const res = await fetch(`${API_BASE}/spotcache/request`, {
+        await fetch(`${API_BASE}/spotcache/invite`, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ from: myCode, to: toCode, wish })
+          body: JSON.stringify({ from: myCode, to, spotId, timeStart: start, timeEnd: end })
         });
-        const data = await res.json();
-        if (data.success) {
-          body.innerHTML = '<p>✅ Anfrage gesendet! Warte auf Bestätigung...</p>';
-        } else {
-          body.innerHTML = `<p style="color:red;">Fehler: ${data.error}</p>`;
-        }
-      } catch (e) {
-        body.innerHTML = '<p>✅ (Demo) Anfrage gesendet! Der andere müsste jetzt zustimmen.</p>';
-      }
+      } catch (e) {}
+      closeModals();
+      alert('✅ Einladung gesendet');
     }
 
-    async function showMyRequests() {
-      const body = document.getElementById('cacheModalBody');
-      const modal = document.getElementById('cacheModal');
-      body.innerHTML = '<p>Lade Anfragen...</p>';
-      modal.style.display = 'flex';
+    async function loadInvites() {
+      let invites = [];
       try {
-        const res = await fetch(`${API_BASE}/spotcache/requests/${myCode}`);
-        const requests = await res.json();
-        if (!requests.length) {
-          body.innerHTML = '<p>Keine offenen Anfragen</p>';
-          return;
-        }
-        body.innerHTML = requests.map(r => `
-          <div style="border-bottom:1px solid var(--bord); padding:0.5rem 0;">
-            <strong>${r.wish}</strong> mit ${r.from === myCode ? 'dir als Sender' : r.from}
-            <span class="badge">${r.status}</span>
-            ${r.status === 'unlocked' && r.lat ? `<button class="btn" style="margin-left:1rem;" onclick="showOnMap(${r.lat},${r.lng})">📍 zeigen</button>` : ''}
-            ${r.status === 'pending' && r.to === myCode ? `<button class="btn" style="margin-left:1rem;" onclick="respondCache(${r.id},'accept')">Akzeptieren</button>` : ''}
+        const res = await fetch(`${API_BASE}/spotcache/invites/${myCode}`);
+        if (res.ok) invites = await res.json();
+      } catch (e) {
+        // Demo
+        invites = [
+          { id: 1, from: '123456', spotName: 'Café Central', wishTag: 'Kaffee',
+            timeStart: Date.now() + 3600000, timeEnd: Date.now() + 7200000, status: 'pending' }
+        ];
+      }
+      document.getElementById('inviteCount').textContent = invites.length;
+      openBottomSheet('Einladungen', invites.map(inv => `
+        <div class="item-card">
+          <div class="item-icon">📨</div>
+          <div class="item-info">
+            <div class="item-name">${esc(inv.spotName)} (${inv.wishTag})</div>
+            <div class="item-detail">${new Date(inv.timeStart).toLocaleString()} · ${inv.status}</div>
           </div>
-        `).join('');
-      } catch (e) {
-        body.innerHTML = '<p>Keine Anfragen (Demo-Modus)</p>';
-      }
+          <div class="item-actions">
+            ${inv.status==='pending' && inv.to===myCode ? `<button class="btn-accept" onclick="respondInvite(${inv.id},'accept')">✅</button>` : ''}
+            ${inv.status==='accepted' ? `<button class="btn-checkin" onclick="checkIn(${inv.id})">📍</button>` : ''}
+          </div>
+        </div>
+      `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine Einladungen</p>');
     }
 
-    async function respondCache(id, action) {
+    async function respondInvite(id, action) {
       try {
-        const res = await fetch(`${API_BASE}/spotcache/respond`, {
+        await fetch(`${API_BASE}/spotcache/invite/respond`, {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ id, code: myCode, action })
         });
-        const data = await res.json();
-        if (data.status === 'unlocked') {
-          const reqRes = await fetch(`${API_BASE}/spotcache/requests/${myCode}`);
-          const requests = await reqRes.json();
-          const unlocked = requests.find(r => r.id === id);
-          if (unlocked && unlocked.lat) {
-            showOnMap(unlocked.lat, unlocked.lng);
-            document.getElementById('cacheModalBody').innerHTML = '<p>🎉 Treffpunkt entsperrt! Siehe Karte.</p>';
-          }
-        } else {
-          document.getElementById('cacheModalBody').innerHTML = '<p>✅ Antwort gespeichert.</p>';
-        }
-      } catch (e) {
-        const lat = 39.47 + (Math.random()-0.5)*0.02;
-        const lng = -0.38 + (Math.random()-0.5)*0.02;
-        showOnMap(lat, lng);
-        document.getElementById('cacheModalBody').innerHTML = '<p>🎉 (Demo) Treffpunkt entsperrt!</p>';
-      }
+      } catch (e) {}
+      loadInvites();
     }
 
-    function showOnMap(lat, lng) {
-      L.marker([lat, lng], {
-        icon: L.divIcon({ html: '<div style="background:#ff4f7b;width:16px;height:16px;border-radius:50%;border:3px solid white;"></div>', iconSize: [22,22] })
-      }).addTo(map).bindPopup('Geheimer Treffpunkt').openPopup();
-      map.setView([lat, lng], 16);
-      closeCacheModal();
+    async function checkIn(inviteId) {
+      if (!navigator.geolocation) return alert('Kein GPS');
+      navigator.geolocation.getCurrentPosition(async pos => {
+        try {
+          const res = await fetch(`${API_BASE}/spotcache/checkin`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id: inviteId, code: myCode, lat: pos.coords.latitude, lng: pos.coords.longitude })
+          });
+          const data = await res.json();
+          alert(data.bothCheckedIn ? '🎉 Ihr habt euch gefunden!' : '✅ Eingecheckt!');
+          loadInvites();
+        } catch (e) { alert('⚠️ Check‑in fehlgeschlagen'); }
+      });
     }
 
-    function escHtml(str) {
-      const d = document.createElement('div');
-      d.textContent = String(str);
-      return d.innerHTML;
+    // ═══════════════════════════════════════════════════════════════
+    // UI-HILFEN
+    // ═══════════════════════════════════════════════════════════════
+    function openBottomSheet(title, content) {
+      document.getElementById('sheetTitle').textContent = title;
+      document.getElementById('sheetContent').innerHTML = content;
+      document.getElementById('bottomSheet').classList.add('open');
+    }
+    function closeBottomSheet() {
+      document.getElementById('bottomSheet').classList.remove('open');
+    }
+    function closeModals() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+    }
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+    async function loadCommonSpots() {
+      // Demo: zeigt eigene Spots als "gemeinsam" an (später mit Partner-Code)
+      openBottomSheet('Gemeinsame Spots', mySpots.map(s => `
+        <div class="item-card">
+          <div class="item-icon">🟣</div>
+          <div class="item-info"><div class="item-name">${esc(s.name)}</div><div class="item-detail">${s.wishTag}</div></div>
+        </div>
+      `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine gemeinsamen Spots</p>');
     }
 
-    function goHome() { window.location.href = 'index.html'; }
-    function closeCacheModal() { document.getElementById('cacheModal').style.display = 'none'; }
-    window.onclick = e => { if (e.target === document.getElementById('cacheModal')) closeCacheModal(); };
-
-    window.addEventListener('load', initMap);
+    window.addEventListener('load', () => { initMap(); loadMySpots(); });
   </script>
 </body>
 </html>
