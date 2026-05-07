@@ -463,7 +463,7 @@ function openRadiusSearch() {
 function applyRadiusFilter() {
   const radiusMeters = parseInt(document.getElementById('radiusSelect').value);
   if (!userPos) {
-    alert('❌ Dein Standort ist nicht bekannt. Erlaube GPS oder bewege die Karte.');
+    alert('❌ Dein Standort ist nicht bekannt. Erlaube GPS und versuche es erneut.');
     return;
   }
   currentSpots = allSpots.filter(s => {
@@ -472,8 +472,12 @@ function applyRadiusFilter() {
   });
 
   mySpots = currentSpots.filter(s => s.code === CODE);
-  document.getElementById('spotCount').textContent = mySpots.length;
-  document.getElementById('infoBar').innerHTML = `<span id="spotCount">${mySpots.length}</span> Spots im Umkreis · <button onclick="resetRadiusFilter()" style="background:none;border:1px solid var(--acc);color:var(--acc);border-radius:12px;padding:2px 8px;font-size:0.7rem;cursor:pointer;">↺ Alle Spots</button>`;
+  const totalCount = currentSpots.length;
+  document.getElementById('infoBar').innerHTML = `
+    <span id="spotCount">${mySpots.length}</span> deiner Spots ·
+    <span style="color:#66ccff;">${totalCount}</span> im Umkreis ·
+    <button onclick="resetRadiusFilter()" style="background:none;border:1px solid var(--acc);color:var(--acc);border-radius:12px;padding:2px 8px;font-size:0.7rem;cursor:pointer;">↺ Alle Spots</button>
+  `;
   renderAllMarkers();
   closeModals();
 }
@@ -481,11 +485,13 @@ function applyRadiusFilter() {
 function resetRadiusFilter() {
   currentSpots = allSpots;
   mySpots = currentSpots.filter(s => s.code === CODE);
-  document.getElementById('spotCount').textContent = mySpots.length;
-  document.getElementById('infoBar').innerHTML = `<span id="spotCount">${mySpots.length}</span> Spots · <span id="inviteCount">${knownInviteCount}</span> Einladungen`;
+  document.getElementById('infoBar').innerHTML = `
+    <span id="spotCount">${mySpots.length}</span> Spots ·
+    <span id="inviteCount">${knownInviteCount}</span> Einladungen
+  `;
   renderAllMarkers();
-}
-
+  }
+  
 // ════════ EINLADUNGEN ════════
 function startInvitePolling() {
   if (invitePollInterval) clearInterval(invitePollInterval);
