@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SpotMe · SpotCaching</title>
+  <meta name="theme-color" content="#ff4f7b">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="spot.css">
+
+  <style>
+    :root {
+      --spot-acc: #ff9a00;
+      --spot-acc2: #ff4f7b;
+      --acc: var(--spot-acc);
+      --p2: var(--spot-acc2);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #060a0f;
+      color: #dde4f0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .app-header {
+      display: flex;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      background: #0c1219;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--acc);
+      margin-right: auto;
+    }
+    .logo span { font-weight: 300; opacity: 0.7; font-size: 0.85rem; }
+    .header-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #7a8fa8;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-left: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .header-btn:active { background: rgba(255,154,0,0.1); border-color: var(--acc); }
+    #map-container { flex: 1; width: 100%; min-height: 55vh; }
+    #map { width: 100%; height: 100%; }
+    .info-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: #0c1219;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.8rem;
+      color: #7a8fa8;
+    }
+    .info-bar span { color: var(--acc); font-weight: 600; }
+    .action-bar {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: #0c1219;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      overflow-x: auto;
+    }
+    .btn {
+      padding: 0.65rem 1.2rem;
+      border-radius: 20px;
+      border: 1px solid var(--acc);
+      background: var(--acc);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn.secondary { background: transparent; color: var(--acc); border-color: rgba(255,154,0,0.3); }
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      max-height: 40vh;
+      background: #101820;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 1rem 1rem 2rem;
+      overflow-y: auto;
+      z-index: 200;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .bottom-sheet.open { transform: translateY(0); }
+    .sheet-handle {
+      width: 40px; height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      margin: 0 auto 0.8rem;
+    }
+    .sheet-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      color: var(--acc);
+      margin-bottom: 0.8rem;
+      text-align: center;
+    }
+    .item-card {
+      background: #141f2e;
+      border-radius: 14px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .item-card .item-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .item-card .item-info { flex: 1; min-width: 0; }
+    .item-card .item-name { font-weight: 600; font-size: 0.95rem; }
+    .item-card .item-detail { color: #7a8fa8; font-size: 0.78rem; margin-top: 2px; }
+    .item-card .item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .item-card .item-actions button {
+      padding: 0.4rem 0.8rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-accept { background: #1ecc68; color: #fff; }
+    .btn-checkin { background: var(--acc); color: #fff; }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #101820;
+      border-radius: 20px;
+      padding: 1.5rem;
+      max-width: 380px;
+      width: 90%;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #dde4f0;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 12px; right: 16px;
+      background: none;
+      border: none;
+      color: #7a8fa8;
+      font-size: 1.3rem;
+      cursor: pointer;
+    }
+    .finp {
+      width: 100%;
+      padding: 0.7rem;
+      margin-bottom: 0.6rem;
+      background: #0c1219;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      color: #dde4f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .finp:focus { border-color: var(--acc); }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">SPOT<b>ME</b> <span>· Caching</span></div>
+    <button class="header-btn" onclick="window.location.href='index.html'" title="Zurück">‹</button>
+    <button class="header-btn profile-btn" onclick="window.location.href='profil-caching.html'" title="Profil">👤</button>
+    <button class="header-btn" onclick="location.reload()" title="Aktualisieren">↺</button>
+  </header>
+
+  <div id="map-container"><div id="map"></div></div>
+
+  <div class="info-bar">
+    <span id="spotCount">0</span> deiner Spots ·
+    <span id="matchCount">0</span> Matches ·
+    <span id="inviteCount">0</span> Einladungen
+  </div>
+
+  <div class="action-bar">
+    <button class="btn" onclick="startPlacingSpot()">📍 Spot legen</button>
+    <button class="btn secondary" onclick="loadMySpots()">🟠 Meine Spots</button>
+    <button class="btn secondary" onclick="loadCommonSpots()">🟣 Gemeinsam</button>
+    <button class="btn secondary" onclick="loadInvites()">📨 Einladungen</button>
+  </div>
+
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="sheet-handle" onclick="closeBottomSheet()"></div>
+    <div class="sheet-title" id="sheetTitle">Details</div>
+    <div id="sheetContent"></div>
+  </div>
+
+  <div class="modal-overlay" id="spotModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModals()">✕</button>
+      <h3 style="font-family:'Syne';color:var(--acc);text-align:center;">📍 Spot legen</h3>
+      <input type="text" id="spotName" class="finp" placeholder="Name (z.B. Schöner Brunnen)" maxlength="50">
+      <input type="text" id="spotDesc" class="finp" placeholder="Beschreibung (optional)" maxlength="100">
+      <label style="font-size:0.8rem;color:#7a8fa8;">Wunsch-Tag:</label>
+      <select id="spotWishTag" class="finp"></select>
+      <div class="modal-actions">
+        <button class="btn" onclick="saveSpot()" style="flex:1;">💾 Speichern</button>
+        <button class="btn secondary" onclick="closeModals()" style="flex:1;">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="inviteModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModals()">✕</button>
+      <h3 style="font-family:'Syne';color:var(--acc);text-align:center;">📨 Einladung</h3>
+      <div id="inviteModalContent"></div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const API_BASE = 'https://spotme-chat-obom.onrender.com/api';
+  const myCode = localStorage.getItem('sm_code') || '000000';
+  let map, userMarker, placingMode = false;
+  let pendingSpotLatLng = null;
+  let mySpots = [];
+
+  function initMap() {
+    map = L.map('map').setView([39.47, -0.38], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 19
+    }).addTo(map);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        userMarker = L.marker([latitude, longitude], {
+          icon: L.divIcon({ html: '<div style="background:#3b82f6;width:14px;height:14px;border-radius:50%;border:2px solid #fff;"></div>', iconSize: [18,18] })
+        }).addTo(map).bindPopup('📍 Du').openPopup();
+        map.setView([latitude, longitude], 15);
+        fetch(`${API_BASE}/location`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ code: myCode, lat: latitude, lng: longitude, spot: 'caching' })
+        }).catch(()=>{});
+      });
+    }
+
+    map.on('click', e => {
+      if (placingMode) {
+        pendingSpotLatLng = e.latlng;
+        L.circleMarker([e.latlng.lat, e.latlng.lng], {
+          radius: 8, color: '#ff9a00', fillColor: '#ff9a00', fillOpacity: 0.6
+        }).addTo(map);
+        placingMode = false;
+        showSpotForm();
+      }
+    });
+
+    loadMySpots();
+  }
+
+  function startPlacingSpot() {
+    placingMode = true;
+    alert('📍 Tippe nun auf einen Ort auf der Karte, um deinen Spot zu setzen.');
+  }
+
+  function showSpotForm() {
+    const profile = JSON.parse(localStorage.getItem('sm_profile_caching') || '{}');
+    const wishes = profile.wishes || ['Kaffee', 'Strand', 'Spaziergang'];
+    document.getElementById('spotWishTag').innerHTML = wishes.map(w => `<option value="${w}">${w}</option>`).join('');
+    document.getElementById('spotName').value = '';
+    document.getElementById('spotDesc').value = '';
+    document.getElementById('spotModal').style.display = 'flex';
+  }
+
+  async function saveSpot() {
+    const name = document.getElementById('spotName').value.trim();
+    const desc = document.getElementById('spotDesc').value.trim();
+    const wishTag = document.getElementById('spotWishTag').value;
+    if (!name || !pendingSpotLatLng) return;
+
+    try {
+      await fetch(`${API_BASE}/userspots`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ code: myCode, lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng, name, description: desc, wishTag })
+      });
+    } catch (e) {}
+
+    mySpots.push({ id: Date.now(), lat: pendingSpotLatLng.lat, lng: pendingSpotLatLng.lng, name, wishTag });
+    closeModals();
+    loadMySpots();
+  }
+
+  async function loadMySpots() {
+    try {
+      const res = await fetch(`${API_BASE}/userspots/${myCode}`);
+      if (res.ok) mySpots = await res.json();
+    } catch (e) {
+      if (!mySpots.length) {
+        mySpots = [
+          { id: 1, lat: 39.472, lng: -0.376, name: 'Strandbar', wishTag: 'Strand' },
+          { id: 2, lat: 39.468, lng: -0.380, name: 'Café Central', wishTag: 'Kaffee' }
+        ];
+      }
+    }
+
+    map.eachLayer(l => { if (l.options && l.options.className === 'myspot') map.removeLayer(l); });
+    mySpots.forEach(s => {
+      const m = L.marker([s.lat, s.lng], {
+        icon: L.divIcon({ html: '🟠', iconSize: [24,24], className: 'myspot' })
+      }).addTo(map);
+      m.bindPopup(`<b>${esc(s.name)}</b><br>${s.wishTag}<br><button onclick="inviteToSpot(${s.id},'${esc(s.name)}')">📨 Einladen</button>`);
+      m.on('click', () => m.openPopup());
+    });
+
+    document.getElementById('spotCount').textContent = mySpots.length;
+  }
+
+  // 🟣 Gemeinsame Spots (Demo)
+  async function loadCommonSpots() {
+    openBottomSheet('🟣 Gemeinsame Spots', mySpots.map(s => `
+      <div class="item-card">
+        <div class="item-icon">🟣</div>
+        <div class="item-info">
+          <div class="item-name">${esc(s.name)}</div>
+          <div class="item-detail">${s.wishTag}</div>
+        </div>
+      </div>
+    `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine gemeinsamen Spots</p>');
+  }
+
+  // 📨 Einladungen
+  function inviteToSpot(spotId, spotName) {
+    document.getElementById('inviteModalContent').innerHTML = `
+      <p><b>Spot:</b> ${spotName}</p>
+      <input type="text" id="invitePartnerCode" class="finp" placeholder="6‑stelliger Partner-Code" maxlength="6">
+      <label>Zeitraum:</label>
+      <input type="datetime-local" id="inviteStart" class="finp">
+      <input type="datetime-local" id="inviteEnd" class="finp">
+      <div class="modal-actions">
+        <button class="btn" onclick="sendInvite(${spotId})" style="flex:1;">Einladung senden</button>
+        <button class="btn secondary" onclick="closeModals()" style="flex:1;">Abbrechen</button>
+      </div>
+    `;
+    document.getElementById('inviteModal').style.display = 'flex';
+  }
+
+  async function sendInvite(spotId) {
+    const to = document.getElementById('invitePartnerCode').value.trim();
+    const start = new Date(document.getElementById('inviteStart').value).getTime();
+    const end = new Date(document.getElementById('inviteEnd').value).getTime();
+    if (!to || !start || !end) return alert('Alle Felder ausfüllen');
+    try {
+      await fetch(`${API_BASE}/spotcache/invite`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ from: myCode, to, spotId, timeStart: start, timeEnd: end })
+      });
+    } catch (e) {}
+    closeModals();
+    alert('✅ Einladung gesendet');
+  }
+
+  async function loadInvites() {
+    let invites = [];
+    try {
+      const res = await fetch(`${API_BASE}/spotcache/invites/${myCode}`);
+      if (res.ok) invites = await res.json();
+    } catch (e) {
+      invites = [{ id: 1, spotName: 'Café Central', wishTag: 'Kaffee', status: 'pending', timeStart: Date.now() + 3600000 }];
+    }
+    document.getElementById('inviteCount').textContent = invites.length;
+    openBottomSheet('📨 Einladungen', invites.map(inv => `
+      <div class="item-card">
+        <div class="item-icon">📨</div>
+        <div class="item-info">
+          <div class="item-name">${esc(inv.spotName)} (${inv.wishTag})</div>
+          <div class="item-detail">${inv.status}</div>
+        </div>
+        <div class="item-actions">
+          ${inv.status === 'pending' ? `<button class="btn-accept" onclick="respondInvite(${inv.id},'accept')">✅</button>` : ''}
+          ${inv.status === 'accepted' ? `<button class="btn-checkin" onclick="checkIn(${inv.id})">📍</button>` : ''}
+        </div>
+      </div>
+    `).join('') || '<p style="text-align:center;color:#7a8fa8;">Keine Einladungen</p>');
+  }
+
+  async function respondInvite(id, action) {
+    try {
+      await fetch(`${API_BASE}/spotcache/invite/respond`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id, code: myCode, action })
+      });
+    } catch (e) {}
+    loadInvites();
+  }
+
+  async function checkIn(inviteId) {
+    if (!navigator.geolocation) return alert('Kein GPS');
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const res = await fetch(`${API_BASE}/spotcache/checkin`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ id: inviteId, code: myCode, lat: pos.coords.latitude, lng: pos.coords.longitude })
+        });
+        const data = await res.json();
+        alert(data.bothCheckedIn ? '🎉 Ihr habt euch gefunden!' : '✅ Eingecheckt!');
+        loadInvites();
+      } catch (e) { alert('⚠️ Check-in fehlgeschlagen'); }
+    });
+  }
+
+  function openBottomSheet(title, content) {
+    document.getElementById('sheetTitle').textContent = title;
+    document.getElementById('sheetContent').innerHTML = content;
+    document.getElementById('bottomSheet').classList.add('open');
+  }
+  function closeBottomSheet() {
+    document.getElementById('bottomSheet').classList.remove('open');
+  }
+  function closeModals() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+  }
+  function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+  window.addEventListener('load', initMap);
+</script>
+</body>
+</html>
