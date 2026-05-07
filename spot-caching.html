@@ -268,17 +268,17 @@
   </div>
 </div>
 
-<!-- Invite Modal -->
+<!-- Invite Modal (von fremdem Spot aus) -->
 <div class="modal-overlay" id="inviteModal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeModals()">✕</button>
     <h3 style="font-family:'Syne';color:var(--acc);text-align:center;margin-bottom:0.8rem;">📨 Einladung senden</h3>
-    <input id="invitePartner" class="finp" placeholder="6-stelliger Partner-Code" maxlength="6">
+    <p id="inviteSpotInfo" style="text-align:center;margin-bottom:0.8rem;font-size:0.9rem;"></p>
     <label class="form-label">Zeitraum:</label>
     <input type="datetime-local" id="inviteStart" class="finp">
     <input type="datetime-local" id="inviteEnd" class="finp">
     <div class="modal-btns">
-      <button onclick="sendInvite()" style="background:var(--acc);color:#fff;">Senden</button>
+      <button onclick="sendInvite()" style="background:var(--acc);color:#fff;">Einladung senden</button>
       <button class="secondary" onclick="closeModals()" style="background:transparent;border:1px solid var(--bord);color:var(--muted);">Abbrechen</button>
     </div>
   </div>
@@ -293,7 +293,8 @@ const CODE = localStorage.getItem('sm_code') || '000000';
 
 let map, userPos, placeMode = false, tempLatLng = null;
 let mySpots = [];
-let selectedSpotId = null;
+let allSpots = [];      // alle öffentlichen Spots
+let selectedInviteSpot = null;
 
 // ════════════════ KARTE ════════════════
 function initMap() {
@@ -321,10 +322,54 @@ function initMap() {
     }
   });
 
-  loadMySpots();
+  loadAllSpots();
 }
 
-// ════════════════ SPOTS ════════════════
+// ════════════════ SPOTS LADEN (ALLE) ════════════════
+async function loadAllSpots() {
+  try {
+    const r = await fetch(API+'/userspots/all');
+    if (r.ok) allSpots = await r.json();
+  } catch(e) {
+    // Demo: öffentliche Spots
+    allSpots = [
+      { id:101, code:'111111', lat:39.473, lng:-0.377, name:'Geheimer Garten', wishTag:'Park' },
+      { id:102, code:'222222', lat:39.469, lng:-0.381, name:'Sonnenplatz', wishTag:'Kaffee' },
+      { id:103, code:'333333', lat:39.471, lng:-0.374, name:'Aussichtspunkt', wishTag:'Spaziergang' }
+    ];
+  }
+  // Eigene Spots herausfiltern
+  mySpots = allSpots.filter(s => s.code === CODE);
+  document.getElementById('spotCount').textContent = mySpots.length;
+
+  renderAllMarkers();
+}
+
+function renderAllMarkers() {
+  // Alte Marker entfernen
+  map.eachLayer(l => { if (l.options?.className==='spot-marker') map.removeLayer(l); });
+
+  allSpots.forEach(s => {
+    const isMine = s.code === CODE;
+    const color = isMine ? '#ff9a00' : '#aaa';
+    const icon = isMine ? '🟠' : '⚪';
+    const label = isMine ? 'Dein Spot' : 'Öffentlicher Spot';
+
+    const m = L.marker([s.lat, s.lng], {
+      icon: L.divIcon({ html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #fff;font-size:10px;line-height:16px;text-align:center;">${icon}</div>`, iconSize: [20,20], className: 'spot-marker' })
+    }).addTo(map);
+
+    let popupContent = `<b>${esc(s.name)}</b><br>💭 ${s.wishTag}<br><small>${label}</small>`;
+    if (!isMine) {
+      popupContent += `<br><button onclick="openInviteFromSpot(${s.id},'${esc(s.name)}','${s.wishTag}')" style="margin-top:4px;padding:4px 10px;background:#ff9a00;border:none;border-radius:8px;color:#fff;cursor:pointer;">📨 Einladung senden</button>`;
+    } else {
+      popupContent += `<br><button onclick="deleteSpot(${s.id})" style="margin-top:4px;padding:4px 10px;background:#e74c3c;border:none;border-radius:8px;color:#fff;cursor:pointer;">🗑️ Löschen</button>`;
+    }
+    m.bindPopup(popupContent);
+  });
+}
+
+// ════════════════ SPOT ERSTELLEN ════════════════
 function startPlaceMode() {
   placeMode = true;
   alert('📍 Tippe jetzt auf die Karte, wo dein Spot sein soll.');
@@ -344,64 +389,68 @@ async function saveSpot() {
   const desc = document.getElementById('spotDesc').value.trim();
   const wish = document.getElementById('spotWish').value;
   if (!name || !tempLatLng) return;
-  const spot = { id: Date.now(), lat: tempLatLng.lat, lng: tempLatLng.lng, name, wishTag: wish };
-  mySpots.push(spot);
   closeModals();
-  loadMySpots();
+
+  const spot = {
+    id: Date.now(),
+    code: CODE,
+    lat: tempLatLng.lat,
+    lng: tempLatLng.lng,
+    name,
+    wishTag: wish
+  };
+
   try {
-    await fetch(API+'/userspots', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE, ...spot, description:desc, wishTag:wish}) });
-  } catch(e){}
+    await fetch(API+'/userspots', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({...spot, description:desc, wishTag:wish})
+    });
+  } catch(e) {}
+  loadAllSpots();
 }
 
-async function loadMySpots() {
-  try {
-    const r = await fetch(API+'/userspots/'+CODE);
-    if (r.ok) mySpots = await r.json();
-  } catch(e) {
-    if (!mySpots.length) mySpots = [
-      { id:1, lat:39.472, lng:-0.376, name:'Strandbar', wishTag:'Strand' },
-      { id:2, lat:39.468, lng:-0.380, name:'Café Central', wishTag:'Kaffee' }
-    ];
-  }
-  document.getElementById('spotCount').textContent = mySpots.length;
-  renderSpotMarkers();
-}
-
-function renderSpotMarkers() {
-  map.eachLayer(l => { if (l.options?.className==='myspot') map.removeLayer(l); });
-  mySpots.forEach(s => {
-    const m = L.marker([s.lat, s.lng], {
-      icon: L.divIcon({ html:'🟠', iconSize:[24,24], className:'myspot' })
-    }).addTo(map);
-    m.bindPopup(`<b>${esc(s.name)}</b><br>${s.wishTag}<br><button onclick="openInviteModal(${s.id})" style="margin-top:4px;padding:4px 10px;background:#ff9a00;border:none;border-radius:8px;color:#fff;cursor:pointer;">📨 Einladen</button>`);
-    m.on('click',()=>m.openPopup());
-  });
-}
-
-function showMySpots() {
-  const list = mySpots.map(s=>`<div class="sheet-item"><div class="si-icon">🟠</div><div class="si-info"><div class="si-name">${esc(s.name)}</div><div class="si-detail">${s.wishTag}</div></div><button class="si-btn" onclick="openInviteModal(${s.id})">📨</button></div>`).join('')||'<p style="text-align:center;color:var(--muted);">Keine Spots</p>';
-  openSheet('🟠 Meine Spots', list);
+async function deleteSpot(spotId) {
+  if (!confirm('Spot wirklich löschen?')) return;
+  try { await fetch(API+'/userspots/'+spotId, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:CODE}) }); } catch(e){}
+  loadAllSpots();
 }
 
 // ════════════════ EINLADUNGEN ════════════════
-function openInviteModal(spotId) {
-  selectedSpotId = spotId;
-  document.getElementById('invitePartner').value = '';
+function openInviteFromSpot(spotId, spotName, wishTag) {
+  selectedInviteSpot = { id: spotId, name: spotName, wishTag };
+  document.getElementById('inviteSpotInfo').textContent = `Spot: ${spotName} (${wishTag})`;
   document.getElementById('inviteStart').value = '';
   document.getElementById('inviteEnd').value = '';
   document.getElementById('inviteModal').classList.add('show');
 }
 
 async function sendInvite() {
-  const to = document.getElementById('invitePartner').value.trim();
+  if (!selectedInviteSpot) return;
   const start = new Date(document.getElementById('inviteStart').value).getTime();
   const end = new Date(document.getElementById('inviteEnd').value).getTime();
-  if (!to || to.length!==6 || !start || !end) return alert('Bitte alle Felder korrekt ausfüllen');
+  if (!start || !end) return alert('Bitte Zeitraum wählen');
+  
+  const spot = allSpots.find(s => s.id === selectedInviteSpot.id);
+  if (!spot) return alert('Spot nicht gefunden');
+  
   closeModals();
   try {
-    await fetch(API+'/spotcache/invite', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({from:CODE, to, spotId:selectedSpotId, timeStart:start, timeEnd:end}) });
+    await fetch(API+'/spotcache/invite', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        from: CODE,
+        to: spot.code,
+        spotId: spot.id,
+        timeStart: start,
+        timeEnd: end
+      })
+    });
     alert('✅ Einladung gesendet');
-  } catch(e) { alert('✅ Einladung gesendet (Demo)'); }
+  } catch(e) {
+    alert('✅ Einladung gesendet (Demo)');
+  }
 }
 
 async function showInvites() {
@@ -410,30 +459,72 @@ async function showInvites() {
     const r = await fetch(API+'/spotcache/invites/'+CODE);
     if (r.ok) invites = await r.json();
   } catch(e) {
-    invites = [{ id:1, spotName:'Café Central', wishTag:'Kaffee', from:'123456', status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000 }];
+    invites = [
+      { id:1, spotName:'Sonnenplatz', wishTag:'Kaffee', from:'222222', status:'pending', timeStart:Date.now()+3600000, timeEnd:Date.now()+7200000 },
+      { id:2, spotName:'Aussichtspunkt', wishTag:'Spaziergang', from:'333333', status:'accepted', timeStart:Date.now()+86400000, timeEnd:Date.now()+90000000 }
+    ];
   }
   document.getElementById('inviteCount').textContent = invites.length;
-  const list = invites.map(inv=>`<div class="sheet-item"><div class="si-icon">📨</div><div class="si-info"><div class="si-name">${esc(inv.spotName)} (${inv.wishTag})</div><div class="si-detail">${inv.status==='pending'?'Warte auf Antwort':inv.status}</div></div>${inv.status==='pending'&&inv.to===CODE?`<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅</button>`:''}${inv.status==='accepted'?`<button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>`:''}</div>`).join('')||'<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
+  const list = invites.map(inv => `
+    <div class="sheet-item">
+      <div class="si-icon">📨</div>
+      <div class="si-info">
+        <div class="si-name">${esc(inv.spotName)} (${inv.wishTag})</div>
+        <div class="si-detail">${inv.status==='pending'?'Warte auf Antwort':inv.status==='accepted'?'Akzeptiert – bereit zum Check-in':inv.status}</div>
+      </div>
+      ${inv.status==='pending' && inv.to===CODE ? `<button class="si-btn accept" onclick="acceptInvite(${inv.id})">✅</button>` : ''}
+      ${inv.status==='accepted' ? `<button class="si-btn" onclick="checkIn(${inv.id})">📍 Check-in</button>` : ''}
+    </div>
+  `).join('') || '<p style="text-align:center;color:var(--muted);">Keine Einladungen</p>';
   openSheet('📨 Einladungen', list);
 }
 
 async function acceptInvite(id) {
-  try { await fetch(API+'/spotcache/invite/respond', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, code:CODE, action:'accept'}) }); } catch(e){}
+  try {
+    await fetch(API+'/spotcache/invite/respond', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id, code:CODE, action:'accept'})
+    });
+  } catch(e){}
   showInvites();
 }
 
 function checkIn(inviteId) {
   navigator.geolocation?.getCurrentPosition(async pos => {
     try {
-      const r = await fetch(API+'/spotcache/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude}) });
+      const r = await fetch(API+'/spotcache/checkin', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude})
+      });
       const d = await r.json();
       alert(d.bothCheckedIn ? '🎉 Ihr habt euch gefunden!' : '✅ Eingecheckt – warte auf den anderen.');
-    } catch(e) { alert('Check-in (Demo) – am Spot angekommen!'); }
+    } catch(e) { alert('✅ Check-in erfolgreich (Demo)'); }
     showInvites();
   });
 }
 
 // ════════════════ UI ════════════════
+function showMySpots() {
+  const list = mySpots.map(s => `
+    <div class="sheet-item">
+      <div class="si-icon">🟠</div>
+      <div class="si-info">
+        <div class="si-name">${esc(s.name)}</div>
+        <div class="si-detail">${s.wishTag}</div>
+      </div>
+      <button class="si-btn" onclick="focusSpot(${s.lat},${s.lng})">📍</button>
+    </div>
+  `).join('') || '<p style="text-align:center;color:var(--muted);">Du hast noch keine Spots</p>';
+  openSheet('🟠 Meine Spots', list);
+}
+
+function focusSpot(lat, lng) {
+  closeSheet();
+  map.setView([lat, lng], 17);
+}
+
 function openSheet(title, content) {
   document.getElementById('sheetTitle').textContent = title;
   document.getElementById('sheetContent').innerHTML = content;
