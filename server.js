@@ -1295,6 +1295,21 @@ app.post('/api/userspots', async (req, res) => {
   }
 });
 
+// 🌍 Alle öffentlichen Spots abrufen (für die Karte)
+app.get('/api/userspots/all', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", created_at
+       FROM user_spots
+       ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Fehler beim Abrufen' });
+  }
+});
+
 // 🟠 Eigene Spots abrufen
 app.get('/api/userspots/:code', async (req, res) => {
   const { code } = req.params;
