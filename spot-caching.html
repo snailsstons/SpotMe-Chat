@@ -294,23 +294,16 @@ async function loadAllSpots() {
 }
 
 function renderAllMarkers() {
-  // Alte Spot-Marker entfernen
-  map.eachLayer(l => { if (l.options?.className === 'spot-marker') map.removeLayer(l); });
-
+  map.eachLayer(l => { if (l.options?.className==='spot-marker') map.removeLayer(l); });
   allSpots.forEach(s => {
     const isMine = s.code === CODE;
-    const starColor = isMine ? '#ff9a00' : '#66ccff';   // Orange für eigene, Hellblau für fremde
-    const label = isMine ? 'Dein Spot' : 'Öffentlicher Spot';
-
-    const icon = L.divIcon({
-      html: `<div style="font-size:32px; color:${starColor}; line-height:1; text-shadow: 0 0 6px rgba(0,0,0,0.5);">✴️</div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-      popupAnchor: [0, -16],
-      className: 'spot-marker'
-    });
-
-    const m = L.marker([s.lat, s.lng], { icon }).addTo(map);
+    const color = isMine ? '#ff9a00' : '#ccc';
+    const m = L.marker([s.lat, s.lng], {
+      icon: L.divIcon({
+        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #fff;"></div>`,
+        iconSize: [20,20], className: 'spot-marker'
+      })
+    }).addTo(map);
 
     let popup = `<b>${esc(s.name)}</b><br>💭 ${s.wishTag}`;
     if (!isMine) {
@@ -322,9 +315,9 @@ function renderAllMarkers() {
     }
     m.bindPopup(popup);
   });
-  }
-  
-// ════════ PROFIL ANZEIGEN ════════
+}
+
+// ════════ PROFIL ANZEIGEN (MIT ECHTHEITS-VERIFIKATION) ════════
 async function showSpotOwnerProfile(ownerCode) {
   const modal = document.getElementById('profileModal');
   const content = document.getElementById('profileModalContent');
@@ -332,23 +325,34 @@ async function showSpotOwnerProfile(ownerCode) {
   modal.classList.add('show');
 
   try {
-    const [profileRes, avatarRes] = await Promise.all([
+    // Profil, Avatar und Verifikationen parallel laden
+    const [profileRes, avatarRes, verifRes] = await Promise.all([
       fetch(`${API}/profile/${ownerCode}?spot=caching`),
-      fetch(`${API}/avatar/${ownerCode}?spot=caching`)
+      fetch(`${API}/avatar/${ownerCode}?spot=caching`),
+      fetch(`${API}/verifications/${ownerCode}?spot=caching`)
     ]);
+
     const profile = profileRes.ok ? await profileRes.json() : null;
     const avatarData = avatarRes.ok ? await avatarRes.json() : null;
-    const avatarUrl = avatarData?.avatar || null;
+    const verifications = verifRes.ok ? await verifRes.json() : [];
 
     if (!profile || !profile.name) {
       content.innerHTML = '<p style="text-align:center;color:var(--muted);">Profil nicht gefunden.</p>';
       return;
     }
 
+    // Echtheits‑Badge berechnen
+    const personalCount = verifications.filter(v => v.type === 'personal').length;
+    const verifiedBadge = personalCount > 0
+      ? `<div style="color:#1ecc68; font-weight:600; font-size:0.8rem; margin-top:4px;">✓ Persönlich getroffen (${personalCount})</div>`
+      : '';
+
+    // Restliche Profildaten
     const initial = profile.name[0]?.toUpperCase() || '?';
     const wishes = profile.wishTags?.join(', ') || profile.wishes?.join(', ') || 'Keine Wünsche';
     const offers = profile.offerTags?.join(', ') || profile.offers?.join(', ') || 'Keine Angebote';
     const bio = profile.bio || 'Keine Beschreibung';
+    const avatarUrl = avatarData?.avatar || null;
     const avatarHTML = avatarUrl
       ? `<img src="${avatarUrl}" alt="Avatar">`
       : initial;
@@ -357,13 +361,14 @@ async function showSpotOwnerProfile(ownerCode) {
       <div style="text-align:center;">
         <div class="profile-avatar-large">${avatarHTML}</div>
         <h3 style="font-family:'Syne';color:var(--acc);">${esc(profile.name)}</h3>
+        ${verifiedBadge}
       </div>
       <div class="profile-tags">
         <span class="profile-tag">💭 Wünsche: ${esc(wishes)}</span>
         <span class="profile-tag">🎁 Bietet: ${esc(offers)}</span>
       </div>
       <p style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;">${esc(bio)}</p>
-    </div>`;
+    `;
   } catch(e) {
     content.innerHTML = '<p style="text-align:center;color:var(--muted);">Fehler beim Laden.</p>';
   }
