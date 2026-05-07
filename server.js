@@ -1340,6 +1340,21 @@ app.delete('/api/userspots/:id', async (req, res) => {
   }
 });
 
+// Einladung komplett löschen (nur für Sender)
+app.delete('/api/spotcache/invite/delete/:id', async (req, res) => {
+  const { id } = req.params;
+  const { code } = req.body;
+  try {
+    const inv = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
+    if (!inv.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    if (inv.rows[0].from_code !== code) return res.status(403).json({ error: 'Nur der Sender kann löschen' });
+    await pool.query('DELETE FROM spot_cache_invites WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: 'Fehler' }); }
+});
+
+
+
 // 🟣 Gemeinsame Spots finden (gleicher Wunsch + Nähe)
 app.get('/api/userspots/common/:code1/:code2', async (req, res) => {
   const { code1, code2 } = req.params;
