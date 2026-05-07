@@ -598,35 +598,62 @@ function formatCountdown(ts) {
 }
 
 // ════════════════ CHECK-IN ════════════════
+  
 async function checkIn(inviteId) {
-  if (!navigator.geolocation) return alert('❌ Kein GPS');
+  if (!navigator.geolocation) return alert('❌ Kein GPS verfügbar');
+  
   navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
     try {
-      const r = await fetch(API+'/spotcache/checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:inviteId, code:CODE, lat:pos.coords.latitude, lng:pos.coords.longitude}) });
-      const data = await r.json();
-      if (data.error) return alert('⚠️ '+data.error);
-      if (data.bothCheckedIn) {
+      const res = await fetch(API + '/spotcache/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: inviteId, code: CODE, lat, lng })
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert('⚠️ ' + data.error);
+      } else if (data.bothCheckedIn) {
         // MATCH!
-        const invRes = await fetch(API+'/spotcache/invites/'+CODE);
-        const invites = await invRes.json();
-        const match = invites.find(i => i.id === inviteId);
-        const partnerName = match ? (match.from === CODE ? maskCode(match.to) : maskCode(match.from)) : 'Unbekannt';
-        document.getElementById('matchName').textContent = partnerName;
-        document.getElementById('matchSpot').textContent = match ? `${match.spotName} · ${match.wishTag}` : '';
-        document.getElementById('matchOverlay').classList.add('show');
+        showMatchOverlay(inviteId);
       } else {
         alert('✅ Du bist eingecheckt!\n\nWarte auf deinen Treffpartner...');
       }
-    } catch(e) {
-      alert('✅ Eingecheckt (Demo)! 🎉');
-      document.getElementById('matchName').textContent = maskCode('999999');
-      document.getElementById('matchSpot').textContent = 'Demo-Spot';
-      document.getElementById('matchOverlay').classList.add('show');
+    } catch (e) {
+      // Fallback Demo
+      alert('✅ Eingecheckt (Demo) – warte auf den anderen...');
+      setTimeout(() => showMatchOverlay(inviteId, true), 3000);
     }
     showInvites();
-  }, null, { enableHighAccuracy: true });
+  }, (err) => {
+    alert('⚠️ Konnte Position nicht bestimmen. Erlaube GPS und versuche es erneut.');
+  }, { enableHighAccuracy: true });
 }
 
+async function showMatchOverlay(inviteId, demo = false) {
+  let partnerName = 'Unbekannt';
+  let spotName = 'Spot';
+  let wishTag = '';
+  if (!demo) {
+    try {
+      const r = await fetch(API + '/spotcache/invites/' + CODE);
+      const invites = await r.json();
+      const match = invites.find(i => i.id === inviteId);
+      if (match) {
+        partnerName = match.from === CODE ? maskCode(match.to) : maskCode(match.from);
+        spotName = match.spotName;
+        wishTag = match.wishTag;
+      }
+    } catch (e) {}
+  } else {
+    partnerName = 'Demo-Partner';
+    spotName = 'Demo-Spot';
+  }
+  document.getElementById('matchName').textContent = partnerName;
+  document.getElementById('matchSpot').textContent = spotName + (wishTag ? ` · ${wishTag}` : '');
+  document.getElementById('matchOverlay').classList.add('show');
+  }
   
 function getInviteStatus(inv) {
   const now = Date.now();
@@ -674,6 +701,16 @@ function formatCountdown(ts) {
   }
   return h > 0 ? `in ${h}h ${m}min` : `in ${m}min`;
     }
+
+  
+function formatDateTime(ts) {
+  const d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return 'Datum fehlt';
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' +
+         d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function maskCode(c) { return c ? c.slice(0, 3) + '…' : '???' }
   
 // ════════════════ UI ════════════════
 function showMySpots() {
