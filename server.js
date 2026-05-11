@@ -357,6 +357,7 @@ app.post('/api/profile', async (req, res) => {
     orientation, role, trans, crossdresser, category, bio,
     lookingFor, helpMode, helpCategory,
     wishTags, offerTags,
+    avatar,              // ← NEU: optional Base64‑Avatar
     token, spot = 'gay'
   } = req.body;
 
@@ -385,6 +386,7 @@ app.post('/api/profile', async (req, res) => {
     let profileToken;
 
     if (existing.rows.length > 0) {
+      // UPDATE
       const storedToken = existing.rows[0].token || globalToken;
       if (!token) {
         profileToken = storedToken || crypto.randomBytes(32).toString('hex');
@@ -408,6 +410,8 @@ app.post('/api/profile', async (req, res) => {
           help_mode=$11, help_category=$12,
           category=$13, bio=$14,
           wish_tags=$15, offer_tags=$16,
+          avatar        = COALESCE($22, avatar),
+          avatar_status = CASE WHEN $22 IS NOT NULL THEN 'pending' ELSE avatar_status END,
           updated_at=$17, visible_until=$18
          WHERE code=$19 AND spot=$20`,
         [
@@ -418,10 +422,12 @@ app.post('/api/profile', async (req, res) => {
           encrypt(category) || null, encrypt(bio) || null,
           encrypt(JSON.stringify(wishTags || [])),
           encrypt(JSON.stringify(offerTags || [])),
-          now, visibleUntil, code, spot
+          now, visibleUntil, code, spot,
+          avatar || null   // $22
         ]
       );
     } else {
+      // INSERT
       profileToken = crypto.randomBytes(32).toString('hex');
       await pool.query(
         `INSERT INTO profiles
@@ -429,8 +435,9 @@ app.post('/api/profile', async (req, res) => {
            orientation, role, trans, crossdresser, looking_for,
            help_mode, help_category, category, bio,
            wish_tags, offer_tags,
+           avatar, avatar_status,
            token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
         [
           code, spot, encrypt(name), age || null, region,
           province || null, city || null,
@@ -440,6 +447,8 @@ app.post('/api/profile', async (req, res) => {
           encrypt(category) || null, encrypt(bio) || null,
           encrypt(JSON.stringify(wishTags || [])),
           encrypt(JSON.stringify(offerTags || [])),
+          avatar || null,
+          avatar ? 'pending' : null,
           profileToken, now, visibleUntil
         ]
       );
