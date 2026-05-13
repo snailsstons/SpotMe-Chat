@@ -233,6 +233,7 @@ await pool.query(`
     name        TEXT NOT NULL,
     description TEXT,
     wish_tag    TEXT NOT NULL,
+    image       TEXT,
     created_at  BIGINT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_user_spots_code ON user_spots(code);
@@ -270,6 +271,8 @@ await pool.query(`
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`).catch(() => {});
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS wish_tags TEXT`);
     await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS offer_tags TEXT`);
+    await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS description TEXT`).catch(() => {});
     console.log('✅ v4.2 – Alle Spalten bereit (inkl. SpotCache)');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
@@ -1287,15 +1290,15 @@ async function unlockCache(reqA, reqBId) {
 
 // 🟠 Eigenen Spot anlegen
 app.post('/api/userspots', async (req, res) => {
-  const { code, lat, lng, name, description, wishTag } = req.body;
+  const { code, lat, lng, name, description, wishTag, image } = req.body;
   if (!code || lat == null || lng == null || !name || !wishTag) {
     return res.status(400).json({ error: 'Pflichtfelder: code, lat, lng, name, wishTag' });
   }
   try {
     await pool.query(
-      `INSERT INTO user_spots (code, lat, lng, name, description, wish_tag, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [code, lat, lng, name, description || null, wishTag, Date.now()]
+      `INSERT INTO user_spots (code, lat, lng, name, description, wish_tag, image, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [code, lat, lng, name, description || null, wishTag, image || null, Date.now()]
     );
     res.json({ success: true });
   } catch (e) {
@@ -1308,7 +1311,7 @@ app.post('/api/userspots', async (req, res) => {
 app.get('/api/userspots/all', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", created_at
+      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", image, created_at
        FROM user_spots
        ORDER BY created_at DESC`
     );
@@ -1324,7 +1327,7 @@ app.get('/api/userspots/:code', async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT id, lat, lng, name, description, wish_tag AS "wishTag", created_at
+      `SELECT id, lat, lng, name, description, wish_tag AS "wishTag", image, created_at
        FROM user_spots WHERE code = $1 ORDER BY created_at DESC`,
       [code]
     );
