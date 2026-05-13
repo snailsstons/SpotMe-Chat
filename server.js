@@ -1309,9 +1309,11 @@ app.post('/api/userspots', async (req, res) => {
 
 // 🌍 Alle öffentlichen Spots abrufen (für die Karte)
 app.get('/api/userspots/all', async (req, res) => {
+  const noImage = req.query.noimage === '1';
   try {
     const { rows } = await pool.query(
-      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag", image, created_at
+      `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag",
+              ${noImage ? 'NULL AS image' : 'image'}, created_at
        FROM user_spots
        ORDER BY created_at DESC`
     );
