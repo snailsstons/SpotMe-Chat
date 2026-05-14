@@ -415,8 +415,6 @@ app.post('/api/profile', async (req, res) => {
           help_mode=$11, help_category=$12,
           category=$13, bio=$14,
           wish_tags=$15, offer_tags=$16,
-          avatar        = COALESCE($22, avatar),
-          avatar_status = CASE WHEN $22 IS NOT NULL THEN 'pending' ELSE avatar_status END,
           updated_at=$17, visible_until=$18
          WHERE code=$19 AND spot=$20`,
         [
@@ -427,8 +425,7 @@ app.post('/api/profile', async (req, res) => {
           encrypt(category) || null, encrypt(bio) || null,
           encrypt(JSON.stringify(wishTags || [])),
           encrypt(JSON.stringify(offerTags || [])),
-          now, visibleUntil, code, spot,
-          avatar || null   // $22
+          now, visibleUntil, code, spot
         ]
       );
     } else {
@@ -533,9 +530,8 @@ app.post('/api/avatar', async (req, res) => {
   }
 
   try {
-    // Token über alle Spots dieses Codes prüfen
     const auth = await pool.query(
-      'SELECT token, spot FROM profiles WHERE code = $1 AND token IS NOT NULL',
+      'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
       [code]
     );
     const tokenValid = auth.rows.some(r => r.token === token);
@@ -566,7 +562,6 @@ app.post('/api/avatar', async (req, res) => {
   }
 
   try {
-    // Auf allen Spots dieses Codes updaten
     await pool.query(
       'UPDATE profiles SET avatar = $1, avatar_status = $2, updated_at = $3 WHERE code = $4 AND spot = $5',
       [avatar, 'pending', Date.now(), code, spot]
