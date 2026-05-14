@@ -408,26 +408,57 @@ app.post('/api/profile', async (req, res) => {
       }
 
       await pool.query(
-        `UPDATE profiles SET
-          name=$1, age=$2, region=$3, province=$4, city=$5,
-          orientation=$6, role=$7, trans=$8, crossdresser=$9,
-          looking_for=$10,
-          help_mode=$11, help_category=$12,
-          category=$13, bio=$14,
-          wish_tags=$15, offer_tags=$16,
-          updated_at=$17, visible_until=$18
-         WHERE code=$19 AND spot=$20`,
-        [
-          encrypt(name), age || null, region, province || null, city || null,
-          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
-          encrypt(lookingFor) || null,
-          encrypt(helpMode) || null, encrypt(helpCategory) || null,
-          encrypt(category) || null, encrypt(bio) || null,
-          encrypt(JSON.stringify(wishTags || [])),
-          encrypt(JSON.stringify(offerTags || [])),
-          now, visibleUntil, code, spot
-        ]
-      );
+  `UPDATE profiles SET
+    name=$1,         age=$2,           region=$3,
+    province=$4,     city=$5,
+    orientation=$6,  role=$7,
+    trans=$8,        crossdresser=$9,
+    looking_for=$10,
+    help_mode=$11,   help_category=$12,
+    category=$13,    bio=$14,
+    wish_tags=$15,   offer_tags=$16,
+    updated_at=$17,  visible_until=$18,
+
+    -- COALESCE bedeutet: Nimm den neuen Avatar ($21),
+    -- aber NUR wenn er nicht NULL ist.
+    -- Schickt das Frontend keinen neuen Avatar,
+    -- bleibt das alte Bild in der Datenbank erhalten.
+    avatar        = COALESCE($21, avatar),
+
+    -- avatar_status wird nur auf 'pending' zurückgesetzt,
+    -- wenn wirklich ein neues Bild hochgeladen wurde.
+    -- Sonst bleibt der bisherige Status (z.B. 'approved') unverändert.
+    avatar_status = CASE WHEN $21 IS NOT NULL
+                    THEN 'pending'
+                    ELSE avatar_status
+                    END
+
+   WHERE code=$19 AND spot=$20`,
+  [
+    // $1–$5: Basis-Infos
+    encrypt(name), age || null, region, province || null, city || null,
+
+    // $6–$9: Eigenschaften
+    encrypt(orientation) || null, encrypt(role) || null,
+    !!trans, !!crossdresser,
+
+    // $10–$12: Suche & Hilfe
+    encrypt(lookingFor) || null,
+    encrypt(helpMode) || null, encrypt(helpCategory) || null,
+
+    // $13–$16: Profil-Inhalt
+    encrypt(category) || null, encrypt(bio) || null,
+    encrypt(JSON.stringify(wishTags || [])),
+    encrypt(JSON.stringify(offerTags || [])),
+
+    // $17–$20: Zeitstempel & Identifikation
+    now, visibleUntil, code, spot,
+
+    // $21: Avatar – null wenn kein neues Bild gesendet wurde
+    avatar || null
+  ]
+);
+      
     } else {
       // INSERT
       profileToken = crypto.randomBytes(32).toString('hex');
