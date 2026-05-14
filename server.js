@@ -408,57 +408,29 @@ app.post('/api/profile', async (req, res) => {
       }
 
       await pool.query(
-  `UPDATE profiles SET
-    name=$1,         age=$2,           region=$3,
-    province=$4,     city=$5,
-    orientation=$6,  role=$7,
-    trans=$8,        crossdresser=$9,
-    looking_for=$10,
-    help_mode=$11,   help_category=$12,
-    category=$13,    bio=$14,
-    wish_tags=$15,   offer_tags=$16,
-    updated_at=$17,  visible_until=$18,
-
-    -- COALESCE bedeutet: Nimm den neuen Avatar ($21),
-    -- aber NUR wenn er nicht NULL ist.
-    -- Schickt das Frontend keinen neuen Avatar,
-    -- bleibt das alte Bild in der Datenbank erhalten.
-    avatar        = COALESCE($21, avatar),
-
-    -- avatar_status wird nur auf 'pending' zurückgesetzt,
-    -- wenn wirklich ein neues Bild hochgeladen wurde.
-    -- Sonst bleibt der bisherige Status (z.B. 'approved') unverändert.
-    avatar_status = CASE WHEN $21 IS NOT NULL
-                    THEN 'pending'
-                    ELSE avatar_status
-                    END
-
-   WHERE code=$19 AND spot=$20`,
-  [
-    // $1–$5: Basis-Infos
-    encrypt(name), age || null, region, province || null, city || null,
-
-    // $6–$9: Eigenschaften
-    encrypt(orientation) || null, encrypt(role) || null,
-    !!trans, !!crossdresser,
-
-    // $10–$12: Suche & Hilfe
-    encrypt(lookingFor) || null,
-    encrypt(helpMode) || null, encrypt(helpCategory) || null,
-
-    // $13–$16: Profil-Inhalt
-    encrypt(category) || null, encrypt(bio) || null,
-    encrypt(JSON.stringify(wishTags || [])),
-    encrypt(JSON.stringify(offerTags || [])),
-
-    // $17–$20: Zeitstempel & Identifikation
-    now, visibleUntil, code, spot,
-
-    // $21: Avatar – null wenn kein neues Bild gesendet wurde
-    avatar || null
-  ]
-);
-      
+        `UPDATE profiles SET
+          name=$1, age=$2, region=$3, province=$4, city=$5,
+          orientation=$6, role=$7, trans=$8, crossdresser=$9,
+          looking_for=$10,
+          help_mode=$11, help_category=$12,
+          category=$13, bio=$14,
+          wish_tags=$15, offer_tags=$16,
+          avatar        = COALESCE($22, avatar),
+          avatar_status = CASE WHEN $22 IS NOT NULL THEN 'pending' ELSE avatar_status END,
+          updated_at=$17, visible_until=$18
+         WHERE code=$19 AND spot=$20`,
+        [
+          encrypt(name), age || null, region, province || null, city || null,
+          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
+          encrypt(lookingFor) || null,
+          encrypt(helpMode) || null, encrypt(helpCategory) || null,
+          encrypt(category) || null, encrypt(bio) || null,
+          encrypt(JSON.stringify(wishTags || [])),
+          encrypt(JSON.stringify(offerTags || [])),
+          now, visibleUntil, code, spot,
+          avatar || null   // $22
+        ]
+      );
     } else {
       // INSERT
       profileToken = crypto.randomBytes(32).toString('hex');
@@ -470,7 +442,7 @@ app.post('/api/profile', async (req, res) => {
            wish_tags, offer_tags,
            avatar, avatar_status,
            token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
         [
           code, spot, encrypt(name), age || null, region,
           province || null, city || null,
@@ -561,8 +533,9 @@ app.post('/api/avatar', async (req, res) => {
   }
 
   try {
+    // Token über alle Spots dieses Codes prüfen
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
+      'SELECT token, spot FROM profiles WHERE code = $1 AND token IS NOT NULL',
       [code]
     );
     const tokenValid = auth.rows.some(r => r.token === token);
@@ -593,6 +566,7 @@ app.post('/api/avatar', async (req, res) => {
   }
 
   try {
+    // Auf allen Spots dieses Codes updaten
     await pool.query(
       'UPDATE profiles SET avatar = $1, avatar_status = $2, updated_at = $3 WHERE code = $4 AND spot = $5',
       [avatar, 'pending', Date.now(), code, spot]
@@ -1067,11 +1041,20 @@ setInterval(() => {
   }
 }, 60000);
 
-app.post('/api/invites/send', (req, res) => {
-  const { from, to } = req.body;
+// Einladung zum Messenger
+
+app.post('/api/invites/send', async (req, res) => {
+  const { from, to, spot_id } = req.body; // spot_id NEU hinzufügen
+
   if (!from || !to || from.length !== 6 || to.length !== 6) {
     return res.status(400).json({ error: 'Ungültige Codes' });
   }
+  if (from === to) {
+    return res.status(400).json({ error: 'Selbst-Einladung nicht möglich' });
+  }
+
+  // ── RAM (wie bisher) ──────────────────────────────────────────────────────
+  // Das bleibt komplett gleich – für den lokalen Messenger-Tab
   if (!invites[to]) invites[to] = [];
   const exists = invites[to].find(i => i.from === from);
   if (!exists) {
@@ -1079,19 +1062,83 @@ app.post('/api/invites/send', (req, res) => {
     invites[to].push({ from, to, ts: Date.now(), room });
     console.log(`📨 Einladung: ${from} → ${to} (Raum ${room})`);
   }
-  res.json({ success: true });
-});
 
-app.get('/api/invites/:code', (req, res) => {
-  res.json(invites[req.params.code] || []);
-});
-
-app.delete('/api/invites/:code/:fromCode', (req, res) => {
-  if (invites[req.params.code]) {
-    invites[req.params.code] = invites[req.params.code].filter(i => i.from !== req.params.fromCode);
+  // ── Datenbank (NEU) ───────────────────────────────────────────────────────
+  // Nur wenn eine spot_id mitgeschickt wurde (SpotCaching-Kontext)
+  // Normale Messenger-Einladungen ohne Spot bleiben rein RAM-basiert
+  if (spot_id) {
+    try {
+      const now = Date.now();
+      await pool.query(
+        `INSERT INTO spot_cache_invites
+           (from_code, to_code, spot_id, time_start, time_end, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+         ON CONFLICT DO NOTHING`, // Keine doppelten Einladungen
+        [from, to, spot_id, now, now + 7 * 24 * 60 * 60 * 1000, now]
+      );
+    } catch (e) {
+      // Datenbankfehler darf den RAM-Pfad nicht blockieren
+      console.error('DB invite error:', e.message);
+    }
   }
+
   res.json({ success: true });
 });
+
+// Liefert alle Einladungen für einen Nutzer (als Sender UND Empfänger)
+// inklusive Status – das ist der Unterschied zum RAM-Endpunkt
+app.get('/api/spotcache/invites/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT i.*, u.name AS spot_name
+       FROM spot_cache_invites i
+       JOIN user_spots u ON u.id = i.spot_id
+       WHERE i.from_code = $1 OR i.to_code = $1
+       ORDER BY i.created_at DESC`,
+      [code]
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Einladung annehmen oder ablehnen
+app.patch('/api/spotcache/invite/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status, code } = req.body;
+
+  if (!['accepted', 'declined'].includes(status)) {
+    return res.status(400).json({ error: 'Ungültiger Status' });
+  }
+
+  try {
+    const result = await pool.query(
+      // Nur der Empfänger (to_code) darf antworten – Sicherheits-Check
+      `UPDATE spot_cache_invites SET status = $1
+       WHERE id = $2 AND to_code = $3
+       RETURNING *`,
+      [status, id, code]
+    );
+    if (result.rowCount === 0) {
+      return res.status(403).json({ error: 'Nicht berechtigt' });
+    }
+
+   
+if (status === 'accepted') {
+  const invite = result.rows[0];
+  const room = [invite.from_code, invite.to_code].sort().join('-');
+  if (!invites[invite.from_code]) invites[invite.from_code] = [];
+  invites[invite.from_code].push({ ... });
+}
+
+    res.json({ ok: true, invite: result.rows[0] });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN – Avatar Moderation
