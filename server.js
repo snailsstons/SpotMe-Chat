@@ -442,7 +442,7 @@ app.post('/api/profile', async (req, res) => {
            wish_tags, offer_tags,
            avatar, avatar_status,
            token, updated_at, visible_until)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
         [
           code, spot, encrypt(name), age || null, region,
           province || null, city || null,
