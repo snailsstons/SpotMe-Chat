@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v4.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v4.3 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -275,7 +275,7 @@ await pool.query(`
     await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS description TEXT`).catch(() => {});
     await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`).catch(() => {});
-    console.log('✅ v4.2 – Alle Spalten bereit (inkl. SpotCache)');
+    console.log('✅ v4.3 – Alle Spalten bereit (inkl. SpotCache)');
   } catch (e) {
     console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
   }
@@ -879,6 +879,126 @@ app.get('/api/offline-messages/:code', async (req, res) => {
     })));
   } catch (e) {
     console.error('GET /api/offline-messages:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHAT MESSENGER (SpotCaching – leichtgewichtig)
+// Nutzt dieselbe offline_messages Tabelle, aber mit spot_type='caching_chat'
+// Kein Token erforderlich – Sicherheit über Profil-Existenz-Check
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Nachricht senden ─────────────────────────────────────────────────────────
+// Jeder der ein Profil hat kann eine Nachricht schicken.
+// Das verhindert anonymen Spam ohne einen Login zu erzwingen.
+app.post('/api/message', async (req, res) => {
+  const { recipient, sender_code, sender_name, message, spot_type } = req.body;
+
+  // Pflichtfelder prüfen
+  if (!recipient || !sender_code || !message) {
+    return res.status(400).json({ error: 'recipient, sender_code und message sind Pflicht' });
+  }
+
+  // Selbst-Nachrichten verhindern
+  if (sender_code === recipient) {
+    return res.status(400).json({ error: 'Nachrichten an sich selbst nicht erlaubt' });
+  }
+
+  // Nachricht bereinigen – Links und E-Mails entfernen, auf 280 Zeichen kürzen
+  const clean = sanitizeMessage(message);
+  if (!clean.length) {
+    return res.status(400).json({ error: 'Nachricht ist leer oder ungültig' });
+  }
+
+  try {
+    // Sicherheits-Check: Hat der Absender ein Profil im System?
+    // Das verhindert dass anonyme Bots Nachrichten schicken können.
+    // Profil muss im caching-Spot existieren.
+    const senderExists = await pool.query(
+      `SELECT 1 FROM profiles WHERE code = $1 AND spot = 'caching' LIMIT 1`,
+      [sender_code]
+    );
+    if (!senderExists.rows.length) {
+      return res.status(403).json({ error: 'Absender hat kein Profil' });
+    }
+
+    // Postfach-Limit: maximal 100 ungelesene Chat-Nachrichten pro Empfänger
+    // Das verhindert Spam auch wenn jemand ein Profil hat
+    const countCheck = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM offline_messages
+       WHERE recipient = $1 AND spot_type = 'caching_chat' AND read = FALSE`,
+      [recipient]
+    );
+    if (Number(countCheck.rows[0].cnt) >= 100) {
+      return res.status(429).json({ error: 'Postfach des Empfängers voll' });
+    }
+
+    // Nachricht speichern
+    await pool.query(
+      `INSERT INTO offline_messages
+         (recipient, sender_code, sender_name, message, spot_type)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        recipient,
+        sender_code,
+        encrypt(sender_name?.slice(0, 50) || sender_code),
+        encrypt(clean),
+        spot_type || 'caching_chat'
+      ]
+    );
+
+    console.log(`💬 Chat: ${sender_code} → ${recipient}`);
+    res.json({ success: true });
+
+  } catch (e) {
+    console.error('POST /api/message:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// ── Nachrichten abrufen ───────────────────────────────────────────────────────
+// Gibt alle Chat-Nachrichten für einen Empfänger zurück.
+// Optional: ?spot_type=caching_chat für gefilterten Abruf.
+// Nach dem Abrufen werden die Nachrichten als "gelesen" markiert –
+// wie ein Briefkasten der geleert wird wenn man die Post holt.
+app.get('/api/messages/:code', async (req, res) => {
+  const { code }    = req.params;
+  const spot_type   = req.query.spot_type || 'caching_chat';
+
+  try {
+    // Nachrichten der letzten 48 Stunden abrufen
+    // Ältere Nachrichten sind im localStorage bereits gespeichert
+    const { rows } = await pool.query(
+      `SELECT id, sender_code, sender_name, message, spot_type, created_at
+       FROM offline_messages
+       WHERE recipient = $1
+         AND spot_type = $2
+         AND read = FALSE
+         AND created_at > NOW() - INTERVAL '48 hours'
+       ORDER BY created_at ASC`,
+      [code, spot_type]
+    );
+
+    // Als gelesen markieren damit beim nächsten Poll keine Duplikate kommen
+    if (rows.length > 0) {
+      const ids = rows.map(r => r.id);
+      await pool.query(
+        'UPDATE offline_messages SET read = TRUE WHERE id = ANY($1)',
+        [ids]
+      );
+      console.log(`📬 ${rows.length} Chat-Nachrichten abgerufen für ${code}`);
+    }
+
+    // Nachrichten entschlüsseln bevor sie ans Frontend geschickt werden
+    res.json(rows.map(r => ({
+      ...r,
+      sender_name: decrypt(r.sender_name),
+      message:     decrypt(r.message),
+    })));
+
+  } catch (e) {
+    console.error('GET /api/messages:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
