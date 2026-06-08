@@ -333,7 +333,13 @@ setInterval(async () => {
       );
       if (r.rowCount > 0) console.log(`🗂️ ${r.rowCount} Einladungen auf 'expired' gesetzt`);
     } catch (e) { console.error('Cleanup invites (expire):', e.message); }
-
+    
+    // Alte Wochen‑Spots löschen (abgelaufen)
+    try {
+     const r = await pool.query(`DELETE FROM weekly_spots WHERE expires_at < $1`, [Date.now()]);
+     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} abgelaufene Wochen-Spots gelöscht`);
+  } catch (e) { console.error('Cleanup weekly_spots:', e.message); }
+    
     // ── Wirklich alte Einladungen endgültig löschen (>30 Tage) ───────────
     // Erst nach 30 Tagen werden die archivierten Einladungen wirklich
     // aus der Datenbank entfernt. Das hält die Tabelle langfristig klein.
@@ -1410,6 +1416,115 @@ app.post('/api/admin/avatar-action', requireAdmin, async (req, res) => {
     }
     res.json({ success: true, action, code, spot });
   } catch (e) {
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WOCHEN‑SPOTS (anonyme 7‑Tage‑Spots für spot-woche.html)
+// ══════════════════════════════════════════════════════════════════════════════
+
+app.post('/api/weekly-spots', async (req, res) => {
+  const { code, token, name, category, description, lat, lng } = req.body;
+  if (!code || !token || !name || lat == null || lng == null) {
+    return res.status(400).json({ error: 'code, token, name, lat, lng erforderlich' });
+  }
+  try {
+    const auth = await pool.query(
+      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
+      [code, 'caching']
+    );
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: 'Ungültiger Token' });
+    }
+    const tokenId = crypto.randomBytes(16).toString('hex');
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    await pool.query(
+      `INSERT INTO weekly_spots (token, code, name, category, description, lat, lng, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [tokenId, code, name, category || null, description || null, lat, lng, expiresAt, now]
+    );
+    res.json({ success: true, spot: { token: tokenId, name } });
+  } catch (e) {
+    console.error('POST /api/weekly-spots:', e.message);
+    res.status(500).json({ error: 'Fehler beim Erstellen' });
+  }
+});
+
+app.get('/api/weekly-spots/mine', async (req, res) => {
+  const { code, token } = req.query;
+  if (!code || !token) return res.status(400).json({ error: 'code und token erforderlich' });
+  try {
+    const auth = await pool.query(
+      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
+      [code, 'caching']
+    );
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: 'Ungültiger Token' });
+    }
+    const now = Date.now();
+    const { rows } = await pool.query(
+      `SELECT token, name, category, description, lat, lng, expires_at, checkin_count
+       FROM weekly_spots WHERE code = $1 AND expires_at > $2 ORDER BY created_at DESC`,
+      [code, now]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error('GET /api/weekly-spots/mine:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.delete('/api/weekly-spots/:token', async (req, res) => {
+  const { token } = req.params;
+  const { code, token: authToken } = req.body;
+  if (!code || !authToken) return res.status(400).json({ error: 'code und token erforderlich' });
+  try {
+    const auth = await pool.query(
+      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
+      [code, 'caching']
+    );
+    if (!auth.rows.length || auth.rows[0].token !== authToken) {
+      return res.status(403).json({ error: 'Ungültiger Token' });
+    }
+    const result = await pool.query('DELETE FROM weekly_spots WHERE token = $1 AND code = $2', [token, code]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Nicht gefunden oder nicht berechtigt' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE /api/weekly-spots/:token:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.get('/api/weekly-spots/:token', async (req, res) => {
+  const { token } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT token, name, category, description, lat, lng, expires_at, checkin_count
+       FROM weekly_spots WHERE token = $1 AND expires_at > $2`,
+      [token, Date.now()]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Spot nicht gefunden oder abgelaufen' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('GET /api/weekly-spots/:token:', e.message);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+app.post('/api/weekly-spots/:token/checkin', async (req, res) => {
+  const { token } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE weekly_spots SET checkin_count = checkin_count + 1
+       WHERE token = $1 AND expires_at > $2 RETURNING checkin_count`,
+      [token, Date.now()]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Spot nicht gefunden oder abgelaufen' });
+    res.json({ success: true, label: 'anonym', count: result.rows[0].checkin_count });
+  } catch (e) {
+    console.error('POST /api/weekly-spots/:token/checkin:', e.message);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
