@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v4.8 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -20,64 +20,84 @@
 //           verlinkst. Lokal: DATABASE_URL=postgres://user:pass@localhost/spotme
 // ══════════════════════════════════════════════════════════════════════════════
 
-'use strict';
+"use strict";
 
-const express  = require('express');
-const cors     = require('cors');
-const crypto   = require('crypto');
-const { ExpressPeerServer } = require('peer');
-const { Pool } = require('pg');
+const express = require("express");
+const cors = require("cors");
+const crypto = require("crypto");
+const { ExpressPeerServer } = require("peer");
+const { Pool } = require("pg");
 
 // ══════════════════════════════════════════════════════════════════════════════
 // VERSCHLÜSSELUNG (AES-256-CBC via Node.js crypto)
 // CRYPTO_KEY = 64-stelliger Hex-String in Render Environment Variables setzen
 // openssl rand -hex 32  →  erzeugt einen sicheren Key
 // ══════════════════════════════════════════════════════════════════════════════
-const CRYPTO_KEY  = process.env.CRYPTO_KEY || null;
-const CRYPTO_ALGO = 'aes-256-cbc';
+const CRYPTO_KEY = process.env.CRYPTO_KEY || null;
+const CRYPTO_ALGO = "aes-256-cbc";
 
 function encrypt(text) {
   if (text == null || !CRYPTO_KEY) return text;
   try {
-    const iv  = crypto.randomBytes(16);
-    const key = Buffer.from(CRYPTO_KEY, 'hex');
+    const iv = crypto.randomBytes(16);
+    const key = Buffer.from(CRYPTO_KEY, "hex");
     const cipher = crypto.createCipheriv(CRYPTO_ALGO, key, iv);
     const enc = Buffer.concat([cipher.update(String(text)), cipher.final()]);
-    return iv.toString('hex') + ':' + enc.toString('hex');
-  } catch (e) { console.error('encrypt error:', e.message); return text; }
+    return iv.toString("hex") + ":" + enc.toString("hex");
+  } catch (e) {
+    console.error("encrypt error:", e.message);
+    return text;
+  }
 }
 
 function decrypt(text) {
-  if (text == null || !CRYPTO_KEY || !String(text).includes(':')) return text;
+  if (text == null || !CRYPTO_KEY || !String(text).includes(":")) return text;
   try {
-    const [ivHex, encHex] = String(text).split(':');
-    const key = Buffer.from(CRYPTO_KEY, 'hex');
-    const decipher = crypto.createDecipheriv(CRYPTO_ALGO, key, Buffer.from(ivHex, 'hex'));
-    return Buffer.concat([decipher.update(Buffer.from(encHex, 'hex')), decipher.final()]).toString();
-  } catch (e) { return text; }
+    const [ivHex, encHex] = String(text).split(":");
+    const key = Buffer.from(CRYPTO_KEY, "hex");
+    const decipher = crypto.createDecipheriv(
+      CRYPTO_ALGO,
+      key,
+      Buffer.from(ivHex, "hex"),
+    );
+    return Buffer.concat([
+      decipher.update(Buffer.from(encHex, "hex")),
+      decipher.final(),
+    ]).toString();
+  } catch (e) {
+    return text;
+  }
 }
 
 function decryptProfile(p) {
   if (!p) return p;
   const dec = {
     ...p,
-    name:         decrypt(p.name),
-    bio:          decrypt(p.bio),
-    orientation:  decrypt(p.orientation),
-    role:         decrypt(p.role),
-    lookingFor:   decrypt(p.lookingFor),
-    helpMode:     decrypt(p.helpMode),
+    name: decrypt(p.name),
+    bio: decrypt(p.bio),
+    orientation: decrypt(p.orientation),
+    role: decrypt(p.role),
+    lookingFor: decrypt(p.lookingFor),
+    helpMode: decrypt(p.helpMode),
     helpCategory: decrypt(p.helpCategory),
-    category:     decrypt(p.category),
+    category: decrypt(p.category),
   };
   // SpotCache: JSON-Arrays entschlüsseln
   if (p.wish_tags) {
-    try { dec.wishTags = JSON.parse(decrypt(p.wish_tags) || '[]'); } catch { dec.wishTags = []; }
+    try {
+      dec.wishTags = JSON.parse(decrypt(p.wish_tags) || "[]");
+    } catch {
+      dec.wishTags = [];
+    }
   } else {
     dec.wishTags = null;
   }
   if (p.offer_tags) {
-    try { dec.offerTags = JSON.parse(decrypt(p.offer_tags) || '[]'); } catch { dec.offerTags = []; }
+    try {
+      dec.offerTags = JSON.parse(decrypt(p.offer_tags) || "[]");
+    } catch {
+      dec.offerTags = [];
+    }
   } else {
     dec.offerTags = null;
   }
@@ -87,40 +107,41 @@ function decryptProfile(p) {
 const app = express();
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`,
+  );
   next();
 });
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 
 // ---------- PeerJS ----------
-const server = require('http').createServer(app);
+const server = require("http").createServer(app);
 const peerServer = ExpressPeerServer(server, {
-  path: '/',
+  path: "/",
   allow_discovery: true,
-  proxied: true
+  proxied: true,
 });
-app.use('/peerjs', peerServer);
+app.use("/peerjs", peerServer);
 
 // ---------- PostgreSQL Pool ----------
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('render.com')
+  ssl: process.env.DATABASE_URL?.includes("render.com")
     ? { rejectUnauthorized: false }
-    : false
+    : false,
 });
 
 // ---------- Konstanten ----------
-const OFFLINE_VISIBLE_MS  = 24 * 60 * 60 * 1000;
-const OFFLINE_MSG_MAX     = 280;
+const OFFLINE_VISIBLE_MS = 24 * 60 * 60 * 1000;
+const OFFLINE_MSG_MAX = 280;
 const OFFLINE_MSG_RATE_MS = 60 * 60 * 1000;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // DATENBANK – Tabellen anlegen (beim Start)
 // ══════════════════════════════════════════════════════════════════════════════
 async function initDB() {
-
   // Profiles
   await pool.query(`
     CREATE TABLE IF NOT EXISTS profiles (
@@ -207,8 +228,8 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_pc_created ON profile_comments(created_at);
   `);
 
- // SpotCache v1 (Requests)
-await pool.query(`
+  // SpotCache v1 (Requests)
+  await pool.query(`
   CREATE TABLE IF NOT EXISTS spot_cache_requests (
     id            SERIAL PRIMARY KEY,
     from_code     TEXT NOT NULL,
@@ -223,8 +244,8 @@ await pool.query(`
   );
 `);
 
-// SpotCache v2 – User-eigene Geocaching-Spots
-await pool.query(`
+  // SpotCache v2 – User-eigene Geocaching-Spots
+  await pool.query(`
   CREATE TABLE IF NOT EXISTS user_spots (
     id           SERIAL PRIMARY KEY,
     code         TEXT NOT NULL,
@@ -241,8 +262,8 @@ await pool.query(`
   CREATE INDEX IF NOT EXISTS idx_user_spots_wish ON user_spots(wish_tag);
 `);
 
-// SpotCache v2 – Einladungen mit Zeitfenster
-await pool.query(`
+  // SpotCache v2 – Einladungen mit Zeitfenster
+  await pool.query(`
   CREATE TABLE IF NOT EXISTS spot_cache_invites (
     id          SERIAL PRIMARY KEY,
     from_code   TEXT NOT NULL,
@@ -262,25 +283,57 @@ await pool.query(`
 
   // Spalten nachträglich hinzufügen
   try {
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`);
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`);
-    await pool.query(`ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`).catch(() => {});
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS wish_tags TEXT`);
-    await pool.query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS offer_tags TEXT`);
-    await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS description TEXT`).catch(() => {});
-    await pool.query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`).catch(() => {});
-    console.log('✅ v4.8 – Alle Spalten bereit (inkl. SpotCache)');
+    await pool.query(
+      `ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS type TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS source TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE offline_messages ADD COLUMN IF NOT EXISTS spot_type TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS looking_for TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_mode TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS help_category TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar TEXT`,
+    );
+    await pool
+      .query(
+        `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_status TEXT DEFAULT 'pending'`,
+      )
+      .catch(() => {});
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS wish_tags TEXT`,
+    );
+    await pool.query(
+      `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS offer_tags TEXT`,
+    );
+    await pool
+      .query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image TEXT`)
+      .catch(() => {});
+    await pool
+      .query(`ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS description TEXT`)
+      .catch(() => {});
+    await pool
+      .query(
+        `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
+      )
+      .catch(() => {});
+    console.log("✅ v5.0 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
-    console.log('ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden');
+    console.log(
+      "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
+    );
   }
 
-  console.log('✅ Datenbank-Tabellen bereit');
+  console.log("✅ Datenbank-Tabellen bereit");
 }
 
 // ---------- Standort-Cache (RAM, 2-Min TTL) ----------
@@ -305,7 +358,9 @@ setInterval(async () => {
   // ── ALLE 2 MINUTEN: Einladungen im RAM bereinigen ───────────────────────
   // Einladungen älter als 2 Stunden aus dem RAM löschen (bereits vorhanden)
   for (const code of Object.keys(invites)) {
-    invites[code] = invites[code].filter(i => now - i.ts < 2 * 60 * 60 * 1000);
+    invites[code] = invites[code].filter(
+      (i) => now - i.ts < 2 * 60 * 60 * 1000,
+    );
     if (invites[code].length === 0) delete invites[code];
   }
 
@@ -318,7 +373,7 @@ setInterval(async () => {
   const isDaily = cleanupTickCount % 720 === 0;
 
   if (isDaily) {
-    console.log('🗓️ Täglicher Datenbank-Cleanup startet…');
+    console.log("🗓️ Täglicher Datenbank-Cleanup startet…");
 
     // ── Abgelaufene Einladungen auf 'expired' setzen ──────────────────────
     // Wir löschen sie NICHT sofort – der Nutzer soll seine vergangenen
@@ -329,46 +384,64 @@ setInterval(async () => {
          SET status = 'expired'
          WHERE time_end < $1
            AND status IN ('pending', 'accepted')`,
-        [now]
+        [now],
       );
-      if (r.rowCount > 0) console.log(`🗂️ ${r.rowCount} Einladungen auf 'expired' gesetzt`);
-    } catch (e) { console.error('Cleanup invites (expire):', e.message); }
-    
+      if (r.rowCount > 0)
+        console.log(`🗂️ ${r.rowCount} Einladungen auf 'expired' gesetzt`);
+    } catch (e) {
+      console.error("Cleanup invites (expire):", e.message);
+    }
+
     // Alte Wochen‑Spots löschen (abgelaufen)
     try {
-     const r = await pool.query(`DELETE FROM weekly_spots WHERE expires_at < $1`, [Date.now()]);
-     if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} abgelaufene Wochen-Spots gelöscht`);
-  } catch (e) { console.error('Cleanup weekly_spots:', e.message); }
-    
+      const r = await pool.query(
+        `DELETE FROM weekly_spots WHERE expires_at < $1`,
+        [Date.now()],
+      );
+      if (r.rowCount > 0)
+        console.log(`🧹 ${r.rowCount} abgelaufene Wochen-Spots gelöscht`);
+    } catch (e) {
+      console.error("Cleanup weekly_spots:", e.message);
+    }
+
     // ── Wirklich alte Einladungen endgültig löschen (>30 Tage) ───────────
     // Erst nach 30 Tagen werden die archivierten Einladungen wirklich
     // aus der Datenbank entfernt. Das hält die Tabelle langfristig klein.
     try {
-      const cutoff = now - (30 * 24 * 60 * 60 * 1000);
+      const cutoff = now - 30 * 24 * 60 * 60 * 1000;
       const r = await pool.query(
         `DELETE FROM spot_cache_invites
          WHERE status = 'expired'
            AND time_end < $1`,
-        [cutoff]
+        [cutoff],
       );
-      if (r.rowCount > 0) console.log(`🗑️ ${r.rowCount} alte Einladungen gelöscht (>30 Tage)`);
-    } catch (e) { console.error('Cleanup invites (delete):', e.message); }
+      if (r.rowCount > 0)
+        console.log(`🗑️ ${r.rowCount} alte Einladungen gelöscht (>30 Tage)`);
+    } catch (e) {
+      console.error("Cleanup invites (delete):", e.message);
+    }
 
     // ── Alte Missed Calls löschen ─────────────────────────────────────────
     try {
       const r = await pool.query(
-        `DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`
+        `DELETE FROM missed_calls WHERE created_at < NOW() - INTERVAL '7 days'`,
       );
-      if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Missed Calls gelöscht`);
-    } catch (e) { console.error('Cleanup missed_calls:', e.message); }
+      if (r.rowCount > 0)
+        console.log(`🧹 ${r.rowCount} alte Missed Calls gelöscht`);
+    } catch (e) {
+      console.error("Cleanup missed_calls:", e.message);
+    }
 
     // ── Alte Offline-Nachrichten löschen ──────────────────────────────────
     try {
       const r = await pool.query(
-        `DELETE FROM offline_messages WHERE created_at < NOW() - INTERVAL '7 days'`
+        `DELETE FROM offline_messages WHERE created_at < NOW() - INTERVAL '7 days'`,
       );
-      if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
-    } catch (e) { console.error('Cleanup offline_messages:', e.message); }
+      if (r.rowCount > 0)
+        console.log(`🧹 ${r.rowCount} alte Offline-Nachrichten gelöscht`);
+    } catch (e) {
+      console.error("Cleanup offline_messages:", e.message);
+    }
 
     // ── Inaktive Profile löschen ──────────────────────────────────────────
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -377,22 +450,24 @@ setInterval(async () => {
         `DELETE FROM profiles
          WHERE visible_until < $1
            AND COALESCE(last_seen, updated_at) < $2`,
-        [now, thirtyDaysAgo]
+        [now, thirtyDaysAgo],
       );
-      if (r.rowCount > 0) console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
-    } catch (e) { console.error('Cleanup profiles:', e.message); }
+      if (r.rowCount > 0)
+        console.log(`🧹 ${r.rowCount} inaktive Profile gelöscht`);
+    } catch (e) {
+      console.error("Cleanup profiles:", e.message);
+    }
 
-    console.log('✅ Täglicher Cleanup abgeschlossen');
+    console.log("✅ Täglicher Cleanup abgeschlossen");
   }
-
 }, 120000); // alle 2 Minuten
 
 // ---------- Antispam ----------
 function sanitizeMessage(text) {
-  if (!text || typeof text !== 'string') return '';
+  if (!text || typeof text !== "string") return "";
   return text
-    .replace(/https?:\/\/\S+/gi, '[Link entfernt]')
-    .replace(/\S+@\S+\.\S+/gi, '[E-Mail entfernt]')
+    .replace(/https?:\/\/\S+/gi, "[Link entfernt]")
+    .replace(/\S+@\S+\.\S+/gi, "[E-Mail entfernt]")
     .slice(0, OFFLINE_MSG_MAX)
     .trim();
 }
@@ -401,9 +476,9 @@ function sanitizeMessage(text) {
 // COMMUNITY PROFILE
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.get('/api/profiles', async (req, res) => {
-  const spot = req.query.spot || 'gay';
-  const now  = Date.now();
+app.get("/api/profiles", async (req, res) => {
+  const spot = req.query.spot || "gay";
+  const now = Date.now();
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
@@ -419,43 +494,62 @@ app.get('/api/profiles', async (req, res) => {
        FROM profiles p
        WHERE spot = $1 AND visible_until > $2
        ORDER BY is_online DESC, updated_at DESC`,
-      [spot, now]
+      [spot, now],
     );
-    res.json(rows.map(r => ({ ...decryptProfile(r), commentCount: parseInt(r.comment_count) || 0 })));
+    res.json(
+      rows.map((r) => ({
+        ...decryptProfile(r),
+        commentCount: parseInt(r.comment_count) || 0,
+      })),
+    );
   } catch (e) {
-    console.error('GET /api/profiles:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/profiles:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.post('/api/profile', async (req, res) => {
+app.post("/api/profile", async (req, res) => {
   const {
-    code, name, age, region, province, city,
-    orientation, role, trans, crossdresser, category, bio,
-    lookingFor, helpMode, helpCategory,
-    wishTags, offerTags,
-    avatar,              // ← NEU: optional Base64‑Avatar
-    token, spot = 'gay'
+    code,
+    name,
+    age,
+    region,
+    province,
+    city,
+    orientation,
+    role,
+    trans,
+    crossdresser,
+    category,
+    bio,
+    lookingFor,
+    helpMode,
+    helpCategory,
+    wishTags,
+    offerTags,
+    avatar, // ← NEU: optional Base64‑Avatar
+    token,
+    spot = "gay",
   } = req.body;
 
   if (!code || !name || !region) {
-    return res.status(400).json({ error: 'Pflichtfelder: code, name, region' });
+    return res.status(400).json({ error: "Pflichtfelder: code, name, region" });
   }
 
-  const now          = Date.now();
+  const now = Date.now();
   const visibleUntil = now + OFFLINE_VISIBLE_MS;
 
   try {
     const existing = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
 
     let globalToken = null;
     if (!existing.rows.length || !existing.rows[0]?.token) {
       const gc = await pool.query(
-        'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1',
-        [code]
+        "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+        [code],
       );
       if (gc.rows.length > 0) globalToken = gc.rows[0].token;
     }
@@ -466,15 +560,15 @@ app.post('/api/profile', async (req, res) => {
       // UPDATE
       const storedToken = existing.rows[0].token || globalToken;
       if (!token) {
-        profileToken = storedToken || crypto.randomBytes(32).toString('hex');
+        profileToken = storedToken || crypto.randomBytes(32).toString("hex");
       } else {
         const allTok = await pool.query(
-          'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
-          [code]
+          "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+          [code],
         );
-        const tokenOk = allTok.rows.some(r => r.token === token);
+        const tokenOk = allTok.rows.some((r) => r.token === token);
         if (storedToken && !tokenOk) {
-          return res.status(403).json({ error: 'Ungültiger Token' });
+          return res.status(403).json({ error: "Ungültiger Token" });
         }
         profileToken = token;
       }
@@ -492,20 +586,32 @@ app.post('/api/profile', async (req, res) => {
           updated_at=$17, visible_until=$18
          WHERE code=$19 AND spot=$20`,
         [
-          encrypt(name), age || null, region, province || null, city || null,
-          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
+          encrypt(name),
+          age || null,
+          region,
+          province || null,
+          city || null,
+          encrypt(orientation) || null,
+          encrypt(role) || null,
+          !!trans,
+          !!crossdresser,
           encrypt(lookingFor) || null,
-          encrypt(helpMode) || null, encrypt(helpCategory) || null,
-          encrypt(category) || null, encrypt(bio) || null,
+          encrypt(helpMode) || null,
+          encrypt(helpCategory) || null,
+          encrypt(category) || null,
+          encrypt(bio) || null,
           encrypt(JSON.stringify(wishTags || [])),
           encrypt(JSON.stringify(offerTags || [])),
-          now, visibleUntil, code, spot,
-          avatar || null   // $21
-        ]
+          now,
+          visibleUntil,
+          code,
+          spot,
+          avatar || null, // $21
+        ],
       );
     } else {
       // INSERT
-      profileToken = crypto.randomBytes(32).toString('hex');
+      profileToken = crypto.randomBytes(32).toString("hex");
       await pool.query(
         `INSERT INTO profiles
           (code, spot, name, age, region, province, city,
@@ -516,64 +622,77 @@ app.post('/api/profile', async (req, res) => {
            token, updated_at, visible_until)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
         [
-          code, spot, encrypt(name), age || null, region,
-          province || null, city || null,
-          encrypt(orientation) || null, encrypt(role) || null, !!trans, !!crossdresser,
+          code,
+          spot,
+          encrypt(name),
+          age || null,
+          region,
+          province || null,
+          city || null,
+          encrypt(orientation) || null,
+          encrypt(role) || null,
+          !!trans,
+          !!crossdresser,
           encrypt(lookingFor) || null,
-          encrypt(helpMode) || null, encrypt(helpCategory) || null,
-          encrypt(category) || null, encrypt(bio) || null,
+          encrypt(helpMode) || null,
+          encrypt(helpCategory) || null,
+          encrypt(category) || null,
+          encrypt(bio) || null,
           encrypt(JSON.stringify(wishTags || [])),
           encrypt(JSON.stringify(offerTags || [])),
           avatar || null,
-          avatar ? 'pending' : null,
-          profileToken, now, visibleUntil
-        ]
+          avatar ? "pending" : null,
+          profileToken,
+          now,
+          visibleUntil,
+        ],
       );
     }
 
     res.json({ success: true, token: profileToken, visibleUntil });
   } catch (e) {
-    console.error('POST /api/profile:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/profile:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/profile/:code', async (req, res) => {
+app.delete("/api/profile/:code", async (req, res) => {
   const { code } = req.params;
-  const token = req.body?.token || req.headers['x-spotme-token'];
-  const spot  = req.body?.spot  || req.query.spot || 'gay';
+  const token = req.body?.token || req.headers["x-spotme-token"];
+  const spot = req.body?.spot || req.query.spot || "gay";
 
   try {
     const existing = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
-    if (!existing.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    if (!existing.rows.length)
+      return res.status(404).json({ error: "Nicht gefunden" });
 
     const allTokens = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
-      [code]
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
     );
-    const tokenValid = allTokens.rows.some(r => r.token === token);
+    const tokenValid = allTokens.rows.some((r) => r.token === token);
     if (!token || !tokenValid) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
     await pool.query(
-      'UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "UPDATE profiles SET visible_until = 0 WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
-    locationCache.delete(code + ':' + spot);
+    locationCache.delete(code + ":" + spot);
     res.json({ success: true });
   } catch (e) {
-    console.error('DELETE /api/profile:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("DELETE /api/profile:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/profile/:code', async (req, res) => {
+app.get("/api/profile/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
+  const spot = req.query.spot || "gay";
   try {
     const { rows } = await pool.query(
       `SELECT code, name, age, region, province, city,
@@ -583,13 +702,13 @@ app.get('/api/profile/:code', async (req, res) => {
               wish_tags, offer_tags,
               updated_at AS ts, visible_until
        FROM profiles WHERE code = $1 AND spot = $2`,
-      [code, spot]
+      [code, spot],
     );
-    if (!rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    if (!rows.length) return res.status(404).json({ error: "Nicht gefunden" });
     res.json(decryptProfile(rows[0]));
   } catch (e) {
-    console.error('GET /api/profile/:code:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/profile/:code:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -597,114 +716,128 @@ app.get('/api/profile/:code', async (req, res) => {
 // AVATAR UPLOAD / ABRUF / LÖSCHEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/avatar', async (req, res) => {
-  const { code, token, avatar, spot = 'caching' } = req.body;
+app.post("/api/avatar", async (req, res) => {
+  const { code, token, avatar, spot = "caching" } = req.body;
 
   if (!code || !token || !avatar) {
-    return res.status(400).json({ error: 'code, token und avatar (Base64) erforderlich' });
+    return res
+      .status(400)
+      .json({ error: "code, token und avatar (Base64) erforderlich" });
   }
 
   try {
     // Token über alle Spots dieses Codes prüfen
     const auth = await pool.query(
-      'SELECT token, spot FROM profiles WHERE code = $1 AND token IS NOT NULL',
-      [code]
+      "SELECT token, spot FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
     );
-    const tokenValid = auth.rows.some(r => r.token === token);
+    const tokenValid = auth.rows.some((r) => r.token === token);
     if (!auth.rows.length || !tokenValid) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
   } catch (e) {
-    return res.status(500).json({ error: 'Token-Prüfung fehlgeschlagen' });
+    return res.status(500).json({ error: "Token-Prüfung fehlgeschlagen" });
   }
 
   if (avatar.length > 1_400_000) {
-    return res.status(413).json({ error: 'Bild zu groß (max. 1 MB)' });
+    return res.status(413).json({ error: "Bild zu groß (max. 1 MB)" });
   }
 
-  if (!avatar.startsWith('data:image/')) {
-    return res.status(400).json({ error: 'Nur Base64-Bilder erlaubt (data:image/...)' });
+  if (!avatar.startsWith("data:image/")) {
+    return res
+      .status(400)
+      .json({ error: "Nur Base64-Bilder erlaubt (data:image/...)" });
   }
 
   const mimeMatch = avatar.match(/^data:(image\/[a-z+]+);base64,/);
   if (!mimeMatch) {
-    return res.status(400).json({ error: 'Ungültiges Base64-Format' });
+    return res.status(400).json({ error: "Ungültiges Base64-Format" });
   }
 
   const mimeType = mimeMatch[1];
-  const allowed  = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   if (!allowed.includes(mimeType)) {
-    return res.status(400).json({ error: `Nur ${allowed.join(', ')} erlaubt` });
+    return res.status(400).json({ error: `Nur ${allowed.join(", ")} erlaubt` });
   }
 
   try {
     // Auf allen Spots dieses Codes updaten
     await pool.query(
-      'UPDATE profiles SET avatar = $1, avatar_status = $2, updated_at = $3 WHERE code = $4 AND spot = $5',
-      [avatar, 'pending', Date.now(), code, spot]
+      "UPDATE profiles SET avatar = $1, avatar_status = $2, updated_at = $3 WHERE code = $4 AND spot = $5",
+      [avatar, "pending", Date.now(), code, spot],
     );
-    console.log(`🖼️ Avatar hochgeladen (pending): ${code} (${spot}) – ${(avatar.length / 1024).toFixed(0)} KB`);
-    res.json({ success: true, mimeType, status: 'pending', message: 'Avatar wird geprüft und bald freigegeben' });
+    console.log(
+      `🖼️ Avatar hochgeladen (pending): ${code} (${spot}) – ${(avatar.length / 1024).toFixed(0)} KB`,
+    );
+    res.json({
+      success: true,
+      mimeType,
+      status: "pending",
+      message: "Avatar wird geprüft und bald freigegeben",
+    });
   } catch (e) {
-    console.error('POST /api/avatar:', e.message);
-    res.status(500).json({ error: 'Fehler beim Speichern' });
+    console.error("POST /api/avatar:", e.message);
+    res.status(500).json({ error: "Fehler beim Speichern" });
   }
 });
 
-app.get('/api/avatar/:code', async (req, res) => {
+app.get("/api/avatar/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
+  const spot = req.query.spot || "gay";
 
   try {
     const { rows } = await pool.query(
-      'SELECT avatar, avatar_status FROM profiles WHERE code = $1 AND spot = $2 AND avatar IS NOT NULL',
-      [code, spot]
+      "SELECT avatar, avatar_status FROM profiles WHERE code = $1 AND spot = $2 AND avatar IS NOT NULL",
+      [code, spot],
     );
 
     if (!rows.length || !rows[0].avatar) {
-      return res.status(404).json({ error: 'Kein Avatar' });
+      return res.status(404).json({ error: "Kein Avatar" });
     }
 
-    if (rows[0].avatar_status !== 'approved') {
-      return res.status(404).json({ error: 'Avatar noch nicht freigegeben', status: rows[0].avatar_status || 'pending' });
+    if (rows[0].avatar_status !== "approved") {
+      return res.status(404).json({
+        error: "Avatar noch nicht freigegeben",
+        status: rows[0].avatar_status || "pending",
+      });
     }
 
-    res.set('Cache-Control', 'public, max-age=3600');
+    res.set("Cache-Control", "public, max-age=3600");
     res.json({ avatar: rows[0].avatar });
   } catch (e) {
-    console.error('GET /api/avatar:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/avatar:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/avatar/:code', async (req, res) => {
+app.delete("/api/avatar/:code", async (req, res) => {
   const { code } = req.params;
-  const token = req.body?.token || req.headers['x-spotme-token'];
-  const spot  = req.body?.spot  || 'caching';
+  const token = req.body?.token || req.headers["x-spotme-token"];
+  const spot = req.body?.spot || "caching";
 
   if (!token) {
-    return res.status(401).json({ error: 'Token fehlt' });
+    return res.status(401).json({ error: "Token fehlt" });
   }
 
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL',
-      [code]
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
     );
-    const tokenValid = auth.rows.some(r => r.token === token);
+    const tokenValid = auth.rows.some((r) => r.token === token);
     if (!auth.rows.length || !tokenValid) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
     await pool.query(
-      'UPDATE profiles SET avatar = NULL, avatar_status = NULL, updated_at = $1 WHERE code = $2 AND spot = $3',
-      [Date.now(), code, spot]
+      "UPDATE profiles SET avatar = NULL, avatar_status = NULL, updated_at = $1 WHERE code = $2 AND spot = $3",
+      [Date.now(), code, spot],
     );
     console.log(`🗑️ Avatar gelöscht: ${code} (${spot})`);
     res.json({ success: true });
   } catch (e) {
-    console.error('DELETE /api/avatar:', e.message);
-    res.status(500).json({ error: 'Fehler beim Löschen' });
+    console.error("DELETE /api/avatar:", e.message);
+    res.status(500).json({ error: "Fehler beim Löschen" });
   }
 });
 
@@ -712,21 +845,21 @@ app.delete('/api/avatar/:code', async (req, res) => {
 // LIVE-STANDORT (RAM, 2-Min TTL)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/location', (req, res) => {
-  const { code, lat, lng, spot = 'gay' } = req.body;
+app.post("/api/location", (req, res) => {
+  const { code, lat, lng, spot = "gay" } = req.body;
   if (!code || lat == null || lng == null) {
-    return res.status(400).json({ error: 'Fehlende Felder' });
+    return res.status(400).json({ error: "Fehlende Felder" });
   }
-  locationCache.set(code + ':' + spot, { lat, lng, ts: Date.now() });
+  locationCache.set(code + ":" + spot, { lat, lng, ts: Date.now() });
   res.json({ success: true });
 });
 
-app.get('/api/location/:code', (req, res) => {
+app.get("/api/location/:code", (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
-  const data = locationCache.get(code + ':' + spot);
+  const spot = req.query.spot || "gay";
+  const data = locationCache.get(code + ":" + spot);
   if (!data || Date.now() - data.ts > 120000) {
-    return res.status(404).json({ error: 'Standort nicht verfügbar' });
+    return res.status(404).json({ error: "Standort nicht verfügbar" });
   }
   res.json({ lat: data.lat, lng: data.lng });
 });
@@ -735,10 +868,10 @@ app.get('/api/location/:code', (req, res) => {
 // HEARTBEAT & ONLINE-STATUS
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/heartbeat', async (req, res) => {
-  const { code, spot = 'gay' } = req.body;
-  if (!code) return res.status(400).json({ error: 'Code fehlt' });
-  const now          = Date.now();
+app.post("/api/heartbeat", async (req, res) => {
+  const { code, spot = "gay" } = req.body;
+  if (!code) return res.status(400).json({ error: "Code fehlt" });
+  const now = Date.now();
   const visibleUntil = now + OFFLINE_VISIBLE_MS;
   try {
     await pool.query(
@@ -746,29 +879,34 @@ app.post('/api/heartbeat', async (req, res) => {
        SET last_seen = $1,
            visible_until = GREATEST(visible_until, $2)
        WHERE code = $3 AND spot = $4`,
-      [now, visibleUntil, code, spot]
+      [now, visibleUntil, code, spot],
     );
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/online/:code', async (req, res) => {
+app.get("/api/online/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
+  const spot = req.query.spot || "gay";
   try {
     const { rows } = await pool.query(
-      'SELECT last_seen, visible_until FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT last_seen, visible_until FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
     if (!rows.length) return res.json({ online: false, visible: false });
-    const now     = Date.now();
-    const online  = rows[0].last_seen && (now - Number(rows[0].last_seen)) < 120000;
+    const now = Date.now();
+    const online =
+      rows[0].last_seen && now - Number(rows[0].last_seen) < 120000;
     const visible = Number(rows[0].visible_until) > now;
-    res.json({ online: !!online, visible, lastSeen: Number(rows[0].last_seen) });
+    res.json({
+      online: !!online,
+      visible,
+      lastSeen: Number(rows[0].last_seen),
+    });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -776,39 +914,39 @@ app.get('/api/online/:code', async (req, res) => {
 // VERIFIKATIONEN
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/verify', async (req, res) => {
-  const { fromCode, toCode, type, spot = 'gay' } = req.body;
+app.post("/api/verify", async (req, res) => {
+  const { fromCode, toCode, type, spot = "gay" } = req.body;
   if (!fromCode || !toCode || !type) {
-    return res.status(400).json({ error: 'Felder fehlen' });
+    return res.status(400).json({ error: "Felder fehlen" });
   }
   try {
     await pool.query(
       `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
-      [toCode, spot, fromCode, type, Date.now()]
+      [toCode, spot, fromCode, type, Date.now()],
     );
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/verify:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/verify:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/verifications/:code', async (req, res) => {
+app.get("/api/verifications/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
+  const spot = req.query.spot || "gay";
   try {
     const { rows } = await pool.query(
       `SELECT from_code AS "from", type, created_at AS ts
        FROM verifications
        WHERE to_code = $1 AND to_spot = $2
        ORDER BY created_at DESC`,
-      [code, spot]
+      [code, spot],
     );
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -816,31 +954,31 @@ app.get('/api/verifications/:code', async (req, res) => {
 // VERPASSTE ANRUFE
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/missed-call', async (req, res) => {
+app.post("/api/missed-call", async (req, res) => {
   const { recipient, callerId, callerName } = req.body;
   if (!recipient || !callerId || !callerName) {
-    return res.status(400).json({ error: 'Fehlende Felder' });
+    return res.status(400).json({ error: "Fehlende Felder" });
   }
   try {
     await pool.query(
       `INSERT INTO missed_calls (recipient, caller_id, caller_name) VALUES ($1, $2, $3)`,
-      [recipient, callerId, encrypt(callerName)]
+      [recipient, callerId, encrypt(callerName)],
     );
     await pool.query(
       `DELETE FROM missed_calls WHERE id IN (
          SELECT id FROM missed_calls WHERE recipient = $1
          ORDER BY created_at DESC OFFSET 500
        )`,
-      [recipient]
+      [recipient],
     );
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/missed-call:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/missed-call:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/missed-calls/:code', async (req, res) => {
+app.get("/api/missed-calls/:code", async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
@@ -848,11 +986,11 @@ app.get('/api/missed-calls/:code', async (req, res) => {
               created_at AS timestamp
        FROM missed_calls WHERE recipient = $1
        ORDER BY created_at DESC LIMIT 50`,
-      [code]
+      [code],
     );
-    res.json(rows.map(r => ({ ...r, callerName: decrypt(r.callerName) })));
+    res.json(rows.map((r) => ({ ...r, callerName: decrypt(r.callerName) })));
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -860,19 +998,22 @@ app.get('/api/missed-calls/:code', async (req, res) => {
 // OFFLINE-NACHRICHTEN (private Kurznachrichten)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/offline-message', async (req, res) => {
-  const { recipient, senderCode, senderName, message, type, source, spotType } = req.body;
+app.post("/api/offline-message", async (req, res) => {
+  const { recipient, senderCode, senderName, message, type, source, spotType } =
+    req.body;
 
   if (!recipient || !senderCode || !senderName || !message) {
-    return res.status(400).json({ error: 'Fehlende Felder' });
+    return res.status(400).json({ error: "Fehlende Felder" });
   }
   if (recipient === senderCode) {
-    return res.status(400).json({ error: 'Keine Nachricht an sich selbst' });
+    return res.status(400).json({ error: "Keine Nachricht an sich selbst" });
   }
 
   const clean = sanitizeMessage(message);
   if (!clean.length) {
-    return res.status(400).json({ error: 'Nachricht ist leer nach Bereinigung' });
+    return res
+      .status(400)
+      .json({ error: "Nachricht ist leer nach Bereinigung" });
   }
 
   try {
@@ -880,7 +1021,7 @@ app.post('/api/offline-message', async (req, res) => {
       `SELECT id FROM offline_messages 
        WHERE sender_code = $1 AND recipient = $2
        LIMIT 1`,
-      [recipient, senderCode]
+      [recipient, senderCode],
     );
 
     if (dialogCheck.rows.length === 0) {
@@ -890,48 +1031,58 @@ app.post('/api/offline-message', async (req, res) => {
          WHERE sender_code = $1 AND recipient = $2
            AND created_at > NOW() - INTERVAL '${rateMinutes} minutes'
          LIMIT 1`,
-        [senderCode, recipient]
+        [senderCode, recipient],
       );
       if (rateCheck.rows.length > 0) {
-        return res.status(429).json({ error: `Maximal 1 Nachricht pro ${rateMinutes > 1 ? rateMinutes + ' Minuten' : 'Minute'} für die erste Kontaktaufnahme` });
+        return res.status(429).json({
+          error: `Maximal 1 Nachricht pro ${rateMinutes > 1 ? rateMinutes + " Minuten" : "Minute"} für die erste Kontaktaufnahme`,
+        });
       }
     }
 
     const countCheck = await pool.query(
       `SELECT COUNT(*) AS cnt FROM offline_messages WHERE recipient = $1 AND read = FALSE`,
-      [recipient]
+      [recipient],
     );
     if (Number(countCheck.rows[0].cnt) >= 50) {
-      return res.status(429).json({ error: 'Postfach des Empfängers voll' });
+      return res.status(429).json({ error: "Postfach des Empfängers voll" });
     }
 
     await pool.query(
       `INSERT INTO offline_messages (recipient, sender_code, sender_name, message, type, source, spot_type)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [recipient, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), type || null, source || null, spotType || null]
+      [
+        recipient,
+        senderCode,
+        encrypt(senderName.slice(0, 50)),
+        encrypt(clean),
+        type || null,
+        source || null,
+        spotType || null,
+      ],
     );
 
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/offline-message:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/offline-message:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/offline-messages/:code', async (req, res) => {
+app.get("/api/offline-messages/:code", async (req, res) => {
   const { code } = req.params;
-  const token = req.query.token || req.headers['x-spotme-token'];
-  const spot  = req.query.spot || 'gay';
+  const token = req.query.token || req.headers["x-spotme-token"];
+  const spot = req.query.spot || "gay";
 
-  if (!token) return res.status(401).json({ error: 'Token fehlt' });
+  if (!token) return res.status(401).json({ error: "Token fehlt" });
 
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
     const { rows } = await pool.query(
@@ -942,16 +1093,18 @@ app.get('/api/offline-messages/:code', async (req, res) => {
        WHERE recipient = $1 AND spot_type = $2
        ORDER BY created_at DESC
        LIMIT 50`,
-      [code, spot]
+      [code, spot],
     );
-    res.json(rows.map(r => ({
-      ...r,
-      senderName: decrypt(r.senderName),
-      message:    decrypt(r.message),
-    })));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        senderName: decrypt(r.senderName),
+        message: decrypt(r.message),
+      })),
+    );
   } catch (e) {
-    console.error('GET /api/offline-messages:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/offline-messages:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -964,23 +1117,27 @@ app.get('/api/offline-messages/:code', async (req, res) => {
 // ── Nachricht senden ─────────────────────────────────────────────────────────
 // Jeder der ein Profil hat kann eine Nachricht schicken.
 // Das verhindert anonymen Spam ohne einen Login zu erzwingen.
-app.post('/api/message', async (req, res) => {
+app.post("/api/message", async (req, res) => {
   const { recipient, sender_code, sender_name, message, spot_type } = req.body;
 
   // Pflichtfelder prüfen
   if (!recipient || !sender_code || !message) {
-    return res.status(400).json({ error: 'recipient, sender_code und message sind Pflicht' });
+    return res
+      .status(400)
+      .json({ error: "recipient, sender_code und message sind Pflicht" });
   }
 
   // Selbst-Nachrichten verhindern
   if (sender_code === recipient) {
-    return res.status(400).json({ error: 'Nachrichten an sich selbst nicht erlaubt' });
+    return res
+      .status(400)
+      .json({ error: "Nachrichten an sich selbst nicht erlaubt" });
   }
 
   // Nachricht bereinigen – Links und E-Mails entfernen, auf 280 Zeichen kürzen
   const clean = sanitizeMessage(message);
   if (!clean.length) {
-    return res.status(400).json({ error: 'Nachricht ist leer oder ungültig' });
+    return res.status(400).json({ error: "Nachricht ist leer oder ungültig" });
   }
 
   try {
@@ -989,10 +1146,10 @@ app.post('/api/message', async (req, res) => {
     // Profil muss im caching-Spot existieren.
     const senderExists = await pool.query(
       `SELECT 1 FROM profiles WHERE code = $1 AND spot = 'caching' LIMIT 1`,
-      [sender_code]
+      [sender_code],
     );
     if (!senderExists.rows.length) {
-      return res.status(403).json({ error: 'Absender hat kein Profil' });
+      return res.status(403).json({ error: "Absender hat kein Profil" });
     }
 
     // Postfach-Limit: maximal 100 ungelesene Chat-Nachrichten pro Empfänger
@@ -1000,10 +1157,10 @@ app.post('/api/message', async (req, res) => {
     const countCheck = await pool.query(
       `SELECT COUNT(*) AS cnt FROM offline_messages
        WHERE recipient = $1 AND spot_type = 'caching_chat' AND read = FALSE`,
-      [recipient]
+      [recipient],
     );
     if (Number(countCheck.rows[0].cnt) >= 100) {
-      return res.status(429).json({ error: 'Postfach des Empfängers voll' });
+      return res.status(429).json({ error: "Postfach des Empfängers voll" });
     }
 
     // Nachricht speichern
@@ -1016,16 +1173,15 @@ app.post('/api/message', async (req, res) => {
         sender_code,
         encrypt(sender_name?.slice(0, 50) || sender_code),
         encrypt(clean),
-        spot_type || 'caching_chat'
-      ]
+        spot_type || "caching_chat",
+      ],
     );
 
     console.log(`💬 Chat: ${sender_code} → ${recipient}`);
     res.json({ success: true });
-
   } catch (e) {
-    console.error('POST /api/message:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/message:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -1034,9 +1190,9 @@ app.post('/api/message', async (req, res) => {
 // Optional: ?spot_type=caching_chat für gefilterten Abruf.
 // Nach dem Abrufen werden die Nachrichten als "gelesen" markiert –
 // wie ein Briefkasten der geleert wird wenn man die Post holt.
-app.get('/api/messages/:code', async (req, res) => {
-  const { code }    = req.params;
-  const spot_type   = req.query.spot_type || 'caching_chat';
+app.get("/api/messages/:code", async (req, res) => {
+  const { code } = req.params;
+  const spot_type = req.query.spot_type || "caching_chat";
 
   try {
     // Nachrichten der letzten 48 Stunden abrufen
@@ -1049,78 +1205,79 @@ app.get('/api/messages/:code', async (req, res) => {
          AND read = FALSE
          AND created_at > NOW() - INTERVAL '48 hours'
        ORDER BY created_at ASC`,
-      [code, spot_type]
+      [code, spot_type],
     );
 
     // Als gelesen markieren damit beim nächsten Poll keine Duplikate kommen
     if (rows.length > 0) {
-      const ids = rows.map(r => r.id);
+      const ids = rows.map((r) => r.id);
       await pool.query(
-        'UPDATE offline_messages SET read = TRUE WHERE id = ANY($1)',
-        [ids]
+        "UPDATE offline_messages SET read = TRUE WHERE id = ANY($1)",
+        [ids],
       );
       console.log(`📬 ${rows.length} Chat-Nachrichten abgerufen für ${code}`);
     }
 
     // Nachrichten entschlüsseln bevor sie ans Frontend geschickt werden
-    res.json(rows.map(r => ({
-      ...r,
-      sender_name: decrypt(r.sender_name),
-      message:     decrypt(r.message),
-    })));
-
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        sender_name: decrypt(r.sender_name),
+        message: decrypt(r.message),
+      })),
+    );
   } catch (e) {
-    console.error('GET /api/messages:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/messages:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/offline-message/:id', async (req, res) => {
+app.delete("/api/offline-message/:id", async (req, res) => {
   const { id } = req.params;
-  const { code, token, spot = 'gay' } = req.body;
+  const { code, token, spot = "gay" } = req.body;
 
-  if (!code || !token) return res.status(401).json({ error: 'Token fehlt' });
+  if (!code || !token) return res.status(401).json({ error: "Token fehlt" });
 
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
     await pool.query(
-      'UPDATE offline_messages SET read = TRUE WHERE id = $1 AND recipient = $2',
-      [id, code]
+      "UPDATE offline_messages SET read = TRUE WHERE id = $1 AND recipient = $2",
+      [id, code],
     );
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/offline-messages/:code', async (req, res) => {
+app.delete("/api/offline-messages/:code", async (req, res) => {
   const { code } = req.params;
-  const token = req.body?.token || req.headers['x-spotme-token'];
-  const spot  = req.body?.spot  || 'gay';
+  const token = req.body?.token || req.headers["x-spotme-token"];
+  const spot = req.body?.spot || "gay";
 
-  if (!token) return res.status(401).json({ error: 'Token fehlt' });
+  if (!token) return res.status(401).json({ error: "Token fehlt" });
 
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
     await pool.query(
-      'UPDATE offline_messages SET read = TRUE WHERE recipient = $1',
-      [code]
+      "UPDATE offline_messages SET read = TRUE WHERE recipient = $1",
+      [code],
     );
     res.json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -1128,40 +1285,57 @@ app.delete('/api/offline-messages/:code', async (req, res) => {
 // PROFILE COMMENTS (Story-Kommentare)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/profile-comment', async (req, res) => {
-  const { profileCode, profileSpot = 'dates', senderCode, senderName, message } = req.body;
+app.post("/api/profile-comment", async (req, res) => {
+  const {
+    profileCode,
+    profileSpot = "dates",
+    senderCode,
+    senderName,
+    message,
+  } = req.body;
 
   if (!profileCode || !senderCode || !senderName || !message) {
-    return res.status(400).json({ error: 'profileCode, senderCode, senderName, message erforderlich' });
+    return res.status(400).json({
+      error: "profileCode, senderCode, senderName, message erforderlich",
+    });
   }
 
   const clean = message.trim().slice(0, 140);
   if (!clean.length) {
-    return res.status(400).json({ error: 'Nachricht ist leer' });
+    return res.status(400).json({ error: "Nachricht ist leer" });
   }
 
   if (/https?:\/\/|www\./i.test(clean)) {
-    return res.status(400).json({ error: 'Keine Links erlaubt' });
+    return res.status(400).json({ error: "Keine Links erlaubt" });
   }
 
   try {
     await pool.query(
       `INSERT INTO profile_comments (profile_code, profile_spot, sender_code, sender_name, message, created_at)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [profileCode, profileSpot, senderCode, encrypt(senderName.slice(0, 50)), encrypt(clean), Date.now()]
+      [
+        profileCode,
+        profileSpot,
+        senderCode,
+        encrypt(senderName.slice(0, 50)),
+        encrypt(clean),
+        Date.now(),
+      ],
     );
 
-    console.log(`💬 Kommentar: ${senderName} → ${profileCode}: "${clean.slice(0, 30)}..."`);
+    console.log(
+      `💬 Kommentar: ${senderName} → ${profileCode}: "${clean.slice(0, 30)}..."`,
+    );
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/profile-comment:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/profile-comment:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/profile-comments/:code', async (req, res) => {
+app.get("/api/profile-comments/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'dates';
+  const spot = req.query.spot || "dates";
 
   try {
     const { rows } = await pool.query(
@@ -1171,50 +1345,54 @@ app.get('/api/profile-comments/:code', async (req, res) => {
        WHERE profile_code = $1 AND profile_spot = $2
        ORDER BY created_at DESC
        LIMIT 999`,
-      [code, spot]
+      [code, spot],
     );
-    res.json(rows.map(r => ({
-      ...r,
-      senderName: decrypt(r.senderName),
-      message:    decrypt(r.message),
-    })));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        senderName: decrypt(r.senderName),
+        message: decrypt(r.message),
+      })),
+    );
   } catch (e) {
-    console.error('GET /api/profile-comments:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/profile-comments:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/profile-comment/:id', async (req, res) => {
+app.delete("/api/profile-comment/:id", async (req, res) => {
   const { id } = req.params;
-  const { code, token, spot = 'dates' } = req.body;
+  const { code, token, spot = "dates" } = req.body;
 
   if (!code || !token) {
-    return res.status(401).json({ error: 'Token fehlt' });
+    return res.status(401).json({ error: "Token fehlt" });
   }
 
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2',
-      [code, spot]
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2",
+      [code, spot],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Nur der Profilinhaber kann Kommentare löschen' });
+      return res
+        .status(403)
+        .json({ error: "Nur der Profilinhaber kann Kommentare löschen" });
     }
 
     const comment = await pool.query(
-      'SELECT id FROM profile_comments WHERE id = $1 AND profile_code = $2 AND profile_spot = $3',
-      [id, code, spot]
+      "SELECT id FROM profile_comments WHERE id = $1 AND profile_code = $2 AND profile_spot = $3",
+      [id, code, spot],
     );
     if (!comment.rows.length) {
-      return res.status(404).json({ error: 'Kommentar nicht gefunden' });
+      return res.status(404).json({ error: "Kommentar nicht gefunden" });
     }
 
-    await pool.query('DELETE FROM profile_comments WHERE id = $1', [id]);
+    await pool.query("DELETE FROM profile_comments WHERE id = $1", [id]);
     console.log(`🗑️ Kommentar gelöscht: ID ${id} von Profil ${code}`);
     res.json({ success: true });
   } catch (e) {
-    console.error('DELETE /api/profile-comment:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("DELETE /api/profile-comment:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -1228,37 +1406,39 @@ const invites = {}; // { empfaengerCode: [{ from, to, ts, room }] }
 setInterval(() => {
   const now = Date.now();
   for (const code of Object.keys(invites)) {
-    invites[code] = invites[code].filter(i => now - i.ts < 2 * 60 * 60 * 1000);
+    invites[code] = invites[code].filter(
+      (i) => now - i.ts < 2 * 60 * 60 * 1000,
+    );
     if (invites[code].length === 0) delete invites[code];
   }
 }, 60000);
 
 // Einladung zum Messenger
 
-app.post('/api/invites/send', async (req, res) => {
+app.post("/api/invites/send", async (req, res) => {
   // time_start und time_end aus dem Body lesen – das war vorher vergessen
   const { from, to, spot_id, time_start, time_end } = req.body;
 
   if (!from || !to || from.length !== 6 || to.length !== 6) {
-    return res.status(400).json({ error: 'Ungültige Codes' });
+    return res.status(400).json({ error: "Ungültige Codes" });
   }
   if (from === to) {
-    return res.status(400).json({ error: 'Selbst-Einladung nicht möglich' });
+    return res.status(400).json({ error: "Selbst-Einladung nicht möglich" });
   }
 
   // ── RAM (wie bisher, aber jetzt MIT Zeitdaten) ──────────────────────────
   if (!invites[to]) invites[to] = [];
-  const exists = invites[to].find(i => i.from === from);
+  const exists = invites[to].find((i) => i.from === from);
   if (!exists) {
-    const room = [from, to].sort().join('-');
+    const room = [from, to].sort().join("-");
     invites[to].push({
       from,
       to,
-      ts:   Date.now(),
+      ts: Date.now(),
       room,
       // NEU: Zeitfenster mitspeichern damit der RAM-Kanal auch die Zeit kennt
       time_start: time_start || Date.now(),
-      time_end:   time_end   || Date.now() + 7 * 24 * 60 * 60 * 1000
+      time_end: time_end || Date.now() + 7 * 24 * 60 * 60 * 1000,
     });
     console.log(`📨 Einladung: ${from} → ${to} (Raum ${room})`);
   }
@@ -1269,20 +1449,20 @@ app.post('/api/invites/send', async (req, res) => {
       // Fallback-Werte falls kein Zeitfenster mitgeschickt wurde –
       // das kann passieren wenn jemand den Chat-Button ohne Modal nutzt
       const ts = time_start || Date.now();
-      const te = time_end   || ts + 7 * 24 * 60 * 60 * 1000;
+      const te = time_end || ts + 7 * 24 * 60 * 60 * 1000;
 
       await pool.query(
         `INSERT INTO spot_cache_invites
            (from_code, to_code, spot_id, time_start, time_end, status, created_at)
          VALUES ($1, $2, $3, $4, $5, 'pending', $6)
          ON CONFLICT DO NOTHING`,
-        [from, to, spot_id, ts, te, Date.now()]
+        [from, to, spot_id, ts, te, Date.now()],
         //                   ↑  ↑
         // Jetzt kommen die echten Zeitwerte aus dem Frontend-Modal,
         // nicht mehr der berechnete Standardwert vom Server
       );
     } catch (e) {
-      console.error('DB invite error:', e.message);
+      console.error("DB invite error:", e.message);
     }
   }
 
@@ -1291,7 +1471,7 @@ app.post('/api/invites/send', async (req, res) => {
 
 // Liefert alle Einladungen für einen Nutzer (als Sender UND Empfänger)
 // inklusive Status – das ist der Unterschied zum RAM-Endpunkt
-app.get('/api/spotcache/invites/:code', async (req, res) => {
+app.get("/api/spotcache/invites/:code", async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
@@ -1311,31 +1491,33 @@ app.get('/api/spotcache/invites/:code', async (req, res) => {
        LEFT JOIN profiles pt ON pt.code  = i.to_code   AND pt.spot = 'caching'
        WHERE i.from_code = $1 OR i.to_code = $1
        ORDER BY i.created_at DESC`,
-      [code]
+      [code],
     );
 
     // Namen entschlüsseln bevor sie ans Frontend gehen –
     // decrypt() gibt null zurück wenn der Wert null/undefined ist, also sicher.
-    res.json(rows.map(row => ({
-      ...row,
-      from_name:     row.from_name_enc ? decrypt(row.from_name_enc) : null,
-      to_name:       row.to_name_enc   ? decrypt(row.to_name_enc)   : null,
-      // Rohdaten entfernen damit keine verschlüsselten Werte ans Frontend gelangen
-      from_name_enc: undefined,
-      to_name_enc:   undefined,
-    })));
+    res.json(
+      rows.map((row) => ({
+        ...row,
+        from_name: row.from_name_enc ? decrypt(row.from_name_enc) : null,
+        to_name: row.to_name_enc ? decrypt(row.to_name_enc) : null,
+        // Rohdaten entfernen damit keine verschlüsselten Werte ans Frontend gelangen
+        from_name_enc: undefined,
+        to_name_enc: undefined,
+      })),
+    );
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 // Einladung annehmen oder ablehnen
-app.patch('/api/spotcache/invite/:id', async (req, res) => {
+app.patch("/api/spotcache/invite/:id", async (req, res) => {
   const { id } = req.params;
   const { status, code } = req.body;
 
-  if (!['accepted', 'declined'].includes(status)) {
-    return res.status(400).json({ error: 'Ungültiger Status' });
+  if (!["accepted", "declined"].includes(status)) {
+    return res.status(400).json({ error: "Ungültiger Status" });
   }
 
   try {
@@ -1344,79 +1526,80 @@ app.patch('/api/spotcache/invite/:id', async (req, res) => {
       `UPDATE spot_cache_invites SET status = $1
        WHERE id = $2 AND to_code = $3
        RETURNING *`,
-      [status, id, code]
+      [status, id, code],
     );
     if (result.rowCount === 0) {
-      return res.status(403).json({ error: 'Nicht berechtigt' });
+      return res.status(403).json({ error: "Nicht berechtigt" });
     }
 
-
-if (status === 'accepted') {
-  const invite = result.rows[0];
-  const room = [invite.from_code, invite.to_code].sort().join('-');
-  if (!invites[invite.from_code]) invites[invite.from_code] = [];
-  invites[invite.from_code].push({   // ← hier öffnet ein Objekt
-    from: invite.to_code,
-    to: invite.from_code,
-    ts: Date.now(),
-    room
-  });                                 // ← Objekt geschlossen
-}                                     // ← if-Block geschlossen
+    if (status === "accepted") {
+      const invite = result.rows[0];
+      const room = [invite.from_code, invite.to_code].sort().join("-");
+      if (!invites[invite.from_code]) invites[invite.from_code] = [];
+      invites[invite.from_code].push({
+        // ← hier öffnet ein Objekt
+        from: invite.to_code,
+        to: invite.from_code,
+        ts: Date.now(),
+        room,
+      }); // ← Objekt geschlossen
+    } // ← if-Block geschlossen
     res.json({ ok: true, invite: result.rows[0] });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-
 // ══════════════════════════════════════════════════════════════════════════════
 // ADMIN – Avatar Moderation
 // ══════════════════════════════════════════════════════════════════════════════
 
 function requireAdmin(req, res, next) {
-  const key = req.headers['x-admin-key'] || req.query.key;
+  const key = req.headers["x-admin-key"] || req.query.key;
   if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
-    return res.status(403).json({ error: 'Kein Zugriff' });
+    return res.status(403).json({ error: "Kein Zugriff" });
   }
   next();
 }
 
-app.get('/api/admin/pending-avatars', requireAdmin, async (req, res) => {
+app.get("/api/admin/pending-avatars", requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT code, spot, avatar, avatar_status, updated_at
        FROM profiles
        WHERE avatar IS NOT NULL AND avatar_status = 'pending'
-       ORDER BY updated_at ASC`
+       ORDER BY updated_at ASC`,
     );
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.post('/api/admin/avatar-action', requireAdmin, async (req, res) => {
+app.post("/api/admin/avatar-action", requireAdmin, async (req, res) => {
   const { code, spot, action } = req.body;
-  if (!code || !spot || !['approve', 'reject'].includes(action)) {
-    return res.status(400).json({ error: 'code, spot und action (approve/reject) erforderlich' });
+  if (!code || !spot || !["approve", "reject"].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: "code, spot und action (approve/reject) erforderlich" });
   }
   try {
-    if (action === 'approve') {
+    if (action === "approve") {
       await pool.query(
-        'UPDATE profiles SET avatar_status = $1 WHERE code = $2 AND spot = $3',
-        ['approved', code, spot]
+        "UPDATE profiles SET avatar_status = $1 WHERE code = $2 AND spot = $3",
+        ["approved", code, spot],
       );
       console.log(`✅ Avatar freigegeben: ${code} (${spot})`);
     } else {
       await pool.query(
-        'UPDATE profiles SET avatar = NULL, avatar_status = NULL WHERE code = $1 AND spot = $2',
-        [code, spot]
+        "UPDATE profiles SET avatar = NULL, avatar_status = NULL WHERE code = $1 AND spot = $2",
+        [code, spot],
       );
       console.log(`❌ Avatar abgelehnt & gelöscht: ${code} (${spot})`);
     }
     res.json({ success: true, action, code, spot });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -1424,108 +1607,141 @@ app.post('/api/admin/avatar-action', requireAdmin, async (req, res) => {
 // WOCHEN‑SPOTS (anonyme 7‑Tage‑Spots für spot-woche.html)
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.post('/api/weekly-spots', async (req, res) => {
-  const { code, token, name, category, description, lat, lng } = req.body;
+app.post("/api/weekly-spots", async (req, res) => {
+  const { code, token, name, category, description, lat, lng, meetingAt } =
+    req.body;
   if (!code || !token || !name || lat == null || lng == null) {
-    return res.status(400).json({ error: 'code, token, name, lat, lng erforderlich' });
+    return res
+      .status(400)
+      .json({ error: "code, token, name, lat, lng erforderlich" });
   }
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
-      [code, 'caching']
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL",
+      [code, "caching"],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
-    const tokenId = crypto.randomBytes(16).toString('hex');
+    const tokenId = crypto.randomBytes(16).toString("hex");
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
+    const meetingTimestamp = meetingAt ? new Date(meetingAt).getTime() : null;
     await pool.query(
-      `INSERT INTO weekly_spots (token, code, name, category, description, lat, lng, expires_at, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [tokenId, code, name, category || null, description || null, lat, lng, expiresAt, now]
+      `INSERT INTO weekly_spots (token, code, name, category, description, lat, lng, meeting_at, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        tokenId,
+        code,
+        name,
+        category || null,
+        description || null,
+        lat,
+        lng,
+        meetingTimestamp,
+        expiresAt,
+        now,
+      ],
     );
     res.json({ success: true, spot: { token: tokenId, name } });
   } catch (e) {
-    console.error('POST /api/weekly-spots:', e.message);
-    res.status(500).json({ error: 'Fehler beim Erstellen' });
+    console.error("POST /api/weekly-spots:", e.message);
+    res.status(500).json({ error: "Fehler beim Erstellen" });
   }
 });
 
-app.get('/api/weekly-spots/mine', async (req, res) => {
+app.get("/api/weekly-spots/mine", async (req, res) => {
   const { code, token } = req.query;
-  if (!code || !token) return res.status(400).json({ error: 'code und token erforderlich' });
+  if (!code || !token)
+    return res.status(400).json({ error: "code und token erforderlich" });
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
-      [code, 'caching']
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL",
+      [code, "caching"],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
     const now = Date.now();
     const { rows } = await pool.query(
-      `SELECT token, name, category, description, lat, lng, expires_at, checkin_count
+      `SELECT token, name, category, description, lat, lng, meeting_at, expires_at, checkin_count
        FROM weekly_spots WHERE code = $1 AND expires_at > $2 ORDER BY created_at DESC`,
-      [code, now]
+      [code, now],
     );
     res.json(rows);
   } catch (e) {
-    console.error('GET /api/weekly-spots/mine:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/weekly-spots/mine:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.delete('/api/weekly-spots/:token', async (req, res) => {
+app.delete("/api/weekly-spots/:token", async (req, res) => {
   const { token } = req.params;
   const { code, token: authToken } = req.body;
-  if (!code || !authToken) return res.status(400).json({ error: 'code und token erforderlich' });
+  if (!code || !authToken)
+    return res.status(400).json({ error: "code und token erforderlich" });
   try {
     const auth = await pool.query(
-      'SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL',
-      [code, 'caching']
+      "SELECT token FROM profiles WHERE code = $1 AND spot = $2 AND token IS NOT NULL",
+      [code, "caching"],
     );
     if (!auth.rows.length || auth.rows[0].token !== authToken) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
-    const result = await pool.query('DELETE FROM weekly_spots WHERE token = $1 AND code = $2', [token, code]);
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Nicht gefunden oder nicht berechtigt' });
+    const result = await pool.query(
+      "DELETE FROM weekly_spots WHERE token = $1 AND code = $2",
+      [token, code],
+    );
+    if (result.rowCount === 0)
+      return res
+        .status(404)
+        .json({ error: "Nicht gefunden oder nicht berechtigt" });
     res.json({ success: true });
   } catch (e) {
-    console.error('DELETE /api/weekly-spots/:token:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("DELETE /api/weekly-spots/:token:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.get('/api/weekly-spots/:token', async (req, res) => {
+app.get("/api/weekly-spots/:token", async (req, res) => {
   const { token } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT token, name, category, description, lat, lng, expires_at, checkin_count
+      `SELECT token, name, category, description, lat, lng, meeting_at, expires_at, checkin_count
        FROM weekly_spots WHERE token = $1 AND expires_at > $2`,
-      [token, Date.now()]
+      [token, Date.now()],
     );
-    if (!rows.length) return res.status(404).json({ error: 'Spot nicht gefunden oder abgelaufen' });
+    if (!rows.length)
+      return res
+        .status(404)
+        .json({ error: "Spot nicht gefunden oder abgelaufen" });
     res.json(rows[0]);
   } catch (e) {
-    console.error('GET /api/weekly-spots/:token:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/weekly-spots/:token:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.post('/api/weekly-spots/:token/checkin', async (req, res) => {
+app.post("/api/weekly-spots/:token/checkin", async (req, res) => {
   const { token } = req.params;
   try {
     const result = await pool.query(
       `UPDATE weekly_spots SET checkin_count = checkin_count + 1
        WHERE token = $1 AND expires_at > $2 RETURNING checkin_count`,
-      [token, Date.now()]
+      [token, Date.now()],
     );
-    if (result.rowCount === 0) return res.status(404).json({ error: 'Spot nicht gefunden oder abgelaufen' });
-    res.json({ success: true, label: 'anonym', count: result.rows[0].checkin_count });
+    if (result.rowCount === 0)
+      return res
+        .status(404)
+        .json({ error: "Spot nicht gefunden oder abgelaufen" });
+    res.json({
+      success: true,
+      label: "anonym",
+      count: result.rows[0].checkin_count,
+    });
   } catch (e) {
-    console.error('POST /api/weekly-spots/:token/checkin:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/weekly-spots/:token/checkin:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -1534,21 +1750,22 @@ app.post('/api/weekly-spots/:token/checkin', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // 1️⃣ Matching: gemeinsame Wünsche + nahe Profile
-app.get('/api/spotcache/match/:code', async (req, res) => {
+app.get("/api/spotcache/match/:code", async (req, res) => {
   const { code } = req.params;
-  const spot = req.query.spot || 'gay';
-  const now  = Date.now();
+  const spot = req.query.spot || "gay";
+  const now = Date.now();
 
   try {
     const myProfile = await pool.query(
-      'SELECT wish_tags, offer_tags, region FROM profiles WHERE code = $1 AND spot = $2 AND visible_until > $3',
-      [code, spot, now]
+      "SELECT wish_tags, offer_tags, region FROM profiles WHERE code = $1 AND spot = $2 AND visible_until > $3",
+      [code, spot, now],
     );
     if (!myProfile.rows.length) return res.json({ matches: [] });
     const my = myProfile.rows[0];
     const myWishes = my.wish_tags ? JSON.parse(decrypt(my.wish_tags)) : [];
 
-    const candidates = await pool.query(`
+    const candidates = await pool.query(
+      `
       SELECT p.code, p.name, p.city, p.region,
              p.wish_tags, p.offer_tags,
              l.lat, l.lng
@@ -1563,58 +1780,64 @@ app.get('/api/spotcache/match/:code', async (req, res) => {
         LIMIT 1
       ) l ON true
       WHERE p.code <> $1 AND p.spot = $2 AND p.visible_until > $3
-    `, [code, spot, now]);
+    `,
+      [code, spot, now],
+    );
 
-    const matches = candidates.rows.filter(c => {
-      const theirWishes = c.wish_tags ? JSON.parse(decrypt(c.wish_tags)) : [];
-      return theirWishes.some(w => myWishes.includes(w));
-    }).map(c => {
-      const theirWishes = c.wish_tags ? JSON.parse(decrypt(c.wish_tags)) : [];
-      const common = myWishes.filter(w => theirWishes.includes(w));
-      return {
-        code: c.code,
-        name: decrypt(c.name),
-        city: c.city,
-        region: c.region,
-        commonWishes: common,
-        lat: c.lat ? parseFloat(c.lat) : null,
-        lng: c.lng ? parseFloat(c.lng) : null
-      };
-    });
+    const matches = candidates.rows
+      .filter((c) => {
+        const theirWishes = c.wish_tags ? JSON.parse(decrypt(c.wish_tags)) : [];
+        return theirWishes.some((w) => myWishes.includes(w));
+      })
+      .map((c) => {
+        const theirWishes = c.wish_tags ? JSON.parse(decrypt(c.wish_tags)) : [];
+        const common = myWishes.filter((w) => theirWishes.includes(w));
+        return {
+          code: c.code,
+          name: decrypt(c.name),
+          city: c.city,
+          region: c.region,
+          commonWishes: common,
+          lat: c.lat ? parseFloat(c.lat) : null,
+          lng: c.lng ? parseFloat(c.lng) : null,
+        };
+      });
     res.json({ matches });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Matching fehlgeschlagen' });
+    res.status(500).json({ error: "Matching fehlgeschlagen" });
   }
 });
 
 // 2️⃣ Cache-Anfrage senden
-app.post('/api/spotcache/request', async (req, res) => {
+app.post("/api/spotcache/request", async (req, res) => {
   const { from, to, wish } = req.body;
-  if (!from || !to || !wish) return res.status(400).json({ error: 'Fehlende Felder' });
+  if (!from || !to || !wish)
+    return res.status(400).json({ error: "Fehlende Felder" });
 
   try {
     const existing = await pool.query(
       `SELECT id FROM spot_cache_requests
        WHERE from_code = $1 AND to_code = $2 AND wish = $3 AND status IN ('pending','accepted')`,
-      [from, to, wish]
+      [from, to, wish],
     );
-    if (existing.rows.length) return res.status(409).json({ error: 'Bereits angefragt' });
+    if (existing.rows.length)
+      return res.status(409).json({ error: "Bereits angefragt" });
 
     await pool.query(
       `INSERT INTO spot_cache_requests (from_code, to_code, wish, status, created_at)
        VALUES ($1, $2, $3, 'pending', $4)`,
-      [from, to, wish, Date.now()]
+      [from, to, wish, Date.now()],
     );
     res.json({ success: true });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Erstellen' });
+    res.status(500).json({ error: "Fehler beim Erstellen" });
   }
 });
 
 // 3️⃣ Eigene Anfragen anzeigen
-app.get('/api/spotcache/requests/:code', async (req, res) => {
+app.get("/api/spotcache/requests/:code", async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
@@ -1623,56 +1846,66 @@ app.get('/api/spotcache/requests/:code', async (req, res) => {
        FROM spot_cache_requests
        WHERE (from_code = $1 OR to_code = $1) AND status != 'declined'
        ORDER BY created_at DESC`,
-      [code]
+      [code],
     );
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Abrufen' });
+    res.status(500).json({ error: "Fehler beim Abrufen" });
   }
 });
 
 // 4️⃣ Auf Anfrage antworten
-app.post('/api/spotcache/respond', async (req, res) => {
+app.post("/api/spotcache/respond", async (req, res) => {
   const { id, code, action } = req.body; // action: 'accept' | 'decline'
-  if (!id || !code || !['accept', 'decline'].includes(action)) {
-    return res.status(400).json({ error: 'Ungültige Parameter' });
+  if (!id || !code || !["accept", "decline"].includes(action)) {
+    return res.status(400).json({ error: "Ungültige Parameter" });
   }
 
   try {
-    const request = await pool.query(`SELECT * FROM spot_cache_requests WHERE id = $1`, [id]);
-    if (!request.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    const request = await pool.query(
+      `SELECT * FROM spot_cache_requests WHERE id = $1`,
+      [id],
+    );
+    if (!request.rows.length)
+      return res.status(404).json({ error: "Nicht gefunden" });
 
     const reqData = request.rows[0];
     if (reqData.to_code !== code && reqData.from_code !== code) {
-      return res.status(403).json({ error: 'Keine Berechtigung' });
+      return res.status(403).json({ error: "Keine Berechtigung" });
     }
 
-    if (action === 'decline') {
-      await pool.query(`UPDATE spot_cache_requests SET status = 'declined' WHERE id = $1`, [id]);
-      return res.json({ success: true, status: 'declined' });
+    if (action === "decline") {
+      await pool.query(
+        `UPDATE spot_cache_requests SET status = 'declined' WHERE id = $1`,
+        [id],
+      );
+      return res.json({ success: true, status: "declined" });
     }
 
     // Empfänger akzeptiert
-    if (reqData.status === 'pending' && reqData.to_code === code) {
-      await pool.query(`UPDATE spot_cache_requests SET status = 'accepted' WHERE id = $1`, [id]);
+    if (reqData.status === "pending" && reqData.to_code === code) {
+      await pool.query(
+        `UPDATE spot_cache_requests SET status = 'accepted' WHERE id = $1`,
+        [id],
+      );
 
       // Gegenseitige Anfrage prüfen
       const reciprocal = await pool.query(
         `SELECT id FROM spot_cache_requests
          WHERE from_code = $1 AND to_code = $2 AND wish = $3 AND status = 'accepted'`,
-        [reqData.to_code, reqData.from_code, reqData.wish]
+        [reqData.to_code, reqData.from_code, reqData.wish],
       );
       if (reciprocal.rows.length) {
         await unlockCache(reqData, reciprocal.rows[0].id);
       }
-      return res.json({ success: true, status: 'accepted' });
+      return res.json({ success: true, status: "accepted" });
     }
 
-    res.status(400).json({ error: 'Ungültiger Zustand' });
+    res.status(400).json({ error: "Ungültiger Zustand" });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler' });
+    res.status(500).json({ error: "Fehler" });
   }
 });
 
@@ -1682,7 +1915,7 @@ async function unlockCache(reqA, reqBId) {
   const lngA = reqA.location_lng || -0.38;
   const requestB = await pool.query(
     `SELECT location_lat, location_lng FROM spot_cache_requests WHERE id = $1`,
-    [reqBId]
+    [reqBId],
   );
   const latB = requestB.rows[0]?.location_lat || 39.47;
   const lngB = requestB.rows[0]?.location_lng || -0.38;
@@ -1697,7 +1930,7 @@ async function unlockCache(reqA, reqBId) {
   await pool.query(
     `UPDATE spot_cache_requests SET status = 'unlocked', location_lat = $1, location_lng = $2, unlocked_at = $3
      WHERE id IN ($4, $5)`,
-    [targetLat, targetLng, now, reqA.id, reqBId]
+    [targetLat, targetLng, now, reqA.id, reqBId],
   );
 }
 
@@ -1706,11 +1939,24 @@ async function unlockCache(reqA, reqBId) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // 🟠 Eigenen Spot anlegen
-app.post('/api/userspots', async (req, res) => {
-  const { code, lat, lng, name, description, wishTag, image,
-          area_type, time_pref, crowd_level, intimacy_level } = req.body;
+app.post("/api/userspots", async (req, res) => {
+  const {
+    code,
+    lat,
+    lng,
+    name,
+    description,
+    wishTag,
+    image,
+    area_type,
+    time_pref,
+    crowd_level,
+    intimacy_level,
+  } = req.body;
   if (!code || lat == null || lng == null || !name || !wishTag) {
-    return res.status(400).json({ error: 'Pflichtfelder: code, lat, lng, name, wishTag' });
+    return res
+      .status(400)
+      .json({ error: "Pflichtfelder: code, lat, lng, name, wishTag" });
   }
   try {
     await pool.query(
@@ -1722,35 +1968,44 @@ app.post('/api/userspots', async (req, res) => {
           area_type, time_pref, crowd_level, intimacy_level, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, $11, $12)`,
       [
-        code, lat, lng, name, description || null, wishTag, image || null,
-        area_type || null, time_pref || null, crowd_level || null, intimacy_level || null,
-        Date.now()
-      ]
+        code,
+        lat,
+        lng,
+        name,
+        description || null,
+        wishTag,
+        image || null,
+        area_type || null,
+        time_pref || null,
+        crowd_level || null,
+        intimacy_level || null,
+        Date.now(),
+      ],
     );
     res.json({ success: true });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Speichern' });
+    res.status(500).json({ error: "Fehler beim Speichern" });
   }
 });
 
 // 🌍 Alle öffentlichen Spots abrufen (für die Karte)
 // Nur aktive Spots werden geliefert – deaktivierte Spots sind unsichtbar
-app.get('/api/userspots/all', async (req, res) => {
-  const noImage = req.query.noimage === '1';
+app.get("/api/userspots/all", async (req, res) => {
+  const noImage = req.query.noimage === "1";
   try {
     const { rows } = await pool.query(
       `SELECT id, code, lat, lng, name, description, wish_tag AS "wishTag",
-              ${noImage ? 'NULL AS image' : 'CASE WHEN image_status = \'approved\' THEN image ELSE NULL END AS image'},
+              ${noImage ? "NULL AS image" : "CASE WHEN image_status = 'approved' THEN image ELSE NULL END AS image"},
               active, area_type, time_pref, crowd_level, intimacy_level, created_at
        FROM user_spots
        WHERE active = true
-       ORDER BY created_at DESC`
+       ORDER BY created_at DESC`,
     );
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Abrufen' });
+    res.status(500).json({ error: "Fehler beim Abrufen" });
   }
 });
 
@@ -1760,7 +2015,7 @@ app.get('/api/userspots/all', async (req, res) => {
 // und damit das Bild einer approved-Spot-Bearbeitung nicht verloren geht.
 // image_status wird mitgeliefert damit das Frontend einen passenden Hinweis
 // anzeigen kann: "⏳ Bild wird moderiert" vs. "✅ Bild freigegeben"
-app.get('/api/userspots/:code', async (req, res) => {
+app.get("/api/userspots/:code", async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
@@ -1772,12 +2027,12 @@ app.get('/api/userspots/:code', async (req, res) => {
        FROM user_spots
        WHERE code = $1
        ORDER BY created_at DESC`,
-      [code]
+      [code],
     );
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Abrufen' });
+    res.status(500).json({ error: "Fehler beim Abrufen" });
   }
 });
 
@@ -1789,36 +2044,42 @@ app.get('/api/userspots/:code', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // 📍 Öffentlichen Check-in ankündigen
-app.post('/api/checkins/public', async (req, res) => {
+app.post("/api/checkins/public", async (req, res) => {
   const { code, spot_id, checkin_at, note } = req.body;
 
   if (!code || !spot_id || !checkin_at) {
-    return res.status(400).json({ error: 'code, spot_id und checkin_at sind Pflicht' });
+    return res
+      .status(400)
+      .json({ error: "code, spot_id und checkin_at sind Pflicht" });
   }
 
   // 4-Stunden-Regel: Check-in muss in der Zukunft liegen
-  const fourHoursFromNow = Date.now() + (4 * 60 * 60 * 1000);
+  const fourHoursFromNow = Date.now() + 4 * 60 * 60 * 1000;
   if (checkin_at < fourHoursFromNow) {
-    return res.status(400).json({ error: 'Check-in muss mindestens 4 Stunden in der Zukunft liegen' });
+    return res.status(400).json({
+      error: "Check-in muss mindestens 4 Stunden in der Zukunft liegen",
+    });
   }
 
   try {
     // Aktives Profil prüfen – nur wer ein Profil hat darf einchecken
     const profile = await pool.query(
       `SELECT name FROM profiles WHERE code = $1 AND spot = 'caching'`,
-      [code]
+      [code],
     );
     if (!profile.rows.length) {
-      return res.status(403).json({ error: 'Kein aktives Profil gefunden' });
+      return res.status(403).json({ error: "Kein aktives Profil gefunden" });
     }
 
     // Spot muss als Favorit gespeichert sein
     const fav = await pool.query(
       `SELECT 1 FROM spot_favorites WHERE code = $1 AND spot_id = $2`,
-      [code, spot_id]
+      [code, spot_id],
     );
     if (!fav.rows.length) {
-      return res.status(403).json({ error: 'Spot ist nicht in deinen Favoriten' });
+      return res
+        .status(403)
+        .json({ error: "Spot ist nicht in deinen Favoriten" });
     }
 
     // Check-in ankündigen
@@ -1826,23 +2087,26 @@ app.post('/api/checkins/public', async (req, res) => {
       `INSERT INTO spot_checkins_public (spot_id, code, checkin_at, note, status, created_at)
        VALUES ($1, $2, $3, $4, 'planned', $5)
        RETURNING id`,
-      [spot_id, code, checkin_at, note || null, Date.now()]
+      [spot_id, code, checkin_at, note || null, Date.now()],
     );
 
     // Alle anderen Favoriten dieses Spots benachrichtigen
     const spotData = await pool.query(
-      `SELECT name FROM user_spots WHERE id = $1`, [spot_id]
+      `SELECT name FROM user_spots WHERE id = $1`,
+      [spot_id],
     );
-    const spotName    = spotData.rows[0]?.name || 'Spot';
+    const spotName = spotData.rows[0]?.name || "Spot";
     const profileName = decrypt(profile.rows[0].name) || code;
-    const timeStr     = new Date(checkin_at).toLocaleString('de-DE', {
-      day: '2-digit', month: '2-digit',
-      hour: '2-digit', minute: '2-digit'
+    const timeStr = new Date(checkin_at).toLocaleString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
 
     const otherFavs = await pool.query(
       `SELECT code FROM spot_favorites WHERE spot_id = $1 AND code != $2`,
-      [spot_id, code]
+      [spot_id, code],
     );
     for (const fav of otherFavs.rows) {
       await pool.query(
@@ -1853,24 +2117,25 @@ app.post('/api/checkins/public', async (req, res) => {
           fav.code,
           code,
           profileName,
-          `📍 ${profileName} ist am ${timeStr} bei "${spotName}"`
-        ]
+          `📍 ${profileName} ist am ${timeStr} bei "${spotName}"`,
+        ],
       );
     }
 
-    console.log(`📍 Öffentlicher Check-in: ${code} @ Spot ${spot_id} um ${timeStr}`);
+    console.log(
+      `📍 Öffentlicher Check-in: ${code} @ Spot ${spot_id} um ${timeStr}`,
+    );
     res.json({ success: true, id: result.rows[0].id });
-
   } catch (e) {
-    console.error('POST /api/checkins/public:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/checkins/public:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // 📍 Öffentliche Check-ins für einen Spot abrufen
 // Zeigt alle geplanten Check-ins aller Favoriten – mit Profilnamen.
 // Nur aktive (noch nicht abgelaufene) Check-ins werden angezeigt.
-app.get('/api/checkins/public/:spotId', async (req, res) => {
+app.get("/api/checkins/public/:spotId", async (req, res) => {
   const { spotId } = req.params;
   const now = Date.now();
   try {
@@ -1883,28 +2148,30 @@ app.get('/api/checkins/public/:spotId', async (req, res) => {
          AND c.checkin_at > $2
          AND c.status = 'planned'
        ORDER BY c.checkin_at ASC`,
-      [spotId, now]
+      [spotId, now],
     );
-    res.json(rows.map(r => ({
-      ...r,
-      profile_name:     r.profile_name_enc ? decrypt(r.profile_name_enc) : null,
-      profile_name_enc: undefined,
-    })));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        profile_name: r.profile_name_enc ? decrypt(r.profile_name_enc) : null,
+        profile_name_enc: undefined,
+      })),
+    );
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 // 📍 Eigenen öffentlichen Check-in stornieren
-app.delete('/api/checkins/public/:id', async (req, res) => {
-  const { id }   = req.params;
+app.delete("/api/checkins/public/:id", async (req, res) => {
+  const { id } = req.params;
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'code erforderlich' });
+  if (!code) return res.status(400).json({ error: "code erforderlich" });
   try {
     await pool.query(
       `UPDATE spot_checkins_public SET status = 'cancelled'
        WHERE id = $1 AND code = $2`,
-      [id, code]
+      [id, code],
     );
     res.json({ success: true });
   } catch (e) {
@@ -1913,17 +2180,22 @@ app.delete('/api/checkins/public/:id', async (req, res) => {
 });
 
 // 🟠 Spot bearbeiten
-app.put('/api/userspots/:id', async (req, res) => {
+app.put("/api/userspots/:id", async (req, res) => {
   const { id } = req.params;
   const { code, name, description, wishTag, image } = req.body;
   if (!code || !name || !wishTag) {
-    return res.status(400).json({ error: 'code, name, wishTag erforderlich' });
+    return res.status(400).json({ error: "code, name, wishTag erforderlich" });
   }
   try {
     // Eigentümer prüfen
-    const check = await pool.query('SELECT code FROM user_spots WHERE id = $1', [id]);
-    if (!check.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
-    if (check.rows[0].code !== code) return res.status(403).json({ error: 'Keine Berechtigung' });
+    const check = await pool.query(
+      "SELECT code FROM user_spots WHERE id = $1",
+      [id],
+    );
+    if (!check.rows.length)
+      return res.status(404).json({ error: "Nicht gefunden" });
+    if (check.rows[0].code !== code)
+      return res.status(403).json({ error: "Keine Berechtigung" });
 
     if (image) {
       // Neues Bild mitgeschickt → speichern und auf 'pending' setzen
@@ -1932,7 +2204,7 @@ app.put('/api/userspots/:id', async (req, res) => {
         `UPDATE user_spots
          SET name=$1, description=$2, wish_tag=$3, image=$4, image_status='pending'
          WHERE id=$5`,
-        [name, description || null, wishTag, image, id]
+        [name, description || null, wishTag, image, id],
       );
     } else {
       // Kein neues Bild → name/description/wishTag aktualisieren,
@@ -1944,26 +2216,29 @@ app.put('/api/userspots/:id', async (req, res) => {
         `UPDATE user_spots
          SET name=$1, description=$2, wish_tag=$3
          WHERE id=$4`,
-        [name, description || null, wishTag, id]
+        [name, description || null, wishTag, id],
       );
     }
     res.json({ success: true });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Aktualisieren' });
+    res.status(500).json({ error: "Fehler beim Aktualisieren" });
   }
 });
 
-app.delete('/api/userspots/:id', async (req, res) => {
+app.delete("/api/userspots/:id", async (req, res) => {
   const { id } = req.params;
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'code fehlt' });
+  if (!code) return res.status(400).json({ error: "code fehlt" });
   try {
-    await pool.query('DELETE FROM user_spots WHERE id = $1 AND code = $2', [id, code]);
+    await pool.query("DELETE FROM user_spots WHERE id = $1 AND code = $2", [
+      id,
+      code,
+    ]);
     res.json({ success: true });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Löschen' });
+    res.status(500).json({ error: "Fehler beim Löschen" });
   }
 });
 
@@ -1971,12 +2246,12 @@ app.delete('/api/userspots/:id', async (req, res) => {
 // PATCH statt DELETE – wir ändern nur den active-Status, löschen nichts.
 // Der Spot bleibt in der Datenbank erhalten und kann jederzeit reaktiviert werden.
 // Auf der Karte und in der Spot-Liste erscheint er solange active=false ist nicht mehr.
-app.patch('/api/userspots/:id/toggle', async (req, res) => {
-  const { id }          = req.params;
+app.patch("/api/userspots/:id/toggle", async (req, res) => {
+  const { id } = req.params;
   const { code, token } = req.body;
 
   if (!code || !token) {
-    return res.status(400).json({ error: 'Code und Token erforderlich' });
+    return res.status(400).json({ error: "Code und Token erforderlich" });
   }
 
   try {
@@ -1984,20 +2259,22 @@ app.patch('/api/userspots/:id/toggle', async (req, res) => {
     // Wir prüfen gleichzeitig ob der Spot überhaupt existiert.
     const check = await pool.query(
       `SELECT active FROM user_spots WHERE id = $1 AND code = $2`,
-      [id, code]
+      [id, code],
     );
     if (!check.rows.length) {
-      return res.status(403).json({ error: 'Nicht berechtigt oder Spot nicht gefunden' });
+      return res
+        .status(403)
+        .json({ error: "Nicht berechtigt oder Spot nicht gefunden" });
     }
 
     // Sicherheits-Check 2: Ist das Token gültig?
     // Ein gestohlener Code allein reicht nicht aus – das Token muss stimmen.
     const auth = await pool.query(
       `SELECT token FROM profiles WHERE code = $1 AND spot = 'caching'`,
-      [code]
+      [code],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
     // Status umkehren: true → false, false → true
@@ -2007,24 +2284,26 @@ app.patch('/api/userspots/:id/toggle', async (req, res) => {
        SET active = NOT active
        WHERE id = $1 AND code = $2
        RETURNING active`,
-      [id, code]
+      [id, code],
     );
 
     const newStatus = result.rows[0].active;
-    console.log(`🔄 Spot ${id} (${code}): ${newStatus ? '▶ aktiviert' : '⏸ deaktiviert'}`);
+    console.log(
+      `🔄 Spot ${id} (${code}): ${newStatus ? "▶ aktiviert" : "⏸ deaktiviert"}`,
+    );
     res.json({ success: true, active: newStatus });
-
   } catch (e) {
-    console.error('PATCH /api/userspots/toggle:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("PATCH /api/userspots/toggle:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // 🟣 Gemeinsame Spots finden (gleicher Wunsch + Nähe)
-app.get('/api/userspots/common/:code1/:code2', async (req, res) => {
+app.get("/api/userspots/common/:code1/:code2", async (req, res) => {
   const { code1, code2 } = req.params;
   try {
-    const { rows } = await pool.query(`
+    const { rows } = await pool.query(
+      `
       SELECT s1.id AS "spot1Id", s1.lat, s1.lng,
              s1.name AS "spotName", s1.description AS "spotDesc",
              s1.wish_tag AS "wishTag", s1.code AS "creatorCode"
@@ -2034,24 +2313,25 @@ app.get('/api/userspots/common/:code1/:code2', async (req, res) => {
         AND ABS(s1.lat - s2.lat) < 0.02
         AND ABS(s1.lng - s2.lng) < 0.02
       ORDER BY s1.created_at DESC
-    `, [code1, code2]);
+    `,
+      [code1, code2],
+    );
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler bei der Suche' });
+    res.status(500).json({ error: "Fehler bei der Suche" });
   }
 });
 
-
 // 📨 Treffpunkt-Einladung senden
-app.post('/api/spotcache/invite', async (req, res) => {
+app.post("/api/spotcache/invite", async (req, res) => {
   const { from, to } = req.body;
-  const spotId    = req.body.spot_id    || req.body.spotId;
+  const spotId = req.body.spot_id || req.body.spotId;
   const timeStart = req.body.time_start || req.body.timeStart;
-  const timeEnd   = req.body.time_end   || req.body.timeEnd;
+  const timeEnd = req.body.time_end || req.body.timeEnd;
 
   if (!from || !to || !spotId || !timeStart || !timeEnd) {
-    return res.status(400).json({ error: 'Fehlende Felder' });
+    return res.status(400).json({ error: "Fehlende Felder" });
   }
 
   try {
@@ -2070,7 +2350,7 @@ app.post('/api/spotcache/invite', async (req, res) => {
          )
          AND status IN ('accepted', 'pending')
          AND time_end < $4`,
-      [spotId, from, to, Date.now()]
+      [spotId, from, to, Date.now()],
     );
 
     // Schritt 2: Neue Einladung einfügen.
@@ -2087,40 +2367,49 @@ app.post('/api/spotcache/invite', async (req, res) => {
          time_end   = EXCLUDED.time_end,
          status     = 'pending',
          created_at = EXCLUDED.created_at`,
-      [from, to, spotId, timeStart, timeEnd, Date.now()]
+      [from, to, spotId, timeStart, timeEnd, Date.now()],
     );
 
     res.json({ success: true });
-
   } catch (e) {
-    console.error('POST /api/spotcache/invite:', e.message);
-    res.status(500).json({ error: 'Fehler beim Einladen' });
+    console.error("POST /api/spotcache/invite:", e.message);
+    res.status(500).json({ error: "Fehler beim Einladen" });
   }
 });
 
-
 // 📨 Einladung beantworten
-app.post('/api/spotcache/invite/respond', async (req, res) => {
+app.post("/api/spotcache/invite/respond", async (req, res) => {
   const { id, code, action } = req.body;
-  if (!id || !code || !['accept','decline'].includes(action)) {
-    return res.status(400).json({ error: 'Ungültige Parameter' });
+  if (!id || !code || !["accept", "decline"].includes(action)) {
+    return res.status(400).json({ error: "Ungültige Parameter" });
   }
   try {
-    const invite = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
-    if (!invite.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    const invite = await pool.query(
+      "SELECT * FROM spot_cache_invites WHERE id = $1",
+      [id],
+    );
+    if (!invite.rows.length)
+      return res.status(404).json({ error: "Nicht gefunden" });
     const inv = invite.rows[0];
-    if (inv.to_code !== code) return res.status(403).json({ error: 'Keine Berechtigung' });
+    if (inv.to_code !== code)
+      return res.status(403).json({ error: "Keine Berechtigung" });
 
-    if (action === 'decline') {
-      await pool.query(`UPDATE spot_cache_invites SET status = 'declined' WHERE id = $1`, [id]);
-      return res.json({ success: true, status: 'declined' });
+    if (action === "decline") {
+      await pool.query(
+        `UPDATE spot_cache_invites SET status = 'declined' WHERE id = $1`,
+        [id],
+      );
+      return res.json({ success: true, status: "declined" });
     }
 
-    await pool.query(`UPDATE spot_cache_invites SET status = 'accepted' WHERE id = $1`, [id]);
-    res.json({ success: true, status: 'accepted' });
+    await pool.query(
+      `UPDATE spot_cache_invites SET status = 'accepted' WHERE id = $1`,
+      [id],
+    );
+    res.json({ success: true, status: "accepted" });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler' });
+    res.status(500).json({ error: "Fehler" });
   }
 });
 
@@ -2128,12 +2417,12 @@ app.post('/api/spotcache/invite/respond', async (req, res) => {
 // Sowohl Sender (from_code) als auch Empfänger (to_code) dürfen stornieren.
 // Der Partner bekommt automatisch eine System-Nachricht damit er informiert ist.
 // Wir setzen status = 'cancelled' statt zu löschen – so bleibt die Historie erhalten.
-app.patch('/api/spotcache/invite/:id/cancel', async (req, res) => {
-  const { id }          = req.params;
+app.patch("/api/spotcache/invite/:id/cancel", async (req, res) => {
+  const { id } = req.params;
   const { code, token } = req.body;
 
   if (!code || !token) {
-    return res.status(400).json({ error: 'Code und Token erforderlich' });
+    return res.status(400).json({ error: "Code und Token erforderlich" });
   }
 
   try {
@@ -2144,40 +2433,45 @@ app.patch('/api/spotcache/invite/:id/cancel', async (req, res) => {
        FROM spot_cache_invites i
        LEFT JOIN user_spots u ON u.id = i.spot_id
        WHERE i.id = $1 AND (i.from_code = $2 OR i.to_code = $2)`,
-      [id, code]
+      [id, code],
     );
     if (!inv.rows.length) {
-      return res.status(403).json({ error: 'Nicht berechtigt oder nicht gefunden' });
+      return res
+        .status(403)
+        .json({ error: "Nicht berechtigt oder nicht gefunden" });
     }
 
     // Token validieren – ein gestohlener Code allein reicht nicht
     const auth = await pool.query(
       `SELECT token FROM profiles WHERE code = $1 AND spot = 'caching'`,
-      [code]
+      [code],
     );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
-    const invite   = inv.rows[0];
-    const spotName = invite.spot_name || 'Spot';
+    const invite = inv.rows[0];
+    const spotName = invite.spot_name || "Spot";
 
     // Nur aktive Einladungen können storniert werden –
     // abgelaufene oder bereits abgelehnte brauchen keine Stornierung mehr
-    if (['expired', 'cancelled', 'declined', 'completed'].includes(invite.status)) {
-      return res.status(400).json({ error: 'Diese Einladung kann nicht mehr storniert werden' });
+    if (
+      ["expired", "cancelled", "declined", "completed"].includes(invite.status)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Diese Einladung kann nicht mehr storniert werden" });
     }
 
     // Status auf 'cancelled' setzen
     await pool.query(
       `UPDATE spot_cache_invites SET status = 'cancelled' WHERE id = $1`,
-      [id]
+      [id],
     );
 
     // Partner bestimmen: wenn ich der Sender bin, ist der Partner der Empfänger und umgekehrt
-    const partnerCode = invite.from_code === code
-      ? invite.to_code
-      : invite.from_code;
+    const partnerCode =
+      invite.from_code === code ? invite.to_code : invite.from_code;
 
     // System-Nachricht an den Partner schicken damit er informiert wird.
     // spot_type = 'system' unterscheidet diese Nachricht von normalen Chat-Nachrichten –
@@ -2189,17 +2483,18 @@ app.patch('/api/spotcache/invite/:id/cancel', async (req, res) => {
       [
         partnerCode,
         code,
-        'System',
-        `❌ Das Treffen bei "${spotName}" wurde storniert.`
-      ]
+        "System",
+        `❌ Das Treffen bei "${spotName}" wurde storniert.`,
+      ],
     );
 
-    console.log(`❌ Einladung ${id} storniert von ${code} → Partner ${partnerCode} informiert`);
+    console.log(
+      `❌ Einladung ${id} storniert von ${code} → Partner ${partnerCode} informiert`,
+    );
     res.json({ success: true });
-
   } catch (e) {
-    console.error('PATCH /cancel:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("PATCH /cancel:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -2208,42 +2503,43 @@ app.patch('/api/spotcache/invite/:id/cancel', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ⭐ Favorit hinzufügen
-app.post('/api/favorites', async (req, res) => {
+app.post("/api/favorites", async (req, res) => {
   const { code, spot_id } = req.body;
-  if (!code || !spot_id) return res.status(400).json({ error: 'code und spot_id erforderlich' });
+  if (!code || !spot_id)
+    return res.status(400).json({ error: "code und spot_id erforderlich" });
   try {
     await pool.query(
       `INSERT INTO spot_favorites (code, spot_id, created_at)
        VALUES ($1, $2, $3)
        ON CONFLICT (code, spot_id) DO NOTHING`,
-      [code, spot_id, Date.now()]
+      [code, spot_id, Date.now()],
     );
     res.json({ success: true });
   } catch (e) {
-    console.error('POST /api/favorites:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("POST /api/favorites:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // ⭐ Favorit entfernen
-app.delete('/api/favorites/:spotId', async (req, res) => {
+app.delete("/api/favorites/:spotId", async (req, res) => {
   const { spotId } = req.params;
-  const { code }   = req.body;
-  if (!code) return res.status(400).json({ error: 'code erforderlich' });
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: "code erforderlich" });
   try {
     await pool.query(
       `DELETE FROM spot_favorites WHERE code = $1 AND spot_id = $2`,
-      [code, spotId]
+      [code, spotId],
     );
     res.json({ success: true });
   } catch (e) {
-    console.error('DELETE /api/favorites:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("DELETE /api/favorites:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // ⭐ Alle Favoriten eines Nutzers abrufen – mit Spot-Details und letztem Check-in
-app.get('/api/favorites/:code', async (req, res) => {
+app.get("/api/favorites/:code", async (req, res) => {
   const { code } = req.params;
   try {
     const { rows } = await pool.query(
@@ -2270,63 +2566,89 @@ app.get('/api/favorites/:code', async (req, res) => {
        WHERE f.code = $1
          AND u.active = true
        ORDER BY f.created_at DESC`,
-      [code]
+      [code],
     );
-    res.json(rows.map(r => ({
-      ...r,
-      last_checkin_name: r.last_checkin_name_enc ? decrypt(r.last_checkin_name_enc) : null,
-      last_checkin_name_enc: undefined,
-    })));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        last_checkin_name: r.last_checkin_name_enc
+          ? decrypt(r.last_checkin_name_enc)
+          : null,
+        last_checkin_name_enc: undefined,
+      })),
+    );
   } catch (e) {
-    console.error('GET /api/favorites:', e.message);
-    res.status(500).json({ error: 'Datenbankfehler' });
+    console.error("GET /api/favorites:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // ⭐ Prüfen ob ein Spot bereits als Favorit gespeichert ist (für den ⭐-Button)
-app.get('/api/favorites/:code/:spotId', async (req, res) => {
+app.get("/api/favorites/:code/:spotId", async (req, res) => {
   const { code, spotId } = req.params;
   try {
     const { rows } = await pool.query(
       `SELECT 1 FROM spot_favorites WHERE code = $1 AND spot_id = $2`,
-      [code, spotId]
+      [code, spotId],
     );
     res.json({ isFavorite: rows.length > 0 });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
 // 📍 Einchecken am Treffpunkt
-app.post('/api/spotcache/checkin', async (req, res) => {
+app.post("/api/spotcache/checkin", async (req, res) => {
   const { id, code, lat, lng } = req.body;
-  if (!id || !code || lat == null || lng == null) return res.status(400).json({ error: 'Fehlende Felder' });
+  if (!id || !code || lat == null || lng == null)
+    return res.status(400).json({ error: "Fehlende Felder" });
 
   try {
-    const invite = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
-    if (!invite.rows.length) return res.status(404).json({ error: 'Nicht gefunden' });
+    const invite = await pool.query(
+      "SELECT * FROM spot_cache_invites WHERE id = $1",
+      [id],
+    );
+    if (!invite.rows.length)
+      return res.status(404).json({ error: "Nicht gefunden" });
     const inv = invite.rows[0];
-    if (inv.from_code !== code && inv.to_code !== code) return res.status(403).json({ error: 'Keine Berechtigung' });
-    if (inv.status !== 'accepted') return res.status(400).json({ error: 'Noch nicht akzeptiert' });
+    if (inv.from_code !== code && inv.to_code !== code)
+      return res.status(403).json({ error: "Keine Berechtigung" });
+    if (inv.status !== "accepted")
+      return res.status(400).json({ error: "Noch nicht akzeptiert" });
 
     const now = Date.now();
-    if (now < inv.time_start || now > inv.time_end) return res.status(400).json({ error: 'Außerhalb des Zeitfensters' });
+    if (now < inv.time_start || now > inv.time_end)
+      return res.status(400).json({ error: "Außerhalb des Zeitfensters" });
 
     // 50m‑Radius prüfen
-    const spot = await pool.query('SELECT lat, lng FROM user_spots WHERE id = $1', [inv.spot_id]);
-    const dist = Math.sqrt(Math.pow(lat - spot.rows[0].lat, 2) + Math.pow(lng - spot.rows[0].lng, 2)) * 111000;
-    if (dist > 50) return res.status(400).json({ error: 'Nicht nah genug am Spot (50m)' });
+    const spot = await pool.query(
+      "SELECT lat, lng FROM user_spots WHERE id = $1",
+      [inv.spot_id],
+    );
+    const dist =
+      Math.sqrt(
+        Math.pow(lat - spot.rows[0].lat, 2) +
+          Math.pow(lng - spot.rows[0].lng, 2),
+      ) * 111000;
+    if (dist > 50)
+      return res.status(400).json({ error: "Nicht nah genug am Spot (50m)" });
 
     const isFrom = inv.from_code === code;
     await pool.query(
-      `UPDATE spot_cache_invites SET ${isFrom ? 'checked_in_from' : 'checked_in_to'} = TRUE WHERE id = $1`,
-      [id]
+      `UPDATE spot_cache_invites SET ${isFrom ? "checked_in_from" : "checked_in_to"} = TRUE WHERE id = $1`,
+      [id],
     );
 
-    const updated = await pool.query('SELECT * FROM spot_cache_invites WHERE id = $1', [id]);
+    const updated = await pool.query(
+      "SELECT * FROM spot_cache_invites WHERE id = $1",
+      [id],
+    );
     const u = updated.rows[0];
     if (u.checked_in_from && u.checked_in_to) {
-      await pool.query(`UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`, [id]);
+      await pool.query(
+        `UPDATE spot_cache_invites SET status = 'completed' WHERE id = $1`,
+        [id],
+      );
 
       // ✅ Echtheits‑Verifikation
       const nowTS = Date.now();
@@ -2334,16 +2656,20 @@ app.post('/api/spotcache/checkin', async (req, res) => {
         `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
          VALUES ($1, 'caching', $2, 'personal', $3)
          ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
-        [inv.from_code, inv.to_code, nowTS]
+        [inv.from_code, inv.to_code, nowTS],
       );
       await pool.query(
         `INSERT INTO verifications (to_code, to_spot, from_code, type, created_at)
          VALUES ($1, 'caching', $2, 'personal', $3)
          ON CONFLICT (to_code, to_spot, from_code, type) DO NOTHING`,
-        [inv.to_code, inv.from_code, nowTS]
+        [inv.to_code, inv.from_code, nowTS],
       );
 
-      return res.json({ success: true, bothCheckedIn: true, message: 'Ihr habt euch gefunden!' });
+      return res.json({
+        success: true,
+        bothCheckedIn: true,
+        message: "Ihr habt euch gefunden!",
+      });
     }
 
     // ⭐ Favoriten benachrichtigen wenn jemand an diesem Spot eincheckt.
@@ -2352,16 +2678,17 @@ app.post('/api/spotcache/checkin', async (req, res) => {
     // die wissen bereits dass jemand da ist.
     try {
       const spotData = await pool.query(
-        `SELECT name FROM user_spots WHERE id = $1`, [inv.spot_id]
+        `SELECT name FROM user_spots WHERE id = $1`,
+        [inv.spot_id],
       );
-      const spotName = spotData.rows[0]?.name || 'Spot';
+      const spotName = spotData.rows[0]?.name || "Spot";
 
       const favorites = await pool.query(
         `SELECT code FROM spot_favorites
          WHERE spot_id = $1
            AND code != $2
            AND code != $3`,
-        [inv.spot_id, inv.from_code, inv.to_code]
+        [inv.spot_id, inv.from_code, inv.to_code],
       );
 
       // Für jeden Favoriten eine stille Benachrichtigung schicken
@@ -2373,60 +2700,66 @@ app.post('/api/spotcache/checkin', async (req, res) => {
           [
             fav.code,
             code,
-            'SpotMe',
-            `⭐ Jemand ist gerade bei "${spotName}" eingecheckt!`
-          ]
+            "SpotMe",
+            `⭐ Jemand ist gerade bei "${spotName}" eingecheckt!`,
+          ],
         );
       }
       if (favorites.rows.length > 0) {
-        console.log(`⭐ ${favorites.rows.length} Favoriten über Check-in bei Spot ${inv.spot_id} benachrichtigt`);
+        console.log(
+          `⭐ ${favorites.rows.length} Favoriten über Check-in bei Spot ${inv.spot_id} benachrichtigt`,
+        );
       }
     } catch (e) {
       // Benachrichtigungs-Fehler soll den Check-in nicht blockieren
-      console.error('Favorites notify error:', e.message);
+      console.error("Favorites notify error:", e.message);
     }
 
     res.json({ success: true, bothCheckedIn: false });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Fehler beim Einchecken' });
+    res.status(500).json({ error: "Fehler beim Einchecken" });
   }
 });
 
-app.get('/api/admin/pending-spot-images', requireAdmin, async (req, res) => {
+app.get("/api/admin/pending-spot-images", requireAdmin, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, code, name, description, wish_tag, image, image_status, created_at
        FROM user_spots
        WHERE image IS NOT NULL AND (image_status = 'pending' OR image_status IS NULL)
-       ORDER BY created_at ASC`
+       ORDER BY created_at ASC`,
     );
     res.json(rows);
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-app.post('/api/admin/spot-image-action', requireAdmin, async (req, res) => {
+app.post("/api/admin/spot-image-action", requireAdmin, async (req, res) => {
   const { id, action } = req.body;
-  if (!id || !['approve','reject'].includes(action)) {
-    return res.status(400).json({ error: 'id und action (approve/reject) erforderlich' });
+  if (!id || !["approve", "reject"].includes(action)) {
+    return res
+      .status(400)
+      .json({ error: "id und action (approve/reject) erforderlich" });
   }
   try {
-    if (action === 'approve') {
+    if (action === "approve") {
       await pool.query(
-        `UPDATE user_spots SET image_status = 'approved' WHERE id = $1`, [id]
+        `UPDATE user_spots SET image_status = 'approved' WHERE id = $1`,
+        [id],
       );
       console.log(`✅ Spot-Bild freigegeben: ID ${id}`);
     } else {
       await pool.query(
-        `UPDATE user_spots SET image = NULL, image_status = NULL WHERE id = $1`, [id]
+        `UPDATE user_spots SET image = NULL, image_status = NULL WHERE id = $1`,
+        [id],
       );
       console.log(`❌ Spot-Bild abgelehnt & gelöscht: ID ${id}`);
     }
     res.json({ success: true, action, id });
   } catch (e) {
-    res.status(500).json({ error: 'Datenbankfehler' });
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
@@ -2434,9 +2767,9 @@ app.post('/api/admin/spot-image-action', requireAdmin, async (req, res) => {
 // PING & START
 // ══════════════════════════════════════════════════════════════════════════════
 
-app.all('/ping',     (req, res) => res.status(204).end());
-app.all('/api/ping', (req, res) => res.status(204).end());
-app.get('/',         (req, res) => res.send('SpotMe PG-Server läuft ✅'));
+app.all("/ping", (req, res) => res.status(204).end());
+app.all("/api/ping", (req, res) => res.status(204).end());
+app.get("/", (req, res) => res.send("SpotMe PG-Server läuft ✅"));
 
 const PORT = process.env.PORT || 3000;
 
@@ -2444,7 +2777,7 @@ initDB()
   .then(() => {
     server.listen(PORT, () => console.log(`🚀 Server läuft auf Port ${PORT}`));
   })
-  .catch(e => {
-    console.error('❌ DB-Initialisierung fehlgeschlagen:', e.message);
+  .catch((e) => {
+    console.error("❌ DB-Initialisierung fehlgeschlagen:", e.message);
     process.exit(1);
   });
