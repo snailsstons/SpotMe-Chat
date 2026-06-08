@@ -1608,12 +1608,9 @@ app.post("/api/admin/avatar-action", requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.post("/api/weekly-spots", async (req, res) => {
-  const { code, token, name, category, description, lat, lng, meetingAt } =
-    req.body;
+  const { code, token, name, category, description, lat, lng, meetingAt } = req.body;
   if (!code || !token || !name || lat == null || lng == null) {
-    return res
-      .status(400)
-      .json({ error: "code, token, name, lat, lng erforderlich" });
+    return res.status(400).json({ error: "code, token, name, lat, lng erforderlich" });
   }
   try {
     const auth = await pool.query(
@@ -1626,7 +1623,8 @@ app.post("/api/weekly-spots", async (req, res) => {
     const tokenId = crypto.randomBytes(16).toString("hex");
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    const meetingTimestamp = meetingAt ? new Date(meetingAt).getTime() : null;
+    // Hier die Änderung: meetingAt ist bereits ISO-String, keine Umwandlung in Millisekunden
+    const meetingTimestamp = meetingAt ? meetingAt : null;
     await pool.query(
       `INSERT INTO weekly_spots (token, code, name, category, description, lat, lng, meeting_at, expires_at, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
