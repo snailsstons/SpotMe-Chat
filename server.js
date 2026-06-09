@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.3 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -347,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.2 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.3 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -387,6 +387,65 @@ async function initDB() {
       UNIQUE(code, endpoint)
     );
     CREATE INDEX IF NOT EXISTS idx_push_code ON push_subscriptions(code);
+  `);
+
+  // ── WayPoint Caching ─────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wp_routes (
+      id          SERIAL PRIMARY KEY,
+      code        TEXT NOT NULL,
+      name        TEXT NOT NULL,
+      description TEXT,
+      difficulty  SMALLINT NOT NULL DEFAULT 1 CHECK (difficulty BETWEEN 1 AND 5),
+      published   BOOLEAN NOT NULL DEFAULT false,
+      play_count  INTEGER NOT NULL DEFAULT 0,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_wpr_code      ON wp_routes(code);
+    CREATE INDEX IF NOT EXISTS idx_wpr_published ON wp_routes(published);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wp_waypoints (
+      id             SERIAL PRIMARY KEY,
+      route_id       INTEGER NOT NULL REFERENCES wp_routes(id) ON DELETE CASCADE,
+      order_index    SMALLINT NOT NULL,
+      lat            DOUBLE PRECISION NOT NULL,
+      lng            DOUBLE PRECISION NOT NULL,
+      question       TEXT NOT NULL,
+      option_a       TEXT NOT NULL,
+      option_b       TEXT NOT NULL,
+      option_c       TEXT NOT NULL,
+      correct_option CHAR(1) NOT NULL CHECK (correct_option IN ('a','b','c')),
+      UNIQUE(route_id, order_index)
+    );
+    CREATE INDEX IF NOT EXISTS idx_wpw_route ON wp_waypoints(route_id);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wp_progress (
+      id                  SERIAL PRIMARY KEY,
+      route_id            INTEGER NOT NULL,
+      player_code         TEXT NOT NULL,
+      current_index       SMALLINT NOT NULL DEFAULT 0,
+      started_at          BIGINT NOT NULL,
+      last_activity_at    BIGINT NOT NULL,
+      UNIQUE(route_id, player_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_wpp_player ON wp_progress(player_code);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wp_completions (
+      id           SERIAL PRIMARY KEY,
+      route_id     INTEGER NOT NULL,
+      player_code  TEXT NOT NULL,
+      time_seconds INTEGER NOT NULL,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(route_id, player_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_wpc_route  ON wp_completions(route_id);
+    CREATE INDEX IF NOT EXISTS idx_wpc_player ON wp_completions(player_code);
   `);
 
   console.log("✅ Datenbank-Tabellen bereit");
@@ -2958,6 +3017,440 @@ app.delete("/api/push/unsubscribe", async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/push/unsubscribe:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WAYPOINT CACHING
+// Öffentliche Geocaching-Routen mit Wissensfragen an jedem WayPoint.
+// Sicherheitsprinzip: Koordinaten von WayPoint N+1 werden NIEMALS an den
+// Client gesendet bevor WayPoint N serverseitig korrekt beantwortet wurde.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Alle öffentlichen Routen ─────────────────────────────────────────────────
+app.get("/api/wp/routes", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.id, r.code, r.name, r.description, r.difficulty,
+             r.play_count, r.created_at,
+             COUNT(w.id)::int          AS waypoint_count,
+             MIN(c.time_seconds)       AS best_time,
+             COUNT(DISTINCT c.player_code)::int AS completion_count
+      FROM wp_routes r
+      LEFT JOIN wp_waypoints   w ON w.route_id = r.id
+      LEFT JOIN wp_completions c ON c.route_id = r.id
+      WHERE r.published = true
+      GROUP BY r.id
+      ORDER BY r.created_at DESC
+    `);
+    res.json(rows);
+  } catch (e) {
+    console.error("GET /api/wp/routes:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Route starten: gibt Metadaten + ersten WayPoint ──────────────────────────
+app.post("/api/wp/routes/:id/start", async (req, res) => {
+  const { player_code } = req.body;
+  const routeId = +req.params.id;
+  if (!player_code)
+    return res.status(400).json({ error: "player_code erforderlich" });
+
+  try {
+    // Route existiert und ist veröffentlicht?
+    const route = await pool.query(
+      "SELECT * FROM wp_routes WHERE id=$1 AND published=true",
+      [routeId],
+    );
+    if (!route.rows.length)
+      return res.status(404).json({ error: "Route nicht gefunden" });
+
+    // Bereits abgeschlossen?
+    const done = await pool.query(
+      "SELECT time_seconds FROM wp_completions WHERE route_id=$1 AND player_code=$2",
+      [routeId, player_code],
+    );
+    if (done.rows.length) {
+      return res.json({
+        alreadyCompleted: true,
+        time_seconds: done.rows[0].time_seconds,
+      });
+    }
+
+    // Fortschritt abrufen oder neu anlegen
+    const now = Date.now();
+    await pool.query(
+      `
+      INSERT INTO wp_progress (route_id, player_code, current_index, started_at, last_activity_at)
+      VALUES ($1,$2,0,$3,$3)
+      ON CONFLICT (route_id, player_code) DO UPDATE SET last_activity_at=$3
+    `,
+      [routeId, player_code, now],
+    );
+
+    const prog = await pool.query(
+      "SELECT * FROM wp_progress WHERE route_id=$1 AND player_code=$2",
+      [routeId, player_code],
+    );
+
+    // Ersten noch offenen WayPoint liefern
+    const wp = await pool.query(
+      `SELECT id, order_index, lat, lng, question, option_a, option_b, option_c
+       FROM wp_waypoints WHERE route_id=$1 AND order_index=$2`,
+      [routeId, prog.rows[0].current_index],
+    );
+    if (!wp.rows.length)
+      return res.status(404).json({ error: "Kein WayPoint gefunden" });
+
+    // play_count nur beim echten ersten Start erhöhen
+    if (prog.rows[0].current_index === 0 && prog.rows[0].started_at === now) {
+      await pool.query(
+        "UPDATE wp_routes SET play_count=play_count+1 WHERE id=$1",
+        [routeId],
+      );
+    }
+
+    const total = await pool.query(
+      "SELECT COUNT(*)::int AS cnt FROM wp_waypoints WHERE route_id=$1",
+      [routeId],
+    );
+
+    res.json({
+      route: route.rows[0],
+      waypoint: wp.rows[0],
+      current_index: prog.rows[0].current_index,
+      total: total.rows[0].cnt,
+      started_at: prog.rows[0].started_at,
+    });
+  } catch (e) {
+    console.error("POST /api/wp/routes/:id/start:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Antwort einreichen → gibt nächsten WayPoint oder Completion zurück ────────
+app.post("/api/wp/routes/:id/answer", async (req, res) => {
+  const { player_code, waypoint_index, answer } = req.body;
+  const routeId = +req.params.id;
+  if (!player_code || waypoint_index == null || !answer) {
+    return res
+      .status(400)
+      .json({ error: "player_code, waypoint_index, answer erforderlich" });
+  }
+
+  try {
+    // Fortschritt prüfen – verhindert Springen
+    const prog = await pool.query(
+      "SELECT * FROM wp_progress WHERE route_id=$1 AND player_code=$2",
+      [routeId, player_code],
+    );
+    if (!prog.rows.length)
+      return res.status(403).json({ error: "Route nicht gestartet" });
+    if (prog.rows[0].current_index !== +waypoint_index) {
+      return res.status(409).json({ error: "Falscher WayPoint-Index" });
+    }
+
+    // Richtige Antwort server-seitig prüfen (nie im Client!)
+    const wp = await pool.query(
+      "SELECT * FROM wp_waypoints WHERE route_id=$1 AND order_index=$2",
+      [routeId, +waypoint_index],
+    );
+    if (!wp.rows.length)
+      return res.status(404).json({ error: "WayPoint nicht gefunden" });
+
+    if (answer.toLowerCase() !== wp.rows[0].correct_option) {
+      return res.json({ correct: false });
+    }
+
+    // Richtig! → nächsten Index berechnen
+    const nextIndex = +waypoint_index + 1;
+    const total = await pool.query(
+      "SELECT COUNT(*)::int AS cnt FROM wp_waypoints WHERE route_id=$1",
+      [routeId],
+    );
+    const isLast = nextIndex >= total.rows[0].cnt;
+
+    if (isLast) {
+      // Route abgeschlossen – Zeit berechnen und speichern
+      const timeSec = Math.round((Date.now() - prog.rows[0].started_at) / 1000);
+      await pool.query(
+        `
+        INSERT INTO wp_completions (route_id, player_code, time_seconds)
+        VALUES ($1,$2,$3)
+        ON CONFLICT (route_id, player_code) DO UPDATE SET
+          time_seconds = LEAST(EXCLUDED.time_seconds, wp_completions.time_seconds),
+          completed_at = NOW()
+      `,
+        [routeId, player_code, timeSec],
+      );
+      await pool.query(
+        "DELETE FROM wp_progress WHERE route_id=$1 AND player_code=$2",
+        [routeId, player_code],
+      );
+
+      // Rang berechnen
+      const rank = await pool.query(
+        `SELECT COUNT(*)::int + 1 AS rank FROM wp_completions
+         WHERE route_id=$1 AND time_seconds < $2`,
+        [routeId, timeSec],
+      );
+
+      console.log(
+        `🏆 WayPoint abgeschlossen: ${player_code} Route ${routeId} in ${timeSec}s`,
+      );
+      return res.json({
+        correct: true,
+        completed: true,
+        time_seconds: timeSec,
+        rank: rank.rows[0].rank,
+      });
+    }
+
+    // Noch nicht fertig → Fortschritt aktualisieren + nächsten WayPoint liefern
+    await pool.query(
+      `UPDATE wp_progress SET current_index=$1, last_activity_at=$2
+       WHERE route_id=$3 AND player_code=$4`,
+      [nextIndex, Date.now(), routeId, player_code],
+    );
+    const nextWp = await pool.query(
+      `SELECT id, order_index, lat, lng, question, option_a, option_b, option_c
+       FROM wp_waypoints WHERE route_id=$1 AND order_index=$2`,
+      [routeId, nextIndex],
+    );
+
+    res.json({
+      correct: true,
+      completed: false,
+      next_waypoint: nextWp.rows[0],
+      current_index: nextIndex,
+      total: total.rows[0].cnt,
+    });
+  } catch (e) {
+    console.error("POST /api/wp/routes/:id/answer:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Highscore einer Route ────────────────────────────────────────────────────
+app.get("/api/wp/routes/:id/score", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT c.player_code, c.time_seconds, c.completed_at,
+             RANK() OVER (ORDER BY c.time_seconds ASC) AS rank
+      FROM wp_completions c
+      WHERE c.route_id = $1
+      ORDER BY c.time_seconds ASC
+      LIMIT 20
+    `,
+      [+req.params.id],
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error("GET /api/wp/routes/:id/score:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Meine Routen + Fortschritt ───────────────────────────────────────────────
+app.get("/api/wp/my", async (req, res) => {
+  const { code, token } = req.query;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    const created = await pool.query(
+      `SELECT r.*, COUNT(w.id)::int AS waypoint_count,
+              COUNT(DISTINCT c.player_code)::int AS completion_count
+       FROM wp_routes r
+       LEFT JOIN wp_waypoints w ON w.route_id=r.id
+       LEFT JOIN wp_completions c ON c.route_id=r.id
+       WHERE r.code=$1 GROUP BY r.id ORDER BY r.created_at DESC`,
+      [code],
+    );
+    const completions = await pool.query(
+      `SELECT c.*, r.name AS route_name, r.difficulty,
+              (SELECT COUNT(*)::int FROM wp_waypoints WHERE route_id=r.id) AS waypoint_count
+       FROM wp_completions c JOIN wp_routes r ON r.id=c.route_id
+       WHERE c.player_code=$1 ORDER BY c.completed_at DESC`,
+      [code],
+    );
+    res.json({ created: created.rows, completions: completions.rows });
+  } catch (e) {
+    console.error("GET /api/wp/my:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Route erstellen ──────────────────────────────────────────────────────────
+app.post("/api/wp/routes", async (req, res) => {
+  const { code, token, name, description, difficulty } = req.body;
+  if (!code || !token || !name)
+    return res.status(400).json({ error: "code, token, name erforderlich" });
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO wp_routes (code, name, description, difficulty)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [
+        code,
+        name.slice(0, 80),
+        description?.slice(0, 300) || null,
+        Math.min(5, Math.max(1, +difficulty || 1)),
+      ],
+    );
+    res.json({ success: true, route: rows[0] });
+  } catch (e) {
+    console.error("POST /api/wp/routes:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── WayPoint hinzufügen ──────────────────────────────────────────────────────
+app.post("/api/wp/routes/:id/waypoints", async (req, res) => {
+  const {
+    code,
+    token,
+    lat,
+    lng,
+    question,
+    option_a,
+    option_b,
+    option_c,
+    correct_option,
+  } = req.body;
+  const routeId = +req.params.id;
+  if (
+    !code ||
+    !token ||
+    !lat ||
+    !lng ||
+    !question ||
+    !option_a ||
+    !option_b ||
+    !option_c ||
+    !correct_option
+  ) {
+    return res.status(400).json({ error: "Alle Felder erforderlich" });
+  }
+  if (!["a", "b", "c"].includes(correct_option)) {
+    return res
+      .status(400)
+      .json({ error: "correct_option muss a, b oder c sein" });
+  }
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    // Gehört die Route diesem Nutzer?
+    const owns = await pool.query(
+      "SELECT id FROM wp_routes WHERE id=$1 AND code=$2 AND published=false",
+      [routeId, code],
+    );
+    if (!owns.rows.length)
+      return res
+        .status(403)
+        .json({ error: "Route nicht gefunden oder bereits veröffentlicht" });
+
+    // Nächsten order_index berechnen
+    const cnt = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM wp_waypoints WHERE route_id=$1",
+      [routeId],
+    );
+    const { rows } = await pool.query(
+      `INSERT INTO wp_waypoints
+         (route_id, order_index, lat, lng, question, option_a, option_b, option_c, correct_option)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, order_index`,
+      [
+        routeId,
+        cnt.rows[0].n,
+        lat,
+        lng,
+        question.slice(0, 300),
+        option_a.slice(0, 120),
+        option_b.slice(0, 120),
+        option_c.slice(0, 120),
+        correct_option,
+      ],
+    );
+    res.json({ success: true, waypoint: rows[0] });
+  } catch (e) {
+    console.error("POST /api/wp/routes/:id/waypoints:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Route veröffentlichen ────────────────────────────────────────────────────
+app.post("/api/wp/routes/:id/publish", async (req, res) => {
+  const { code, token } = req.body;
+  const routeId = +req.params.id;
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    // Mindestens 2 WayPoints erforderlich
+    const cnt = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM wp_waypoints WHERE route_id=$1",
+      [routeId],
+    );
+    if (cnt.rows[0].n < 2)
+      return res
+        .status(400)
+        .json({ error: "Mindestens 2 WayPoints erforderlich" });
+
+    await pool.query(
+      "UPDATE wp_routes SET published=true WHERE id=$1 AND code=$2",
+      [routeId, code],
+    );
+    console.log(`🗺️ WayPoint-Route veröffentlicht: ${routeId} von ${code}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("POST /api/wp/routes/:id/publish:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Route löschen ────────────────────────────────────────────────────────────
+app.delete("/api/wp/routes/:id", async (req, res) => {
+  const { code, token } = req.body;
+  const routeId = +req.params.id;
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    await pool.query("DELETE FROM wp_routes WHERE id=$1 AND code=$2", [
+      routeId,
+      code,
+    ]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE /api/wp/routes/:id:", e.message);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
