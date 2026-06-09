@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.1 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -326,12 +326,33 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.0 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.1 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
     );
   }
+
+  // Wochen-Spots – privater 7-Tage-Spot mit teilbarem Link
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS weekly_spots (
+      id             SERIAL PRIMARY KEY,
+      token          TEXT UNIQUE NOT NULL,
+      code           TEXT NOT NULL,
+      name           TEXT NOT NULL,
+      category       TEXT,
+      description    TEXT,
+      lat            DOUBLE PRECISION NOT NULL,
+      lng            DOUBLE PRECISION NOT NULL,
+      meeting_at     BIGINT,
+      expires_at     BIGINT NOT NULL,
+      created_at     BIGINT NOT NULL,
+      checkin_count  INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_weekly_token      ON weekly_spots(token);
+    CREATE INDEX IF NOT EXISTS idx_weekly_code       ON weekly_spots(code);
+    CREATE INDEX IF NOT EXISTS idx_weekly_expires    ON weekly_spots(expires_at);
+  `);
 
   console.log("✅ Datenbank-Tabellen bereit");
 }
