@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.1 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -25,6 +25,7 @@
 const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
+const webpush = require("web-push");
 const { ExpressPeerServer } = require("peer");
 const { Pool } = require("pg");
 
@@ -132,6 +133,26 @@ const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
 });
+
+// ---------- Web Push / VAPID ----------
+// Beim ersten Start ohne Env-Vars: Schlüssel einmalig generieren + loggen.
+// → In Render unter Environment als VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY eintragen.
+// → Danach neu deployen – ab dann sind die Schlüssel stabil.
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const keys = webpush.generateVAPIDKeys();
+  console.log(
+    "🔑 VAPID Schlüssel (einmalig generiert – bitte in Render speichern!):",
+  );
+  console.log("   VAPID_PUBLIC_KEY =", keys.publicKey);
+  console.log("   VAPID_PRIVATE_KEY=", keys.privateKey);
+  process.env.VAPID_PUBLIC_KEY = keys.publicKey;
+  process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+}
+webpush.setVapidDetails(
+  "mailto:admin@spotme.app",
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY,
+);
 
 // ---------- Konstanten ----------
 const OFFLINE_VISIBLE_MS = 24 * 60 * 60 * 1000;
@@ -326,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.1 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.2 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -352,6 +373,20 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_weekly_token      ON weekly_spots(token);
     CREATE INDEX IF NOT EXISTS idx_weekly_code       ON weekly_spots(code);
     CREATE INDEX IF NOT EXISTS idx_weekly_expires    ON weekly_spots(expires_at);
+  `);
+
+  // Push-Subscriptions für Web-Push-Benachrichtigungen
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id         SERIAL PRIMARY KEY,
+      code       TEXT NOT NULL,
+      endpoint   TEXT NOT NULL,
+      p256dh     TEXT NOT NULL,
+      auth       TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(code, endpoint)
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_code ON push_subscriptions(code);
   `);
 
   console.log("✅ Datenbank-Tabellen bereit");
@@ -1199,6 +1234,13 @@ app.post("/api/message", async (req, res) => {
     );
 
     console.log(`💬 Chat: ${sender_code} → ${recipient}`);
+    // Push-Benachrichtigung an Empfänger (fire-and-forget)
+    sendPushToCode(
+      recipient,
+      "💬 Neue Nachricht",
+      `${sender_name || sender_code}: ${clean.slice(0, 80)}`,
+      "/",
+    );
     res.json({ success: true });
   } catch (e) {
     console.error("POST /api/message:", e.message);
@@ -1629,9 +1671,12 @@ app.post("/api/admin/avatar-action", requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.post("/api/weekly-spots", async (req, res) => {
-  const { code, token, name, category, description, lat, lng, meetingAt } = req.body;
+  const { code, token, name, category, description, lat, lng, meetingAt } =
+    req.body;
   if (!code || !token || !name || lat == null || lng == null) {
-    return res.status(400).json({ error: "code, token, name, lat, lng erforderlich" });
+    return res
+      .status(400)
+      .json({ error: "code, token, name, lat, lng erforderlich" });
   }
   try {
     const auth = await pool.query(
@@ -1746,18 +1791,25 @@ app.post("/api/weekly-spots/:token/checkin", async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE weekly_spots SET checkin_count = checkin_count + 1
-       WHERE token = $1 AND expires_at > $2 RETURNING checkin_count`,
+       WHERE token = $1 AND expires_at > $2
+       RETURNING checkin_count, name, code`,
       [token, Date.now()],
     );
     if (result.rowCount === 0)
       return res
         .status(404)
         .json({ error: "Spot nicht gefunden oder abgelaufen" });
-    res.json({
-      success: true,
-      label: "anonym",
-      count: result.rows[0].checkin_count,
-    });
+
+    const { checkin_count, name, code } = result.rows[0];
+    // Push an Wochen-Spot Ersteller (fire-and-forget)
+    sendPushToCode(
+      code,
+      "🗓️ Neuer Check-in",
+      `Jemand hat deinen Wochen-Spot „${name}" besucht`,
+      `/spot-woche.html?token=${token}`,
+    );
+
+    res.json({ success: true, label: "anonym", count: checkin_count });
   } catch (e) {
     console.error("POST /api/weekly-spots/:token/checkin:", e.message);
     res.status(500).json({ error: "Datenbankfehler" });
@@ -2390,6 +2442,13 @@ app.post("/api/spotcache/invite", async (req, res) => {
     );
 
     res.json({ success: true });
+    // Push an Spot-Besitzer (fire-and-forget)
+    sendPushToCode(
+      to,
+      "📨 Neue Einladung",
+      "Jemand möchte deinen Spot besuchen – tippe zum Antworten",
+      "/",
+    );
   } catch (e) {
     console.error("POST /api/spotcache/invite:", e.message);
     res.status(500).json({ error: "Fehler beim Einladen" });
@@ -2424,6 +2483,13 @@ app.post("/api/spotcache/invite/respond", async (req, res) => {
     await pool.query(
       `UPDATE spot_cache_invites SET status = 'accepted' WHERE id = $1`,
       [id],
+    );
+    // Push an Einladungs-Sender (fire-and-forget)
+    sendPushToCode(
+      inv.from_code,
+      "✅ Einladung angenommen",
+      `${code} hat deine Einladung angenommen`,
+      "/",
     );
     res.json({ success: true, status: "accepted" });
   } catch (e) {
@@ -2778,6 +2844,120 @@ app.post("/api/admin/spot-image-action", requireAdmin, async (req, res) => {
     }
     res.json({ success: true, action, id });
   } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WEB PUSH NOTIFICATIONS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Helper – sendet Push an alle Geräte eines Nutzers.
+// Fire-and-forget (kein await nötig), blockiert den Request-Handler nicht.
+// Abgelaufene Subscriptions (410/404) werden automatisch aus der DB gelöscht.
+async function sendPushToCode(code, title, body, url = "/") {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  try {
+    const { rows } = await pool.query(
+      "SELECT * FROM push_subscriptions WHERE code = $1",
+      [code],
+    );
+    if (!rows.length) return;
+    const payload = JSON.stringify({
+      title,
+      body,
+      url,
+      tag: `spotme-${Date.now()}`,
+    });
+    for (const sub of rows) {
+      webpush
+        .sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payload,
+        )
+        .catch(async (err) => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await pool
+              .query("DELETE FROM push_subscriptions WHERE endpoint = $1", [
+                sub.endpoint,
+              ])
+              .catch(() => {});
+          }
+        });
+    }
+  } catch (e) {
+    console.error("sendPushToCode:", e.message);
+  }
+}
+
+// Öffentlichen VAPID-Key ans Frontend liefern
+app.get("/api/push/vapid-public-key", (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+});
+
+// Push-Subscription speichern
+app.post("/api/push/subscribe", async (req, res) => {
+  const { code, token, subscription } = req.body;
+  if (!code || !token || !subscription?.endpoint) {
+    return res
+      .status(400)
+      .json({ error: "code, token, subscription erforderlich" });
+  }
+  try {
+    const authRes = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!authRes.rows.length || !authRes.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    await pool.query(
+      `INSERT INTO push_subscriptions (code, endpoint, p256dh, auth)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (code, endpoint) DO UPDATE
+         SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
+      [
+        code,
+        subscription.endpoint,
+        subscription.keys.p256dh,
+        subscription.keys.auth,
+      ],
+    );
+    console.log(`🔔 Push registriert: ${code}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("POST /api/push/subscribe:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// Push-Subscription löschen
+app.delete("/api/push/unsubscribe", async (req, res) => {
+  const { code, token, endpoint } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    const authRes = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!authRes.rows.length || !authRes.rows.some((r) => r.token === token)) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    if (endpoint) {
+      await pool.query(
+        "DELETE FROM push_subscriptions WHERE code=$1 AND endpoint=$2",
+        [code, endpoint],
+      );
+    } else {
+      await pool.query("DELETE FROM push_subscriptions WHERE code=$1", [code]);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE /api/push/unsubscribe:", e.message);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
