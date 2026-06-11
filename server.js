@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.5 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.6 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -107,59 +107,9 @@ function decryptProfile(p) {
 
 const app = express();
 
-app.use((req, res, next) => {
-  console.log(
-    `[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`,
-  );
-  next();
-});
-
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-// ══════════════════════════════════════════════════════════════════════════════
-// TRAFFIC-MIDDLEWARE – zählt Upload/Download pro Nutzer
-// ══════════════════════════════════════════════════════════════════════════════
-
-// Hilfsfunktion für Aktivitätsstatistiken (wird auch von den Endpunkten benötigt)
-async function getActivityStats(code) {
-  const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-
-  const checkins = await pool.query(
-    `SELECT COUNT(*) AS cnt FROM verifications
-     WHERE (to_code = $1 OR from_code = $1) AND created_at > $2`,
-    [code, thirtyDaysAgo],
-  );
-  const spots = await pool.query(
-    `SELECT COUNT(*) AS cnt FROM user_spots
-     WHERE code = $1 AND created_at > $2`,
-    [code, thirtyDaysAgo],
-  );
-  const messages = await pool.query(
-    `SELECT COUNT(*) AS cnt FROM offline_messages
-     WHERE sender_code = $1 AND spot_type = 'caching_chat' AND created_at > to_timestamp($2/1000)`,
-    [code, thirtyDaysAgo],
-  );
-  const invites = await pool.query(
-    `SELECT COUNT(*) AS cnt FROM spot_cache_invites
-     WHERE from_code = $1 AND created_at > $2`,
-    [code, thirtyDaysAgo],
-  );
-  return {
-    checkins: parseInt(checkins.rows[0].cnt),
-    spots: parseInt(spots.rows[0].cnt),
-    messages: parseInt(messages.rows[0].cnt),
-    invites: parseInt(invites.rows[0].cnt),
-    activity_points:
-      checkins.rows[0].cnt * 2 +
-      spots.rows[0].cnt * 3 +
-      messages.rows[0].cnt * 1 +
-      invites.rows[0].cnt * 2,
-  };
-}
-
-// Middleware – fängt jede Response ab und loggt die übertragenen Bytes
 function trackTraffic(req, res, next) {
   const code =
     req.body?.code || req.query?.code || req.headers["x-spotme-code"];
@@ -184,7 +134,7 @@ function trackTraffic(req, res, next) {
         queries.push(
           pool.query(
             `INSERT INTO user_traffic (code, direction, bytes, endpoint)
-           VALUES ($1, 'upload', $2, $3)`,
+             VALUES ($1, 'upload', $2, $3)`,
             [code, requestSize, req.path],
           ),
         );
@@ -193,7 +143,7 @@ function trackTraffic(req, res, next) {
         queries.push(
           pool.query(
             `INSERT INTO user_traffic (code, direction, bytes, endpoint)
-           VALUES ($1, 'download', $2, $3)`,
+             VALUES ($1, 'download', $2, $3)`,
             [code, responseSize, req.path],
           ),
         );
@@ -440,7 +390,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.5 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.6 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
