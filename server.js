@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.3 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.5 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -116,6 +116,99 @@ app.use((req, res, next) => {
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TRAFFIC-MIDDLEWARE – zählt Upload/Download pro Nutzer
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Hilfsfunktion für Aktivitätsstatistiken (wird auch von den Endpunkten benötigt)
+async function getActivityStats(code) {
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+  const checkins = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM verifications
+     WHERE (to_code = $1 OR from_code = $1) AND created_at > $2`,
+    [code, thirtyDaysAgo],
+  );
+  const spots = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM user_spots
+     WHERE code = $1 AND created_at > $2`,
+    [code, thirtyDaysAgo],
+  );
+  const messages = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM offline_messages
+     WHERE sender_code = $1 AND spot_type = 'caching_chat' AND created_at > to_timestamp($2/1000)`,
+    [code, thirtyDaysAgo],
+  );
+  const invites = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM spot_cache_invites
+     WHERE from_code = $1 AND created_at > $2`,
+    [code, thirtyDaysAgo],
+  );
+  return {
+    checkins: parseInt(checkins.rows[0].cnt),
+    spots: parseInt(spots.rows[0].cnt),
+    messages: parseInt(messages.rows[0].cnt),
+    invites: parseInt(invites.rows[0].cnt),
+    activity_points:
+      checkins.rows[0].cnt * 2 +
+      spots.rows[0].cnt * 3 +
+      messages.rows[0].cnt * 1 +
+      invites.rows[0].cnt * 2,
+  };
+}
+
+// Middleware – fängt jede Response ab und loggt die übertragenen Bytes
+function trackTraffic(req, res, next) {
+  const code =
+    req.body?.code || req.query?.code || req.headers["x-spotme-code"];
+  if (!code) return next();
+
+  const originalSend = res.send;
+  let requestSize = 0;
+  if (req.body && typeof req.body === "object") {
+    requestSize = Buffer.byteLength(JSON.stringify(req.body), "utf8");
+  }
+
+  res.send = function (body) {
+    let responseSize = 0;
+    if (body && typeof body === "string") {
+      responseSize = Buffer.byteLength(body, "utf8");
+    } else if (body && typeof body === "object") {
+      responseSize = Buffer.byteLength(JSON.stringify(body), "utf8");
+    }
+    if (code && (requestSize > 0 || responseSize > 0)) {
+      const queries = [];
+      if (requestSize > 0) {
+        queries.push(
+          pool.query(
+            `INSERT INTO user_traffic (code, direction, bytes, endpoint)
+           VALUES ($1, 'upload', $2, $3)`,
+            [code, requestSize, req.path],
+          ),
+        );
+      }
+      if (responseSize > 0) {
+        queries.push(
+          pool.query(
+            `INSERT INTO user_traffic (code, direction, bytes, endpoint)
+           VALUES ($1, 'download', $2, $3)`,
+            [code, responseSize, req.path],
+          ),
+        );
+      }
+      Promise.all(queries).catch((err) =>
+        console.error("Traffic log error:", err),
+      );
+    }
+    originalSend.call(this, body);
+  };
+  next();
+}
+
+// Global anwenden (nachdem der Body geparst wurde, aber vor allen API-Routen)
+app.use(trackTraffic);
 
 // ---------- PeerJS ----------
 const server = require("http").createServer(app);
@@ -347,7 +440,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.3 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.5 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -448,6 +541,19 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_wpc_player ON wp_completions(player_code);
   `);
 
+  // ── Traffic-Logging (für Highscore und eigenen Verbrauch) ─────────────────────
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS user_traffic (
+    id          SERIAL PRIMARY KEY,
+    code        TEXT NOT NULL,
+    direction   TEXT NOT NULL CHECK (direction IN ('upload', 'download')),
+    bytes       BIGINT NOT NULL,
+    endpoint    TEXT,
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_traffic_code ON user_traffic(code);
+  CREATE INDEX IF NOT EXISTS idx_traffic_recorded ON user_traffic(recorded_at);
+`);
   console.log("✅ Datenbank-Tabellen bereit");
 }
 
@@ -3451,6 +3557,110 @@ app.delete("/api/wp/routes/:id", async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/wp/routes/:id:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TRAFFIC & HIGHSCORE
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Eigener Traffic des Nutzers (für das Profil)
+app.get("/api/traffic/:code", async (req, res) => {
+  const { code } = req.params;
+  const token = req.query.token || req.headers["x-spotme-token"];
+  if (!token) return res.status(401).json({ error: "Token fehlt" });
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows[0].token !== token) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const { rows } = await pool.query(
+      `SELECT direction, SUM(bytes) AS total
+       FROM user_traffic
+       WHERE code = $1 AND recorded_at > to_timestamp($2/1000)
+       GROUP BY direction`,
+      [code, thirtyDaysAgo],
+    );
+    let upload = 0,
+      download = 0;
+    for (const row of rows) {
+      if (row.direction === "upload") upload = parseInt(row.total);
+      else download = parseInt(row.total);
+    }
+    const activity = await getActivityStats(code);
+    res.json({
+      code,
+      upload_bytes: upload,
+      download_bytes: download,
+      total_mb: ((upload + download) / (1024 * 1024)).toFixed(2),
+      ...activity,
+    });
+  } catch (e) {
+    console.error("GET /api/traffic/:code:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// Anonymisierte Highscore-Liste (Top 20)
+app.get("/api/leaderboard", async (req, res) => {
+  const limit = parseInt(req.query.limit) || 20;
+  try {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const traffic = await pool.query(
+      `SELECT code, SUM(bytes) AS total_bytes
+       FROM user_traffic
+       WHERE recorded_at > to_timestamp($1/1000)
+       GROUP BY code`,
+      [thirtyDaysAgo],
+    );
+    const trafficMap = new Map();
+    for (const row of traffic.rows) {
+      trafficMap.set(row.code, parseInt(row.total_bytes));
+    }
+    const activeUsers = await pool.query(
+      `SELECT DISTINCT code FROM profiles
+       WHERE last_seen > $1 AND spot = 'caching'`,
+      [thirtyDaysAgo],
+    );
+    const leaderboard = [];
+    for (const user of activeUsers.rows) {
+      const code = user.code;
+      const activity = await getActivityStats(code);
+      const totalMB = (trafficMap.get(code) || 0) / (1024 * 1024);
+      const score = activity.activity_points / (totalMB + 0.1);
+      const profile = await pool.query(
+        "SELECT name FROM profiles WHERE code = $1 AND spot = $2 LIMIT 1",
+        [code, "caching"],
+      );
+      let displayName = profile.rows[0]?.name
+        ? decrypt(profile.rows[0].name)
+        : null;
+      if (displayName && displayName.length > 2) {
+        displayName = displayName[0] + "***" + displayName.slice(-1);
+      } else {
+        displayName = `Nutzer_${code.slice(0, 4)}`;
+      }
+      leaderboard.push({
+        code_hashed: crypto
+          .createHash("sha256")
+          .update(code)
+          .digest("hex")
+          .slice(0, 8),
+        display_name: displayName,
+        total_mb: totalMB.toFixed(2),
+        activity_points: activity.activity_points,
+        score: score.toFixed(2),
+      });
+    }
+    leaderboard.sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+    res.json(leaderboard.slice(0, limit));
+  } catch (e) {
+    console.error("GET /api/leaderboard:", e.message);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
