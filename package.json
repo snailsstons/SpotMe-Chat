@@ -1,6 +1,6 @@
 {
   "name": "spotme-peer-server",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "SpotMe PeerJS Signaling Server",
   "main": "server.js",
   "scripts": {
@@ -11,10 +11,11 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "cors":      "^2.8.5",
-    "express":   "^4.18.2",
-    "peer":      "^1.0.2",
-    "pg":        "^8.11.0",
-    "web-push":  "^3.6.7"
+    "@atproto/api": "^0.13.0",
+    "cors":         "^2.8.5",
+    "express":      "^4.18.2",
+    "peer":         "^1.0.2",
+    "pg":           "^8.11.0",
+    "web-push":     "^3.6.7"
   }
 }
