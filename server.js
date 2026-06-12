@@ -3561,7 +3561,7 @@ app.post('/api/bluesky/share-spot', async (req, res) => {
     await agent.login({ identifier: handle, password });
 
     const spotName = spot.rows[0].name;
-    const spotUrl = `https://spotme-caching.github.io/index.html?id=${spotId}`;
+    const spotUrl = `https://spotme-caching.github.io/spot-detail.html?id=${spotId}`;
     
     // 1. Definiere den vollständigen Text
     let postText = message 
