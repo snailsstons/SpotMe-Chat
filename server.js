@@ -3456,15 +3456,16 @@ app.delete("/api/wp/routes/:id", async (req, res) => {
 });
 
 // Öffentlicher Spot (ohne Login) – für spot-detail.html
-app.get('/api/spot/:id', async (req, res) => {
+app.get("/api/spot/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await pool.query(
       `SELECT id, code, name, description, wish_tag AS "wishTag", lat, lng, image, created_at
        FROM user_spots WHERE id = $1 AND active = true`,
-      [id]
+      [id],
     );
-    if (!rows.length) return res.status(404).json({ error: 'Spot nicht gefunden' });
+    if (!rows.length)
+      return res.status(404).json({ error: "Spot nicht gefunden" });
     res.json(rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -3566,31 +3567,40 @@ app.get("/api/bluesky/status/:code", async (req, res) => {
 });
 
 // ── Spot auf Bluesky teilen (MIT Link-Erkennung) ─────────────────────────────
-app.post('/api/bluesky/share-spot', async (req, res) => {
+app.post("/api/bluesky/share-spot", async (req, res) => {
   const { code, token, spotId, message } = req.body;
   if (!code || !token || !spotId) {
-    return res.status(400).json({ error: 'code, token, spotId erforderlich' });
+    return res.status(400).json({ error: "code, token, spotId erforderlich" });
   }
   try {
     // 1. Token prüfen
-    const auth = await pool.query('SELECT token FROM profiles WHERE code = $1', [code]);
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1",
+      [code],
+    );
     if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: 'Ungültiger Token' });
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
 
     // 2. Bluesky Credentials aus DB laden
-    const bsky = await pool.query('SELECT handle, app_password FROM bluesky_accounts WHERE code = $1', [code]);
+    const bsky = await pool.query(
+      "SELECT handle, app_password FROM bluesky_accounts WHERE code = $1",
+      [code],
+    );
     if (!bsky.rows.length) {
-      return res.status(404).json({ error: 'Bluesky nicht verbunden' });
+      return res.status(404).json({ error: "Bluesky nicht verbunden" });
     }
     const handle = bsky.rows[0].handle;
     const password = decrypt(bsky.rows[0].app_password);
 
     // 3. Spot-Daten holen
-    const spot = await pool.query('SELECT name FROM user_spots WHERE id = $1', [spotId]);
-    if (!spot.rows.length) return res.status(404).json({ error: 'Spot nicht gefunden' });
+    const spot = await pool.query("SELECT name FROM user_spots WHERE id = $1", [
+      spotId,
+    ]);
+    if (!spot.rows.length)
+      return res.status(404).json({ error: "Spot nicht gefunden" });
     const spotName = spot.rows[0].name;
-    const spotUrl = `https://spotme-caching.github.io/spot-detail.html?id=${spotId}`;
+    const spotUrl = `https://spotme-caching.github.io/?spot=${spotId}`;
 
     // 4. Text zusammenbauen
     let postText = message
@@ -3598,8 +3608,8 @@ app.post('/api/bluesky/share-spot', async (req, res) => {
       : `📍 Neuer Spot in SpotMe: "${spotName}"\n${spotUrl}`;
 
     // 5. RichText-Objekt (erzeugt automatisch klickbare Links)
-    const { BskyAgent, RichText } = require('@atproto/api');
-    const agent = new BskyAgent({ service: 'https://bsky.social' });
+    const { BskyAgent, RichText } = require("@atproto/api");
+    const agent = new BskyAgent({ service: "https://bsky.social" });
     await agent.login({ identifier: handle, password });
 
     const rt = new RichText({ text: postText });
@@ -3609,13 +3619,15 @@ app.post('/api/bluesky/share-spot', async (req, res) => {
     const postResult = await agent.post({
       text: rt.text,
       facets: rt.facets,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     });
 
     res.json({ success: true, uri: postResult.uri });
   } catch (err) {
-    console.error('Bluesky share error:', err.message);
-    res.status(500).json({ error: 'Fehler beim Posten auf Bluesky: ' + err.message });
+    console.error("Bluesky share error:", err.message);
+    res
+      .status(500)
+      .json({ error: "Fehler beim Posten auf Bluesky: " + err.message });
   }
 });
 
