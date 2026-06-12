@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v5.6 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v5.1 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -107,58 +107,15 @@ function decryptProfile(p) {
 
 const app = express();
 
+app.use((req, res, next) => {
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`,
+  );
+  next();
+});
+
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
-
-function trackTraffic(req, res, next) {
-  const code =
-    req.body?.code || req.query?.code || req.headers["x-spotme-code"];
-  if (!code) return next();
-
-  const originalSend = res.send;
-  let requestSize = 0;
-  if (req.body && typeof req.body === "object") {
-    requestSize = Buffer.byteLength(JSON.stringify(req.body), "utf8");
-  }
-
-  res.send = function (body) {
-    let responseSize = 0;
-    if (body && typeof body === "string") {
-      responseSize = Buffer.byteLength(body, "utf8");
-    } else if (body && typeof body === "object") {
-      responseSize = Buffer.byteLength(JSON.stringify(body), "utf8");
-    }
-    if (code && (requestSize > 0 || responseSize > 0)) {
-      const queries = [];
-      if (requestSize > 0) {
-        queries.push(
-          pool.query(
-            `INSERT INTO user_traffic (code, direction, bytes, endpoint)
-             VALUES ($1, 'upload', $2, $3)`,
-            [code, requestSize, req.path],
-          ),
-        );
-      }
-      if (responseSize > 0) {
-        queries.push(
-          pool.query(
-            `INSERT INTO user_traffic (code, direction, bytes, endpoint)
-             VALUES ($1, 'download', $2, $3)`,
-            [code, responseSize, req.path],
-          ),
-        );
-      }
-      Promise.all(queries).catch((err) =>
-        console.error("Traffic log error:", err),
-      );
-    }
-    originalSend.call(this, body);
-  };
-  next();
-}
-
-// Global anwenden (nachdem der Body geparst wurde, aber vor allen API-Routen)
-app.use(trackTraffic);
 
 // ---------- PeerJS ----------
 const server = require("http").createServer(app);
@@ -390,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v5.6 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v5.1 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -491,19 +448,6 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_wpc_player ON wp_completions(player_code);
   `);
 
-  // ── Traffic-Logging (für Highscore und eigenen Verbrauch) ─────────────────────
-  await pool.query(`
-  CREATE TABLE IF NOT EXISTS user_traffic (
-    id          SERIAL PRIMARY KEY,
-    code        TEXT NOT NULL,
-    direction   TEXT NOT NULL CHECK (direction IN ('upload', 'download')),
-    bytes       BIGINT NOT NULL,
-    endpoint    TEXT,
-    recorded_at TIMESTAMPTZ DEFAULT NOW()
-  );
-  CREATE INDEX IF NOT EXISTS idx_traffic_code ON user_traffic(code);
-  CREATE INDEX IF NOT EXISTS idx_traffic_recorded ON user_traffic(recorded_at);
-`);
   console.log("✅ Datenbank-Tabellen bereit");
 }
 
@@ -3512,106 +3456,147 @@ app.delete("/api/wp/routes/:id", async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TRAFFIC & HIGHSCORE
+// BLUESKY INTEGRATION
 // ══════════════════════════════════════════════════════════════════════════════
 
-// Eigener Traffic des Nutzers (für das Profil)
-app.get("/api/traffic/:code", async (req, res) => {
+const { BskyAgent } = require("@atproto/api");
+
+// ── Bluesky Account verbinden (speichert verschlüsseltes App-Passwort) ────────
+app.post("/api/bluesky/connect", async (req, res) => {
+  const { code, token, handle, appPassword } = req.body;
+  if (!code || !token || !handle || !appPassword) {
+    return res
+      .status(400)
+      .json({ error: "code, token, handle, appPassword erforderlich" });
+  }
+  try {
+    // Token prüfen
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1",
+      [code],
+    );
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    // Login testen (ob Handle + App-Passwort gültig sind)
+    const agent = new BskyAgent({ service: "https://bsky.social" });
+    await agent.login({ identifier: handle, password: appPassword });
+
+    // Erfolgreich → verschlüsselt speichern
+    const encrypted = encrypt(appPassword);
+    await pool.query(
+      `INSERT INTO bluesky_accounts (code, handle, app_password, updated_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (code) DO UPDATE SET
+         handle = EXCLUDED.handle,
+         app_password = EXCLUDED.app_password,
+         updated_at = EXCLUDED.updated_at`,
+      [code, handle, encrypted, Date.now()],
+    );
+    res.json({ success: true, handle });
+  } catch (err) {
+    console.error("Bluesky connect error:", err.message);
+    res.status(401).json({ error: "Ungültiges Handle oder App-Passwort" });
+  }
+});
+
+// ── Bluesky Account trennen (Löschen der Verbindung) ─────────────────────────
+app.delete("/api/bluesky/disconnect", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code, token erforderlich" });
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1",
+      [code],
+    );
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: "Ungültiger Token" });
+    }
+    await pool.query("DELETE FROM bluesky_accounts WHERE code = $1", [code]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Bluesky disconnect error:", err.message);
+    res.status(500).json({ error: "Fehler beim Trennen" });
+  }
+});
+
+// ── Verbindungsstatus abrufen (für Frontend) ────────────────────────────────
+app.get("/api/bluesky/status/:code", async (req, res) => {
   const { code } = req.params;
-  const token = req.query.token || req.headers["x-spotme-token"];
+  const token = req.query.token;
   if (!token) return res.status(401).json({ error: "Token fehlt" });
   try {
     const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      "SELECT token FROM profiles WHERE code = $1",
       [code],
     );
-    if (!auth.rows.length || !auth.rows[0].token !== token) {
+    if (!auth.rows.length || auth.rows[0].token !== token) {
       return res.status(403).json({ error: "Ungültiger Token" });
     }
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const { rows } = await pool.query(
-      `SELECT direction, SUM(bytes) AS total
-       FROM user_traffic
-       WHERE code = $1 AND recorded_at > to_timestamp($2/1000)
-       GROUP BY direction`,
-      [code, thirtyDaysAgo],
+    const bsky = await pool.query(
+      "SELECT handle FROM bluesky_accounts WHERE code = $1",
+      [code],
     );
-    let upload = 0,
-      download = 0;
-    for (const row of rows) {
-      if (row.direction === "upload") upload = parseInt(row.total);
-      else download = parseInt(row.total);
+    if (bsky.rows.length) {
+      res.json({ connected: true, handle: bsky.rows[0].handle });
+    } else {
+      res.json({ connected: false });
     }
-    const activity = await getActivityStats(code);
-    res.json({
-      code,
-      upload_bytes: upload,
-      download_bytes: download,
-      total_mb: ((upload + download) / (1024 * 1024)).toFixed(2),
-      ...activity,
-    });
-  } catch (e) {
-    console.error("GET /api/traffic/:code:", e.message);
+  } catch (err) {
+    console.error("Bluesky status error:", err.message);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-// Anonymisierte Highscore-Liste (Top 20)
-app.get("/api/leaderboard", async (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
+// ── Spot auf Bluesky teilen ─────────────────────────────────────────────────
+app.post("/api/bluesky/share-spot", async (req, res) => {
+  const { code, token, spotId, message } = req.body;
+  if (!code || !token || !spotId) {
+    return res.status(400).json({ error: "code, token, spotId erforderlich" });
+  }
   try {
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const traffic = await pool.query(
-      `SELECT code, SUM(bytes) AS total_bytes
-       FROM user_traffic
-       WHERE recorded_at > to_timestamp($1/1000)
-       GROUP BY code`,
-      [thirtyDaysAgo],
+    // Token prüfen
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1",
+      [code],
     );
-    const trafficMap = new Map();
-    for (const row of traffic.rows) {
-      trafficMap.set(row.code, parseInt(row.total_bytes));
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: "Ungültiger Token" });
     }
-    const activeUsers = await pool.query(
-      `SELECT DISTINCT code FROM profiles
-       WHERE last_seen > $1 AND spot = 'caching'`,
-      [thirtyDaysAgo],
+    // Bluesky Credentials laden
+    const bsky = await pool.query(
+      "SELECT handle, app_password FROM bluesky_accounts WHERE code = $1",
+      [code],
     );
-    const leaderboard = [];
-    for (const user of activeUsers.rows) {
-      const code = user.code;
-      const activity = await getActivityStats(code);
-      const totalMB = (trafficMap.get(code) || 0) / (1024 * 1024);
-      const score = activity.activity_points / (totalMB + 0.1);
-      const profile = await pool.query(
-        "SELECT name FROM profiles WHERE code = $1 AND spot = $2 LIMIT 1",
-        [code, "caching"],
-      );
-      let displayName = profile.rows[0]?.name
-        ? decrypt(profile.rows[0].name)
-        : null;
-      if (displayName && displayName.length > 2) {
-        displayName = displayName[0] + "***" + displayName.slice(-1);
-      } else {
-        displayName = `Nutzer_${code.slice(0, 4)}`;
-      }
-      leaderboard.push({
-        code_hashed: crypto
-          .createHash("sha256")
-          .update(code)
-          .digest("hex")
-          .slice(0, 8),
-        display_name: displayName,
-        total_mb: totalMB.toFixed(2),
-        activity_points: activity.activity_points,
-        score: score.toFixed(2),
-      });
+    if (!bsky.rows.length) {
+      return res.status(404).json({ error: "Bluesky nicht verbunden" });
     }
-    leaderboard.sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
-    res.json(leaderboard.slice(0, limit));
-  } catch (e) {
-    console.error("GET /api/leaderboard:", e.message);
-    res.status(500).json({ error: "Datenbankfehler" });
+    const handle = bsky.rows[0].handle;
+    const password = decrypt(bsky.rows[0].app_password); // deine vorhandene decrypt-Funktion
+
+    // Spot-Daten holen
+    const spot = await pool.query(
+      "SELECT name, lat, lng, description FROM user_spots WHERE id = $1",
+      [spotId],
+    );
+    if (!spot.rows.length)
+      return res.status(404).json({ error: "Spot nicht gefunden" });
+    const spotName = spot.rows[0].name;
+    const spotUrl = `https://spotme-caching.github.io/spot-detail.html?id=${spotId}`;
+    const postText = message
+      ? `${message}\n📍 ${spotName}\n${spotUrl}`
+      : `📍 Neuer Spot in SpotMe: "${spotName}"\n${spotUrl}`;
+
+    // Bluesky Login & Post
+    const agent = new BskyAgent({ service: "https://bsky.social" });
+    await agent.login({ identifier: handle, password });
+    const postResult = await agent.post({ text: postText });
+
+    res.json({ success: true, uri: postResult.uri });
+  } catch (err) {
+    console.error("Bluesky share error:", err.message);
+    res.status(500).json({ error: "Fehler beim Posten auf Bluesky" });
   }
 });
 
