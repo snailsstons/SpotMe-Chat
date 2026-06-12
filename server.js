@@ -3603,9 +3603,11 @@ app.post("/api/bluesky/share-spot", async (req, res) => {
     const spotUrl = `https://spotme-caching.github.io/?spot=${spotId}`;
 
     // 4. Text zusammenbauen
-    let postText = message
-      ? `${message}\n📍 ${spotName}\n${spotUrl}`
-      : `📍 Neuer Spot in SpotMe: "${spotName}"\n${spotUrl}`;
+
+    let cleanMessage = message ? message.replace(/https?:\/\/\S+/g, '').trim() : '';
+    let postText = cleanMessage
+  ? `${cleanMessage}\n📍 ${spotName}\n${spotUrl}`
+  : `📍 ${spotName}\n${spotUrl}`;
 
     // 5. RichText-Objekt (erzeugt automatisch klickbare Links)
     const { BskyAgent, RichText } = require("@atproto/api");
