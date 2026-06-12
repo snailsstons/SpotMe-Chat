@@ -3556,25 +3556,40 @@ app.post('/api/bluesky/share-spot', async (req, res) => {
     return res.status(400).json({ error: 'code, token, spotId erforderlich' });
   }
   try {
-    // Token prüfen, Credentials laden, Spot-Daten holen (bleibt alles gleich) ...
+    // 1. Token prüfen
+    const auth = await pool.query('SELECT token FROM profiles WHERE code = $1', [code]);
+    if (!auth.rows.length || auth.rows[0].token !== token) {
+      return res.status(403).json({ error: 'Ungültiger Token' });
+    }
+
+    // 2. Bluesky Credentials aus DB laden
+    const bsky = await pool.query('SELECT handle, app_password FROM bluesky_accounts WHERE code = $1', [code]);
+    if (!bsky.rows.length) {
+      return res.status(404).json({ error: 'Bluesky nicht verbunden' });
+    }
+    const handle = bsky.rows[0].handle;
+    const password = decrypt(bsky.rows[0].app_password);
+
+    // 3. Spot-Daten holen
+    const spot = await pool.query('SELECT name FROM user_spots WHERE id = $1', [spotId]);
+    if (!spot.rows.length) return res.status(404).json({ error: 'Spot nicht gefunden' });
+    const spotName = spot.rows[0].name;
+    const spotUrl = `https://spotme-caching.github.io/spot-detail.html?id=${spotId}`;
+
+    // 4. Text zusammenbauen
+    let postText = message
+      ? `${message}\n📍 ${spotName}\n${spotUrl}`
+      : `📍 Neuer Spot in SpotMe: "${spotName}"\n${spotUrl}`;
+
+    // 5. RichText-Objekt (erzeugt automatisch klickbare Links)
+    const { BskyAgent, RichText } = require('@atproto/api');
     const agent = new BskyAgent({ service: 'https://bsky.social' });
     await agent.login({ identifier: handle, password });
 
-    const spotName = spot.rows[0].name;
-    const spotUrl = `https://spotme-caching.github.io/spot-detail.html?id=${spotId}`;
-    
-    // 1. Definiere den vollständigen Text
-    let postText = message 
-      ? `${message}\n📍 ${spotName}\n${spotUrl}` 
-      : `📍 Neuer Spot in SpotMe: "${spotName}"\n${spotUrl}`;
-
-    // 2. Erstelle ein RichText-Objekt, das den Text auf Links und Erwähnungen scannt
     const rt = new RichText({ text: postText });
-    
-    // 3. Lasse das SDK die Facets (Metadaten für Links) automatisch erkennen
-    await rt.detectFacets(agent);
+    await rt.detectFacets(agent); // erkennt URLs und @-Erwähnungen
 
-    // 4. Sende den Post mit den erkannten Facets
+    // 6. Post abschicken
     const postResult = await agent.post({
       text: rt.text,
       facets: rt.facets,
@@ -3584,7 +3599,7 @@ app.post('/api/bluesky/share-spot', async (req, res) => {
     res.json({ success: true, uri: postResult.uri });
   } catch (err) {
     console.error('Bluesky share error:', err.message);
-    res.status(500).json({ error: 'Fehler beim Posten auf Bluesky' + err.message });
+    res.status(500).json({ error: 'Fehler beim Posten auf Bluesky: ' + err.message });
   }
 });
 
