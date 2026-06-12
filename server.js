@@ -3455,6 +3455,22 @@ app.delete("/api/wp/routes/:id", async (req, res) => {
   }
 });
 
+// Öffentlicher Spot (ohne Login) – für spot-detail.html
+app.get('/api/spot/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, code, name, description, wish_tag AS "wishTag", lat, lng, image, created_at
+       FROM user_spots WHERE id = $1 AND active = true`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Spot nicht gefunden' });
+    res.json(rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ══════════════════════════════════════════════════════════════════════════════
 // BLUESKY INTEGRATION
 // ══════════════════════════════════════════════════════════════════════════════
