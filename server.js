@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v6.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v7.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -347,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v6.0 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v7.0 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -447,6 +447,52 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_wpc_route  ON wp_completions(route_id);
     CREATE INDEX IF NOT EXISTS idx_wpc_player ON wp_completions(player_code);
   `);
+
+  // Live Spots – mobile Profil-Spots für Creator die sich bewegen
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS live_spots (
+      id             SERIAL PRIMARY KEY,
+      token          TEXT UNIQUE NOT NULL,
+      creator_code   TEXT NOT NULL,
+      name           TEXT NOT NULL,
+      description    TEXT,
+      category       TEXT,
+      avatar         TEXT,
+      status         TEXT NOT NULL DEFAULT 'offline',
+      lat            DOUBLE PRECISION,
+      lng            DOUBLE PRECISION,
+      location_note  TEXT,
+      follower_count INTEGER NOT NULL DEFAULT 0,
+      created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_ls_creator ON live_spots(creator_code);
+    CREATE INDEX IF NOT EXISTS idx_ls_status  ON live_spots(status);
+    CREATE INDEX IF NOT EXISTS idx_ls_token   ON live_spots(token);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS live_followers (
+      id           SERIAL PRIMARY KEY,
+      live_spot_id INTEGER NOT NULL REFERENCES live_spots(id) ON DELETE CASCADE,
+      follower_code TEXT NOT NULL,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(live_spot_id, follower_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_lf_spot   ON live_followers(live_spot_id);
+    CREATE INDEX IF NOT EXISTS idx_lf_follower ON live_followers(follower_code);
+  `);
+
+  // Letzter bekannter Standort der Nutzer – für 10km Push-Filter
+  await pool
+    .query(
+      `
+    ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_lat  DOUBLE PRECISION;
+    ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_lng  DOUBLE PRECISION;
+    ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;
+  `,
+    )
+    .catch(() => {});
 
   console.log("✅ Datenbank-Tabellen bereit");
 }
@@ -2908,7 +2954,199 @@ app.post("/api/admin/spot-image-action", requireAdmin, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// WEB PUSH NOTIFICATIONS
+// BLUESKY INTEGRATION
+// App-Passwort wird mit demselben AES-256-CBC Schlüssel (CRYPTO_KEY)
+// verschlüsselt wie alle anderen sensiblen Profildaten.
+// Das entschlüsselte Passwort verlässt NIEMALS den Server.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Bluesky-Accounts Tabelle (falls noch nicht vorhanden)
+// Wird von initDB() gehandhabt – hier zur Referenz:
+// CREATE TABLE IF NOT EXISTS bluesky_accounts (
+//   id           SERIAL PRIMARY KEY,
+//   code         TEXT UNIQUE NOT NULL,
+//   handle       TEXT NOT NULL,
+//   app_password TEXT NOT NULL,   -- AES-256-CBC verschlüsselt
+//   created_at   TIMESTAMPTZ DEFAULT NOW()
+// );
+
+// AT-Protocol Hilfsfunktion – erstellt eine Bluesky-Session
+async function bskyCreateSession(handle, appPassword) {
+  const res = await fetch(
+    "https://bsky.social/xrpc/com.atproto.server.createSession",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: handle, password: appPassword }),
+    },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Bluesky-Authentifizierung fehlgeschlagen");
+  }
+  return res.json();
+}
+
+// AT-Protocol Hilfsfunktion – postet einen Beitrag
+async function bskyPost(accessJwt, did, text) {
+  const res = await fetch(
+    "https://bsky.social/xrpc/com.atproto.repo.createRecord",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessJwt}`,
+      },
+      body: JSON.stringify({
+        repo: did,
+        collection: "app.bsky.feed.post",
+        record: {
+          $type: "app.bsky.feed.post",
+          text,
+          createdAt: new Date().toISOString(),
+        },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Bluesky-Post fehlgeschlagen");
+  }
+  return res.json();
+}
+
+// ── Verbindung herstellen ────────────────────────────────────────────────────
+app.post("/api/bluesky/connect", async (req, res) => {
+  const { code, token, handle, appPassword } = req.body;
+  if (!code || !token || !handle || !appPassword)
+    return res
+      .status(400)
+      .json({ error: "code, token, handle, appPassword erforderlich" });
+
+  try {
+    // Auth prüfen
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token))
+      return res.status(403).json({ error: "Ungültiger Token" });
+
+    // Bluesky-Credentials testen bevor wir speichern
+    const session = await bskyCreateSession(handle, appPassword);
+
+    // App-Passwort verschlüsselt speichern – nie im Klartext in der DB
+    const encryptedPassword = encrypt(appPassword);
+
+    await pool.query(
+      `INSERT INTO bluesky_accounts (code, handle, app_password)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (code) DO UPDATE
+         SET handle = EXCLUDED.handle,
+             app_password = EXCLUDED.app_password`,
+      [code, handle.toLowerCase().replace(/^@/, ""), encryptedPassword],
+    );
+
+    console.log(`🦋 Bluesky verbunden: ${handle} für ${code}`);
+    res.json({ success: true, handle: session.handle });
+  } catch (e) {
+    console.error("POST /api/bluesky/connect:", e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ── Status abrufen (kein Passwort zurückgeben!) ──────────────────────────────
+app.get("/api/bluesky/status/:code", async (req, res) => {
+  const { token } = req.query;
+  const { code } = req.params;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token))
+      return res.status(403).json({ error: "Ungültiger Token" });
+
+    const { rows } = await pool.query(
+      "SELECT handle FROM bluesky_accounts WHERE code = $1",
+      [code],
+    );
+
+    if (!rows.length) return res.json({ connected: false });
+    // Nur Handle zurückgeben – niemals app_password
+    res.json({ connected: true, handle: rows[0].handle });
+  } catch (e) {
+    console.error("GET /api/bluesky/status:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Spot auf Bluesky teilen ──────────────────────────────────────────────────
+app.post("/api/bluesky/share-spot", async (req, res) => {
+  const { code, token, spotId, message } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token))
+      return res.status(403).json({ error: "Ungültiger Token" });
+
+    // Bluesky-Konto + verschlüsseltes Passwort holen
+    const { rows } = await pool.query(
+      "SELECT handle, app_password FROM bluesky_accounts WHERE code = $1",
+      [code],
+    );
+    if (!rows.length)
+      return res.status(404).json({ error: "Kein Bluesky-Konto verknüpft" });
+
+    // Passwort serverseitig entschlüsseln – verlässt diesen Scope nicht
+    const appPassword = decrypt(rows[0].app_password);
+    const session = await bskyCreateSession(rows[0].handle, appPassword);
+
+    // Nachrichtentext (vom Client oder Standard-Fallback)
+    const postText =
+      message?.slice(0, 300) ||
+      `📍 Ich habe einen neuen Spot auf SpotMe Caching entdeckt! #SpotMe #Caching`;
+
+    const result = await bskyPost(session.accessJwt, session.did, postText);
+
+    console.log(`🦋 Bluesky-Post: ${rows[0].handle} → ${result.uri}`);
+    res.json({ success: true, uri: result.uri });
+  } catch (e) {
+    console.error("POST /api/bluesky/share-spot:", e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ── Verbindung trennen ───────────────────────────────────────────────────────
+app.delete("/api/bluesky/disconnect", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+
+  try {
+    const auth = await pool.query(
+      "SELECT token FROM profiles WHERE code = $1 AND token IS NOT NULL",
+      [code],
+    );
+    if (!auth.rows.length || !auth.rows.some((r) => r.token === token))
+      return res.status(403).json({ error: "Ungültiger Token" });
+
+    await pool.query("DELETE FROM bluesky_accounts WHERE code = $1", [code]);
+    console.log(`🔌 Bluesky getrennt: ${code}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE /api/bluesky/disconnect:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Helper – sendet Push an alle Geräte eines Nutzers.
@@ -3455,183 +3693,319 @@ app.delete("/api/wp/routes/:id", async (req, res) => {
   }
 });
 
-// Öffentlicher Spot (ohne Login) – für spot-detail.html
-app.get("/api/spot/:id", async (req, res) => {
-  const { id } = req.params;
+// ══════════════════════════════════════════════════════════════════════════════
+// LIVE SPOTS
+// Mobile Profil-Spots – Creator setzt Standort manuell, Follower bekommen
+// Push wenn Creator innerhalb 10km online geht.
+// ══════════════════════════════════════════════════════════════════════════════
+
+function liveHaversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371,
+    dLat = ((lat2 - lat1) * Math.PI) / 180,
+    dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function authCheck(code, token) {
+  const r = await pool.query(
+    "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+    [code],
+  );
+  return r.rows.length && r.rows.some((row) => row.token === token);
+}
+
+// ── Live Spot erstellen ──────────────────────────────────────────────────────
+app.post("/api/live-spots", async (req, res) => {
+  const { code, token, name, description, category, avatar } = req.body;
+  if (!code || !token || !name)
+    return res.status(400).json({ error: "code, token, name erforderlich" });
   try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    const lsToken = crypto.randomBytes(16).toString("hex");
     const { rows } = await pool.query(
-      `SELECT id, code, name, description, wish_tag AS "wishTag", lat, lng, image, created_at
-       FROM user_spots WHERE id = $1 AND active = true`,
-      [id],
+      `INSERT INTO live_spots (token, creator_code, name, description, category, avatar)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [
+        lsToken,
+        code,
+        name.slice(0, 80),
+        description?.slice(0, 300) || null,
+        category || null,
+        avatar || null,
+      ],
     );
-    if (!rows.length)
-      return res.status(404).json({ error: "Spot nicht gefunden" });
-    res.json(rows[0]);
+    console.log(`📡 Live Spot erstellt: "${name}" von ${code}`);
+    res.json({ success: true, spot: rows[0] });
   } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// BLUESKY INTEGRATION
-// ══════════════════════════════════════════════════════════════════════════════
-
-const { BskyAgent } = require("@atproto/api");
-
-// ── Bluesky Account verbinden (speichert verschlüsseltes App-Passwort) ────────
-app.post("/api/bluesky/connect", async (req, res) => {
-  const { code, token, handle, appPassword } = req.body;
-  if (!code || !token || !handle || !appPassword) {
-    return res
-      .status(400)
-      .json({ error: "code, token, handle, appPassword erforderlich" });
-  }
-  try {
-    // Token prüfen
-    const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code = $1",
-      [code],
-    );
-    if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: "Ungültiger Token" });
-    }
-    // Login testen (ob Handle + App-Passwort gültig sind)
-    const agent = new BskyAgent({ service: "https://bsky.social" });
-    await agent.login({ identifier: handle, password: appPassword });
-
-    // Erfolgreich → verschlüsselt speichern
-    const encrypted = encrypt(appPassword);
-    await pool.query(
-      `INSERT INTO bluesky_accounts (code, handle, app_password, updated_at)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (code) DO UPDATE SET
-         handle = EXCLUDED.handle,
-         app_password = EXCLUDED.app_password,
-         updated_at = EXCLUDED.updated_at`,
-      [code, handle, encrypted, Date.now()],
-    );
-    res.json({ success: true, handle });
-  } catch (err) {
-    console.error("Bluesky connect error:", err.message);
-    res.status(401).json({ error: "Ungültiges Handle oder App-Passwort" });
-  }
-});
-
-// ── Bluesky Account trennen (Löschen der Verbindung) ─────────────────────────
-app.delete("/api/bluesky/disconnect", async (req, res) => {
-  const { code, token } = req.body;
-  if (!code || !token)
-    return res.status(400).json({ error: "code, token erforderlich" });
-  try {
-    const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code = $1",
-      [code],
-    );
-    if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: "Ungültiger Token" });
-    }
-    await pool.query("DELETE FROM bluesky_accounts WHERE code = $1", [code]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Bluesky disconnect error:", err.message);
-    res.status(500).json({ error: "Fehler beim Trennen" });
-  }
-});
-
-// ── Verbindungsstatus abrufen (für Frontend) ────────────────────────────────
-app.get("/api/bluesky/status/:code", async (req, res) => {
-  const { code } = req.params;
-  const token = req.query.token;
-  if (!token) return res.status(401).json({ error: "Token fehlt" });
-  try {
-    const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code = $1",
-      [code],
-    );
-    if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: "Ungültiger Token" });
-    }
-    const bsky = await pool.query(
-      "SELECT handle FROM bluesky_accounts WHERE code = $1",
-      [code],
-    );
-    if (bsky.rows.length) {
-      res.json({ connected: true, handle: bsky.rows[0].handle });
-    } else {
-      res.json({ connected: false });
-    }
-  } catch (err) {
-    console.error("Bluesky status error:", err.message);
+    console.error("POST /api/live-spots:", e.message);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
 
-// ── Spot auf Bluesky teilen (MIT Link-Erkennung) ─────────────────────────────
-app.post("/api/bluesky/share-spot", async (req, res) => {
-  const { code, token, spotId, message } = req.body;
-  if (!code || !token || !spotId) {
-    return res.status(400).json({ error: "code, token, spotId erforderlich" });
-  }
+// ── Alle online Live Spots (für Karte) ──────────────────────────────────────
+app.get("/api/live-spots", async (req, res) => {
   try {
-    // 1. Token prüfen
-    const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code = $1",
-      [code],
+    const { rows } = await pool.query(
+      `SELECT id, token, name, description, category, avatar,
+              status, lat, lng, location_note, follower_count, updated_at
+       FROM live_spots WHERE status = 'online' ORDER BY updated_at DESC`,
     );
-    if (!auth.rows.length || auth.rows[0].token !== token) {
-      return res.status(403).json({ error: "Ungültiger Token" });
-    }
-
-    // 2. Bluesky Credentials aus DB laden
-    const bsky = await pool.query(
-      "SELECT handle, app_password FROM bluesky_accounts WHERE code = $1",
-      [code],
-    );
-    if (!bsky.rows.length) {
-      return res.status(404).json({ error: "Bluesky nicht verbunden" });
-    }
-    const handle = bsky.rows[0].handle;
-    const password = decrypt(bsky.rows[0].app_password);
-
-    // 3. Spot-Daten holen
-    const spot = await pool.query("SELECT name FROM user_spots WHERE id = $1", [
-      spotId,
-    ]);
-    if (!spot.rows.length)
-      return res.status(404).json({ error: "Spot nicht gefunden" });
-    const spotName = spot.rows[0].name;
-    const spotUrl = `https://spotme-caching.github.io/?spot=${spotId}`;
-
-    // 4. Text zusammenbauen
-
-    let cleanMessage = message ? message.replace(/https?:\/\/\S+/g, '').trim() : '';
-    let postText = cleanMessage
-  ? `${cleanMessage}\n📍 ${spotName}\n${spotUrl}`
-  : `📍 ${spotName}\n${spotUrl}`;
-
-    // 5. RichText-Objekt (erzeugt automatisch klickbare Links)
-    const { BskyAgent, RichText } = require("@atproto/api");
-    const agent = new BskyAgent({ service: "https://bsky.social" });
-    await agent.login({ identifier: handle, password });
-
-    const rt = new RichText({ text: postText });
-    await rt.detectFacets(agent); // erkennt URLs und @-Erwähnungen
-
-    // 6. Post abschicken
-    const postResult = await agent.post({
-      text: rt.text,
-      facets: rt.facets,
-      createdAt: new Date().toISOString(),
-    });
-
-    res.json({ success: true, uri: postResult.uri });
-  } catch (err) {
-    console.error("Bluesky share error:", err.message);
-    res
-      .status(500)
-      .json({ error: "Fehler beim Posten auf Bluesky: " + err.message });
+    res.json(rows);
+  } catch (e) {
+    console.error("GET /api/live-spots:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
   }
 });
+
+// ── Meine Live Spots ─────────────────────────────────────────────────────────
+// MUSS vor /:id stehen!
+app.get("/api/live-spots/mine", async (req, res) => {
+  const { code, token } = req.query;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    const { rows } = await pool.query(
+      "SELECT * FROM live_spots WHERE creator_code=$1 ORDER BY created_at DESC",
+      [code],
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Live Spots denen ich folge ───────────────────────────────────────────────
+app.get("/api/live-spots/following", async (req, res) => {
+  const { code, token } = req.query;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    const { rows } = await pool.query(
+      `SELECT ls.* FROM live_spots ls
+       INNER JOIN live_followers lf ON lf.live_spot_id = ls.id
+       WHERE lf.follower_code = $1 ORDER BY ls.status DESC, ls.updated_at DESC`,
+      [code],
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Einzelner Live Spot (öffentlich) ────────────────────────────────────────
+app.get("/api/live-spots/:id", async (req, res) => {
+  try {
+    const col = isNaN(req.params.id) ? "token" : "id";
+    const { rows } = await pool.query(
+      `SELECT id, token, name, description, category, avatar,
+              status, lat, lng, location_note, follower_count, updated_at
+       FROM live_spots WHERE ${col}=$1`,
+      [req.params.id],
+    );
+    if (!rows.length)
+      return res.status(404).json({ error: "Live Spot nicht gefunden" });
+    res.json(rows[0]);
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Live gehen (Standort setzen + online schalten) ───────────────────────────
+app.post("/api/live-spots/:id/golive", async (req, res) => {
+  const { code, token, lat, lng, location_note } = req.body;
+  if (!code || !token || lat == null || lng == null)
+    return res
+      .status(400)
+      .json({ error: "code, token, lat, lng erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    const result = await pool.query(
+      `UPDATE live_spots SET status='online', lat=$1, lng=$2,
+       location_note=$3, updated_at=NOW()
+       WHERE id=$4 AND creator_code=$5 RETURNING *`,
+      [lat, lng, location_note || null, req.params.id, code],
+    );
+    if (!result.rowCount)
+      return res.status(404).json({ error: "Live Spot nicht gefunden" });
+
+    const spot = result.rows[0];
+    console.log(
+      `📡 Live Spot online: "${spot.name}" @ ${lat.toFixed(4)},${lng.toFixed(4)}`,
+    );
+
+    // Push an Follower innerhalb 10km (fire-and-forget)
+    sendLivePush(spot).catch(console.error);
+
+    res.json({ success: true, spot });
+  } catch (e) {
+    console.error("POST /api/live-spots/:id/golive:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Offline gehen ─────────────────────────────────────────────────────────────
+app.post("/api/live-spots/:id/gooffline", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    await pool.query(
+      `UPDATE live_spots SET status='offline', updated_at=NOW()
+       WHERE id=$1 AND creator_code=$2`,
+      [req.params.id, code],
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Live Spot Profil bearbeiten ──────────────────────────────────────────────
+app.put("/api/live-spots/:id", async (req, res) => {
+  const { code, token, name, description, category, avatar } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    await pool.query(
+      `UPDATE live_spots SET name=$1, description=$2, category=$3, avatar=$4, updated_at=NOW()
+       WHERE id=$5 AND creator_code=$6`,
+      [
+        name?.slice(0, 80),
+        description?.slice(0, 300) || null,
+        category || null,
+        avatar || null,
+        req.params.id,
+        code,
+      ],
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Folgen ────────────────────────────────────────────────────────────────────
+app.post("/api/live-spots/:id/follow", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    await pool.query(
+      `INSERT INTO live_followers (live_spot_id, follower_code) VALUES ($1,$2)
+       ON CONFLICT DO NOTHING`,
+      [req.params.id, code],
+    );
+    await pool.query(
+      "UPDATE live_spots SET follower_count = (SELECT COUNT(*) FROM live_followers WHERE live_spot_id=$1) WHERE id=$1",
+      [req.params.id],
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Entfolgen ────────────────────────────────────────────────────────────────
+app.delete("/api/live-spots/:id/follow", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    await pool.query(
+      "DELETE FROM live_followers WHERE live_spot_id=$1 AND follower_code=$2",
+      [req.params.id, code],
+    );
+    await pool.query(
+      "UPDATE live_spots SET follower_count = (SELECT COUNT(*) FROM live_followers WHERE live_spot_id=$1) WHERE id=$1",
+      [req.params.id],
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// ── Letzten Standort eines Nutzers aktualisieren (für 10km Push-Filter) ─────
+app.post("/api/location/update", async (req, res) => {
+  const { code, token, lat, lng } = req.body;
+  if (!code || !token || lat == null || lng == null)
+    return res.status(400).json({ error: "Pflichtfelder fehlen" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    await pool.query(
+      "UPDATE profiles SET last_lat=$1, last_lng=$2, last_seen=NOW() WHERE code=$3",
+      [lat, lng, code],
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// Push an Follower innerhalb 10km wenn Live Spot online geht
+async function sendLivePush(spot) {
+  if (!spot.lat || !spot.lng) return;
+  const { rows: followers } = await pool.query(
+    `SELECT p.code, p.last_lat, p.last_lng, ps.endpoint, ps.p256dh, ps.auth
+     FROM live_followers lf
+     JOIN profiles p ON p.code = lf.follower_code
+     LEFT JOIN push_subscriptions ps ON ps.code = p.code
+     WHERE lf.live_spot_id = $1 AND ps.endpoint IS NOT NULL`,
+    [spot.id],
+  );
+  const payload = JSON.stringify({
+    title: `📡 ${spot.name} ist jetzt live!`,
+    body: spot.location_note || "Tippe um den Standort zu sehen.",
+    url: `/live-spot.html?id=${spot.id}`,
+    tag: `live-${spot.id}`,
+  });
+  for (const f of followers) {
+    // Push nur wenn Follower Standort bekannt und innerhalb 10km
+    if (f.last_lat && f.last_lng) {
+      const km = liveHaversineKm(
+        +f.last_lat,
+        +f.last_lng,
+        +spot.lat,
+        +spot.lng,
+      );
+      if (km > 10) continue;
+    }
+    webpush
+      .sendNotification(
+        { endpoint: f.endpoint, keys: { p256dh: f.p256dh, auth: f.auth } },
+        payload,
+      )
+      .catch(async (err) => {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await pool
+            .query("DELETE FROM push_subscriptions WHERE endpoint=$1", [
+              f.endpoint,
+            ])
+            .catch(() => {});
+        }
+      });
+  }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PING & START
