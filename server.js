@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v7.1 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v7.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -347,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v7.1 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v7.2 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -4008,6 +4008,71 @@ async function sendLivePush(spot) {
       });
   }
 }
+
+// API Route zu SumUp
+
+const crypto = require("crypto"); // falls noch nicht importiert
+
+// ── DONATIONS ──────────────────────────────────────────────────────────────
+
+app.post("/api/donate/checkout", async (req, res) => {
+  const amount = parseFloat(req.body.amount);
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "Ungültiger Betrag" });
+  }
+
+  const reference = crypto.randomUUID();
+
+  try {
+    const r = await fetch("https://api.sumup.com/v0.1/checkouts", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.SUMUP_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        checkout_reference: reference,
+        amount: amount,
+        currency: "EUR",
+        merchant_code: process.env.SUMUP_MERCHANT_CODE,
+        description: "SpotMe Caching · Spende",
+        return_url: "https://spotme-caching.github.io/?donation=danke",
+        callback_url:
+          "https://spotme-chat-obom.onrender.com/api/donate/callback",
+        hosted_checkout: { enabled: true },
+      }),
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      console.error("SumUp Checkout Fehler:", data);
+      return res.status(502).json({ error: "SumUp nicht erreichbar" });
+    }
+
+    await pool.query(
+      "INSERT INTO donations (reference, amount, status) VALUES ($1, $2, $3)",
+      [reference, amount, "pending"],
+    );
+
+    res.json({ url: data.hosted_checkout.url });
+  } catch (err) {
+    console.error("Checkout-Fehler:", err);
+    res.status(500).json({ error: "Server-Fehler" });
+  }
+});
+
+app.post("/api/donate/callback", async (req, res) => {
+  const { id, checkout_reference, status } = req.body;
+  try {
+    await pool.query(
+      "UPDATE donations SET status = $1, sumup_id = $2 WHERE reference = $3",
+      [status, id, checkout_reference],
+    );
+  } catch (err) {
+    console.error("Callback-Fehler:", err);
+  }
+  res.sendStatus(200); // SumUp braucht immer ein 200, sonst wiederholt's den Call
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PING & START
