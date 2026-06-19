@@ -4011,8 +4011,6 @@ async function sendLivePush(spot) {
 
 // API Route zu SumUp
 
-const crypto = require("crypto");
-
 // ── DONATIONS ──────────────────────────────────────────────────────────────
 
 app.post("/api/donate/checkout", async (req, res) => {
