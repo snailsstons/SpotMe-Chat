@@ -4011,7 +4011,7 @@ async function sendLivePush(spot) {
 
 // API Route zu SumUp
 
-const crypto = require("crypto"); // falls noch nicht importiert
+const crypto = require("crypto");
 
 // ── DONATIONS ──────────────────────────────────────────────────────────────
 
