@@ -2199,6 +2199,7 @@ app.get("/api/userspots/:code", async (req, res) => {
               image,           -- immer zurückgeben, nicht nach Status filtern
               image_status,    -- Frontend kann den Status selbst anzeigen
               active,
+              area_type, time_pref, crowd_level, intimacy_level,
               created_at
        FROM user_spots
        WHERE code = $1
@@ -4035,7 +4036,8 @@ app.post("/api/donate/checkout", async (req, res) => {
         merchant_code: process.env.SUMUP_MERCHANT_CODE,
         description: "SpotMe Caching · Spende",
         return_url: "https://spotme-caching.github.io/?donation=danke",
-        callback_url: "https://spotme-chat-obom.onrender.com/api/donate/callback",
+        callback_url:
+          "https://spotme-chat-obom.onrender.com/api/donate/callback",
         hosted_checkout: { enabled: true },
       }),
     });
