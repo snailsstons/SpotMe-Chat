@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v7.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v7.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -347,7 +347,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v7.2 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v7.0 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -3952,12 +3952,10 @@ app.post("/api/location/update", async (req, res) => {
   try {
     if (!(await authCheck(code, token)))
       return res.status(403).json({ error: "Ungültiger Token" });
-
     await pool.query(
-      "UPDATE profiles SET last_lat=$1, last_lng=$2, last_seen=$3 WHERE code=$4",
-      [lat, lng, Date.now(), code],
+      "UPDATE profiles SET last_lat=$1, last_lng=$2, last_seen=NOW() WHERE code=$3",
+      [lat, lng, code],
     );
-
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: "Datenbankfehler" });
@@ -4009,12 +4007,13 @@ async function sendLivePush(spot) {
   }
 }
 
-// API Route zu SumUp
-
-// ── DONATIONS ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// DONATIONS
+// ══════════════════════════════════════════════════════════════════════════════
 
 app.post("/api/donate/checkout", async (req, res) => {
   const amount = parseFloat(req.body.amount);
+  console.log("Empfangener Betrag:", req.body.amount, typeof req.body.amount, "| Body komplett:", req.body);
   if (!amount || amount <= 0) {
     return res.status(400).json({ error: "Ungültiger Betrag" });
   }
@@ -4069,7 +4068,7 @@ app.post("/api/donate/callback", async (req, res) => {
   } catch (err) {
     console.error("Callback-Fehler:", err);
   }
-  res.sendStatus(200); // SumUp braucht immer ein 200, sonst wiederholt's den Call
+  res.sendStatus(200);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
