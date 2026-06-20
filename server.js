@@ -2358,7 +2358,7 @@ app.delete("/api/checkins/public/:id", async (req, res) => {
 // 🟠 Spot bearbeiten
 app.put("/api/userspots/:id", async (req, res) => {
   const { id } = req.params;
-  const { code, name, description, wishTag, image } = req.body;
+  const { code, name, description, wishTag, image, area_type } = req.body;
   if (!code || !name || !wishTag) {
     return res.status(400).json({ error: "code, name, wishTag erforderlich" });
   }
@@ -2378,21 +2378,21 @@ app.put("/api/userspots/:id", async (req, res) => {
       // Das neue Bild muss vom Admin erneut freigegeben werden
       await pool.query(
         `UPDATE user_spots
-         SET name=$1, description=$2, wish_tag=$3, image=$4, image_status='pending'
-         WHERE id=$5`,
-        [name, description || null, wishTag, image, id],
+         SET name=$1, description=$2, wish_tag=$3, image=$4, image_status='pending', area_type=$5
+         WHERE id=$6`,
+        [name, description || null, wishTag, image, area_type || null, id],
       );
     } else {
-      // Kein neues Bild → name/description/wishTag aktualisieren,
+      // Kein neues Bild → name/description/wishTag/area_type aktualisieren,
       // aber image und image_status NICHT anfassen.
       // Das ist der Schutz vor dem "versehentlichen Löschen" –
       // wenn das Frontend beim Bearbeiten image=null schickt weil es
       // das pending-Bild nicht kennt, bleibt das Bild trotzdem erhalten.
       await pool.query(
         `UPDATE user_spots
-         SET name=$1, description=$2, wish_tag=$3
-         WHERE id=$4`,
-        [name, description || null, wishTag, id],
+         SET name=$1, description=$2, wish_tag=$3, area_type=$4
+         WHERE id=$5`,
+        [name, description || null, wishTag, area_type || null, id],
       );
     }
     res.json({ success: true });
