@@ -4011,7 +4011,6 @@ async function sendLivePush(spot) {
 // DONATIONS
 // ══════════════════════════════════════════════════════════════════════════════
 
-
 app.post("/api/donate/checkout", async (req, res) => {
   const amount = parseFloat(req.body.amount);
   console.log("Empfangener Betrag:", req.body.amount, typeof req.body.amount);
@@ -4055,63 +4054,13 @@ app.post("/api/donate/checkout", async (req, res) => {
       [reference, amount, "pending"],
     );
 
-    res.json({ url: data.hosted_checkout.url });
+    res.json({ url: data.hosted_checkout_url });
   } catch (err) {
     console.error("Checkout-Fehler:", err.message, err.stack); // ← erweitert
     res.status(500).json({ error: "Server-Fehler" });
   }
 });
 
-
-app.post("/api/donate/checkout", async (req, res) => {
-  const amount = parseFloat(req.body.amount);
-  console.log("Empfangener Betrag:", req.body.amount, typeof req.body.amount);
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ error: "Ungültiger Betrag" });
-  }
-
-  const reference = crypto.randomUUID();
-
-  try {
-    console.log("Starte SumUp-Request..."); // ← neu
-    const r = await fetch("https://api.sumup.com/v0.1/checkouts", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.SUMUP_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        checkout_reference: reference,
-        amount: amount,
-        currency: "EUR",
-        merchant_code: process.env.SUMUP_MERCHANT_CODE,
-        description: "SpotMe Caching · Spende",
-        return_url: "https://spotme-caching.github.io/?donation=danke",
-        callback_url: "https://spotme-chat-obom.onrender.com/api/donate/callback",
-        hosted_checkout: { enabled: true },
-      }),
-    });
-
-    console.log("SumUp Antwort erhalten, Status:", r.status); // ← neu
-    const data = await r.json();
-    console.log("SumUp Antwort-Body:", JSON.stringify(data)); // ← neu
-
-    if (!r.ok) {
-      console.error("SumUp Checkout Fehler:", data);
-      return res.status(502).json({ error: "SumUp nicht erreichbar" });
-    }
-
-    await pool.query(
-      "INSERT INTO donations (reference, amount, status) VALUES ($1, $2, $3)",
-      [reference, amount, "pending"],
-    );
-
-    res.json({ url: data.hosted_checkout.url });
-  } catch (err) {
-    console.error("Checkout-Fehler:", err.message, err.stack); // ← erweitert
-    res.status(500).json({ error: "Server-Fehler" });
-  }
-});
 // ══════════════════════════════════════════════════════════════════════════════
 // PING & START
 // ══════════════════════════════════════════════════════════════════════════════
