@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v8.0 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v8.1 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -190,6 +190,33 @@ async function initDB() {
     );
   `);
 
+  // ── WayPoint-Erweiterung: Fragetypen + Coins ──────────────────────
+  await pool.query(`
+  ALTER TABLE wp_waypoints ADD COLUMN IF NOT EXISTS question_type TEXT NOT NULL DEFAULT 'multiple_choice'
+    CHECK (question_type IN ('multiple_choice','freitext','foto'));
+  ALTER TABLE wp_waypoints ALTER COLUMN option_a DROP NOT NULL;
+  ALTER TABLE wp_waypoints ALTER COLUMN option_b DROP NOT NULL;
+  ALTER TABLE wp_waypoints ALTER COLUMN option_c DROP NOT NULL;
+  ALTER TABLE wp_waypoints ALTER COLUMN correct_option DROP NOT NULL;
+  ALTER TABLE wp_waypoints ADD COLUMN IF NOT EXISTS correct_text TEXT;
+`);
+
+  await pool.query(`
+  ALTER TABLE profiles ADD COLUMN IF NOT EXISTS coins INTEGER NOT NULL DEFAULT 0;
+`);
+
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS coin_transactions (
+    id         SERIAL PRIMARY KEY,
+    code       TEXT NOT NULL,
+    amount     INTEGER NOT NULL,
+    reason     TEXT NOT NULL,
+    route_id   INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_ctx_code ON coin_transactions(code);
+`);
+
   // Verifikationen
   await pool.query(`
     CREATE TABLE IF NOT EXISTS verifications (
@@ -347,7 +374,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v8.0 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v8.1 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -3336,8 +3363,8 @@ app.post("/api/wp/routes/:id/start", async (req, res) => {
 
     // Ersten noch offenen WayPoint liefern
     const wp = await pool.query(
-      `SELECT id, order_index, lat, lng, question, option_a, option_b, option_c
-       FROM wp_waypoints WHERE route_id=$1 AND order_index=$2`,
+      `SELECT id, order_index, lat, lng, question, question_type, option_a, option_b, option_c
+       FROM wp_waypoints WHERE route_id=\$1 AND order_index=\$2`,
       [routeId, prog.rows[0].current_index],
     );
     if (!wp.rows.length)
@@ -3369,20 +3396,38 @@ app.post("/api/wp/routes/:id/start", async (req, res) => {
   }
 });
 
+app.get("/api/coins/:code", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT coins FROM profiles WHERE code=\$1 LIMIT 1",
+      [req.params.code],
+    );
+    res.json({ coins: rows[0]?.coins || 0 });
+  } catch (e) {
+    console.error("GET /api/coins/:code:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
 // ── Antwort einreichen → gibt nächsten WayPoint oder Completion zurück ────────
+
 app.post("/api/wp/routes/:id/answer", async (req, res) => {
   const { player_code, waypoint_index, answer } = req.body;
   const routeId = +req.params.id;
-  if (!player_code || waypoint_index == null || !answer) {
+  if (
+    !player_code ||
+    waypoint_index == null ||
+    answer == null ||
+    answer === ""
+  ) {
     return res
       .status(400)
       .json({ error: "player_code, waypoint_index, answer erforderlich" });
   }
 
   try {
-    // Fortschritt prüfen – verhindert Springen
     const prog = await pool.query(
-      "SELECT * FROM wp_progress WHERE route_id=$1 AND player_code=$2",
+      "SELECT * FROM wp_progress WHERE route_id=\$1 AND player_code=\$2",
       [routeId, player_code],
     );
     if (!prog.rows.length)
@@ -3391,71 +3436,101 @@ app.post("/api/wp/routes/:id/answer", async (req, res) => {
       return res.status(409).json({ error: "Falscher WayPoint-Index" });
     }
 
-    // Richtige Antwort server-seitig prüfen (nie im Client!)
     const wp = await pool.query(
-      "SELECT * FROM wp_waypoints WHERE route_id=$1 AND order_index=$2",
+      "SELECT * FROM wp_waypoints WHERE route_id=\$1 AND order_index=\$2",
       [routeId, +waypoint_index],
     );
     if (!wp.rows.length)
       return res.status(404).json({ error: "WayPoint nicht gefunden" });
 
-    if (answer.toLowerCase() !== wp.rows[0].correct_option) {
+    const waypoint = wp.rows[0];
+    let isCorrect;
+    if (waypoint.question_type === "freitext") {
+      isCorrect =
+        answer.trim().toLowerCase() ===
+        (waypoint.correct_text || "").trim().toLowerCase();
+    } else {
+      isCorrect = answer.toLowerCase() === waypoint.correct_option;
+    }
+
+    if (!isCorrect) {
       return res.json({ correct: false });
     }
 
-    // Richtig! → nächsten Index berechnen
+    const routeRow = await pool.query(
+      "SELECT difficulty FROM wp_routes WHERE id=\$1",
+      [routeId],
+    );
+    const difficulty = routeRow.rows[0]?.difficulty || 1;
+
+    const wpCoins = difficulty * 10;
+    await pool.query(
+      "UPDATE profiles SET coins = coins + \$1 WHERE code = \$2",
+      [wpCoins, player_code],
+    );
+    await pool.query(
+      "INSERT INTO coin_transactions (code, amount, reason, route_id) VALUES (\$1,\$2,\$3,\$4)",
+      [player_code, wpCoins, "waypoint_solved", routeId],
+    );
+
     const nextIndex = +waypoint_index + 1;
     const total = await pool.query(
-      "SELECT COUNT(*)::int AS cnt FROM wp_waypoints WHERE route_id=$1",
+      "SELECT COUNT(*)::int AS cnt FROM wp_waypoints WHERE route_id=\$1",
       [routeId],
     );
     const isLast = nextIndex >= total.rows[0].cnt;
 
     if (isLast) {
-      // Route abgeschlossen – Zeit berechnen und speichern
       const timeSec = Math.round((Date.now() - prog.rows[0].started_at) / 1000);
       await pool.query(
-        `
-        INSERT INTO wp_completions (route_id, player_code, time_seconds)
-        VALUES ($1,$2,$3)
-        ON CONFLICT (route_id, player_code) DO UPDATE SET
-          time_seconds = LEAST(EXCLUDED.time_seconds, wp_completions.time_seconds),
-          completed_at = NOW()
-      `,
+        `INSERT INTO wp_completions (route_id, player_code, time_seconds)
+         VALUES (\$1,\$2,\$3)
+         ON CONFLICT (route_id, player_code) DO UPDATE SET
+           time_seconds = LEAST(EXCLUDED.time_seconds, wp_completions.time_seconds),
+           completed_at = NOW()`,
         [routeId, player_code, timeSec],
       );
       await pool.query(
-        "DELETE FROM wp_progress WHERE route_id=$1 AND player_code=$2",
+        "DELETE FROM wp_progress WHERE route_id=\$1 AND player_code=\$2",
         [routeId, player_code],
       );
 
-      // Rang berechnen
+      const bonusCoins = difficulty * 50;
+      await pool.query(
+        "UPDATE profiles SET coins = coins + \$1 WHERE code = \$2",
+        [bonusCoins, player_code],
+      );
+      await pool.query(
+        "INSERT INTO coin_transactions (code, amount, reason, route_id) VALUES (\$1,\$2,\$3,\$4)",
+        [player_code, bonusCoins, "route_completed", routeId],
+      );
+
       const rank = await pool.query(
         `SELECT COUNT(*)::int + 1 AS rank FROM wp_completions
-         WHERE route_id=$1 AND time_seconds < $2`,
+         WHERE route_id=\$1 AND time_seconds < \$2`,
         [routeId, timeSec],
       );
 
       console.log(
-        `🏆 WayPoint abgeschlossen: ${player_code} Route ${routeId} in ${timeSec}s`,
+        `🏆 WayPoint abgeschlossen: \${player_code} Route \${routeId} in \${timeSec}s (+\${wpCoins + bonusCoins} Coins)`,
       );
       return res.json({
         correct: true,
         completed: true,
         time_seconds: timeSec,
         rank: rank.rows[0].rank,
+        coins_earned: wpCoins + bonusCoins,
       });
     }
 
-    // Noch nicht fertig → Fortschritt aktualisieren + nächsten WayPoint liefern
     await pool.query(
-      `UPDATE wp_progress SET current_index=$1, last_activity_at=$2
-       WHERE route_id=$3 AND player_code=$4`,
+      `UPDATE wp_progress SET current_index=\$1, last_activity_at=\$2
+       WHERE route_id=\$3 AND player_code=\$4`,
       [nextIndex, Date.now(), routeId, player_code],
     );
     const nextWp = await pool.query(
-      `SELECT id, order_index, lat, lng, question, option_a, option_b, option_c
-       FROM wp_waypoints WHERE route_id=$1 AND order_index=$2`,
+      `SELECT id, order_index, lat, lng, question, question_type, option_a, option_b, option_c
+       FROM wp_waypoints WHERE route_id=\$1 AND order_index=\$2`,
       [routeId, nextIndex],
     );
 
@@ -3465,6 +3540,7 @@ app.post("/api/wp/routes/:id/answer", async (req, res) => {
       next_waypoint: nextWp.rows[0],
       current_index: nextIndex,
       total: total.rows[0].cnt,
+      coins_earned: wpCoins,
     });
   } catch (e) {
     console.error("POST /api/wp/routes/:id/answer:", e.message);
@@ -3560,6 +3636,7 @@ app.post("/api/wp/routes", async (req, res) => {
 });
 
 // ── WayPoint hinzufügen ──────────────────────────────────────────────────────
+
 app.post("/api/wp/routes/:id/waypoints", async (req, res) => {
   const {
     code,
@@ -3567,41 +3644,50 @@ app.post("/api/wp/routes/:id/waypoints", async (req, res) => {
     lat,
     lng,
     question,
+    question_type = "multiple_choice",
     option_a,
     option_b,
     option_c,
     correct_option,
+    correct_text,
   } = req.body;
   const routeId = +req.params.id;
-  if (
-    !code ||
-    !token ||
-    !lat ||
-    !lng ||
-    !question ||
-    !option_a ||
-    !option_b ||
-    !option_c ||
-    !correct_option
-  ) {
-    return res.status(400).json({ error: "Alle Felder erforderlich" });
+
+  if (!code || !token || !lat || !lng || !question) {
+    return res.status(400).json({ error: "Grunddaten erforderlich" });
   }
-  if (!["a", "b", "c"].includes(correct_option)) {
-    return res
-      .status(400)
-      .json({ error: "correct_option muss a, b oder c sein" });
+  if (!["multiple_choice", "freitext"].includes(question_type)) {
+    return res.status(400).json({ error: "Ungültiger Fragetyp" });
   }
+  if (question_type === "multiple_choice") {
+    if (!option_a || !option_b || !option_c || !correct_option) {
+      return res
+        .status(400)
+        .json({ error: "Alle 3 Optionen + richtige Antwort erforderlich" });
+    }
+    if (!["a", "b", "c"].includes(correct_option)) {
+      return res
+        .status(400)
+        .json({ error: "correct_option muss a, b oder c sein" });
+    }
+  } else if (question_type === "freitext") {
+    if (!correct_text || !correct_text.trim()) {
+      return res
+        .status(400)
+        .json({ error: "Richtige Antwort (Freitext) erforderlich" });
+    }
+  }
+
   try {
     const auth = await pool.query(
-      "SELECT token FROM profiles WHERE code=$1 AND token IS NOT NULL",
+      "SELECT token FROM profiles WHERE code=\$1 AND token IS NOT NULL",
       [code],
     );
     if (!auth.rows.length || !auth.rows.some((r) => r.token === token)) {
       return res.status(403).json({ error: "Ungültiger Token" });
     }
-    // Gehört die Route diesem Nutzer?
     const owns = await pool.query(
-      "SELECT id FROM wp_routes WHERE id=$1 AND code=$2 AND published=false",
+      "SELECT id FROM wp_routes WHERE id=\$1 AND code=\$2 AND published=false",
       [routeId, code],
     );
     if (!owns.rows.length)
@@ -3609,25 +3695,26 @@ app.post("/api/wp/routes/:id/waypoints", async (req, res) => {
         .status(403)
         .json({ error: "Route nicht gefunden oder bereits veröffentlicht" });
 
-    // Nächsten order_index berechnen
     const cnt = await pool.query(
-      "SELECT COUNT(*)::int AS n FROM wp_waypoints WHERE route_id=$1",
+      "SELECT COUNT(*)::int AS n FROM wp_waypoints WHERE route_id=\$1",
       [routeId],
     );
     const { rows } = await pool.query(
       `INSERT INTO wp_waypoints
-         (route_id, order_index, lat, lng, question, option_a, option_b, option_c, correct_option)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, order_index`,
+         (route_id, order_index, lat, lng, question, question_type, option_a, option_b, option_c, correct_option, correct_text)
+       VALUES (\$1,\$2,\$3,\$4,\$5,\$6,\$7,\$8,\$9,\$10,\$11) RETURNING id, order_index`,
       [
         routeId,
         cnt.rows[0].n,
         lat,
         lng,
         question.slice(0, 300),
-        option_a.slice(0, 120),
-        option_b.slice(0, 120),
-        option_c.slice(0, 120),
-        correct_option,
+        question_type,
+        question_type === "multiple_choice" ? option_a.slice(0, 120) : null,
+        question_type === "multiple_choice" ? option_b.slice(0, 120) : null,
+        question_type === "multiple_choice" ? option_c.slice(0, 120) : null,
+        question_type === "multiple_choice" ? correct_option : null,
+        question_type === "freitext" ? correct_text.trim().slice(0, 200) : null,
       ],
     );
     res.json({ success: true, waypoint: rows[0] });
