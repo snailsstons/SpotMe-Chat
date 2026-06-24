@@ -3840,7 +3840,7 @@ app.post("/api/live-spots", async (req, res) => {
 app.get("/api/live-spots", async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, token, name, description, category, avatar,
+      `SELECT id, token, creator_code, name, description, category, avatar,
               status, lat, lng, location_note, follower_count, updated_at
        FROM live_spots WHERE status = 'online' ORDER BY updated_at DESC`,
     );
@@ -3895,7 +3895,7 @@ app.get("/api/live-spots/:id", async (req, res) => {
   try {
     const col = isNaN(req.params.id) ? "token" : "id";
     const { rows } = await pool.query(
-      `SELECT id, token, name, description, category, avatar,
+      `SELECT id, token, creator_code, name, description, category, avatar,
               status, lat, lng, location_note, follower_count, updated_at
        FROM live_spots WHERE ${col}=$1`,
       [req.params.id],
