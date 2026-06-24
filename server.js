@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// SPOTME SERVER v8.2 – PostgreSQL (inkl. SpotCache & Messenger Invites)
+// SPOTME SERVER v8.4 – PostgreSQL (inkl. SpotCache & Messenger Invites)
 //
 // Features:
 //   • 24h Offline-Sichtbarkeit  → visible_until Timestamp pro Profil
@@ -374,7 +374,7 @@ async function initDB() {
         `ALTER TABLE user_spots ADD COLUMN IF NOT EXISTS image_status TEXT DEFAULT 'pending'`,
       )
       .catch(() => {});
-    console.log("✅ v8.2 – Alle Spalten bereit (inkl. SpotCache)");
+    console.log("✅ v8.4 – Alle Spalten bereit (inkl. SpotCache)");
   } catch (e) {
     console.log(
       "ℹ️ Spalten existieren bereits oder konnten nicht angelegt werden",
@@ -3569,6 +3569,35 @@ app.get("/api/wp/routes/:id/score", async (req, res) => {
   }
 });
 
+app.get("/api/wp/stats/:code", async (req, res) => {
+  const { code } = req.params;
+  try {
+    const coinsRow = await pool.query(
+      "SELECT coins FROM profiles WHERE code=$1",
+      [code],
+    );
+    const coins = coinsRow.rows[0]?.coins || 0;
+
+    const completions = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM wp_completions WHERE player_code=$1",
+      [code],
+    );
+    const waypointsSolved = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM coin_transactions WHERE code=$1 AND reason='waypoint_solved'",
+      [code],
+    );
+
+    res.json({
+      coins,
+      routes_completed: completions.rows[0].n,
+      waypoints_solved: waypointsSolved.rows[0].n,
+    });
+  } catch (e) {
+    console.error("GET /api/wp/stats/:code:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
 // ── Meine Routen + Fortschritt ───────────────────────────────────────────────
 app.get("/api/wp/my", async (req, res) => {
   const { code, token } = req.query;
@@ -3832,6 +3861,34 @@ app.post("/api/live-spots", async (req, res) => {
     res.json({ success: true, spot: rows[0] });
   } catch (e) {
     console.error("POST /api/live-spots:", e.message);
+    res.status(500).json({ error: "Datenbankfehler" });
+  }
+});
+
+// Neue Route in server.js, neben den anderen live-spots Routen
+app.delete("/api/live-spots/:id", async (req, res) => {
+  const { code, token } = req.body;
+  if (!code || !token)
+    return res.status(400).json({ error: "code + token erforderlich" });
+  try {
+    if (!(await authCheck(code, token)))
+      return res.status(403).json({ error: "Ungültiger Token" });
+    const check = await pool.query(
+      "SELECT id FROM live_spots WHERE id=$1 AND creator_code=$2",
+      [req.params.id, code],
+    );
+    if (!check.rows.length)
+      return res
+        .status(404)
+        .json({ error: "Nicht gefunden oder keine Berechtigung" });
+
+    await pool.query("DELETE FROM live_followers WHERE live_spot_id=$1", [
+      req.params.id,
+    ]);
+    await pool.query("DELETE FROM live_spots WHERE id=$1", [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "Datenbankfehler" });
   }
 });
